@@ -29,6 +29,13 @@ public sealed record DocxPage(
 public static class DocxWriter
 {
     private const double DefaultMargin = 54; // Points (0.75 inch).
+
+    /// <summary>
+    /// The paragraph a cell with no text must still hold, one point tall: Word's usual empty line (some 13 points)
+    /// would make the thin rows of a chart's frame, and so the page, taller than on the PDF.
+    /// </summary>
+    private const string EmptyCellParagraph =
+        "<w:p><w:pPr><w:spacing w:before=\"0\" w:after=\"0\" w:line=\"20\" w:lineRule=\"exact\"/><w:rPr><w:sz w:val=\"2\"/><w:szCs w:val=\"2\"/></w:rPr></w:pPr></w:p>";
     private const string WordNs = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
     private const string RelNs = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 
@@ -188,14 +195,16 @@ public static class DocxWriter
             {
                 var p = footer.Paragraph;
                 var frame = FormattableString.Invariant(
-                    $"<w:framePr w:w=\"{Twips(pageWidth - p.Left - 8)}\" w:hAnchor=\"page\" w:vAnchor=\"page\" w:x=\"{Twips(p.Left)}\" w:y=\"{Twips(Math.Max(0, p.Top - 4))}\" w:wrap=\"around\"/>");
+                    $"<w:framePr w:w=\"{Twips(pageWidth - p.Left - 8)}\" w:hAnchor=\"page\" w:vAnchor=\"page\" w:x=\"{Twips(p.Left)}\" w:y=\"{Twips(Math.Max(0, p.Top - 4))}\" w:wrap=\"none\"/>");
                 Body.Append(Paragraph(p, false, 0, 0, null, tabOrigin: p.Left, frame: frame));
             }
 
             var pitches = LinePitches(blocks.OfType<LayoutParagraph>().Select(b => b.Paragraph).ToList());
             var flowY = margins.Top + 1;
-            foreach (var block in blocks.Where(b => b is not LayoutPicture && !footers.Contains(b)))
+            var flow = blocks.Where(b => b is not LayoutPicture && !footers.Contains(b)).ToList();
+            for (var index = 0; index < flow.Count; index++)
             {
+                var block = flow[index];
                 var space = Math.Max(0, block.Top - flowY);
                 var indent = Math.Clamp(block.Left - margins.Left, 0, Math.Max(0, width - 24));
                 double height;
@@ -203,6 +212,15 @@ public static class DocxWriter
                 {
                     case LayoutParagraph { Paragraph: var paragraph }:
                         var pitch = paragraph.LinePitch > 0 ? paragraph.LinePitch : pitches.GetValueOrDefault(SizeKey(paragraph.FontSize));
+
+                        // A single line followed sooner than the page's usual line distance (a note under a table, the line
+                        // before one) takes only that room, or the rest of the page moves down and can run over.
+                        if (paragraph.LineCount == 1 && index + 1 < flow.Count && flow[index + 1].Top - block.Top is var gap
+                            && gap < pitch && gap >= paragraph.FontSize * 1.05)
+                        {
+                            pitch = gap;
+                        }
+
                         double? exact = pitch >= paragraph.FontSize * 1.05 ? pitch : null;
                         var aligned = paragraph.Centered || paragraph.RightAligned;
                         var (rightIndent, scale) = paragraph.Centered ? (0, 100) : KeepOnOneLine(paragraph, pageWidth);
@@ -268,6 +286,22 @@ public static class DocxWriter
         private static double SizeKey(double size) => Math.Round(size * 2) / 2;
 
         /// <summary>Blocks in a table cell, top to bottom; indents are measured from <paramref name="left"/>.</summary>
+        /// <summary>
+        /// Word ignores "no wrap" in a table of fixed column widths, so a one-line cell whose text fills most of its
+        /// width on the PDF would wrap in a font Word puts in for a missing one, and make its row taller: such text
+        /// is narrowed a little (character width in percent), leaving room for a font about an eighth wider.
+        /// </summary>
+        private static int CellScale(TextParagraph paragraph, double room)
+        {
+            var width = paragraph.Right - paragraph.Left;
+            if (paragraph.LineCount != 1 || width <= 0 || room <= 0 || width * 1.12 <= room)
+            {
+                return 100;
+            }
+
+            return Math.Clamp((int)(100 * room / (width * 1.12)), 75, 100);
+        }
+
         private void CellBlocks(
             IReadOnlyList<LayoutBlock> blocks, IReadOnlyDictionary<LayoutPicture, DocxImage>? images, double width, double height, double maxHeight, double left)
         {
@@ -293,7 +327,7 @@ public static class DocxWriter
                             : fitting;
                         pitch = Math.Clamp(Math.Min(pitch, fitting), paragraph.FontSize * 1.05, paragraph.FontSize * 1.5);
                         var aligned = paragraph.Centered || paragraph.RightAligned;
-                        Body.Append(Paragraph(paragraph, false, space, aligned ? 0 : indent, pitch, tabOrigin: left));
+                        Body.Append(Paragraph(paragraph, false, space, aligned ? 0 : indent, pitch, scale: CellScale(paragraph, width - (aligned ? 0 : indent)), tabOrigin: left));
                         blockHeight = paragraph.LineCount * pitch;
                         break;
                     case LayoutPicture picture when images is not null && images.TryGetValue(picture, out var image):
@@ -310,7 +344,7 @@ public static class DocxWriter
 
             if (!wrote)
             {
-                Body.Append("<w:p/>"); // A cell must hold a paragraph.
+                Body.Append(EmptyCellParagraph); // A cell must hold a paragraph.
             }
         }
 
@@ -358,7 +392,7 @@ public static class DocxWriter
                 {
                     if (!cellAt.TryGetValue((r, c), out var cell))
                     {
-                        Body.Append(CultureInfo.InvariantCulture, $"<w:tc><w:tcPr><w:tcW w:w=\"{Twips(columns[c])}\" w:type=\"dxa\"/></w:tcPr><w:p/></w:tc>");
+                        Body.Append(CultureInfo.InvariantCulture, $"<w:tc><w:tcPr><w:tcW w:w=\"{Twips(columns[c])}\" w:type=\"dxa\"/></w:tcPr>{EmptyCellParagraph}</w:tc>");
                         c++;
                         continue;
                     }
@@ -398,7 +432,7 @@ public static class DocxWriter
                     }
                     else
                     {
-                        Body.Append("<w:p/>");
+                        Body.Append(EmptyCellParagraph);
                     }
 
                     Body.Append("</w:tc>");

@@ -542,12 +542,53 @@ public static class PageLayout
         }
 
         RunOverEmptyCells(built, columns);
+        SpanLoneValues(built, rows);
         return new LayoutTable(
             columns[0],
             rows[0],
             Enumerable.Range(0, columnCount).Select(c => columns[c + 1] - columns[c]).ToList(),
             Enumerable.Range(0, rowCount).Select(r => rows[r + 1] - rows[r]).ToList(),
             built);
+    }
+
+    /// <summary>
+    /// A value set in the middle of several rows with no line between them ("55.93" beside the two rows of the
+    /// column next to it) becomes one cell over those rows, as it looks on the page. As a cell of its own thin row
+    /// it would not fit its text in Word, which makes the row, and the page, taller.
+    /// </summary>
+    private static void SpanLoneValues(List<LayoutCell> cells, IReadOnlyList<double> rows)
+    {
+        LayoutCell? At(int row, int column) =>
+            cells.FirstOrDefault(c => c.Row == row && c.Column == column && c is { RowSpan: 1, ColumnSpan: 1 });
+
+        foreach (var cell in cells.Where(c => c is { RowSpan: 1, ColumnSpan: 1, Content.Count: > 0 }).ToList())
+        {
+            int first = cell.Row, last = cell.Row;
+            while (At(first - 1, cell.Column) is { Content.Count: 0 } above && !above.Borders.HasFlag(CellBorders.Bottom)
+                && !At(first, cell.Column)!.Borders.HasFlag(CellBorders.Top))
+            {
+                first--;
+            }
+
+            while (At(last + 1, cell.Column) is { Content.Count: 0 } below && !below.Borders.HasFlag(CellBorders.Top)
+                && !At(last, cell.Column)!.Borders.HasFlag(CellBorders.Bottom))
+            {
+                last++;
+            }
+
+            // Only where the value sits in the middle of those rows, as a value set over them does.
+            var middle = (cell.Content.Min(b => b.Top) + cell.Content.Max(b => b.Bottom)) / 2;
+            if (first == cell.Row || last == cell.Row
+                || Math.Abs(middle - ((rows[first] + rows[last + 1]) / 2)) > (rows[last + 1] - rows[first]) * 0.2)
+            {
+                continue;
+            }
+
+            var borders = (At(first, cell.Column)!.Borders & CellBorders.Top) | (At(last, cell.Column)!.Borders & CellBorders.Bottom)
+                | (cell.Borders & (CellBorders.Left | CellBorders.Right));
+            cells.RemoveAll(c => c.Column == cell.Column && c.Row >= first && c.Row <= last && c is { RowSpan: 1, ColumnSpan: 1 });
+            cells.Add(cell with { Row = first, RowSpan = last - first + 1, Borders = borders });
+        }
     }
 
     /// <summary>The share of a box covered by any of <paramref name="boxes"/>, measured on a grid of points.</summary>

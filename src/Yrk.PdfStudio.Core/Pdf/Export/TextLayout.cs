@@ -61,10 +61,43 @@ public static class TextLayout
             }
         }
 
+        AttachRaisedMarks(rows);
         return rows
             .Select(row => (IReadOnlyList<PdfTextSpan>)row.OrderBy(s => s.X).ToList())
             .OrderBy(row => row.Min(s => s.Y))
             .ToList();
+    }
+
+    /// <summary>
+    /// A small raised or lowered mark ("®", "*", "2" of m²) barely overlaps its line, so it forms a line of its own,
+    /// which becomes an extra paragraph in Word and pushes the page over. A row of at most three such characters,
+    /// smaller than a line it touches and right after (or within) that line's text, joins that line.
+    /// </summary>
+    private static void AttachRaisedMarks(List<List<PdfTextSpan>> rows)
+    {
+        for (var i = rows.Count - 1; i >= 0; i--)
+        {
+            var row = rows[i];
+            if (row.Sum(s => s.Text.Trim().Length) is 0 or > 3)
+            {
+                continue;
+            }
+
+            var top = row.Min(s => s.Y);
+            var bottom = row.Max(s => s.Bottom);
+            var left = row.Min(s => s.X);
+            var size = row.Max(s => s.FontSize);
+            var host = rows.FirstOrDefault(other => other != row
+                && other.Max(s => s.FontSize) * 0.85 >= size
+                && bottom >= other.Min(s => s.Y) - (size * 0.5)
+                && top <= other.Max(s => s.Bottom)
+                && other.Any(s => left >= s.X - size && left <= s.X + s.Width + (size * 1.5)));
+            if (host is not null)
+            {
+                host.AddRange(row);
+                rows.RemoveAt(i);
+            }
+        }
     }
 
     /// <summary>The runs of one line, with a space or a tab where the gap between pieces asks for one.</summary>
