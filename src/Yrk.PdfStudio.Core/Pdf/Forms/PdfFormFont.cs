@@ -22,25 +22,36 @@ public sealed record PdfFormFont(string Name, byte[] Data, IReadOnlyDictionary<c
 
     /// <summary>
     /// The one-byte code of a character: ASCII as is, Thai at its TIS-620 place (U+0E01 → 0xA1), as Thai
-    /// fonts for Windows always have. Null for other characters.
+    /// fonts for Windows always have, and the no-break space at 0xA0 (Acrobat types it after a Thai word, and
+    /// draws a character the font has no code for as "•"). Null for other characters.
     /// </summary>
     public static int? Code(char c) => c switch
     {
         >= ' ' and <= '~' => c,
+        ' ' => 0xA0,
         >= 'ก' and <= '๛' => c - 0x0E00 + 0xA0,
         _ => null,
+    };
+
+    /// <summary>The character a code stands for: the reverse of <see cref="Code"/>; '\0' for unused codes.</summary>
+    private static char Character(int code) => code switch
+    {
+        < 0x7F => (char)code,
+        0xA0 => ' ',
+        > 0xA0 => (char)(code - 0xA0 + 0x0E00),
+        _ => '\0',
     };
 
     internal CosReference AddTo(CosIncrementalUpdate update)
     {
         var widths = new CosArray();
         var differences = new CosArray();
-        differences.Items.Add(new CosInteger(0xA1));
+        differences.Items.Add(new CosInteger(0xA0));
         for (var code = FirstCode; code <= LastCode; code++)
         {
-            var c = code < 0x7F ? (char)code : code >= 0xA1 ? (char)(code - 0xA0 + 0x0E00) : '\0';
+            var c = Character(code);
             widths.Items.Add(new CosReal(c != '\0' && Widths.TryGetValue(c, out var width) ? width : 0));
-            if (code >= 0xA1)
+            if (code >= 0xA0)
             {
                 differences.Items.Add(new CosName($"uni{(int)c:X4}"));
             }
@@ -82,6 +93,6 @@ public sealed record PdfFormFont(string Name, byte[] Data, IReadOnlyDictionary<c
         "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n" +
         "/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n" +
         "1 begincodespacerange\n<00> <FF>\nendcodespacerange\n" +
-        "2 beginbfrange\n<20> <7E> <0020>\n<A1> <FB> <0E01>\nendbfrange\n" +
+        "3 beginbfrange\n<20> <7E> <0020>\n<A0> <A0> <00A0>\n<A1> <FB> <0E01>\nendbfrange\n" +
         "endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n";
 }
