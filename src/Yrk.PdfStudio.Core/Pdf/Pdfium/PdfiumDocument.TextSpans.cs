@@ -278,8 +278,11 @@ internal sealed partial class PdfiumDocument
 
             style ??= charStyle;
 
-            // Where PDFium put a line break between letters on one line, a visible gap is a space.
-            if (skippedBreak && hasCharBox && current.Count > 0 && current[^1].C != ' ' && dl - End() > charStyle.Size * 0.25)
+            // Where PDFium put a line break between letters on one line, a visible gap is a space. So is one between
+            // Thai and Latin letters, which PDFium may join after a Thai mark ("ออมทรัพย์ KBANK" printed from Excel).
+            var scriptChange = current.FindLast(e => !e.Mark && e.C != ' ') is { C: not '\0' } previousLetter
+                && char.IsLetterOrDigit(previousLetter.C) && char.IsLetterOrDigit(c) && IsThai(previousLetter.C) != IsThai(c);
+            if ((skippedBreak || scriptChange) && hasCharBox && current.Count > 0 && current[^1].C != ' ' && dl - End() > charStyle.Size * 0.25)
             {
                 current.Add((' ', End(), End(), false));
             }
