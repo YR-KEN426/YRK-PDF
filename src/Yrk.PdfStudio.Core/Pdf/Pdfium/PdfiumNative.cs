@@ -339,6 +339,10 @@ internal static class PdfiumNative
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint FPDFAnnot_GetFormFieldValue(IntPtr form, IntPtr annot, byte[]? buffer, uint bufferLength);
 
+    /// <summary>The content of the annotation's appearance stream (<paramref name="mode"/> 0: normal), as UTF-16.</summary>
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint FPDFAnnot_GetAP(IntPtr annot, int mode, byte[]? buffer, uint bufferLength);
+
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern int FPDFAnnot_GetOptionCount(IntPtr form, IntPtr annot);
 

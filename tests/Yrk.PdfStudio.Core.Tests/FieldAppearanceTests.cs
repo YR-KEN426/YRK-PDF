@@ -69,6 +69,57 @@ public sealed class FieldAppearanceTests : IDisposable
         Assert.True(CountPixels(bitmap, PictureBox, (r, g, b) => r > 200 && g < 60 && b < 60) > 200, "The picture is not in its field.");
     }
 
+    [Fact]
+    public async Task A_saved_picture_is_found_and_can_be_removed()
+    {
+        var source = TestPdfFactory.CreateImageFieldPdf(Path.Combine(_folder.FullName, "photo.pdf"));
+        var box = new NormalizedRect(72 / 595.0, (842 - 600) / 842.0, 200 / 595.0, 100 / 842.0);
+        var red = new byte[20 * 10 * 4];
+        for (var i = 0; i < red.Length; i += 4)
+        {
+            red[i + 2] = 255; // BGRA
+            red[i + 3] = 255;
+        }
+
+        async Task<(PdfFormField Field, int RedPixels)> Open(string path)
+        {
+            await using var document = await _engine.OpenAsync(path);
+            var size = document.PageSizes[0];
+            var bitmap = await document.RenderPageAsync(0, (int)size.Width, (int)size.Height);
+            return ((await document.GetFormFieldsAsync(0)).Single(), CountPixels(bitmap, box, (r, g, b) => r > 200 && g < 60 && b < 60));
+        }
+
+        var empty = await Open(source);
+        Assert.Equal(PdfFormFieldType.PushButton, empty.Field.Type);
+        Assert.False(empty.Field.HasPicture);
+
+        var withPicture = Path.Combine(_folder.FullName, "with-picture.pdf");
+        File.WriteAllBytes(withPicture, PdfFieldAppearance.Apply(File.ReadAllBytes(source),
+            [new PdfFieldLook(0, empty.Field.AnnotIndex, 0, Image: new PdfImage(20, 10, red))]));
+        var saved = await Open(withPicture);
+        Assert.True(saved.Field.HasPicture);
+        Assert.True(saved.RedPixels > 200, "The picture was not saved.");
+
+        var removed = Path.Combine(_folder.FullName, "removed.pdf");
+        File.WriteAllBytes(removed, PdfFieldAppearance.Apply(File.ReadAllBytes(withPicture),
+            [new PdfFieldLook(0, saved.Field.AnnotIndex, 0, RemovePicture: true)]));
+        var cleared = await Open(removed);
+        Assert.False(cleared.Field.HasPicture);
+        Assert.Equal(0, cleared.RedPixels);
+    }
+
+    [Fact]
+    public void Turned_fields_report_how_their_text_runs_on_the_shown_page()
+    {
+        var path = TestPdfFactory.CreateTurnedFieldsPdf(Path.Combine(_folder.FullName, "turned.pdf"));
+
+        var rotations = PdfFieldAppearance.TextRotations(File.ReadAllBytes(path));
+
+        Assert.Equal(90, rotations[(0, 0)]);           // /R 90 on an upright page: reads upwards.
+        Assert.False(rotations.ContainsKey((1, 0)));   // /R 90 on a page turned 90°: reads normally.
+        Assert.Equal(270, rotations[(1, 1)]);          // No /R on a page turned 90°: reads downwards.
+    }
+
     [Theory]
     [InlineData("/Helv 12 Tf 0 g", 9.5, "/Helv 9.5 Tf 0 g")]
     [InlineData("0 g /TH 0 Tf", 11, "0 g /TH 11 Tf")]

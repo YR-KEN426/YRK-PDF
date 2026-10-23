@@ -56,7 +56,8 @@ public sealed record PdfFormField(
     int SelectedIndex,
     double FontSize,
     bool IsRequired = false,
-    bool IsComb = false);
+    bool IsComb = false,
+    bool HasPicture = false);
 
 /// <summary>A change to one widget. Only the members that apply to the field type are used.</summary>
 public sealed record PdfFormFieldEdit(

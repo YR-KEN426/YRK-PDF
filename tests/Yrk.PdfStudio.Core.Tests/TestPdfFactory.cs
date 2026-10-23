@@ -31,6 +31,46 @@ internal static class TestPdfFactory
     }
 
     /// <summary>
+    /// One A4 page with an empty image field, a push button named "photo_af_image" as Acrobat's image field tool
+    /// makes them, at [72 500 272 600].
+    /// </summary>
+    public static string CreateImageFieldPdf(string path)
+    {
+        var objects = new[]
+        {
+            "<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [4 0 R] >> >>",
+            "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Annots [4 0 R] >>",
+            "<< /Type /Annot /Subtype /Widget /FT /Btn /Ff 65536 /T (photo_af_image) /Rect [72 500 272 600] /F 4 /P 3 0 R /MK << /TP 1 >> /AP << /N 5 0 R >> >>",
+            Stream("", "/Type /XObject /Subtype /Form /BBox [0 0 200 100]"),
+        };
+
+        Write(path, objects);
+        return path;
+    }
+
+    /// <summary>
+    /// Two pages of turned text fields: page 1 (upright) has "up" with /MK /R 90; page 2 (/Rotate 90) has "level"
+    /// with /R 90, which reads normally there, and "down" without /R.
+    /// </summary>
+    public static string CreateTurnedFieldsPdf(string path)
+    {
+        var objects = new[]
+        {
+            "<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [5 0 R 6 0 R 7 0 R] >> >>",
+            "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 /MediaBox [0 0 595 842] >>",
+            "<< /Type /Page /Parent 2 0 R /Annots [5 0 R] >>",
+            "<< /Type /Page /Parent 2 0 R /Rotate 90 /Annots [6 0 R 7 0 R] >>",
+            "<< /Type /Annot /Subtype /Widget /FT /Tx /T (up) /Rect [72 300 96 600] /F 4 /P 3 0 R /MK << /R 90 >> >>",
+            "<< /Type /Annot /Subtype /Widget /FT /Tx /T (level) /Rect [72 300 96 600] /F 4 /P 4 0 R /MK << /R 90 >> >>",
+            "<< /Type /Annot /Subtype /Widget /FT /Tx /T (down) /Rect [200 300 224 600] /F 4 /P 4 0 R >>",
+        };
+
+        Write(path, objects);
+        return path;
+    }
+
+    /// <summary>
     /// A report page: a bold 18 pt heading, a paragraph of two 11 pt lines, and a table with an "Item" column
     /// and a right-aligned "Amount" column (1,250.00 / 980.50 / Total 2,230.50).
     /// </summary>

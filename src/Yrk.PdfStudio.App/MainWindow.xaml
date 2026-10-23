@@ -33,12 +33,16 @@
         <SolidColorBrush x:Key="FieldTintBrush" Color="#40B9CCFF" />
 
         <DataTemplate x:Key="TextFieldTemplate" DataType="{x:Type vm:FormFieldViewModel}">
-            <TextBox Width="{Binding Width}" Height="{Binding Height}" FontSize="{Binding FontSize}"
+            <!-- Sized along its text and turned like the field, so typed text runs the way it is saved. -->
+            <TextBox Width="{Binding TextWidth}" Height="{Binding TextHeight}" FontSize="{Binding FontSize}"
                      FontFamily="{Binding FontFamilyName}" FontWeight="{Binding FontWeight}" FontStyle="{Binding FontStyle}"
                      Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
                      AcceptsReturn="{Binding IsMultiline}"
                      BorderBrush="{StaticResource AccentBrush}" Padding="1,0"
                      GotKeyboardFocus="OnFormFieldFocused" Tag="keep-text">
+                <TextBox.LayoutTransform>
+                    <RotateTransform Angle="{Binding TextAngle}" />
+                </TextBox.LayoutTransform>
                 <TextBox.Style>
                     <Style TargetType="TextBox">
                         <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -86,6 +90,8 @@
                         </ControlTemplate>
                     </Button.Template>
                     <Grid>
+                        <!-- Hides the picture saved in the file (still on the page image) once it is removed or replaced. -->
+                        <Border Background="White" Visibility="{Binding CoversSavedPicture, Converter={StaticResource BoolToVisibility}}" />
                         <Border Background="White" Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibility}}">
                             <Image Source="{Binding ImagePreview}" Stretch="Uniform" Margin="2" />
                         </Border>
@@ -93,7 +99,7 @@
                             <StackPanel.Style>
                                 <Style TargetType="StackPanel">
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasImage}" Value="True">
+                                        <DataTrigger Binding="{Binding ShowsPicture}" Value="True">
                                             <Setter Property="Visibility" Value="Collapsed" />
                                         </DataTrigger>
                                     </Style.Triggers>
@@ -109,7 +115,7 @@
                 <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="2" Padding="2" Cursor="Hand"
                         Command="{Binding DataContext.ClearFieldImageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                         CommandParameter="{Binding}" ToolTip="Remove the picture" AutomationProperties.Name="Remove the picture"
-                        Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibility}}">
+                        Visibility="{Binding ShowsPicture, Converter={StaticResource BoolToVisibility}}">
                     <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="7" />
                 </Button>
             </Grid>

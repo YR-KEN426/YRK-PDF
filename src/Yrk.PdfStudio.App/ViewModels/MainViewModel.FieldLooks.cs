@@ -95,7 +95,7 @@ public sealed partial class MainViewModel
 
     public IAsyncRelayCommand<FormFieldViewModel> PickFieldImageCommand => _pickFieldImageCommand ??= new AsyncRelayCommand<FormFieldViewModel>(PickFieldImageAsync);
 
-    public IRelayCommand<FormFieldViewModel> ClearFieldImageCommand => _clearFieldImageCommand ??= new RelayCommand<FormFieldViewModel>(widget => widget?.SetImage(null, null));
+    public IRelayCommand<FormFieldViewModel> ClearFieldImageCommand => _clearFieldImageCommand ??= new RelayCommand<FormFieldViewModel>(widget => widget?.RemovePicture());
 
     private async Task PickFieldImageAsync(FormFieldViewModel? field)
     {
@@ -205,9 +205,13 @@ public sealed partial class MainViewModel
             {
                 looks.Add(new PdfFieldLook(field.PageIndex, field.AnnotIndex, 0, Image: image));
             }
+            else if (field.IsPictureRemoved)
+            {
+                looks.Add(new PdfFieldLook(field.PageIndex, field.AnnotIndex, 0, RemovePicture: true));
+            }
             else if (field.Type == PdfFormFieldType.Text)
             {
-                var wrap = field.IsMultiline ? Math.Max(1, field.Width - 4) : 0;
+                var wrap = field.IsMultiline ? Math.Max(1, field.TextWidth - 4) : 0;
                 texts.Add((field, TextShaper.Shape(field.Text, field.FontFamilyName, field.IsBold, field.IsItalic, field.FontSize, wrap)));
             }
         }
@@ -223,7 +227,7 @@ public sealed partial class MainViewModel
             {
                 // A chosen font does not allow embedding: use the default font for every field instead.
                 shaped = TextShaper.ToShapedTexts(texts
-                    .Select(t => TextShaper.Shape(t.Field.Text, FormFieldViewModel.DefaultFontFamily, bold: false, italic: false, t.Field.FontSize, t.Field.IsMultiline ? Math.Max(1, t.Field.Width - 4) : 0))
+                    .Select(t => TextShaper.Shape(t.Field.Text, FormFieldViewModel.DefaultFontFamily, bold: false, italic: false, t.Field.FontSize, t.Field.IsMultiline ? Math.Max(1, t.Field.TextWidth - 4) : 0))
                     .ToList());
             }
 

@@ -224,7 +224,10 @@ internal sealed partial class PdfiumDocument
             selectedIndex,
             PdfiumNative.FPDFAnnot_GetFontSize(form, annot, out var fontSize) != 0 ? fontSize : 0,
             IsRequired: (flags & 2) != 0, // Bit 2 of /Ff: the field must be filled in.
-            IsComb: type == PdfFormFieldType.Text && (flags & (1 << 24)) != 0); // Bit 25: one character per box.
+            IsComb: type == PdfFormFieldType.Text && (flags & (1 << 24)) != 0, // Bit 25: one character per box.
+            // An image field that already shows a picture draws it with an XObject (Do) in its appearance.
+            HasPicture: type == PdfFormFieldType.PushButton
+                && ReadUtf16((buffer, length) => PdfiumNative.FPDFAnnot_GetAP(annot, 0, buffer, length)).Contains(" Do", StringComparison.Ordinal));
     }
 
     // --- Writing fields --------------------------------------------------------------------

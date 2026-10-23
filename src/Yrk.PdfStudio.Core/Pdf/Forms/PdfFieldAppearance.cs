@@ -13,9 +13,10 @@ public sealed record PdfShapedText(IReadOnlyList<PdfGlyphRun> Runs, double Width
 /// <summary>
 /// How one filled-in widget should look: its text in the chosen font and size, or the picture of an image
 /// field (a push button, as Acrobat makes them). <see cref="AnnotIndex"/> is the widget's place in the page's
-/// /Annots, as PDFium numbers annotations.
+/// /Annots, as PDFium numbers annotations. <see cref="RemovePicture"/> empties an image field again.
 /// </summary>
-public sealed record PdfFieldLook(int PageIndex, int AnnotIndex, double FontSize, PdfShapedText? Text = null, PdfImage? Image = null, bool Multiline = false, PdfColor? Color = null);
+public sealed record PdfFieldLook(int PageIndex, int AnnotIndex, double FontSize, PdfShapedText? Text = null, PdfImage? Image = null, bool Multiline = false, PdfColor? Color = null,
+    bool RemovePicture = false);
 
 /// <summary>
 /// Writes widget appearances ourselves, as an incremental update. PDFium draws field text with a stand-in
@@ -75,9 +76,7 @@ public static partial class PdfFieldAppearance
 
             // A widget turned with /MK /R draws its content upright in the turned box: swap the sides and
             // give the appearance the matching rotation (viewers fit the turned box to /Rect).
-            var rotation = document.Resolve(widget["MK"]) is CosDictionary mkRotation && document.Resolve(mkRotation["R"]) is CosInteger turn
-                ? (int)(((turn.Value % 360) + 360) % 360)
-                : 0;
+            var rotation = WidgetRotation(document, widget);
             if (rotation is 90 or 270)
             {
                 (width, height) = (height, width);
@@ -124,7 +123,7 @@ public static partial class PdfFieldAppearance
                 var da = WithFontSize(DefaultAppearance(document, widget), look.FontSize);
                 changed["DA"] = new CosString(Encoding.Latin1.GetBytes(look.Color is { } color ? WithColor(da, color) : da));
             }
-            else
+            else if (!look.RemovePicture)
             {
                 continue;
             }
@@ -153,12 +152,71 @@ public static partial class PdfFieldAppearance
                 var mk = (document.Resolve(widget["MK"]) as CosDictionary)?.Clone() ?? new CosDictionary();
                 changed["MK"] = mk.Set("I", form).Set("TP", new CosInteger(1));
             }
+            else if (look.RemovePicture && document.Resolve(widget["MK"]) is CosDictionary oldMk)
+            {
+                // An empty appearance, and no icon for viewers that redraw the button.
+                var mk = oldMk.Clone();
+                mk["I"] = null;
+                mk["RI"] = null;
+                mk["IX"] = null;
+                changed["MK"] = mk;
+            }
 
             update.Replace(widgetRef.Id, changed);
         }
 
         return update.Build().Bytes;
     }
+
+    /// <summary>
+    /// How far the text of each turned widget runs from left-to-right as the page is shown, in degrees
+    /// anticlockwise (90: reads upwards), keyed by page and annotation index. Widgets whose text runs normally
+    /// are left out. Combines the widget's /MK /R with the page's /Rotate.
+    /// </summary>
+    public static IReadOnlyDictionary<(int PageIndex, int AnnotIndex), int> TextRotations(byte[] pdf)
+    {
+        var rotations = new Dictionary<(int, int), int>();
+        CosDocument document;
+        try
+        {
+            document = CosDocument.Load(pdf);
+        }
+        catch (Exception ex) when (ex is PdfException or FormatException or InvalidDataException)
+        {
+            return rotations;
+        }
+
+        if (document.IsEncrypted)
+        {
+            return rotations;
+        }
+
+        var pages = document.GetPages();
+        for (var pageIndex = 0; pageIndex < pages.Count; pageIndex++)
+        {
+            if (document.Resolve(pages[pageIndex].Dictionary["Annots"]) is not CosArray annots)
+            {
+                continue;
+            }
+
+            for (var annotIndex = 0; annotIndex < annots.Items.Count; annotIndex++)
+            {
+                if (document.Resolve(annots.Items[annotIndex]) is CosDictionary widget
+                    && ((WidgetRotation(document, widget) - pages[pageIndex].Rotate) % 360 + 360) % 360 is var shown and not 0)
+                {
+                    rotations[(pageIndex, annotIndex)] = shown;
+                }
+            }
+        }
+
+        return rotations;
+    }
+
+    /// <summary>The widget's /MK /R: how far its content is turned anticlockwise (0, 90, 180 or 270).</summary>
+    private static int WidgetRotation(CosDocument document, CosDictionary widget) =>
+        document.Resolve(widget["MK"]) is CosDictionary mk && document.Resolve(mk["R"]) is CosInteger turn
+            ? (int)(((turn.Value % 360) + 360) % 360)
+            : 0;
 
     /// <summary>The widget's default appearance string, inherited from its field or the form if need be.</summary>
     private static string DefaultAppearance(CosDocument document, CosDictionary widget)

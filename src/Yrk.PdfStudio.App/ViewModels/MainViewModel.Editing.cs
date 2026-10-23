@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Forms;
 
 namespace Yrk.PdfStudio.App.ViewModels;
 
@@ -459,11 +460,37 @@ public sealed partial class MainViewModel
         _ = LoadFormFieldsAsync(document, page);
     }
 
+    /// <summary>The turned text fields of the open file, read once from the saved file when a page has text fields.</summary>
+    private (IPdfDocument Document, Task<IReadOnlyDictionary<(int PageIndex, int AnnotIndex), int>> Rotations)? _fieldRotations;
+
+    private Task<IReadOnlyDictionary<(int PageIndex, int AnnotIndex), int>> FieldRotationsAsync(IPdfDocument document)
+    {
+        if (_fieldRotations is not { } cached || cached.Document != document)
+        {
+            var path = document.FilePath;
+            cached = (document, Task.Run(() =>
+            {
+                try
+                {
+                    return PdfFieldAppearance.TextRotations(File.ReadAllBytes(path));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    return (IReadOnlyDictionary<(int PageIndex, int AnnotIndex), int>)new Dictionary<(int PageIndex, int AnnotIndex), int>();
+                }
+            }));
+            _fieldRotations = cached;
+        }
+
+        return cached.Rotations;
+    }
+
     private async Task LoadFormFieldsAsync(IPdfDocument document, PageViewModel page)
     {
         try
         {
             var fields = await document.GetFormFieldsAsync(page.Index);
+            var rotations = fields.Any(f => f.Type == PdfFormFieldType.Text) ? await FieldRotationsAsync(document) : null;
             if (document != _document)
             {
                 return;
@@ -476,7 +503,8 @@ public sealed partial class MainViewModel
                     continue;
                 }
 
-                var viewModel = new FormFieldViewModel(field, page.WidthPoints, page.HeightPoints, OnFieldChanged);
+                var rotation = rotations is not null && rotations.TryGetValue((field.PageIndex, field.AnnotIndex), out var turn) ? turn : 0;
+                var viewModel = new FormFieldViewModel(field, page.WidthPoints, page.HeightPoints, OnFieldChanged, rotation);
                 if (field.Type == PdfFormFieldType.PushButton && !viewModel.IsImageField)
                 {
                     continue; // Other buttons run scripts, which this app does not.

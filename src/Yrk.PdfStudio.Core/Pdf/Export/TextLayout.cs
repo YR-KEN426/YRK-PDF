@@ -4,9 +4,10 @@ namespace Yrk.PdfStudio.Core.Pdf.Export;
 
 /// <summary>
 /// A run of text in one style; "\t" alone stands for a tab (a wide gap on the line), with <see cref="TabTo"/> the
-/// page position (points) where the text after it starts.
+/// page position (points) where the text after it starts. <see cref="StartsLine"/> marks the first run of a later
+/// line of its paragraph on the PDF.
 /// </summary>
-public sealed record TextRun(string Text, double FontSize, string FontName, bool Bold, bool Italic, PdfColor Color, double TabTo = 0)
+public sealed record TextRun(string Text, double FontSize, string FontName, bool Bold, bool Italic, PdfColor Color, double TabTo = 0, bool StartsLine = false)
 {
     public bool IsTab => Text == "\t";
 }
@@ -181,7 +182,8 @@ public static class TextLayout
                     runs[^1] = runs[^1] with { Text = end + " " };
                 }
 
-                runs.AddRange(lineRuns);
+                runs.Add(lineRuns[0] with { StartsLine = true });
+                runs.AddRange(lineRuns.Skip(1));
                 lineTops.Add(top);
             }
 

@@ -25,8 +25,10 @@ public sealed class FormFieldViewModel : ObservableObject
     private bool _isSelected;
     private PdfImage? _image;
     private ImageSource? _imagePreview;
+    private bool _pictureRemoved;
 
-    public FormFieldViewModel(PdfFormField field, double pageWidth, double pageHeight, Action<FormFieldViewModel> changed)
+    /// <param name="textRotation">How far the field's text is turned on the shown page, in degrees anticlockwise.</param>
+    public FormFieldViewModel(PdfFormField field, double pageWidth, double pageHeight, Action<FormFieldViewModel> changed, int textRotation = 0)
     {
         Field = field;
         _changed = changed;
@@ -38,7 +40,22 @@ public sealed class FormFieldViewModel : ObservableObject
         Top = field.Bounds.Y * pageHeight;
         Width = Math.Max(4, field.Bounds.Width * pageWidth);
         Height = Math.Max(4, field.Bounds.Height * pageHeight);
+        TextRotation = textRotation;
     }
+
+    /// <summary>How far the text is turned on the shown page, in degrees anticlockwise (0, 90, 180 or 270).</summary>
+    public int TextRotation { get; }
+
+    /// <summary>The same turn for WPF, which turns clockwise.</summary>
+    public double TextAngle => -TextRotation;
+
+    private bool IsSideways => TextRotation is 90 or 270;
+
+    /// <summary>The box along its text: how long a line can be.</summary>
+    public double TextWidth => IsSideways ? Height : Width;
+
+    /// <summary>The box across its text: how tall a line can be.</summary>
+    public double TextHeight => IsSideways ? Width : Height;
 
     public PdfFormField Field { get; }
 
@@ -134,7 +151,7 @@ public sealed class FormFieldViewModel : ObservableObject
         }
 
         var lineSpacing = new FontFamily(_fontFamilyName + ", " + DefaultFontFamily).LineSpacing;
-        var fitting = (Height - 2) / Math.Max(1, lineSpacing);
+        var fitting = (TextHeight - 2) / Math.Max(1, lineSpacing);
         return Math.Round(Math.Clamp(Math.Min(formSize, fitting), 4, formSize), 1);
     }
 
@@ -191,22 +208,56 @@ public sealed class FormFieldViewModel : ObservableObject
 
     public bool HasImage => _image is not null;
 
+    /// <summary>The picture saved in the file earlier is to be taken out on saving.</summary>
+    public bool IsPictureRemoved => _pictureRemoved;
+
+    /// <summary>The field shows a picture: one chosen now, or one saved earlier and not removed.</summary>
+    public bool ShowsPicture => _image is not null || (Field.HasPicture && !_pictureRemoved);
+
+    /// <summary>A white box hides the saved picture on the page, which stays drawn until the file is saved.</summary>
+    public bool CoversSavedPicture => Field.HasPicture && (_pictureRemoved || _image is not null);
+
     public void SetImage(PdfImage? image, ImageSource? preview)
     {
         _image = image;
         _imagePreview = preview;
+        _pictureRemoved = false;
+        NotifyPicture();
+        _changed(this);
+    }
+
+    /// <summary>Takes the picture out: the one chosen now, or else the one saved in the file.</summary>
+    public void RemovePicture()
+    {
+        if (_image is null && !Field.HasPicture)
+        {
+            return;
+        }
+
+        // Removing a picture chosen over a saved one also removes the saved one: what was shown is gone.
+        _pictureRemoved = Field.HasPicture;
+        _image = null;
+        _imagePreview = null;
+        NotifyPicture();
+        _changed(this);
+    }
+
+    private void NotifyPicture()
+    {
         OnPropertyChanged(nameof(ImagePreview));
         OnPropertyChanged(nameof(HasImage));
-        _changed(this);
+        OnPropertyChanged(nameof(IsPictureRemoved));
+        OnPropertyChanged(nameof(ShowsPicture));
+        OnPropertyChanged(nameof(CoversSavedPicture));
     }
 
     /// <summary>
     /// True when the app draws this field itself on saving: text that was typed or restyled (shaped Thai in
-    /// the chosen font and size), or a chosen picture.
+    /// the chosen font and size), a chosen picture, or a saved picture to take out.
     /// </summary>
     /// <remarks>Password fields (shown as dots) and comb fields (one character per box) are left to PDFium's drawing.</remarks>
     public bool HasLook => IsImageField
-        ? _image is not null
+        ? _image is not null || _pictureRemoved
         : Type == PdfFormFieldType.Text && !Field.IsPassword && !Field.IsComb && _text.Trim().Length > 0
             && (_text != Field.Value || IsStyled);
 
@@ -295,6 +346,7 @@ public sealed class FormFieldViewModel : ObservableObject
         (_isBold, _isItalic, _color) = (earlier._isBold, earlier._isItalic, earlier._color);
         _image = earlier._image;
         _imagePreview = earlier._imagePreview;
+        _pictureRemoved = earlier._pictureRemoved;
         OnPropertyChanged(string.Empty);
     }
 

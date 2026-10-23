@@ -547,11 +547,18 @@ public static class DocxWriter
         }
 
         xml.Append("</w:pPr>");
+        string? previous = null;
         foreach (var run in paragraph.Runs)
         {
+            // Where a PDF line ended between two Thai words, an invisible break mark (zero-width space) lets Word
+            // break there too; Word's own Thai dictionary often breaks earlier, adding lines that push the page over.
+            var text = run.StartsLine && previous is { Length: > 0 } && run.Text.Length > 0 && IsThai(previous[^1]) && IsThai(run.Text[0])
+                ? "​" + run.Text
+                : run.Text;
             xml.Append("<w:r>").Append(RunProperties(run, scale));
-            xml.Append(run.IsTab ? "<w:tab/>" : $"<w:t xml:space=\"preserve\">{OfficeXml.Escape(run.Text)}</w:t>");
+            xml.Append(run.IsTab ? "<w:tab/>" : $"<w:t xml:space=\"preserve\">{OfficeXml.Escape(text)}</w:t>");
             xml.Append("</w:r>");
+            previous = run.Text;
         }
 
         return xml.Append("</w:p>").ToString();
@@ -592,4 +599,6 @@ public static class DocxWriter
     }
 
     private static int Twips(double points) => (int)Math.Round(points * 20);
+
+    private static bool IsThai(char c) => c is >= '฀' and <= '๿';
 }

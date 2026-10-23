@@ -147,6 +147,27 @@ public sealed class PageLayoutTests : IDisposable
     }
 
     [Fact]
+    public void Word_may_break_Thai_lines_where_the_PDF_did()
+    {
+        var black = new PdfColor(0, 0, 0);
+        TextRun Run(string text, bool startsLine = false) => new(text, 16, "THSarabunPSK", false, false, black, StartsLine: startsLine);
+        var thai = new TextParagraph([Run("การประเมินประสิทธิผล"), Run("ผลิตภัณฑ์", startsLine: true)], 0, 0, false, Left: 72, LineCount: 2, Right: 300);
+        var latin = new TextParagraph([Run("Courage + "), Run("Khazaka", startsLine: true)], 0, 0, false, Left: 72, LineCount: 2, Right: 300);
+        var path = Path.Combine(_folder.FullName, "lines.docx");
+        using (var stream = File.Create(path))
+        {
+            DocxWriter.Write(stream, [new DocxPage(595, 842, [thai, latin])]);
+        }
+
+        using var zip = ZipFile.OpenRead(path);
+        var texts = Xml(zip, "word/document.xml").Descendants(W + "t").Select(t => t.Value).ToList();
+
+        // An invisible break mark between the two Thai lines; none where a space already separates the words.
+        Assert.Contains("​ผลิตภัณฑ์", texts);
+        Assert.Contains("Khazaka", texts);
+    }
+
+    [Fact]
     public async Task Word_gets_a_real_table_and_a_picture_where_the_chart_was()
     {
         var (text, graphics) = await TablePageAsync();
