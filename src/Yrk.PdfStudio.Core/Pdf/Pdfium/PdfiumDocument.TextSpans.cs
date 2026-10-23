@@ -28,10 +28,10 @@ internal sealed partial class PdfiumDocument
         var chars = new ushort[count + 1];
         PdfiumNative.FPDFText_GetText(text, 0, count, chars);
 
-        // Some PDFs (Excel's, through Windows printing) map the Thai letter "า" (sara aa) to "ำ" (sara am): a page
-        // with many of the second and none of the first has them swapped back. A real sara am there is that letter
-        // followed by its circle, mapped to a space drawn over the letter before.
-        var brokenSaraAa = chars.Count(ch => ch == 0x0E33) >= 5 && !chars.Contains((ushort)0x0E32);
+        // Some PDFs (Excel's, through Windows printing) map the Thai letter "า" (sara aa) to "ำ" (sara am) in some
+        // fonts: there they are swapped back (see BrokenSaraAa). A real sara am there is that letter followed by
+        // its circle, mapped to a space drawn over the letter before.
+        var brokenSaraAa = BrokenSaraAa(text, chars, count);
         // A character box in page space (left, right, bottom, top) → left, top, right, bottom in points on the page
         // as displayed.
         (double L, double T, double R, double B) Display(double l, double r, double b, double t)
@@ -55,6 +55,7 @@ internal sealed partial class PdfiumDocument
 
         void Flush()
         {
+            OrderThaiMarks(current);
             var value = new string(current.Select(e => e.C).ToArray());
             if (style is { } s && hasBox && value.Trim().Length > 0)
             {
@@ -105,6 +106,27 @@ internal sealed partial class PdfiumDocument
             }
 
             return default;
+        }
+
+        // A "space" at index i that is the circle of a sara am: raised above the line, over the Thai letter before it.
+        bool RaisedCircle(int i)
+        {
+            if (PdfiumNative.FPDFText_GetCharBox(text, i, out var l, out var r, out var b, out _) == 0 || r <= l)
+            {
+                return false;
+            }
+
+            for (var j = i - 1; j >= Math.Max(0, i - 3); j--)
+            {
+                if (chars[j] is >= 0x0E01 and <= 0x0E2E)
+                {
+                    var middle = (l + r) / 2;
+                    return PdfiumNative.FPDFText_GetCharBox(text, j, out var ll, out var lr, out var lb, out _) != 0
+                        && middle >= ll - 0.5 && middle <= lr + 0.5 && b >= lb + (EffectiveFontSize(text, j) * 0.3);
+                }
+            }
+
+            return false;
         }
 
         // The space between the text so far and the next letter (not a mark) after index i, in points.
@@ -160,7 +182,7 @@ internal sealed partial class PdfiumDocument
             var hasCharBox = PdfiumNative.FPDFText_GetCharBox(text, i, out var l, out var r, out var b, out var t) != 0 && r > l && t > b;
 
             // A space drawn over the letter before a sara am is no space but the circle of that sara am.
-            if (brokenSaraAa && c == ' ' && hasCharBox && NextLetter(i) == (char)0x0E33 && current.FindLastIndex(e => e.C != ' ') is >= 0 and var lastIndex && current[lastIndex] is var last)
+            if (brokenSaraAa(i) && c == ' ' && hasCharBox && NextLetter(i) == (char)0x0E33 && current.FindLastIndex(e => e.C != ' ') is >= 0 and var lastIndex && current[lastIndex] is var last)
             {
                 var (sl, _, sr, _) = Display(l, r, b, t);
                 if ((sl + sr) / 2 >= last.Left - 0.5 && (sl + sr) / 2 <= last.Right + 0.5)
@@ -170,7 +192,34 @@ internal sealed partial class PdfiumDocument
                 }
             }
 
-            if (order is null && brokenSaraAa && c == 'ำ')
+            // In other fonts too, a sara am can be drawn as its circle, a raised "space" over the letter before, and
+            // "า" ("คำ" read "ค า", "สำ" read "สา "): together they are "ำ".
+            if (!brokenSaraAa(i) && c == ' ' && NextLetter(i) == 'า' && RaisedCircle(i))
+            {
+                circleBefore = true;
+                continue;
+            }
+
+            if (!brokenSaraAa(i) && c == 'า')
+            {
+                var after = i + 1;
+                while (after < count && chars[after] is '\r' or '\n' or 0)
+                {
+                    after++;
+                }
+
+                if (circleBefore)
+                {
+                    c = 'ำ';
+                }
+                else if (order is null && after < count && chars[after] == ' ' && RaisedCircle(after))
+                {
+                    c = 'ำ';
+                    n += after - i; // The circle is part of this letter.
+                }
+            }
+
+            if (order is null && brokenSaraAa(i) && c == 'ำ')
             {
                 // The circle may come next, after any line breaks PDFium put in.
                 var after = i + 1;
@@ -324,7 +373,7 @@ internal sealed partial class PdfiumDocument
     /// </summary>
     /// <param name="display">A character box (left, right, bottom, top in page space) → left, top, right, bottom in points.</param>
     private static List<(int Index, char C)>? ReadingOrder(
-        IntPtr text, ushort[] chars, int count, bool brokenSaraAa, Func<double, double, double, double, (double L, double T, double R, double B)> display,
+        IntPtr text, ushort[] chars, int count, Func<int, bool> brokenSaraAa, Func<double, double, double, double, (double L, double T, double R, double B)> display,
         bool[]? repeated)
     {
         var items = new List<(int I, char C, double L, double T, double R, double B)>();
@@ -412,13 +461,13 @@ internal sealed partial class PdfiumDocument
                         order.Add((-1, ' '));
                     }
 
-                    if (brokenSaraAa && c == 'ำ')
+                    if (brokenSaraAa(index) && c == 'ำ')
                     {
                         var circle = circles.Any(x => (x.L + x.R) / 2 >= previous.L - 1 && (x.L + x.R) / 2 <= previous.R + 1 && SameLine(x, previous));
                         c = circle ? 'ำ' : 'า';
                     }
                 }
-                else if (brokenSaraAa && c == 'ำ')
+                else if (brokenSaraAa(index) && c == 'ำ')
                 {
                     c = 'า';
                 }
@@ -437,6 +486,95 @@ internal sealed partial class PdfiumDocument
     }
 
     private static bool IsThai(char c) => c is >= (char)0x0E00 and <= (char)0x0E7F;
+
+    /// <summary>
+    /// Thai marks on one letter in the order Thai is written: the vowel above or below first, then the tone mark,
+    /// then the thanthakhat. Some PDFs store them the other way ("น้ี" for "นี้", "ด์ิ" for "ดิ์"), which reads
+    /// the same on the page but not in search or Word.
+    /// </summary>
+    private static void OrderThaiMarks(List<(char C, double Left, double Right, bool Mark)> letters)
+    {
+        static int Rank(char c) => c switch
+        {
+            'ั' or (>= 'ิ' and <= 'ฺ') or '็' => 0,
+            >= '่' and <= '๋' => 1,
+            _ => 2,
+        };
+
+        for (var start = 0; start < letters.Count; start++)
+        {
+            var end = start;
+            while (end < letters.Count && IsThai(letters[end].C) && IsCombiningMark(letters[end].C))
+            {
+                end++;
+            }
+
+            if (end - start > 1)
+            {
+                var marks = letters.GetRange(start, end - start).OrderBy(e => Rank(e.C)).ToList(); // Stable.
+                for (var k = 0; k < marks.Count; k++)
+                {
+                    letters[start + k] = marks[k];
+                }
+            }
+
+            start = Math.Max(start, end);
+        }
+    }
+
+    /// <summary>
+    /// Which characters are in a font that maps "า" to "ำ". A page with many "ำ" and no "า" has it in every font.
+    /// Otherwise a font has it when at least three of its "ำ" are no taller than the letter before them (a real
+    /// sara am carries its circle above the letters; the "า" glyph does not) and none is, and it has no "า":
+    /// the bold font of a letter can be broken while its regular text is fine.
+    /// </summary>
+    private static Func<int, bool> BrokenSaraAa(IntPtr text, ushort[] chars, int count)
+    {
+        var page = chars.AsSpan(0, count);
+        if (page.Count((ushort)0x0E33) >= 5 && !page.Contains((ushort)0x0E32))
+        {
+            return _ => true;
+        }
+
+        if (!page.Contains((ushort)0x0E33))
+        {
+            return _ => false;
+        }
+
+        var fonts = new Dictionary<string, (int Flat, int Raised, int Aa)>(StringComparer.Ordinal);
+        for (var i = 0; i < count; i++)
+        {
+            if (chars[i] is not (0x0E32 or 0x0E33))
+            {
+                continue;
+            }
+
+            var font = FontInfo(text, i).Name;
+            var (flat, raised, aa) = fonts.GetValueOrDefault(font);
+            if (chars[i] == 0x0E32)
+            {
+                aa++;
+            }
+            else if (i > 0 && chars[i - 1] is >= 0x0E01 and <= 0x0E2E
+                && PdfiumNative.FPDFText_GetCharBox(text, i, out _, out _, out _, out var top) != 0
+                && PdfiumNative.FPDFText_GetCharBox(text, i - 1, out _, out _, out _, out var letterTop) != 0)
+            {
+                if (top <= letterTop + (EffectiveFontSize(text, i) * 0.12))
+                {
+                    flat++;
+                }
+                else
+                {
+                    raised++;
+                }
+            }
+
+            fonts[font] = (flat, raised, aa);
+        }
+
+        var broken = fonts.Where(f => f.Value is { Flat: >= 3, Raised: 0, Aa: 0 }).Select(f => f.Key).ToHashSet(StringComparer.Ordinal);
+        return broken.Count == 0 ? _ => false : i => broken.Contains(FontInfo(text, i).Name);
+    }
 
     /// <summary>Thai consonants (and the vowels written above or below), which carry tone marks and vowels above.</summary>
     private static bool CarriesMarks(char c) => c is >= (char)0x0E01 and <= (char)0x0E2E || IsCombiningMark(c);
