@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Yrk.PdfStudio.App</RootNamespace>
+    <AssemblyName>YrkEasyPdf</AssemblyName>
+    <AssemblyTitle>YRK PDF</AssemblyTitle>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <!-- Program.Main runs Velopack's install/update hooks before WPF starts. -->
+    <StartupObject>Yrk.PdfStudio.App.Program</StartupObject>
+    <!-- Only ship framework translations for the app's languages (saves about 8 MB). -->
+    <SatelliteResourceLanguages>en;th</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!-- Tesseract's package copies both x64 and x86 libraries; a published build needs only its own. -->
+  <Target Name="RemoveOtherArchitectureNatives" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != ''">
+    <RemoveDir Condition="'$(RuntimeIdentifier)' == 'win-x64'" Directories="$(PublishDir)x86" />
+    <RemoveDir Condition="'$(RuntimeIdentifier)' == 'win-x86'" Directories="$(PublishDir)x64" />
+  </Target>
+
+  <ItemGroup>
+    <Using Include="Yrk.PdfStudio.App.Localization" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <!-- Installer, portable package and updates (MIT). The vpk tool in dotnet-tools.json must have the same version. -->
+    <PackageReference Include="Velopack" Version="1.2.161" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Yrk.PdfStudio.Core\Yrk.PdfStudio.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Yrk.PdfStudio.Core.Tests" />
+    <!-- Where installed copies look for updates, set by build\release.ps1 (-p:YrkUpdateUrl=…); empty turns updates off. -->
+    <AssemblyMetadata Include="YrkUpdateUrl" Value="$(YrkUpdateUrl)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+    <!-- Thai UI texts (English text → Thai). -->
+    <EmbeddedResource Include="Localization\th.json" LogicalName="Yrk.PdfStudio.App.Localization.th.json" />
+    <!-- YRK's update key (public half): updates must be signed with the matching private key (build\UpdateSigner). -->
+    <EmbeddedResource Include="Assets\update-public-key.pem" LogicalName="Yrk.PdfStudio.App.update-public-key.pem" Condition="Exists('Assets\update-public-key.pem')" />
+    <!-- License texts must ship with the app (shown in About). -->
+    <None Include="..\..\LICENSE;..\..\NOTICE" CopyToOutputDirectory="PreserveNewest" Link="%(Filename).txt" />
+    <None Include="..\..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\licenses\**\*" Link="licenses\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

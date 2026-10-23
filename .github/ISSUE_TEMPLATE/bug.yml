@@ -1,0 +1,40 @@
+name: แจ้งปัญหา (Bug)
+description: โปรแกรมทำงานผิดพลาด ค้าง หรือไม่เป็นอย่างที่ควร
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ขอบคุณที่ช่วยแจ้งปัญหา รายงานนี้เปิดเผยต่อสาธารณะ **อย่าใส่ข้อมูลส่วนตัวหรือแนบเอกสารลับ**
+  - type: textarea
+    id: what
+    attributes:
+      label: เกิดอะไรขึ้น
+      description: ทำอะไรอยู่ แล้วเกิดอะไรขึ้น
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: ขั้นตอนที่ทำให้เกิดปัญหา
+      placeholder: |
+        1. เปิดไฟล์...
+        2. กด...
+        3. เห็น...
+  - type: textarea
+    id: expected
+    attributes:
+      label: ควรจะเป็นอย่างไร
+  - type: textarea
+    id: info
+    attributes:
+      label: ข้อมูลโปรแกรม
+      description: ในโปรแกรม กดปุ่ม เครื่องมือ → ข้อเสนอแนะและแจ้งปัญหา → คัดลอกข้อมูลโปรแกรม แล้ววางที่นี่
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: ภาพหน้าจอหรือไฟล์บันทึก (ถ้ามี)
+      description: ลากรูปมาวางได้เลย

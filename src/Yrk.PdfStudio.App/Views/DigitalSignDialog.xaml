@@ -1,0 +1,101 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.DigitalSignDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sign with a digital ID"
+        Width="560"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="20">
+        <TextBlock Text="Sign with a digital ID" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Text="A digital signature (PAdES) proves who signed and shows whether the document was changed afterwards."
+                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap" />
+
+        <TextBlock Text="Digital ID" Margin="0,0,0,4" />
+        <ListBox x:Name="IdList" Height="150" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="OnIdSelectionChanged" AutomationProperties.Name="Digital IDs">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Margin="2,3">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Details}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip="{Binding Details}" Foreground="{StaticResource SecondaryTextBrush}" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock x:Name="NoIdsText" Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Visibility="Collapsed"
+                   Text="No digital IDs found. Plug in your USB token, add a .pfx file from your certificate authority, or create a self-signed ID." />
+        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+            <Button Content="Create new ID…" Style="{StaticResource SecondaryButton}" Click="OnCreateId" />
+            <Button Content="Add .pfx file…" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnAddFile" />
+            <Button Content="Refresh" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnRefresh"
+                    ToolTip="Look again for certificates (for example after plugging in a USB token)" />
+        </StackPanel>
+
+        <StackPanel x:Name="PasswordPanel" Margin="0,12,0,0" Visibility="Collapsed">
+            <TextBlock Text="Password of this ID" Margin="0,0,0,4" />
+            <PasswordBox x:Name="PasswordInput" Padding="6,5" AutomationProperties.Name="Digital ID password" />
+        </StackPanel>
+
+        <Grid Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Reason (optional)" Margin="0,0,0,4" />
+                <ComboBox x:Name="ReasonInput" IsEditable="True" AutomationProperties.Name="Reason">
+                    <ComboBoxItem Content="I am the author of this document" />
+                    <ComboBoxItem Content="I approve this document" />
+                    <ComboBoxItem Content="I have reviewed this document" />
+                    <ComboBoxItem Content="อนุมัติ" />
+                    <ComboBoxItem Content="รับรองความถูกต้อง" />
+                </ComboBox>
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Location (optional)" Margin="0,0,0,4" />
+                <TextBox x:Name="LocationInput" Padding="6,4" AutomationProperties.Name="Location" />
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Text="Appearance" Margin="0,14,0,4" />
+        <RadioButton x:Name="VisibleOption" Content="Show the signature on the page (drag a box where it goes)" IsChecked="True" Checked="OnAppearanceChanged" />
+        <ComboBox x:Name="HandwrittenChoice" Height="44" Margin="20,6,0,0" AutomationProperties.Name="Handwritten signature">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <Grid Height="34">
+                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Signature}" Value="{x:Null}">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Image Source="{Binding Signature.Image}" HorizontalAlignment="Left" Stretch="Uniform" MaxWidth="180" />
+                    </Grid>
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
+        <RadioButton x:Name="InvisibleOption" Content="Invisible (shown only in the Signatures panel)" Margin="0,8,0,0" Checked="OnAppearanceChanged" />
+
+        <CheckBox x:Name="TimestampBox" Content="Add a trusted timestamp (needs internet; proves when you signed)" Margin="0,14,0,4" />
+        <TextBox x:Name="TimestampUrlInput" Padding="6,4" Margin="20,0,0,0" AutomationProperties.Name="Timestamp server"
+                 IsEnabled="{Binding IsChecked, ElementName=TimestampBox}" />
+
+        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Continue" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnContinue" />
+            <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

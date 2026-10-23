@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Company>YRK</Company>
+    <Product>YRK PDF</Product>
+    <Copyright>© 2026 YRK</Copyright>
+    <Version>1.0.7</Version>
+  </PropertyGroup>
+</Project>

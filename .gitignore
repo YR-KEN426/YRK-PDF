@@ -1,0 +1,19 @@
+bin/
+obj/
+.vs/
+.idea/
+*.user
+*.suo
+artifacts/
+publish/
+TestResults/
+
+# Keys: only the update key's public half belongs in the repository.
+*.pem
+*.pfx
+*.p12
+!src/Yrk.PdfStudio.App/Assets/update-public-key.pem
+
+# Personal documents and Office lock files
+*.docx
+~$*

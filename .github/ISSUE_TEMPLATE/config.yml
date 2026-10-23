@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: แจ้งช่องโหว่ด้านความปลอดภัย (ส่วนตัว) / Report a security problem privately
+    url: https://github.com/YR-KEN426/YRK-PDF/security/advisories/new
+    about: อย่าแจ้งช่องโหว่ใน Issue สาธารณะ / Please do not report security problems in a public issue.
+  - name: แบบฟอร์มความคิดเห็น (ไม่ต้องมีบัญชี GitHub) / Feedback form, no GitHub account needed
+    url: https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform
+    about: ส่งความคิดเห็นหรือแจ้งปัญหาโดยไม่ต้องล็อกอิน / Suggestions and problems without signing in.

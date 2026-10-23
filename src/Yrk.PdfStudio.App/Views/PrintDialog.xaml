@@ -1,0 +1,157 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.PrintDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Yrk.PdfStudio.App.ViewModels"
+        xmlns:conv="clr-namespace:Yrk.PdfStudio.App.Converters"
+        xmlns:printing="clr-namespace:Yrk.PdfStudio.Core.Pdf.Printing;assembly=Yrk.PdfStudio.Core"
+        Title="Print"
+        Width="940"
+        Height="680"
+        MinWidth="760"
+        MinHeight="560"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <DataTemplate x:Key="TranslatedItem">
+            <TextBlock Text="{Binding Converter={x:Static conv:TrConverter.Instance}}" />
+        </DataTemplate>
+        <Style x:Key="Heading" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,14,0,6" />
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,3" />
+        </Style>
+    </Window.Resources>
+    <DockPanel Margin="20">
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <Button x:Name="PrintButton" Content="Print" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnPrint"
+                        IsEnabled="{Binding CanPrint}" AutomationProperties.Name="Print" />
+                <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+            </StackPanel>
+            <TextBlock VerticalAlignment="Center" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" AutomationProperties.Name="Print error">
+                <Run Text="{Binding Error, Mode=OneWay}" /> <Run Text="{Binding PrinterError, Mode=OneWay}" />
+            </TextBlock>
+        </DockPanel>
+
+        <!-- Settings -->
+        <ScrollViewer DockPanel.Dock="Left" Width="360" VerticalScrollBarVisibility="Auto" Margin="0,0,20,0">
+            <StackPanel>
+                <TextBlock Text="Printer" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <ComboBox ItemsSource="{Binding Printers}" SelectedItem="{Binding Printer}" AutomationProperties.Name="Printer" />
+
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Paper" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding Papers}" SelectedItem="{Binding Paper}" AutomationProperties.Name="Paper" />
+                    <TextBlock Grid.Row="1" Text="Orientation" VerticalAlignment="Center" Margin="0,8,12,0" />
+                    <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" ItemsSource="{Binding Orientations}" SelectedItem="{Binding Orientation}" ItemTemplate="{StaticResource TranslatedItem}"
+                              AutomationProperties.Name="Orientation" ToolTip="Auto uses the shape of the first page" />
+                    <TextBlock Grid.Row="2" Text="Copies" VerticalAlignment="Center" Margin="0,8,12,0" />
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBox Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}" Width="60" Padding="4,2" AutomationProperties.Name="Copies" />
+                        <CheckBox Content="Collate" IsChecked="{Binding Collate}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+
+                <TextBlock Text="Pages" Style="{StaticResource Heading}" />
+                <RadioButton Content="All" GroupName="Pages" AutomationProperties.Name="All pages"
+                             IsChecked="{Binding PageChoice, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:PrintPageChoice.All}}" />
+                <RadioButton Content="Current page" GroupName="Pages"
+                             IsChecked="{Binding PageChoice, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:PrintPageChoice.Current}}" />
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Pages" GroupName="Pages" AutomationProperties.Name="Page range"
+                                 IsChecked="{Binding PageChoice, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:PrintPageChoice.Range}}" />
+                    <TextBox Text="{Binding RangeText, UpdateSourceTrigger=PropertyChanged}" Width="140" Margin="10,0,0,0" Padding="4,2"
+                             AutomationProperties.Name="Pages to print" ToolTip="{Binding RangeHint}" />
+                </StackPanel>
+                <TextBlock Text="{Binding RangeHint}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="22,2,0,0" />
+
+                <TextBlock Text="Size" Style="{StaticResource Heading}" />
+                <RadioButton Content="Fit to paper" GroupName="Sizing"
+                             IsChecked="{Binding Sizing, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static printing:PrintSizing.Fit}}" />
+                <RadioButton GroupName="Sizing" AutomationProperties.Name="Actual size"
+                             IsChecked="{Binding Sizing, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static printing:PrintSizing.ActualSize}}">
+                    <TextBlock>
+                        <Run Text="Actual size" /> <Run Text="(keeps a drawing's scale)" Foreground="{StaticResource SecondaryTextBrush}" />
+                    </TextBlock>
+                </RadioButton>
+                <RadioButton Content="Shrink oversized pages" GroupName="Sizing"
+                             IsChecked="{Binding Sizing, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static printing:PrintSizing.ShrinkOversized}}" />
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Content="Custom scale" GroupName="Sizing"
+                                 IsChecked="{Binding Sizing, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static printing:PrintSizing.Custom}}" />
+                    <TextBox Text="{Binding CustomPercent, UpdateSourceTrigger=LostFocus}" Width="60" Margin="10,0,4,0" Padding="4,2" AutomationProperties.Name="Scale percent" />
+                    <TextBlock Text="%" VerticalAlignment="Center" />
+                </StackPanel>
+                <CheckBox Content="Turn pages to match the paper" IsChecked="{Binding AutoRotate}" Margin="0,8,0,3" />
+
+                <TextBlock Text="Output" Style="{StaticResource Heading}" />
+                <CheckBox Content="Black and white" IsChecked="{Binding Grayscale}" />
+                <CheckBox Content="Comments and markups" IsChecked="{Binding Comments}" />
+                <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                    <TextBlock Text="Quality" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <ComboBox ItemsSource="{Binding Qualities}" SelectedItem="{Binding Quality}" ItemTemplate="{StaticResource TranslatedItem}" Width="120" AutomationProperties.Name="Quality"
+                              ToolTip="Draft 150 dpi, Standard 300 dpi, High 600 dpi" />
+                </StackPanel>
+                <TextBlock Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0"
+                           Text="Layers print as they are shown. Nothing is sent anywhere except to the printer you choose." />
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Preview -->
+        <DockPanel>
+            <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}">
+                    <Run Text="{Binding Summary, Mode=OneWay}" /> <Run Text="·" /> <Run Text="{Binding ScaleText, Mode=OneWay}" />
+                </TextBlock>
+                <StackPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource ToolbarButton}" Command="{Binding PreviousPreviewCommand}" AutomationProperties.Name="Previous preview page">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE76B;" />
+                    </Button>
+                    <TextBlock Text="{Binding PreviewText}" VerticalAlignment="Center" Margin="6,0" AutomationProperties.Name="Preview page" />
+                    <Button Style="{StaticResource ToolbarButton}" Command="{Binding NextPreviewCommand}" AutomationProperties.Name="Next preview page">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE76C;" />
+                    </Button>
+                </StackPanel>
+            </DockPanel>
+            <Border Background="#E9E9E9" Padding="16">
+                <Viewbox Stretch="Uniform">
+                    <Border Background="White" BorderBrush="#BDBDBD" BorderThickness="0.5">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.25" />
+                        </Border.Effect>
+                        <Canvas Width="{Binding PaperWidth}" Height="{Binding PaperHeight}" ClipToBounds="True">
+                            <Image Source="{Binding PreviewImage}" Stretch="Fill"
+                                   Canvas.Left="{Binding ImageLeft}" Canvas.Top="{Binding ImageTop}"
+                                   Width="{Binding ImageWidth}" Height="{Binding ImageHeight}">
+                                <Image.RenderTransform>
+                                    <RotateTransform Angle="{Binding PreviewAngle}" />
+                                </Image.RenderTransform>
+                            </Image>
+                            <Rectangle Canvas.Left="{Binding PrintableLeft}" Canvas.Top="{Binding PrintableTop}"
+                                       Width="{Binding PrintableWidth}" Height="{Binding PrintableHeight}"
+                                       Stroke="#9E9E9E" StrokeThickness="0.75" StrokeDashArray="4 4" IsHitTestVisible="False" />
+                        </Canvas>
+                    </Border>
+                </Viewbox>
+            </Border>
+        </DockPanel>
+    </DockPanel>
+</Window>

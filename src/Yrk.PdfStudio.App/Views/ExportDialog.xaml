@@ -1,0 +1,84 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.ExportDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Export"
+        Width="480"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <Style TargetType="RadioButton">
+            <Setter Property="Margin" Value="0,3" />
+        </Style>
+    </Window.Resources>
+    <StackPanel Margin="20">
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Style="{StaticResource IconText}" Text="&#xEDE1;" FontSize="20" Foreground="{StaticResource AccentBrush}" />
+            <TextBlock Text="Export" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <TextBlock Text="Save as" FontWeight="SemiBold" Margin="0,0,0,4" />
+        <StackPanel Margin="12,0,0,0">
+            <RadioButton x:Name="WordFormat" GroupName="Format" Content="Word document (.docx): editable text" IsChecked="True" Checked="OnChanged" />
+            <RadioButton x:Name="ExcelFormat" GroupName="Format" Content="Excel workbook (.xlsx): tables" Checked="OnChanged" />
+            <RadioButton x:Name="PowerPointFormat" GroupName="Format" Content="PowerPoint (.pptx): one slide per page, as it looks" Checked="OnChanged" />
+            <RadioButton x:Name="PngFormat" GroupName="Format" Content="PNG images: sharp, for drawings and text" Checked="OnChanged" />
+            <RadioButton x:Name="JpegFormat" GroupName="Format" Content="JPG images: smaller, for photos" Checked="OnChanged" />
+            <RadioButton x:Name="TextFormat" GroupName="Format" Content="Plain text (.txt)" Checked="OnChanged" />
+        </StackPanel>
+
+        <StackPanel x:Name="ImagePanel" Margin="12,8,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="110" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition />
+                    <RowDefinition />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Resolution" VerticalAlignment="Center" />
+                <ComboBox x:Name="DpiBox" Grid.Column="1" Width="170" HorizontalAlignment="Left" AutomationProperties.Name="Resolution" SelectedIndex="2">
+                    <ComboBoxItem Content="72 dpi (screen)" Tag="72" />
+                    <ComboBoxItem Content="150 dpi" Tag="150" />
+                    <ComboBoxItem Content="200 dpi" Tag="200" />
+                    <ComboBoxItem Content="300 dpi (print)" Tag="300" />
+                    <ComboBoxItem Content="600 dpi" Tag="600" />
+                </ComboBox>
+                <TextBlock x:Name="QualityLabel" Grid.Row="1" Text="JPG quality" VerticalAlignment="Center" Margin="0,8,0,0" />
+                <DockPanel x:Name="QualityPanel" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0">
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Value, ElementName=QualitySlider, StringFormat={}{0:0}}" Width="30" TextAlignment="Right" VerticalAlignment="Center" />
+                    <Slider x:Name="QualitySlider" Minimum="40" Maximum="100" Value="85" IsSnapToTickEnabled="True" TickFrequency="5" AutomationProperties.Name="JPG quality" />
+                </DockPanel>
+            </Grid>
+            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,6,0,0"
+                       Text="One image per page, named after the file and the page number." />
+        </StackPanel>
+
+        <CheckBox x:Name="SheetPerPage" Content="One sheet per page" IsChecked="True" Margin="12,8,0,0" />
+
+        <TextBlock x:Name="PagesHeading" Text="Pages" FontWeight="SemiBold" Margin="0,14,0,4" />
+        <StackPanel x:Name="PagesPanel" Margin="12,0,0,0">
+            <RadioButton x:Name="AllPages" GroupName="Pages" Content="All pages" IsChecked="True" Checked="OnChanged" />
+            <RadioButton x:Name="CurrentPage" GroupName="Pages" Content="Current page" Checked="OnChanged" />
+            <DockPanel>
+                <RadioButton x:Name="SomePages" GroupName="Pages" Content="Pages" Checked="OnChanged" VerticalAlignment="Center" />
+                <TextBox x:Name="PageRange" Margin="8,0,0,0" Padding="4,2" AutomationProperties.Name="Page range"
+                         GotKeyboardFocus="OnRangeFocus" TextChanged="OnChanged" />
+            </DockPanel>
+        </StackPanel>
+
+        <TextBlock x:Name="LayoutNote" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,14,0,0"
+                   Text="Word and Excel get the text rebuilt as paragraphs and tables, so the layout can differ from the PDF. Pages without text (scans) are added as pictures: use Recognize text (OCR) first to get editable text." />
+        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Export error" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="OkButton" Content="Export…" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="90" Click="OnOk" />
+            <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

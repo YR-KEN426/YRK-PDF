@@ -1,0 +1,42 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.CompressDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Compress PDF"
+        Width="500"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="20">
+        <TextBlock Text="Make the file smaller" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Text="Large photos and scans are reduced and re-encoded. A new copy is saved; the original is not changed. Digital signatures in the copy will no longer be valid."
+                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap" />
+
+        <RadioButton x:Name="Balanced" GroupName="Preset" IsChecked="True">
+            <StackPanel>
+                <TextBlock Text="Recommended" FontWeight="SemiBold" />
+                <TextBlock Text="150 dpi. Good for email and most upload forms; text stays sharp." Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+        </RadioButton>
+        <RadioButton x:Name="Smallest" GroupName="Preset" Margin="0,10,0,0">
+            <StackPanel>
+                <TextBlock Text="Smallest file" FontWeight="SemiBold" />
+                <TextBlock Text="96 dpi, stronger JPEG compression. For strict size limits (for example 1–2 MB)." Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+        </RadioButton>
+        <RadioButton x:Name="Quality" GroupName="Preset" Margin="0,10,0,0">
+            <StackPanel>
+                <TextBlock Text="High quality" FontWeight="SemiBold" />
+                <TextBlock Text="220 dpi. For printing; saves less space." Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+        </RadioButton>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Compress…" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnOk" />
+            <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,46 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.SplitDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Split PDF"
+        Width="520"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="20">
+        <TextBlock Text="Split into several PDFs" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock x:Name="Description" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap" />
+
+        <RadioButton x:Name="EveryMode" GroupName="Mode" IsChecked="True" Checked="OnChanged">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Every" VerticalAlignment="Center" />
+                <TextBox x:Name="EveryInput" Width="50" Margin="6,0" Text="1" TextAlignment="Center" TextChanged="OnChanged" />
+                <TextBlock Text="pages" VerticalAlignment="Center" />
+            </StackPanel>
+        </RadioButton>
+        <RadioButton x:Name="RangeMode" GroupName="Mode" Margin="0,10,0,0" Checked="OnChanged">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Page ranges, one file each:" VerticalAlignment="Center" />
+                <TextBox x:Name="RangeInput" Width="190" Margin="6,0" TextChanged="OnRangeTextChanged" ToolTip="For example: 1-3, 4, 5-" />
+            </StackPanel>
+        </RadioButton>
+        <TextBlock Text="For example 1-3, 4, 5- (5- means page 5 to the end)." FontSize="11" Margin="22,3,0,0"
+                   Foreground="{StaticResource SecondaryTextBrush}" />
+
+        <TextBlock Text="Save to folder" Margin="0,16,0,4" />
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnBrowse" />
+            <TextBox x:Name="FolderInput" Padding="6,5" TextChanged="OnChanged" />
+        </DockPanel>
+
+        <TextBlock x:Name="Preview" Margin="0,14,0,0" TextWrapping="Wrap" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="OkButton" Content="Split" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnOk" />
+            <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

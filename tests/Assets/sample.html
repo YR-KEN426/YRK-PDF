@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>YRK PDF Studio sample</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  body { font-family: "Leelawadee UI", "Segoe UI", sans-serif; font-size: 13pt; line-height: 1.6; }
+  h1 { color: #0F6CBD; }
+  section { page-break-after: always; }
+  section:last-child { page-break-after: auto; }
+  table { border-collapse: collapse; }
+  td, th { border: 1px solid #999; padding: 4px 10px; }
+</style>
+</head>
+<body>
+<section>
+  <h1>Chapter 1: Introduction</h1>
+  <p>This sample document is used to test YRK PDF Studio. The keyword <b>invoice</b> appears on several pages.</p>
+  <p>ภาษาไทย: เอกสารนี้ใช้ทดสอบการแสดงผลและการค้นหาข้อความภาษาไทย คำว่า <b>สัญญา</b> ปรากฏอยู่หลายหน้า</p>
+</section>
+<section>
+  <h1>Chapter 2: Contract</h1>
+  <p>สัญญาจ้างงานฉบับนี้ทำขึ้นระหว่างผู้ว่าจ้างและผู้รับจ้าง</p>
+  <p>Please attach the invoice to the contract.</p>
+  <table>
+    <tr><th>Item</th><th>Amount (THB)</th></tr>
+    <tr><td>Service fee</td><td>12,500.00</td></tr>
+    <tr><td>VAT 7%</td><td>875.00</td></tr>
+  </table>
+</section>
+<section>
+  <h1>Chapter 3: Signatures</h1>
+  <p>ลงชื่อ ................................ ผู้ว่าจ้าง</p>
+  <p>ลงชื่อ ................................ ผู้รับจ้าง</p>
+  <p>The final invoice is due within 30 days. สัญญานี้มีผลตั้งแต่วันที่ลงนาม</p>
+</section>
+</body>
+</html>

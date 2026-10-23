@@ -1,0 +1,39 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.FormFieldDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="New form field"
+        Width="420"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="20">
+        <TextBlock x:Name="Heading" FontSize="15" FontWeight="SemiBold" Margin="0,0,0,12" />
+
+        <TextBlock Text="Field name" Margin="0,0,0,4" />
+        <TextBox x:Name="NameBox" Padding="6,4" AutomationProperties.Name="Field name" TextChanged="OnChanged" />
+        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,4,0,0"
+                   Text="Shown to people filling in the form, and used as the name of the data." />
+
+        <StackPanel x:Name="OptionsPanel" Margin="0,12,0,0">
+            <TextBlock Text="Choices, one per line" Margin="0,0,0,4" />
+            <TextBox x:Name="OptionsBox" Height="110" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Padding="6,4"
+                     AutomationProperties.Name="Choices" TextChanged="OnChanged" />
+        </StackPanel>
+
+        <CheckBox x:Name="RequiredBox" Content="Must be filled in" Margin="0,12,0,0" />
+        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Field error" />
+
+        <DockPanel Margin="0,16,0,0">
+            <Button x:Name="DeleteButton" DockPanel.Dock="Left" Content="Delete field" Style="{StaticResource SecondaryButton}"
+                    Foreground="{StaticResource ErrorBrush}" Click="OnDelete" Visibility="Collapsed" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="OkButton" Content="Add field" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="90" Click="OnOk" />
+                <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+            </StackPanel>
+        </DockPanel>
+    </StackPanel>
+</Window>

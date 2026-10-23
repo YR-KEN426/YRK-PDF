@@ -1,0 +1,90 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.SignatureDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Create signature"
+        Width="580"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="20">
+        <TextBlock Text="Create your signature" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock Text="Draw it, type your name, or use a photo of your signature on white paper."
+                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,12" TextWrapping="Wrap" />
+
+        <TabControl x:Name="Modes" Height="250" SelectionChanged="OnInputChanged">
+            <TabItem Header="Draw">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="1" Background="White">
+                        <Grid>
+                            <Line X1="24" X2="500" Y1="130" Y2="130" Stroke="#D0D0D0" StrokeDashArray="4 3" IsHitTestVisible="False" />
+                            <InkCanvas x:Name="Ink" Background="Transparent" StrokeCollected="OnStrokeCollected" />
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Ink:" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <RadioButton x:Name="BlackInk" Content="Black" IsChecked="True" Margin="0,0,12,0" VerticalAlignment="Center" Checked="OnInkColorChanged" />
+                        <RadioButton x:Name="BlueInk" Content="Blue" VerticalAlignment="Center" Checked="OnInkColorChanged" />
+                        <Button Content="Clear" Style="{StaticResource SecondaryButton}" Margin="24,0,0,0" Padding="12,3" Click="OnClearInk" />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Type">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBox x:Name="TypedName" Padding="6,5" TextChanged="OnInputChanged" />
+                    <ListBox x:Name="FontList" Grid.Row="1" Margin="0,8,0,0" SelectionChanged="OnInputChanged"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="4,2">
+                                    <TextBlock Text="{Binding Text, ElementName=TypedName, TargetNullValue=Your name, FallbackValue=Your name}"
+                                               FontFamily="{Binding}" FontSize="26" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Source}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Import">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Choose file…" Style="{StaticResource SecondaryButton}" Click="OnChooseImage" />
+                        <TextBlock Text="PNG or JPG (white background removed), SVG or PDF (kept as sharp vector lines)." Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
+                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                    </StackPanel>
+                    <Border Grid.Row="1" Margin="0,8,0,0" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1" Background="White">
+                        <Image x:Name="ImportedPreview" Stretch="Uniform" Margin="12" />
+                    </Border>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <CheckBox x:Name="RememberBox" Content="Save this signature for next time (stored encrypted on this PC)" IsChecked="True" Margin="0,12,0,0" />
+        <CheckBox x:Name="LockBox" Margin="0,6,0,0">
+            <TextBlock Text="Also lock the document with my Digital ID after signing (proves who signed, shows later changes)" TextWrapping="Wrap" />
+        </CheckBox>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button x:Name="UseButton" Content="Use signature" IsDefault="True" Style="{StaticResource PrimaryButton}" IsEnabled="False" Click="OnUse" />
+            <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

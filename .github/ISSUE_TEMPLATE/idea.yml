@@ -1,0 +1,15 @@
+name: ข้อเสนอแนะ / อยากได้ความสามารถใหม่
+description: ไอเดียให้โปรแกรมดีขึ้น
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: อยากให้มีหรือปรับอะไร
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: จะช่วยงานของคุณอย่างไร
+      description: เช่น ใช้ทำงานอะไร บ่อยแค่ไหน

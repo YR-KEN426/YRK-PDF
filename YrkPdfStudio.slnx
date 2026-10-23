@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Yrk.PdfStudio.Core/Yrk.PdfStudio.Core.csproj" />
+    <Project Path="src/Yrk.PdfStudio.App/Yrk.PdfStudio.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Yrk.PdfStudio.Core.Tests/Yrk.PdfStudio.Core.Tests.csproj" />
+  </Folder>
+</Solution>

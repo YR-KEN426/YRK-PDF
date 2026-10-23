@@ -1,0 +1,51 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.OcrDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:Yrk.PdfStudio.App.Converters"
+        Title="Recognize text (OCR)"
+        Width="460"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="20">
+        <TextBlock Text="Recognize text (OCR)" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,14"
+                   Text="Makes scanned pages searchable and copyable: the recognised text is added as an invisible layer, so the pages look exactly the same." />
+
+        <TextBlock Text="Languages in the document" Margin="0,0,0,4" />
+        <ItemsControl x:Name="LanguageList" Focusable="False">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="2" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <CheckBox IsChecked="{Binding IsChecked}" Margin="0,3" AutomationProperties.Name="{Binding Name}">
+                        <TextBlock>
+                            <Run Text="{Binding Name, Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" />
+                            <Run Text="{Binding Note, Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" />
+                        </TextBlock>
+                    </CheckBox>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0"
+                   Text="Language data is downloaded once from the Tesseract project (github.com/tesseract-ocr) when first needed. Choose only the languages you need: each one slows recognition down." />
+
+        <TextBlock Text="Pages" Margin="0,14,0,4" />
+        <RadioButton x:Name="ScannedOnly" Content="Only pages without text (scans)" IsChecked="True" />
+        <RadioButton x:Name="AllPages" Content="All pages" Margin="0,4,0,0" />
+
+        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" Margin="0,12,0,0" Visibility="Collapsed" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Recognize text" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnStart" />
+            <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

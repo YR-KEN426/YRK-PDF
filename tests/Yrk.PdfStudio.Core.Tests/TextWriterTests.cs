@@ -1,0 +1,101 @@
+using Yrk.PdfStudio.App.Imaging;
+using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
+using Yrk.PdfStudio.Core.Pdf.Text;
+
+namespace Yrk.PdfStudio.Core.Tests;
+
+public sealed class TextWriterTests : IDisposable
+{
+    private static readonly string SamplePath = Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf");
+
+    private readonly PdfiumEngine _engine = new();
+    private readonly DirectoryInfo _folder = Directory.CreateTempSubdirectory("yrk-text-");
+
+    public void Dispose()
+    {
+        _engine.Dispose();
+        _folder.Delete(recursive: true);
+    }
+
+    [Fact]
+    public async Task Writes_searchable_Thai_text_with_an_embedded_font()
+    {
+        const string text = "สวัสดีครับ ผู้ใช้งาน น้ำใจ Hello 123";
+        var blocks = Sta.Run(() => TextShaper.ToBlocks([(0, new NormalizedPoint(0.1, 0.7), new PdfColor(0, 0, 160), TextShaper.Shape(text, "Leelawadee UI", false, false, 18))]));
+
+        var output = PdfTextWriter.AddText(File.ReadAllBytes(SamplePath), blocks);
+        var path = Path.Combine(_folder.FullName, "text.pdf");
+        File.WriteAllBytes(path, output);
+
+        await using var document = await _engine.OpenAsync(path);
+        var pageText = await document.GetPageTextAsync(0);
+        Assert.Contains("สวัสดีครับ", pageText, StringComparison.Ordinal);
+        Assert.Contains("ผู้ใช้งาน", pageText, StringComparison.Ordinal);
+        Assert.Contains("น้ำใจ", pageText, StringComparison.Ordinal); // Stacked marks: outlines over invisible text.
+        Assert.Contains("Hello 123", pageText, StringComparison.Ordinal);
+
+        var match = Assert.Single(await document.FindTextAsync(0, "Hello", PdfSearchOptions.None));
+        Assert.InRange(match.Rects[0].Y, 0.68, 0.72);
+
+        var line = await document.GetTextLineAtAsync(0, new NormalizedPoint(match.Rects[0].X + 0.005, match.Rects[0].Y + (match.Rects[0].Height / 2)));
+        Assert.NotNull(line);
+        Assert.Equal(18, line.FontSize, 0);
+        Assert.Contains("Leelawadee", line.FontName, StringComparison.Ordinal);
+        Assert.Equal(new PdfColor(0, 0, 160), line.Color);
+    }
+
+    [Fact]
+    public async Task Replaces_a_line_of_text()
+    {
+        PdfTextLine line;
+        await using (var document = await _engine.OpenAsync(SamplePath))
+        {
+            var match = (await document.FindTextAsync(0, "appears", PdfSearchOptions.None))[0].Rects[0];
+            line = (await document.GetTextLineAtAsync(0, new NormalizedPoint(match.X + 0.002, match.Y + (match.Height / 2))))!;
+        }
+
+        Assert.StartsWith("appears", line.Text, StringComparison.Ordinal);
+        var replacement = Sta.Run(() =>
+        {
+            var shaped = TextShaper.Shape("ปรากฏอยู่หลายหน้า (edited)", "Leelawadee UI", false, false, line.FontSize);
+            var page = new PdfPageSize(595.28, 841.89);
+            var top = new NormalizedPoint(line.BaselineStart.X, line.BaselineStart.Y - (shaped.Baseline / page.Height));
+            return TextShaper.ToBlocks([(0, top, line.Color, shaped)])[0];
+        });
+
+        var output = PdfTextEditor.Apply(File.ReadAllBytes(SamplePath), [new PdfTextEdit(0, line.Bounds, replacement)]);
+        var path = Path.Combine(_folder.FullName, "edited.pdf");
+        File.WriteAllBytes(path, output);
+
+        await using var edited = await _engine.OpenAsync(path);
+        var text = await edited.GetPageTextAsync(0);
+        Assert.DoesNotContain("appears on several pages", text, StringComparison.Ordinal);
+        Assert.Contains("(edited)", text, StringComparison.Ordinal);
+        Assert.Contains("This sample", text, StringComparison.Ordinal);
+    }
+}
+
+internal static class Sta
+{
+    public static T Run<T>(Func<T> action)
+    {
+        T result = default!;
+        Exception? error = null;
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                result = action();
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+            }
+        });
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        thread.Join();
+        return error is null ? result : throw new InvalidOperationException("STA work failed: " + error.Message, error);
+    }
+}

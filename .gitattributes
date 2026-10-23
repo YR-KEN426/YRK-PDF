@@ -1,0 +1,5 @@
+*.pdf binary
+*.ico binary
+*.png binary
+*.dwg binary
+*.dxf -text
