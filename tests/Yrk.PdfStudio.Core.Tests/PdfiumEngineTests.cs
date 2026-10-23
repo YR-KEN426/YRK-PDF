@@ -84,15 +84,21 @@ public sealed class PdfiumEngineTests : IDisposable
 
     // Chrome/Edge "Print to PDF" wraps Thai clusters such as "สั" in one /ActualText span covering
     // two glyphs, and PDFium applies that text to each glyph, so extraction yields "สัญสั ญา".
-    // Fixing this needs ActualText-aware de-duplication in our own text layer (planned).
-    [Fact(Skip = "Known issue: PDFium duplicates /ActualText spans in Chromium-generated Thai PDFs.")]
+    // The repeats are left out (RepeatedText), and such pages are searched without them.
+    [Fact]
     public async Task Finds_thai_text_with_combining_marks_in_chromium_pdfs()
     {
         await using var document = await _engine.OpenAsync(SamplePath);
 
         var matches = await document.FindTextAsync(1, "สัญญา", PdfSearchOptions.None);
+        var text = await document.GetPageTextAsync(1);
+        var spans = await document.GetPageTextSpansAsync(1);
 
-        Assert.NotEmpty(matches);
+        var match = Assert.Single(matches.Where(m => m.Rects.Count > 0).Take(1));
+        Assert.All(match.Rects, r => Assert.True(r.Width > 0 && r.Height > 0));
+        Assert.Contains("สัญญา", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("สัญสั", text, StringComparison.Ordinal);
+        Assert.Contains(spans.Spans, s => s.Text.Contains("สัญญา", StringComparison.Ordinal));
     }
 
     [Fact]

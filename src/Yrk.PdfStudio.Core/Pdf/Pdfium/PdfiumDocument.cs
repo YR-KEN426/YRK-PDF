@@ -293,6 +293,11 @@ internal sealed partial class PdfiumDocument : IPdfDocument
 
             var buffer = new ushort[count + 1];
             var written = PdfiumNative.FPDFText_GetText(textPage, 0, count, buffer);
+            if (RepeatedText(textPage, buffer, count) is { } repeated)
+            {
+                return string.Concat(Enumerable.Range(0, count).Where(i => !repeated[i]).Select(i => (char)buffer[i]));
+            }
+
             return new string(MemoryMarshal.Cast<ushort, char>(buffer.AsSpan(0, Math.Max(0, written - 1))));
         }
         finally
@@ -312,6 +317,18 @@ internal sealed partial class PdfiumDocument : IPdfDocument
 
         try
         {
+            // PDFium's own search reads repeated /ActualText as written; such pages are searched here instead.
+            var charCount = PdfiumNative.FPDFText_CountChars(textPage);
+            if (charCount > 0)
+            {
+                var chars = new ushort[charCount + 1];
+                PdfiumNative.FPDFText_GetText(textPage, 0, charCount, chars);
+                if (RepeatedText(textPage, chars, charCount) is { } repeated)
+                {
+                    return FindWithout(page, pageIndex, textPage, chars, charCount, repeated, query, options);
+                }
+            }
+
             uint flags = 0;
             if (options.HasFlag(PdfSearchOptions.MatchCase))
             {
@@ -363,6 +380,45 @@ internal sealed partial class PdfiumDocument : IPdfDocument
         {
             PdfiumNative.FPDFText_ClosePage(textPage);
         }
+    }
+
+    /// <summary>Finds <paramref name="query"/> in the page text with the <paramref name="repeated"/> characters left out.</summary>
+    private IReadOnlyList<PdfTextMatch> FindWithout(
+        IntPtr page, int pageIndex, IntPtr textPage, ushort[] chars, int count, bool[] repeated, string query, PdfSearchOptions options)
+    {
+        var kept = Enumerable.Range(0, count).Where(i => !repeated[i]).ToList();
+        var text = string.Concat(kept.Select(i => (char)chars[i]));
+        var comparison = options.HasFlag(PdfSearchOptions.MatchCase) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        var size = PageSizes[pageIndex];
+        var deviceWidth = Math.Max(1, (int)Math.Round(size.Width * DeviceUnitsPerPoint));
+        var deviceHeight = Math.Max(1, (int)Math.Round(size.Height * DeviceUnitsPerPoint));
+        var matches = new List<PdfTextMatch>();
+        for (var at = query.Length == 0 ? -1 : text.IndexOf(query, comparison); at >= 0; at = text.IndexOf(query, at + query.Length, comparison))
+        {
+            var end = at + query.Length;
+            if (options.HasFlag(PdfSearchOptions.WholeWord)
+                && ((at > 0 && char.IsLetterOrDigit(text[at - 1])) || (end < text.Length && char.IsLetterOrDigit(text[end]))))
+            {
+                continue;
+            }
+
+            // The match on the page: from its first to its last character (the repeats in between lie inside).
+            var start = kept[at];
+            var length = kept[end - 1] - start + 1;
+            var rectCount = PdfiumNative.FPDFText_CountRects(textPage, start, length);
+            var rects = new List<NormalizedRect>(Math.Max(0, rectCount));
+            for (var i = 0; i < rectCount; i++)
+            {
+                if (PdfiumNative.FPDFText_GetRect(textPage, i, out var left, out var top, out var right, out var bottom) != 0)
+                {
+                    rects.Add(ToNormalized(page, deviceWidth, deviceHeight, left, top, right, bottom));
+                }
+            }
+
+            matches.Add(new PdfTextMatch(pageIndex, start, length, rects));
+        }
+
+        return matches;
     }
 
     /// <summary>Converts a rectangle in PDF user space to fractions of the displayed (rotated) page.</summary>

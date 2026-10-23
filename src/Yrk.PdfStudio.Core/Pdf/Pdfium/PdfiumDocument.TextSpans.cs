@@ -40,7 +40,8 @@ internal sealed partial class PdfiumDocument
             return (box.X * size.Width, box.Y * size.Height, (box.X + box.Width) * size.Width, (box.Y + box.Height) * size.Height);
         }
 
-        var order = ReadingOrder(text, chars, count, brokenSaraAa, Display);
+        var repeated = RepeatedText(text, chars, count);
+        var order = ReadingOrder(text, chars, count, brokenSaraAa, Display, repeated);
 
         // A span grows while the style stays the same and the characters follow each other on the line.
         // Each character keeps where it starts and ends on the page (for splitting at table columns).
@@ -128,6 +129,11 @@ internal sealed partial class PdfiumDocument
         for (var n = 0; n < (order?.Count ?? count); n++)
         {
             var (i, c) = order is null ? (n, (char)chars[n]) : order[n];
+            if (i >= 0 && repeated?[i] == true)
+            {
+                continue; // A second copy of a Thai cluster's /ActualText.
+            }
+
             if (i < 0)
             {
                 // Rebuilt reading order: a line break or a space between words.
@@ -318,13 +324,14 @@ internal sealed partial class PdfiumDocument
     /// </summary>
     /// <param name="display">A character box (left, right, bottom, top in page space) → left, top, right, bottom in points.</param>
     private static List<(int Index, char C)>? ReadingOrder(
-        IntPtr text, ushort[] chars, int count, bool brokenSaraAa, Func<double, double, double, double, (double L, double T, double R, double B)> display)
+        IntPtr text, ushort[] chars, int count, bool brokenSaraAa, Func<double, double, double, double, (double L, double T, double R, double B)> display,
+        bool[]? repeated)
     {
         var items = new List<(int I, char C, double L, double T, double R, double B)>();
         for (var i = 0; i < count; i++)
         {
             var c = (char)chars[i];
-            if (c is '\r' or '\n' or '\0' or '￾'
+            if (c is '\r' or '\n' or '\0' or '￾' || repeated?[i] == true
                 || PdfiumNative.FPDFText_GetCharBox(text, i, out var l, out var r, out var b, out var t) == 0 || r <= l || t <= b)
             {
                 continue;
