@@ -386,11 +386,9 @@ powershell -ExecutionPolicy Bypass -File build/release.ps1 -UpdateUrl https://do
 
 ## Known issues
 
-- **Thai search in PDFs printed from Chrome/Edge:** these files wrap Thai clusters such as "สั" in one
-  `/ActualText` span covering two glyphs, and PDFium applies it to each glyph. Extracted text then reads
-  "สัญสั ญา", so words with combining vowels or tone marks are not found. Thai words without combining
-  marks (e.g. "ภาษาไทย") and PDFs from Word or LibreOffice are not affected. Planned fix: an
-  ActualText-aware text layer of our own.
+- **PDF to Word:** Word wraps lines with its own Thai dictionary and fonts; where it ends a line earlier
+  than the PDF did, or a table cell's text needs one more line, a page can run onto the next (a 22-page
+  Thai report becomes 24 Word pages). Fonts that are not installed are replaced by Word's choice.
 - **Drawings (.dwg/.dxf):** layout viewports are cut to rectangles (polygonal clip boundaries are not
   followed), 3D views in viewports are skipped, and model text in a viewport is kept only when it starts
   inside the frame (text is not cut). External references (xrefs) and raster images are not loaded, and multileaders, tables, wipeouts,
@@ -407,10 +405,12 @@ powershell -ExecutionPolicy Bypass -File build/release.ps1 -UpdateUrl https://do
   to 3 px per point), so a change smaller than about half a pixel, or a pure colour change of the same
   darkness, is not found; pages are matched by number, and a page of a different size is stretched to the
   first. Unsaved changes in the open file are not included (the saved file is compared).
-- **Thai text in form fields uses a font that is not embedded.** PDFium writes the field appearance
-  with a reference to the Windows font Leelawadee UI. It looks right on Windows, but viewers without that
-  font may substitute another one. Planned fix: embed a bundled OFL Thai font (Sarabun) in the form.
-- **Fill & Sign:** the สำเนาถูกต้อง stamp is still saved as an image (300 dpi). Added text becomes
+- **Thai text in form fields:** what the app writes into a field is drawn in an embedded font, but the
+  field's own font setting (/DA) still names a font without Thai letters, so a viewer that redraws the
+  field when someone edits it there may show Thai wrongly. Planned fix: embed an OFL Thai font (Sarabun)
+  in the form.
+- **Fill & Sign:** the สำเนาถูกต้อง stamp's words are real text, but its frame and signature are saved as a
+  picture (300 dpi). Added text becomes
   an image instead of real text in password-protected files, and when a page tool (rotate, delete,
   extract, split) runs before saving. SVG import covers shapes, strokes, colours and transforms, not
   text, gradients or masks.
