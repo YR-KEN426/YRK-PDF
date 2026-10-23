@@ -243,7 +243,7 @@ public sealed partial class MainViewModel
     }
 
     private static byte[] ApplyFieldLooks(byte[] pdf, IReadOnlyList<PdfFieldLook> looks) =>
-        looks.Count == 0 ? pdf : PdfFieldAppearance.Apply(pdf, looks);
+        looks.Count == 0 ? pdf : PdfFieldAppearance.Apply(pdf, looks, Imaging.FormFonts.Thai);
 
     private static IReadOnlyList<string> InstalledFonts(params string[] wanted)
     {

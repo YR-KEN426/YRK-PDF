@@ -70,6 +70,48 @@ public sealed class FieldAppearanceTests : IDisposable
     }
 
     [Fact]
+    public async Task Thai_fields_name_a_Thai_font_for_viewers_that_redraw_them()
+    {
+        var source = TestPdfFactory.CreateReportPdf(Path.Combine(_folder.FullName, "report.pdf"));
+        var form = PdfFormBuilder.AddFields(File.ReadAllBytes(source), [new(0, NameBox, PdfNewFieldKind.Text, "Name")]);
+        var formPath = Path.Combine(_folder.FullName, "form.pdf");
+        File.WriteAllBytes(formPath, form);
+        int nameIndex;
+        await using (var document = await _engine.OpenAsync(formPath))
+        {
+            nameIndex = (await document.GetFormFieldsAsync(0)).Single().AnnotIndex;
+        }
+
+        // Filled in by the app (its own appearance), then edited in another viewer that redraws the field from
+        // its /DA. PDFium, the viewer here, takes a Windows Thai font of its own instead; Acrobat uses the /DA font.
+        var thaiFont = App.Imaging.FormFonts.Load(Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts", "Sarabun-Regular.ttf"));
+        Assert.NotNull(thaiFont);
+        Assert.True(thaiFont.Widths.ContainsKey('ก') && thaiFont.Widths.ContainsKey('A'));
+        var text = Sta.Run(() => TextShaper.ToShapedTexts([TextShaper.Shape("ทดสอบ", "Leelawadee UI", bold: false, italic: false, 11)])[0]);
+        var filledPath = Path.Combine(_folder.FullName, "filled.pdf");
+        File.WriteAllBytes(filledPath, PdfFieldAppearance.Apply(form, [new PdfFieldLook(0, nameIndex, 11, text)], thaiFont));
+        var editedPath = Path.Combine(_folder.FullName, "edited.pdf");
+        await using (var document = await _engine.OpenAsync(filledPath))
+        {
+            await document.ApplyFormEditsAsync([new PdfFormFieldEdit(0, nameIndex, Text: "กขคงจฉชซ")]);
+            await document.SaveAsync(editedPath);
+        }
+
+        await using var edited = await _engine.OpenAsync(editedPath);
+        var size = edited.PageSizes[0];
+        var bitmap = await edited.RenderPageAsync(0, (int)size.Width * 2, (int)size.Height * 2);
+        var ink = CountPixels(bitmap, NameBox, (r, g, b) => r < 110 && g < 110 && b < 110);
+
+        // The field names the font, and the form has it whole, with a map between Thai letters and its codes.
+        var filled = System.Text.Encoding.Latin1.GetString(File.ReadAllBytes(filledPath));
+        Assert.Contains("/DA (/YrkTh 11 Tf", filled, StringComparison.Ordinal);
+        Assert.Matches(@"/YrkTh \d+ 0 R", filled);
+        Assert.Contains("/BaseFont /Sarabun-Regular", filled, StringComparison.Ordinal);
+        Assert.Contains("/ToUnicode", filled, StringComparison.Ordinal);
+        Assert.True(ink > 150, $"The redrawn Thai text is missing ({ink} dark pixels).");
+    }
+
+    [Fact]
     public async Task A_saved_picture_is_found_and_can_be_removed()
     {
         var source = TestPdfFactory.CreateImageFieldPdf(Path.Combine(_folder.FullName, "photo.pdf"));

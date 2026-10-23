@@ -43,6 +43,8 @@
 
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
+    <!-- Sarabun (SIL OFL), embedded whole in forms with Thai fields for viewers that redraw them (Imaging\FormFonts). -->
+    <None Include="Assets\Fonts\Sarabun-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
     <!-- Thai UI texts (English text → Thai). -->
     <EmbeddedResource Include="Localization\th.json" LogicalName="Yrk.PdfStudio.App.Localization.th.json" />
     <!-- YRK's update key (public half): updates must be signed with the matching private key (build\UpdateSigner). -->

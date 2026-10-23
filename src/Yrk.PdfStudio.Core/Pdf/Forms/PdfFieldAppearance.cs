@@ -22,14 +22,16 @@ public sealed record PdfFieldLook(int PageIndex, int AnnotIndex, double FontSize
 /// Writes widget appearances ourselves, as an incremental update. PDFium draws field text with a stand-in
 /// font that cannot shape Thai and ignores the size people choose; here the text is the app's shaped text in
 /// an embedded font subset, and image fields get the chosen picture (also set as the button's icon, so
-/// Acrobat keeps it). The field's /DA font size is updated too, for viewers that redraw fields themselves.
+/// Acrobat keeps it). The field's /DA font size is updated too, for viewers that redraw fields themselves; with
+/// a <see cref="PdfFormFont"/>, fields holding Thai also name that font there, and the form gets it once.
 /// </summary>
 public static partial class PdfFieldAppearance
 {
     /// <summary>Space between the widget border and its text, in points (as Acrobat leaves it).</summary>
     private const double Inset = 2;
 
-    public static byte[] Apply(byte[] pdf, IReadOnlyList<PdfFieldLook> looks)
+    /// <param name="thaiFont">A whole Thai font for viewers that redraw Thai fields; null to leave /DA fonts as they are.</param>
+    public static byte[] Apply(byte[] pdf, IReadOnlyList<PdfFieldLook> looks, PdfFormFont? thaiFont = null)
     {
         if (looks.Count == 0)
         {
@@ -44,6 +46,8 @@ public static partial class PdfFieldAppearance
 
         var update = new CosIncrementalUpdate(document);
         var pages = document.GetPages();
+
+        var thaiFields = false;
 
         // One embedded subset per font, holding the glyphs of every field that uses it.
         var fonts = new Dictionary<PdfEmbeddedFont, PdfTextWriter.FontObject>(ReferenceEqualityComparer.Instance);
@@ -121,6 +125,12 @@ public static partial class PdfFieldAppearance
                 content.Append("Q EMC\n");
                 resources.Set("Font", fontResources);
                 var da = WithFontSize(DefaultAppearance(document, widget), look.FontSize);
+                if (thaiFont is not null && text.Runs.Any(r => r.Glyphs.Any(g => g.Text.Any(IsThai))))
+                {
+                    da = WithFontName(da, PdfFormFont.ResourceName);
+                    thaiFields = true;
+                }
+
                 changed["DA"] = new CosString(Encoding.Latin1.GetBytes(look.Color is { } color ? WithColor(da, color) : da));
             }
             else if (!look.RemovePicture)
@@ -165,8 +175,46 @@ public static partial class PdfFieldAppearance
             update.Replace(widgetRef.Id, changed);
         }
 
+        if (thaiFields)
+        {
+            AddFormFont(document, update, thaiFont!);
+        }
+
         return update.Build().Bytes;
     }
+
+    /// <summary>Puts the Thai font in the form's default resources (/DR /Font), once.</summary>
+    private static void AddFormFont(CosDocument document, CosIncrementalUpdate update, PdfFormFont font)
+    {
+        var catalog = document.Catalog;
+        var formValue = catalog["AcroForm"];
+        if (document.Resolve(formValue) is not CosDictionary existing)
+        {
+            return; // Fields without a form dictionary: nothing names a default font.
+        }
+
+        var form = existing.Clone();
+        var resources = (document.Resolve(form["DR"]) as CosDictionary)?.Clone() ?? new CosDictionary();
+        var fonts = (document.Resolve(resources["Font"]) as CosDictionary)?.Clone() ?? new CosDictionary();
+        if (fonts[PdfFormFont.ResourceName] is not null)
+        {
+            return; // Saved before with this font.
+        }
+
+        fonts[PdfFormFont.ResourceName] = font.AddTo(update);
+        resources["Font"] = fonts;
+        form["DR"] = resources;
+        if (formValue is CosReference formRef)
+        {
+            update.Replace(formRef.Id, form);
+        }
+        else if (document.Trailer["Root"] is CosReference root)
+        {
+            update.Replace(root.Id, catalog.Clone().Set("AcroForm", update.Add(form)));
+        }
+    }
+
+    private static bool IsThai(char c) => c is >= '฀' and <= '๿';
 
     /// <summary>
     /// How far the text of each turned widget runs from left-to-right as the page is shown, in degrees
@@ -264,6 +312,12 @@ public static partial class PdfFieldAppearance
 
     [GeneratedRegex(@"(/\S+)\s+[-+]?\d*\.?\d+\s+Tf")]
     private static partial Regex FontOperator();
+
+    /// <summary>"/Helv 12 Tf 0 g" with the font named <paramref name="name"/> instead.</summary>
+    internal static string WithFontName(string da, string name) =>
+        FontOperator().IsMatch(da)
+            ? FontOperator().Replace(da, m => "/" + name + m.Value[m.Groups[1].Length..], 1)
+            : $"/{name} 0 Tf {da}".Trim();
 
     /// <summary>"/Helv 12 Tf 0 g" with its text colour (a g, rg or k operator) replaced by <paramref name="color"/>.</summary>
     internal static string WithColor(string da, PdfColor color) =>

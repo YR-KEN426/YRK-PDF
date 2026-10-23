@@ -3,3 +3,4 @@
 *.png binary
 *.dwg binary
 *.dxf -text
+*.ttf binary

@@ -405,10 +405,11 @@ powershell -ExecutionPolicy Bypass -File build/release.ps1 -UpdateUrl https://do
   to 3 px per point), so a change smaller than about half a pixel, or a pure colour change of the same
   darkness, is not found; pages are matched by number, and a page of a different size is stretched to the
   first. Unsaved changes in the open file are not included (the saved file is compared).
-- **Thai text in form fields:** what the app writes into a field is drawn in an embedded font, but the
-  field's own font setting (/DA) still names a font without Thai letters, so a viewer that redraws the
-  field when someone edits it there may show Thai wrongly. Planned fix: embed an OFL Thai font (Sarabun)
-  in the form.
+- **Thai text in form fields:** what the app writes into a field is drawn in an embedded font, and a form
+  with Thai fields also gets the whole Sarabun font, named in those fields' /DA, for viewers that redraw a
+  field while someone edits it there. Viewers built on PDFium (Chrome, Edge) still use a Windows Thai font
+  of their own for that, and Thai typed elsewhere is not shaped (marks may sit a little off). Not yet
+  checked in Adobe Acrobat.
 - **Fill & Sign:** the สำเนาถูกต้อง stamp's words are real text, but its frame and signature are saved as a
   picture (300 dpi). Added text becomes
   an image instead of real text in password-protected files, and when a page tool (rotate, delete,
