@@ -6,12 +6,13 @@ using Yrk.PdfStudio.Core.Pdf.Text;
 namespace Yrk.PdfStudio.App.ViewModels;
 
 /// <summary>
-/// Text added with Fill &amp; Sign is written as real text (searchable, copyable, sharp), shaped like the
-/// on-screen preview and embedded as a font subset. Password-protected files keep the earlier image form.
+/// Text added with Fill &amp; Sign and the words of a สำเนาถูกต้อง stamp are written as real text (searchable,
+/// copyable, sharp), shaped like the on-screen preview and embedded as a font subset. Password-protected files keep
+/// the earlier image form.
 /// </summary>
 public sealed partial class MainViewModel
 {
-    private bool HasPlacedText => _placedItems.Any(i => i.IsText && i.Text.Trim().Length > 0);
+    private bool HasPlacedText => _placedItems.Any(i => (i.IsText && i.Text.Trim().Length > 0) || i.HasStampText);
 
     /// <summary>Real text needs the file's own bytes, which an encrypted file does not allow us to change.</summary>
     private bool CanWriteRealText(IPdfDocument document)
@@ -65,6 +66,22 @@ public sealed partial class MainViewModel
                 }
 
                 y += shaped.Height;
+            }
+        }
+
+        // A stamp's words, centred in its frame as drawn on screen, at the size the stamp was given.
+        foreach (var item in _placedItems.Where(i => i.HasStampText))
+        {
+            var stamp = item.Stamp!;
+            var scale = item.Width / stamp.Size.Width;
+            var color = new PdfColor(stamp.Ink.R, stamp.Ink.G, stamp.Ink.B);
+            foreach (var line in stamp.Lines!)
+            {
+                var shaped = TextShaper.Shape(line.Text, TextShaper.ThaiFallbackFamily, line.Bold, italic: false, line.FontSize * scale);
+                var topLeft = new NormalizedPoint(
+                    item.Bounds.X + (line.TopLeft.X * scale / item.PageWidth),
+                    item.Bounds.Y + (line.TopLeft.Y * scale / item.PageHeight));
+                lines.Add((item.PageIndex, topLeft, color, shaped));
             }
         }
 

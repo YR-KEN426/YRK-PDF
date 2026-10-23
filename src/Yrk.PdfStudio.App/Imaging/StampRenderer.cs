@@ -9,7 +9,14 @@ namespace Yrk.PdfStudio.App.Imaging;
 /// <param name="Signature">Signature drawn inside the stamp. Null to sign separately.</param>
 public sealed record CertifiedCopyOptions(string? Purpose, bool IncludeDate, BitmapSource? Signature);
 
-public sealed record RenderedStamp(BitmapSource Image, Size Size);
+/// <summary>One line of a stamp's text, its top-left corner in points from the stamp's top-left.</summary>
+public sealed record StampLine(string Text, double FontSize, bool Bold, Point TopLeft);
+
+/// <summary>
+/// A stamp as shown (<see cref="Image"/>) and as saved: <see cref="Frame"/> (border and signature, no text) under
+/// <see cref="Lines"/> written as real text in <see cref="Ink"/>, so the words can be found and copied.
+/// </summary>
+public sealed record RenderedStamp(BitmapSource Image, Size Size, BitmapSource? Frame = null, IReadOnlyList<StampLine>? Lines = null, Color Ink = default);
 
 /// <summary>Draws the Thai "certified true copy" (สำเนาถูกต้อง) stamp.</summary>
 internal static class StampRenderer
@@ -29,17 +36,20 @@ internal static class StampRenderer
         var ink = new SolidColorBrush(InkColor);
         ink.Freeze();
 
-        var title = TextRendering.Create(Title, 18, ink, FontWeights.Bold);
-        var lines = new List<FormattedText>();
+        const double titleSize = 18, lineSize = 9;
+        var title = TextRendering.Create(Title, titleSize, ink, FontWeights.Bold);
+        var texts = new List<string>();
         if (FormatPurpose(options.Purpose) is { } purpose)
         {
-            lines.Add(TextRendering.Create(purpose, 9, ink));
+            texts.Add(purpose);
         }
 
         if (options.IncludeDate)
         {
-            lines.Add(TextRendering.Create("วันที่ " + DateTime.Now.ToString("d MMMM yyyy", Thai), 9, ink));
+            texts.Add("วันที่ " + DateTime.Now.ToString("d MMMM yyyy", Thai));
         }
+
+        var lines = texts.Select(t => TextRendering.Create(t, lineSize, ink)).ToList();
 
         var signatureSize = options.Signature is { } signature
             ? FitSignature(signature, signatureHeight)
@@ -55,34 +65,52 @@ internal static class StampRenderer
         var height = (2 * paddingY) + title.Height + lines.Sum(l => l.Height + gap)
             + (signatureSize.IsEmpty ? 0 : signatureSize.Height + gap);
 
-        var visual = new DrawingVisual();
-        using (var context = visual.RenderOpen())
+        var placed = new List<StampLine>();
+        BitmapSource Draw(bool withText)
         {
-            context.PushTransform(new ScaleTransform(pixelsPerPoint, pixelsPerPoint));
-            var half = borderThickness / 2;
-            context.DrawRoundedRectangle(null, new Pen(ink, borderThickness), new Rect(half, half, width - borderThickness, height - borderThickness), 4, 4);
-
-            var y = paddingY;
-            context.DrawText(title, new Point((width - title.Width) / 2, y));
-            y += title.Height;
-
-            if (options.Signature is { } image && !signatureSize.IsEmpty)
+            var visual = new DrawingVisual();
+            using (var context = visual.RenderOpen())
             {
-                y += gap;
-                context.DrawImage(image, new Rect((width - signatureSize.Width) / 2, y, signatureSize.Width, signatureSize.Height));
-                y += signatureSize.Height;
+                context.PushTransform(new ScaleTransform(pixelsPerPoint, pixelsPerPoint));
+                var half = borderThickness / 2;
+                context.DrawRoundedRectangle(null, new Pen(ink, borderThickness), new Rect(half, half, width - borderThickness, height - borderThickness), 4, 4);
+
+                void Text(FormattedText text, string value, double size, bool bold, double top)
+                {
+                    var at = new Point((width - text.Width) / 2, top);
+                    if (withText)
+                    {
+                        context.DrawText(text, at);
+                    }
+                    else
+                    {
+                        placed.Add(new StampLine(value, size, bold, at));
+                    }
+                }
+
+                var y = paddingY;
+                Text(title, Title, titleSize, true, y);
+                y += title.Height;
+
+                if (options.Signature is { } image && !signatureSize.IsEmpty)
+                {
+                    y += gap;
+                    context.DrawImage(image, new Rect((width - signatureSize.Width) / 2, y, signatureSize.Width, signatureSize.Height));
+                    y += signatureSize.Height;
+                }
+
+                for (var i = 0; i < lines.Count; i++)
+                {
+                    y += gap;
+                    Text(lines[i], texts[i], lineSize, false, y);
+                    y += lines[i].Height;
+                }
             }
 
-            foreach (var line in lines)
-            {
-                y += gap;
-                context.DrawText(line, new Point((width - line.Width) / 2, y));
-                y += line.Height;
-            }
+            return ImageConversion.Render(visual, (int)Math.Ceiling(width * pixelsPerPoint), (int)Math.Ceiling(height * pixelsPerPoint));
         }
 
-        var bitmap = ImageConversion.Render(visual, (int)Math.Ceiling(width * pixelsPerPoint), (int)Math.Ceiling(height * pixelsPerPoint));
-        return new RenderedStamp(bitmap, new Size(width, height));
+        return new RenderedStamp(Draw(withText: true), new Size(width, height), Draw(withText: false), placed, InkColor);
     }
 
     /// <summary>"สมัครงาน" becomes "ใช้สำหรับสมัครงานเท่านั้น"; text that already has the wording is kept.</summary>

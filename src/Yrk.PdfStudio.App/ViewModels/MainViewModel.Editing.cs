@@ -122,7 +122,7 @@ public sealed partial class MainViewModel
 
         var image = placement.Image!;
         var (width, height) = placement.NaturalSize ?? DefaultSignatureSize(image);
-        var placed = PlacedItemViewModel.CreateImage(page.Index, placement.Kind, page.WidthPoints, page.HeightPoints, image, placement.Art);
+        var placed = PlacedItemViewModel.CreateImage(page.Index, placement.Kind, page.WidthPoints, page.HeightPoints, image, placement.Art, placement.Stamp);
         placed.Bounds = placed.ToBounds(pointX - (width / 2), pointY - (height / 2), width, height);
         AttachItem(placed);
         _undo.Push(() => DetachItem(placed), () => AttachItem(placed));
@@ -361,7 +361,7 @@ public sealed partial class MainViewModel
 
         var stamp = StampRenderer.RenderCertifiedCopy(options);
         BeginPlacement(new Placement(
-            PlacedItemKind.Stamp, stamp.Image, (stamp.Size.Width, stamp.Size.Height), "Click where the stamp should go. Press Esc to cancel."));
+            PlacedItemKind.Stamp, stamp.Image, (stamp.Size.Width, stamp.Size.Height), "Click where the stamp should go. Press Esc to cancel.", Stamp: stamp));
     }
 
     private void DeleteSelected()
@@ -590,6 +590,19 @@ public sealed partial class MainViewModel
                 continue;
             }
 
+            if (keepText && item.HasStampText)
+            {
+                // The stamp's frame goes into the page now; its words are written as real text over it (ApplyPlacedText).
+                if (!item.FrameCommitted)
+                {
+                    await document.AddImageAsync(item.PageIndex, ImageConversion.ToPdfImage(item.Stamp!.Frame!), item.Bounds);
+                    item.FrameCommitted = true;
+                    _documentModified = true;
+                }
+
+                continue;
+            }
+
             if (item.Art is { } art)
             {
                 await WriteSignatureAsync(document, item, art);
@@ -766,7 +779,8 @@ public sealed partial class MainViewModel
     }
 
     private sealed record Placement(
-        PlacedItemKind Kind, BitmapSource? Image, (double Width, double Height)? NaturalSize, string Hint, SignatureArt? Art = null, bool LockAfterwards = false);
+        PlacedItemKind Kind, BitmapSource? Image, (double Width, double Height)? NaturalSize, string Hint, SignatureArt? Art = null, bool LockAfterwards = false,
+        RenderedStamp? Stamp = null);
 
     private sealed record ViewState(ZoomMode ZoomMode, double Zoom, double ScrollOffset, int PageIndex);
 }

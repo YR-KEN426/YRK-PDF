@@ -113,6 +113,15 @@ public sealed class PlacedItemViewModel : ObservableObject
     /// <summary>A signature's artwork for the PDF; null for stamps and text.</summary>
     public Services.SignatureArt? Art { get; private init; }
 
+    /// <summary>A stamp whose words are saved as real text over its frame; null for other items.</summary>
+    public Imaging.RenderedStamp? Stamp { get; private init; }
+
+    /// <summary>The stamp's frame is already in the page; its words are written when the file is saved.</summary>
+    public bool FrameCommitted { get; set; }
+
+    /// <summary>The stamp has words to write as real text.</summary>
+    public bool HasStampText => Stamp is { Frame: not null, Lines.Count: > 0 };
+
     public string Text
     {
         get => _text;
@@ -144,8 +153,10 @@ public sealed class PlacedItemViewModel : ObservableObject
     }
 
     /// <param name="art">For signatures: what is written into the PDF (vectors, a PDF page or the image).</param>
-    public static PlacedItemViewModel CreateImage(int pageIndex, PlacedItemKind kind, double pageWidth, double pageHeight, BitmapSource image, Services.SignatureArt? art = null) =>
-        new(pageIndex, kind, pageWidth, pageHeight, image, string.Empty, TextStyle.Default) { Art = art };
+    /// <param name="stamp">For stamps: the frame and the words to save as real text.</param>
+    public static PlacedItemViewModel CreateImage(
+        int pageIndex, PlacedItemKind kind, double pageWidth, double pageHeight, BitmapSource image, Services.SignatureArt? art = null, Imaging.RenderedStamp? stamp = null) =>
+        new(pageIndex, kind, pageWidth, pageHeight, image, string.Empty, TextStyle.Default) { Art = art, Stamp = stamp };
 
     public static PlacedItemViewModel CreateText(int pageIndex, double pageWidth, double pageHeight, TextStyle style) =>
         new(pageIndex, PlacedItemKind.Text, pageWidth, pageHeight, null, string.Empty, style);

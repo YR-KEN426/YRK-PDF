@@ -77,6 +77,30 @@ public sealed class ExportTests : IDisposable
     }
 
     [Fact]
+    public async Task The_certified_copy_stamp_saves_its_words_as_text()
+    {
+        // As the app saves a stamp: its frame as a picture, its words as real text in the frame.
+        var blocks = Sta.Run(() =>
+        {
+            var stamp = App.Imaging.StampRenderer.RenderCertifiedCopy(new App.Imaging.CertifiedCopyOptions("สมัครงาน", IncludeDate: false, Signature: null));
+            Assert.NotNull(stamp.Frame);
+            return App.Imaging.TextShaper.ToBlocks(stamp.Lines!.Select(line => (0, new NormalizedPoint(0.1 + (line.TopLeft.X / 595), 0.2 + (line.TopLeft.Y / 842)),
+                new PdfColor(stamp.Ink.R, stamp.Ink.G, stamp.Ink.B),
+                App.Imaging.TextShaper.Shape(line.Text, App.Imaging.TextShaper.ThaiFallbackFamily, line.Bold, false, line.FontSize))).ToList());
+        });
+        var path = Path.Combine(_folder.FullName, "stamp.pdf");
+        File.WriteAllBytes(path, Yrk.PdfStudio.Core.Pdf.Text.PdfTextWriter.AddText(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf")), blocks));
+        await using var document = await _engine.OpenAsync(path);
+
+        var lines = TextLayout.PlainText(await document.GetPageTextSpansAsync(0)).Split('\n');
+        var found = await document.FindTextAsync(0, "สำเนาถูกต้อง", PdfSearchOptions.None);
+
+        Assert.Contains(lines, l => l.Contains("สำเนาถูกต้อง", StringComparison.Ordinal));
+        Assert.Contains(lines, l => l.Contains("ใช้สำหรับสมัครงานเท่านั้น", StringComparison.Ordinal));
+        Assert.NotEmpty(found);
+    }
+
+    [Fact]
     public void Thai_lines_are_joined_without_a_space()
     {
         var page = new PdfPageText(595, 842,
