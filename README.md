@@ -408,8 +408,8 @@ powershell -ExecutionPolicy Bypass -File build/release.ps1 -UpdateUrl https://do
 - **Thai text in form fields:** what the app writes into a field is drawn in an embedded font, and a form
   with Thai fields also gets the whole Sarabun font, named in those fields' /DA, for viewers that redraw a
   field while someone edits it there. Viewers built on PDFium (Chrome, Edge) still use a Windows Thai font
-  of their own for that, and Thai typed elsewhere is not shaped (marks may sit a little off). Checked in
-  Adobe Acrobat: Thai, spaces and the no-break space it types after a Thai word show correctly.
+  of their own for that, and Thai typed elsewhere is not shaped (marks may sit a little off). In Adobe
+  Acrobat a space typed after a Thai word still shows as "•" while editing (cause not found yet).
 - **Fill & Sign:** the สำเนาถูกต้อง stamp's words are real text, but its frame and signature are saved as a
   picture (300 dpi). Added text becomes
   an image instead of real text in password-protected files, and when a page tool (rotate, delete,
