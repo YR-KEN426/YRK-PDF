@@ -1,0 +1,30 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.ShortcutsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Keyboard shortcuts"
+        Width="660"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="20">
+        <StackPanel Orientation="Horizontal">
+            <TextBlock Style="{StaticResource IconText}" Text="&#xE765;" FontSize="22" Foreground="{StaticResource AccentBrush}" />
+            <TextBlock Text="Keyboard shortcuts" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
+        </StackPanel>
+        <!-- Two columns of groups, filled in code from one list. -->
+        <Grid x:Name="Columns" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel x:Name="LeftColumn" Grid.Column="0" />
+            <StackPanel x:Name="RightColumn" Grid.Column="2" />
+        </Grid>
+        <Button Content="Close" IsCancel="True" IsDefault="True" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" Margin="0,18,0,0" />
+    </StackPanel>
+</Window>

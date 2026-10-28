@@ -31,6 +31,16 @@ public partial class MainWindow : Window
         Tabs.CollectionChanged += (_, _) => TabStripBar.Visibility = Tabs.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
         Attach(viewModel);
         InitializeHome();
+        // Alt + the menu's letter opens it, as in Office.
+        foreach (var (key, button, open) in new (Key, Button, RoutedEventHandler)[]
+        {
+            (Key.F, FileMenuButton, OnFileMenuClick), (Key.V, ViewMenuButton, OnViewMenuClick), (Key.T, ToolsMenuButton, OnToolsButtonClick),
+            (Key.S, SettingsMenuButton, OnSettingsButtonClick), (Key.H, HelpMenuButton, OnHelpButtonClick),
+        })
+        {
+            InputBindings.Add(new KeyBinding(new CommunityToolkit.Mvvm.Input.RelayCommand(() => open(button, new RoutedEventArgs())), key, ModifierKeys.Alt));
+        }
+
         Loaded += (_, _) =>
         {
             _viewModel.DpiScale = VisualTreeHelper.GetDpi(this).DpiScaleX;
@@ -1152,6 +1162,72 @@ public partial class MainWindow : Window
     private void OnRecentMenuClick(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = PlacementMode.Bottom };
+        AddRecentFiles(menu);
+        menu.IsOpen = true;
+    }
+
+    /// <summary>The File menu (Alt+F): the commands Office users look for first.</summary>
+    private void OnFileMenuClick(object sender, RoutedEventArgs e)
+    {
+        var hasDocument = _viewModel.HasDocument;
+        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = PlacementMode.Bottom };
+        menu.Items.Add(new MenuItem { Header = "Open…", Command = ApplicationCommands.Open, CommandTarget = this, InputGestureText = "Ctrl+O" });
+        var recent = new MenuItem { Header = "Recent files" };
+        AddRecentFiles(recent);
+        menu.Items.Add(recent);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem { Header = "Save", Command = ApplicationCommands.Save, CommandTarget = this, InputGestureText = "Ctrl+S", IsEnabled = _viewModel.CanSave });
+        menu.Items.Add(new MenuItem { Header = "Save a copy…", Command = _viewModel.SaveAsCommand, InputGestureText = "Ctrl+Shift+S", IsEnabled = hasDocument });
+        var export = new MenuItem { Header = "Export", IsEnabled = hasDocument };
+        foreach (var (header, format) in new[]
+        {
+            ("Word (.docx)…", Services.ExportFormat.Word), ("Excel (.xlsx)…", Services.ExportFormat.Excel), ("PowerPoint (.pptx)…", Services.ExportFormat.PowerPoint),
+            ("Images (PNG)…", Services.ExportFormat.Png), ("Images (JPEG)…", Services.ExportFormat.Jpeg), ("Plain text (.txt)…", Services.ExportFormat.Text),
+        })
+        {
+            var item = new MenuItem { Header = header };
+            item.Click += async (_, _) => await _viewModel.ExportAsync(format);
+            export.Items.Add(item);
+        }
+
+        menu.Items.Add(export);
+        menu.Items.Add(new MenuItem { Header = "Print…", Command = _viewModel.PrintCommand, InputGestureText = "Ctrl+P", IsEnabled = hasDocument });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem { Header = "Protect with password…", Command = _viewModel.ProtectCommand, IsEnabled = hasDocument });
+        menu.Items.Add(new MenuItem { Header = "Remove password protection…", Command = _viewModel.RemoveProtectionCommand, IsEnabled = _viewModel.IsProtected });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem { Header = "Close file", Command = _viewModel.CloseCommand, InputGestureText = "Ctrl+W", IsEnabled = hasDocument });
+        menu.IsOpen = true;
+    }
+
+    /// <summary>The View menu (Alt+V): page size, sidebar, rulers and moving around.</summary>
+    private void OnViewMenuClick(object sender, RoutedEventArgs e)
+    {
+        var hasDocument = _viewModel.HasDocument;
+        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = PlacementMode.Bottom };
+        var home = new MenuItem { Header = "Start page" };
+        home.Click += (_, _) => ShowHome();
+        menu.Items.Add(home);
+        menu.Items.Add(new MenuItem { Header = "Sidebar", Command = _viewModel.ToggleSidebarCommand, IsCheckable = true, IsChecked = _viewModel.IsSidebarOpen });
+        menu.Items.Add(new MenuItem { Header = "Rulers", Command = _viewModel.ToggleRulersCommand, InputGestureText = "Ctrl+R", IsCheckable = true, IsChecked = _viewModel.ShowRulers, IsEnabled = hasDocument });
+        var hand = new MenuItem { Header = "Hand tool", InputGestureText = "H", IsCheckable = true, IsChecked = HandToggle.IsChecked == true, IsEnabled = hasDocument };
+        hand.Click += (_, _) => HandToggle.IsChecked = hand.IsChecked;
+        menu.Items.Add(hand);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem { Header = "Fit page", Command = _viewModel.FitPageCommand, InputGestureText = "Ctrl+0", IsEnabled = hasDocument });
+        menu.Items.Add(new MenuItem { Header = "Fit width", Command = _viewModel.FitWidthCommand, InputGestureText = "Ctrl+2", IsEnabled = hasDocument });
+        menu.Items.Add(new MenuItem { Header = "Actual size", Command = _viewModel.ActualSizeCommand, InputGestureText = "Ctrl+1", IsEnabled = hasDocument });
+        menu.Items.Add(new MenuItem { Header = "Zoom in", Command = _viewModel.ZoomInCommand, InputGestureText = "Ctrl++", IsEnabled = hasDocument });
+        menu.Items.Add(new MenuItem { Header = "Zoom out", Command = _viewModel.ZoomOutCommand, InputGestureText = "Ctrl+-", IsEnabled = hasDocument });
+        menu.Items.Add(new Separator());
+        menu.Items.Add(new MenuItem { Header = "First page", Command = _viewModel.FirstPageCommand, InputGestureText = "Ctrl+Home", IsEnabled = hasDocument });
+        menu.Items.Add(new MenuItem { Header = "Last page", Command = _viewModel.LastPageCommand, InputGestureText = "Ctrl+End", IsEnabled = hasDocument });
+        menu.IsOpen = true;
+    }
+
+    /// <summary>Recently opened files, newest first, then "Clear the list".</summary>
+    private void AddRecentFiles(ItemsControl menu)
+    {
         foreach (var file in Services.RecentFiles.Items)
         {
             menu.Items.Add(new MenuItem
@@ -1173,8 +1249,6 @@ public partial class MainWindow : Window
             menu.Items.Add(new Separator());
             menu.Items.Add(new MenuItem { Header = "Clear the list", Command = _viewModel.ClearRecentCommand });
         }
-
-        menu.IsOpen = true;
     }
 
     /// <summary>The rulers' corner: pick the unit (shared with measuring) and the drawing scale.</summary>
@@ -1252,6 +1326,9 @@ public partial class MainWindow : Window
     private void OnHelpButtonClick(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = PlacementMode.Bottom };
+        var shortcuts = new MenuItem { Header = "Keyboard shortcuts…" };
+        shortcuts.Click += (_, _) => new Views.ShortcutsDialog { Owner = this }.ShowDialog();
+        menu.Items.Add(shortcuts);
         menu.Items.Add(LinkItem("Common questions (website)", Services.Feedback.WebsiteUrl + "#faq"));
         menu.Items.Add(new MenuItem { Header = "Suggestions and problems…", Command = _viewModel.ShowFeedbackCommand });
         if (Services.Feedback.SupportUrl.Length > 0)

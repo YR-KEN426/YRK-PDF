@@ -204,6 +204,16 @@
             </Grid>
         </DataTemplate>
 
+        <!-- The name under a comment tool's icon, so the tools can be found without hovering. -->
+        <Style x:Key="ToolLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="Margin" Value="0,1,0,0" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="LabelledTool" TargetType="ToggleButton" BasedOn="{StaticResource ToolbarToggle}">
+            <Setter Property="Padding" Value="6,3" />
+            <Setter Property="MinWidth" Value="44" />
+        </Style>
         <Style x:Key="CanvasItem" TargetType="ContentPresenter">
             <Setter Property="Canvas.Left" Value="{Binding Left}" />
             <Setter Property="Canvas.Top" Value="{Binding Top}" />
@@ -258,6 +268,45 @@
                     <Button Style="{StaticResource ToolbarButton}" Click="OnHomeClick" ToolTip="Start page: all tools" AutomationProperties.Name="Start page">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE80F;" />
                     </Button>
+                    <!-- File and View menus, for people used to Office: every command is also a button or a shortcut. -->
+                    <Button x:Name="FileMenuButton" Style="{StaticResource ToolbarButton}" Click="OnFileMenuClick"
+                            ToolTip="File: open, save, export, print (Alt+F)" AutomationProperties.Name="File">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="File" Margin="2,0,4,0" VerticalAlignment="Center" />
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ViewMenuButton" Style="{StaticResource ToolbarButton}" Click="OnViewMenuClick"
+                            ToolTip="View: zoom, sidebar, rulers (Alt+V)" AutomationProperties.Name="View">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="View" Margin="2,0,4,0" VerticalAlignment="Center" />
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="ToolsMenuButton" Style="{StaticResource ToolbarButton}" Click="OnToolsButtonClick"
+                            ToolTip="Combine, split, compress, images to PDF (Alt+T)" AutomationProperties.Name="Tools">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Tools" Margin="2,0,4,0" VerticalAlignment="Center" />
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="SettingsMenuButton" Style="{StaticResource ToolbarButton}" Click="OnSettingsButtonClick"
+                            ToolTip="Settings: language, updates, privacy (Alt+S)" AutomationProperties.Name="Settings">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Settings" Margin="2,0,4,0" VerticalAlignment="Center" />
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="HelpMenuButton" Style="{StaticResource ToolbarButton}" Click="OnHelpButtonClick"
+                            ToolTip="Help, shortcuts and support (Alt+H)" AutomationProperties.Name="Help">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Help" Margin="2,0,4,0" VerticalAlignment="Center" />
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
+                        </StackPanel>
+                    </Button>
+
+                    <Border Style="{StaticResource ToolbarDivider}" />
+
                     <Button Style="{StaticResource ToolbarButton}" Command="ApplicationCommands.Open" ToolTip="Open (Ctrl+O)">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" />
@@ -283,15 +332,6 @@
                             ToolTip="Print (Ctrl+P)" AutomationProperties.Name="Print">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE749;" />
                     </Button>
-                    <Button Style="{StaticResource ToolbarButton}" Click="OnToolsButtonClick"
-                            ToolTip="Combine, split, compress, images to PDF" AutomationProperties.Name="Tools">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE90F;" />
-                            <TextBlock Text="Tools" Margin="6,0,4,0" VerticalAlignment="Center" />
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
-                        </StackPanel>
-                    </Button>
-
                     <Border Style="{StaticResource ToolbarDivider}" />
 
                     <StackPanel Orientation="Horizontal" IsEnabled="{Binding HasDocument}">
@@ -331,15 +371,6 @@
                     </StackPanel>
                 </StackPanel>
 
-                <!-- Settings and help, at the far right -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="8,0,0,0">
-                    <Button Style="{StaticResource ToolbarButton}" Click="OnSettingsButtonClick" ToolTip="Settings: language, updates, privacy" AutomationProperties.Name="Settings">
-                        <TextBlock Style="{StaticResource IconText}" Text="&#xE713;" />
-                    </Button>
-                    <Button Style="{StaticResource ToolbarButton}" Click="OnHelpButtonClick" ToolTip="Help, suggestions and support" AutomationProperties.Name="Help">
-                        <TextBlock Style="{StaticResource IconText}" Text="&#xE897;" />
-                    </Button>
-                </StackPanel>
 
                 <!-- Search -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" IsEnabled="{Binding HasDocument}">
@@ -379,7 +410,7 @@
         <!-- Secondary toolbar: Comment / Fill & Sign / Pages tabs -->
         <Border Grid.Row="1" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1"
                 Visibility="{Binding HasDocument, Converter={StaticResource BoolToVisibility}}">
-            <DockPanel Margin="6,0" LastChildFill="False" MinHeight="40">
+            <DockPanel Margin="6,0" LastChildFill="False" MinHeight="50">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <TextBlock Text="{Binding StatusMessage}" Margin="0,0,10,0" VerticalAlignment="Center"
                                Foreground="{StaticResource SecondaryTextBrush}" />
@@ -406,47 +437,74 @@
 
                     <!-- Comment tools -->
                     <StackPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=CommentTab, Converter={StaticResource BoolToVisibility}}">
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Select and copy text (Ctrl+C)" AutomationProperties.Name="Select text"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Select and copy text (Ctrl+C), or drag a comment to move it" AutomationProperties.Name="Select text"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Select}}">
-                            <TextBlock Text="Select" VerticalAlignment="Center" />
+                            <StackPanel>
+                                <Path Data="M3,1 L3,14 L6.5,10.5 L9,15.5 L11,14.5 L8.5,9.5 L13,9.5 Z" Stroke="{StaticResource TextBrush}" StrokeThickness="1.2" StrokeLineJoin="Round" Width="16" Height="16" Margin="0,1" HorizontalAlignment="Center" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Select" />
+                            </StackPanel>
                         </RadioButton>
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Highlight text" AutomationProperties.Name="Highlight"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Highlight text" AutomationProperties.Name="Highlight"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Highlight}}">
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE7E6;" />
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE7E6;" Height="18" HorizontalAlignment="Center" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Highlight" />
+                            </StackPanel>
                         </RadioButton>
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Underline text" AutomationProperties.Name="Underline"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Underline text" AutomationProperties.Name="Underline"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Underline}}">
-                            <TextBlock Text="U" FontSize="15" TextDecorations="Underline" VerticalAlignment="Center" />
+                            <StackPanel>
+                                <TextBlock Text="U" FontSize="14" TextDecorations="Underline" Height="18" HorizontalAlignment="Center" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Underline" />
+                            </StackPanel>
                         </RadioButton>
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Strike out text" AutomationProperties.Name="Strikeout"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Strike out text" AutomationProperties.Name="Strikeout"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.StrikeOut}}">
-                            <TextBlock Text="S" FontSize="15" TextDecorations="Strikethrough" VerticalAlignment="Center" />
+                            <StackPanel>
+                                <TextBlock Text="S" FontSize="14" TextDecorations="Strikethrough" Height="18" HorizontalAlignment="Center" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Strikeout" />
+                            </StackPanel>
                         </RadioButton>
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Add a sticky note" AutomationProperties.Name="Note"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Add a sticky note" AutomationProperties.Name="Note"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Note}}">
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE90A;" />
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE90A;" Height="18" HorizontalAlignment="Center" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Note" />
+                            </StackPanel>
                         </RadioButton>
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Draw freehand" AutomationProperties.Name="Pen"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Draw freehand" AutomationProperties.Name="Pen"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Pen}}">
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE76D;" />
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE76D;" Height="18" HorizontalAlignment="Center" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Pen" />
+                            </StackPanel>
                         </RadioButton>
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Rectangle" AutomationProperties.Name="Rectangle"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Rectangle" AutomationProperties.Name="Rectangle"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Rectangle}}">
-                            <Rectangle Width="16" Height="12" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4" />
+                            <StackPanel>
+                                <Rectangle Width="16" Height="12" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4" Margin="0,3" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Rectangle" />
+                            </StackPanel>
                         </RadioButton>
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Ellipse" AutomationProperties.Name="Ellipse"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Ellipse" AutomationProperties.Name="Ellipse"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Ellipse}}">
-                            <Ellipse Width="16" Height="12" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4" />
+                            <StackPanel>
+                                <Ellipse Width="16" Height="12" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4" Margin="0,3" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Ellipse" />
+                            </StackPanel>
                         </RadioButton>
-                        <RadioButton GroupName="Tool" Style="{StaticResource ToolbarToggle}" ToolTip="Arrow" AutomationProperties.Name="Arrow"
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Arrow" AutomationProperties.Name="Arrow"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Arrow}}">
-                            <Path Data="M1,15 L15,1 M8,1 L15,1 L15,8" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4" Width="16" Height="16" />
+                            <StackPanel>
+                                <Path Data="M1,15 L15,1 M8,1 L15,1 L15,8" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4" Width="16" Height="16" Margin="0,1" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Arrow" />
+                            </StackPanel>
                         </RadioButton>
-                        <Button Style="{StaticResource ToolbarButton}" Command="{Binding AddTextCommand}" Margin="2,0,0,0"
+                        <Button Style="{StaticResource ToolbarButton}" Command="{Binding AddTextCommand}" Margin="2,0,0,0" Padding="6,3"
                                 ToolTip="Type text anywhere on the page" AutomationProperties.Name="Add text">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource IconText}" Text="&#xE8D2;" />
-                                <TextBlock Text="Add text" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE8D2;" Height="18" HorizontalAlignment="Center" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Add text" />
                             </StackPanel>
                         </Button>
 
