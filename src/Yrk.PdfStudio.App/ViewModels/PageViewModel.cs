@@ -112,6 +112,7 @@ public sealed class PageViewModel : ObservableObject
     private Brush? _previewStroke;
     private double _previewThickness;
     private Rect? _annotationSelection;
+    private bool _isAnnotationResizable;
 
     /// <summary>Live feedback while dragging (text selection, pen stroke, shape), in page points.</summary>
     public Geometry? Preview
@@ -147,11 +148,30 @@ public sealed class PageViewModel : ObservableObject
             if (SetProperty(ref _annotationSelection, value))
             {
                 OnPropertyChanged(nameof(HasAnnotationSelection));
+                OnPropertyChanged(nameof(AnnotationHandles));
             }
         }
     }
 
     public bool HasAnnotationSelection => _annotationSelection is not null;
+
+    /// <summary>Whether the selected annotation shows corner handles for resizing.</summary>
+    public bool IsAnnotationResizable
+    {
+        get => _isAnnotationResizable;
+        set
+        {
+            if (SetProperty(ref _isAnnotationResizable, value))
+            {
+                OnPropertyChanged(nameof(AnnotationHandles));
+            }
+        }
+    }
+
+    /// <summary>The corners of the selection box (top-left, top-right, bottom-right, bottom-left) when it can be resized.</summary>
+    public IReadOnlyList<MeasureHandle> AnnotationHandles => _annotationSelection is { } r && _isAnnotationResizable
+        ? [new(r.Left, r.Top), new(r.Right, r.Top), new(r.Right, r.Bottom), new(r.Left, r.Bottom)]
+        : [];
 
     internal void SetPreview(Geometry? geometry, Brush? fill, Brush? stroke, double thickness)
     {

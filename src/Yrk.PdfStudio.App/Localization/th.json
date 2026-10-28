@@ -226,6 +226,7 @@
   "  ·  double-click or Enter to finish": "  ·  ดับเบิลคลิกหรือกด Enter เพื่อจบ",
   "  ·  drag a corner to correct it, Delete removes it": "  ·  ลากมุมเพื่อแก้ตำแหน่ง กด Delete เพื่อลบ",
   "Measurement removed. Undo (Ctrl+Z) brings it back.": "ลบผลการวัดแล้ว กด Undo (Ctrl+Z) เพื่อเอากลับมา",
+  "Comment deleted. Undo (Ctrl+Z) brings it back.": "ลบความคิดเห็นแล้ว กด Undo (Ctrl+Z) เพื่อเอากลับมา",
   "Delete measurement": "ลบผลการวัด",
   "Delete count mark": "ลบเครื่องหมายนับ",
   "Scale set: 1 pt on the page = {0} mm": "ตั้งสเกลแล้ว: 1 pt บนหน้า = {0} มม.",

@@ -9,6 +9,9 @@ internal sealed partial class PdfiumDocument
     private const double NoteSize = 20;      // points
     private const double ArrowHeadAngle = 25; // degrees
 
+    /// <summary>Marks an annotation deleted in this session (the value is its old /F flags) until it is purged on save.</summary>
+    private const string DeletedKey = "YRK_Deleted";
+
     // The text page of the page being selected on, kept while the user drags.
     private (int Index, IntPtr Page, IntPtr Text)? _textPageCache;
 
@@ -74,6 +77,130 @@ internal sealed partial class PdfiumDocument
             PdfWorkPriority.Interactive,
             cancellationToken);
     }
+
+    public Task DeleteAnnotationAsync(PdfAnnotationRef annotation, CancellationToken cancellationToken = default) =>
+        ChangeAnnotationAsync(annotation, (_, annot, _) =>
+        {
+            // The old flags are kept in the marker, for restoring.
+            var flags = PdfiumNative.FPDFAnnot_GetFlags(annot);
+            PdfiumNative.FPDFAnnot_SetStringValue(annot, DeletedKey, flags.ToString(CultureInfo.InvariantCulture));
+            PdfiumNative.FPDFAnnot_SetFlags(annot, (flags | PdfiumNative.FPDF_ANNOT_FLAG_HIDDEN) & ~PdfiumNative.FPDF_ANNOT_FLAG_PRINT);
+        }, cancellationToken);
+
+    public Task RestoreAnnotationAsync(PdfAnnotationRef annotation, CancellationToken cancellationToken = default) =>
+        ChangeAnnotationAsync(annotation, (_, annot, _) =>
+        {
+            if (DeletedFlags(annot) is { } flags)
+            {
+                PdfiumNative.FPDFAnnot_SetFlags(annot, flags);
+                PdfiumNative.FPDFAnnot_SetStringValue(annot, DeletedKey, string.Empty);
+            }
+        }, cancellationToken);
+
+    public Task<IReadOnlyList<PdfAnnotationRef>> PurgeDeletedAnnotationsAsync(CancellationToken cancellationToken = default) =>
+        _engine.InvokeAsync(
+            () =>
+            {
+                var removed = new List<PdfAnnotationRef>();
+                for (var pageIndex = 0; pageIndex < PageCount; pageIndex++)
+                {
+                    var page = GetPage(pageIndex);
+                    for (var i = PdfiumNative.FPDFPage_GetAnnotCount(page) - 1; i >= 0; i--)
+                    {
+                        var annot = PdfiumNative.FPDFPage_GetAnnot(page, i);
+                        var deleted = annot != IntPtr.Zero && DeletedFlags(annot) is not null;
+                        if (deleted)
+                        {
+                            // PDFium may still write the unlinked object when saving: leave no text in it.
+                            PdfiumNative.FPDFAnnot_SetStringValue(annot, "Contents", string.Empty);
+                            PdfiumNative.FPDFAnnot_SetStringValue(annot, "T", string.Empty);
+                        }
+
+                        PdfiumNative.FPDFPage_CloseAnnot(annot);
+                        if (deleted && PdfiumNative.FPDFPage_RemoveAnnot(page, i) != 0)
+                        {
+                            removed.Add(new PdfAnnotationRef(pageIndex, i, string.Empty));
+                        }
+                    }
+                }
+
+                if (removed.Count > 0)
+                {
+                    _revision++;
+                }
+
+                return (IReadOnlyList<PdfAnnotationRef>)removed;
+            },
+            PdfWorkPriority.Interactive,
+            cancellationToken);
+
+    public Task MoveAnnotationAsync(PdfAnnotationRef annotation, NormalizedRect bounds, CancellationToken cancellationToken = default) =>
+        ChangeAnnotationAsync(annotation, (page, annot, _) =>
+        {
+            if (PdfiumNative.FPDFAnnot_GetRect(annot, out var old) == 0)
+            {
+                throw new PdfException("The annotation has no position.");
+            }
+
+            var (deviceWidth, deviceHeight) = GetDeviceSize(annotation.PageIndex);
+            var a = DeviceToPage(page, deviceWidth, deviceHeight, bounds.X, bounds.Y);
+            var b = DeviceToPage(page, deviceWidth, deviceHeight, bounds.X + bounds.Width, bounds.Y + bounds.Height);
+            var rect = new PdfiumNative.FS_RECTF
+            {
+                Left = (float)Math.Min(a.X, b.X),
+                Right = (float)Math.Max(a.X, b.X),
+                Bottom = (float)Math.Min(a.Y, b.Y),
+                Top = (float)Math.Max(a.Y, b.Y),
+            };
+
+            // Ink strokes are mapped from the old box to the new one, so they match the appearance, which
+            // viewers fit to /Rect themselves.
+            double oldLeft = Math.Min(old.Left, old.Right), oldBottom = Math.Min(old.Bottom, old.Top);
+            var scaleX = Math.Abs(old.Right - old.Left) > 0.01 ? (rect.Right - rect.Left) / Math.Abs(old.Right - old.Left) : 1;
+            var scaleY = Math.Abs(old.Top - old.Bottom) > 0.01 ? (rect.Top - rect.Bottom) / Math.Abs(old.Top - old.Bottom) : 1;
+            var strokes = new List<PdfiumNative.FS_POINTF[]>();
+            var count = PdfiumNative.FPDFAnnot_GetInkListCount(annot);
+            for (uint i = 0; i < count; i++)
+            {
+                var length = PdfiumNative.FPDFAnnot_GetInkListPath(annot, i, null, 0);
+                var points = new PdfiumNative.FS_POINTF[length];
+                PdfiumNative.FPDFAnnot_GetInkListPath(annot, i, points, length);
+                strokes.Add(points.Select(p => new PdfiumNative.FS_POINTF
+                {
+                    X = (float)(rect.Left + ((p.X - oldLeft) * scaleX)),
+                    Y = (float)(rect.Bottom + ((p.Y - oldBottom) * scaleY)),
+                }).ToArray());
+            }
+
+            if (strokes.Count > 0 && PdfiumNative.FPDFAnnot_RemoveInkList(annot) != 0)
+            {
+                foreach (var stroke in strokes.Where(s => s.Length > 0))
+                {
+                    PdfiumNative.FPDFAnnot_AddInkStroke(annot, stroke, (nuint)stroke.Length);
+                }
+            }
+
+            PdfiumNative.FPDFAnnot_SetRect(annot, ref rect);
+            PdfiumNative.FPDFAnnot_SetStringValue(annot, "M", PdfDate(DateTimeOffset.Now));
+        }, cancellationToken);
+
+    private Task ChangeAnnotationAsync(PdfAnnotationRef annotation, Action<IntPtr, IntPtr, int> change, CancellationToken cancellationToken)
+    {
+        ValidatePageIndex(annotation.PageIndex);
+        return _engine.InvokeAsync(
+            () =>
+            {
+                _revision++;
+                WithAnnotation(annotation, change);
+                return true;
+            },
+            PdfWorkPriority.Interactive,
+            cancellationToken);
+    }
+
+    /// <summary>The flags an annotation had before it was deleted, or null when it is not deleted.</summary>
+    private static int? DeletedFlags(IntPtr annot) =>
+        int.TryParse(ReadString(annot, DeletedKey), NumberStyles.Integer, CultureInfo.InvariantCulture, out var flags) ? flags : null;
 
     public Task<string> GetTextInAreaAsync(int pageIndex, NormalizedRect area, CancellationToken cancellationToken = default)
     {
@@ -216,6 +343,11 @@ internal sealed partial class PdfiumDocument
                 if (PdfiumNative.FPDFAnnot_GetRect(annot, out var rect) == 0)
                 {
                     continue;
+                }
+
+                if (DeletedFlags(annot) is not null)
+                {
+                    continue; // Deleted in this session, kept only for Undo.
                 }
 
                 var kind = PdfiumNative.FPDFAnnot_GetSubtype(annot);

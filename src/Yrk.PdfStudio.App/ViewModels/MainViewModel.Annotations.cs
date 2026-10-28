@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Forms;
 
 namespace Yrk.PdfStudio.App.ViewModels;
 
@@ -119,6 +120,7 @@ public sealed partial class MainViewModel
             var page = Pages[value.PageIndex];
             var b = value.Annotation.Bounds;
             page.AnnotationSelection = new Rect(b.X * page.WidthPoints, b.Y * page.HeightPoints, b.Width * page.WidthPoints, b.Height * page.HeightPoints);
+            page.IsAnnotationResizable = IsResizable(value.Annotation.Kind);
             if (value.PageIndex != CurrentPageIndex)
             {
                 GoToPage(value.PageIndex);
@@ -150,6 +152,12 @@ public sealed partial class MainViewModel
             point = Snap(page, point); // A measurement starts on the drawing point under the cursor.
         }
 
+        _commentDrag = null;
+        if (_currentTool == AnnotationTool.Select)
+        {
+            BeginCommentDrag(page, point);
+        }
+
         _gesture = new Gesture(page, point, [point]);
         return true;
     }
@@ -172,6 +180,12 @@ public sealed partial class MainViewModel
         if (_measureEdit is { } edit)
         {
             UpdateMeasureEdit(edit, point);
+            return;
+        }
+
+        if (_commentDrag is { } drag)
+        {
+            UpdateCommentDrag(drag, gesture.Page, point);
             return;
         }
 
@@ -209,6 +223,13 @@ public sealed partial class MainViewModel
     public void CancelPageGesture()
     {
         CancelMeasureEdit();
+        if (_commentDrag is { } drag)
+        {
+            _commentDrag = null;
+            SelectedComment = null; // Puts the box back where the comment is.
+            SelectComment(drag.Comment);
+        }
+
         _gesture?.Page.ClearPreview();
         _gesture = null;
     }
@@ -234,6 +255,13 @@ public sealed partial class MainViewModel
         {
             _measureEdit = null;
             await EndMeasureEditAsync(edit);
+            return;
+        }
+
+        if (_commentDrag is { } drag)
+        {
+            _commentDrag = null;
+            await EndCommentDragAsync(drag, page, point, isClick);
             return;
         }
 
@@ -384,7 +412,32 @@ public sealed partial class MainViewModel
             SelectedComment = null;
         }
 
-        await RunAnnotationChangeAsync(comment.PageIndex, () => document.RemoveAnnotationAsync(comment.Reference));
+        // Hidden rather than removed until Save, so Undo brings back exactly what the file had.
+        var reference = comment.Reference;
+        await RunAnnotationChangeAsync(reference.PageIndex, () => document.DeleteAnnotationAsync(reference));
+        _undo.Push(
+            () => _ = RunAnnotationChangeAsync(reference.PageIndex, () => document.RestoreAnnotationAsync(reference), keepSelectionId: reference.Id),
+            () => _ = RunAnnotationChangeAsync(reference.PageIndex, () => document.DeleteAnnotationAsync(reference)));
+        StatusMessage = "Comment deleted. Undo (Ctrl+Z) brings it back.";
+    }
+
+    /// <summary>
+    /// Before saving: deleted comments leave the document for good. Field looks find their widgets by place
+    /// in the page's annotations, so they move up past the removed ones.
+    /// </summary>
+    private async Task<List<PdfFieldLook>> PurgeDeletedCommentsAsync(IPdfDocument document, List<PdfFieldLook> looks)
+    {
+        var removed = await document.PurgeDeletedAnnotationsAsync();
+        if (removed.Count == 0)
+        {
+            return looks;
+        }
+
+        // Steps that name annotations by place no longer fit (if saving fails, the document stays open).
+        _undo.KeepOnlyPageSteps();
+        return looks
+            .Select(look => look with { AnnotIndex = look.AnnotIndex - removed.Count(r => r.PageIndex == look.PageIndex && r.Index < look.AnnotIndex) })
+            .ToList();
     }
 
     private void SelectComment(CommentViewModel? comment) => SelectedComment = comment;

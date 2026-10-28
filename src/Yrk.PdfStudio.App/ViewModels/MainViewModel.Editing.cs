@@ -700,6 +700,7 @@ public sealed partial class MainViewModel
                 var realText = CanWriteRealText(document);
                 var fieldLooks = BuildFieldLooks(document); // Before the fields are committed and reloaded.
                 await CommitOverlaysAsync(document, keepText: realText);
+                fieldLooks = await PurgeDeletedCommentsAsync(document, fieldLooks);
                 await document.SaveAsync(tempPath);
 
                 // PDFium writes every object it has loaded, changed or not (about 1 MB more per save of a filled

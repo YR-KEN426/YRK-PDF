@@ -374,6 +374,7 @@ internal static class PdfiumNative
     public const int FPDFANNOT_COLORTYPE_Color = 0;
     public const int FPDFANNOT_COLORTYPE_InteriorColor = 1;
 
+    public const int FPDF_ANNOT_FLAG_HIDDEN = 1 << 1;
     public const int FPDF_ANNOT_FLAG_PRINT = 1 << 2;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -415,6 +416,19 @@ internal static class PdfiumNative
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern int FPDFAnnot_SetFlags(IntPtr annot, int flags);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFAnnot_GetFlags(IntPtr annot);
+
+    // "unsigned long" is 32 bits on Windows.
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint FPDFAnnot_GetInkListCount(IntPtr annot);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint FPDFAnnot_GetInkListPath(IntPtr annot, uint pathIndex, [Out] FS_POINTF[]? buffer, uint length);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFAnnot_RemoveInkList(IntPtr annot);
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern int FPDFAnnot_SetStringValue(

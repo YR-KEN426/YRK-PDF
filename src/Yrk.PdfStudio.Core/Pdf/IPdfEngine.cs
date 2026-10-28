@@ -154,6 +154,21 @@ public interface IPdfDocument : IAsyncDisposable
 
     Task RemoveAnnotationAsync(PdfAnnotationRef annotation, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Hides an annotation as deleted, so that <see cref="RestoreAnnotationAsync"/> can bring it back exactly
+    /// as it was. It stays out of the annotation list, and <see cref="PurgeDeletedAnnotationsAsync"/> takes it
+    /// out of the file before saving.
+    /// </summary>
+    Task DeleteAnnotationAsync(PdfAnnotationRef annotation, CancellationToken cancellationToken = default);
+
+    Task RestoreAnnotationAsync(PdfAnnotationRef annotation, CancellationToken cancellationToken = default);
+
+    /// <summary>Removes deleted annotations for good. Returns where each one was (its page and old index).</summary>
+    Task<IReadOnlyList<PdfAnnotationRef>> PurgeDeletedAnnotationsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Moves or resizes an annotation: its appearance is fitted to the new bounds, ink strokes follow.</summary>
+    Task MoveAnnotationAsync(PdfAnnotationRef annotation, NormalizedRect bounds, CancellationToken cancellationToken = default);
+
     /// <summary>The line of text at a point (for editing), or null when there is no text there.</summary>
     Task<PdfTextLine?> GetTextLineAtAsync(int pageIndex, NormalizedPoint point, CancellationToken cancellationToken = default);
 

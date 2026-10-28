@@ -99,6 +99,71 @@ public sealed class AnnotationTests : IDisposable
     }
 
     [Fact]
+    public async Task Deleted_annotations_come_back_on_restore_and_leave_the_file_on_purge()
+    {
+        var target = PathFor("purged.pdf");
+        await using (var document = await _engine.OpenAsync(SamplePath))
+        {
+            var kept = await document.AddAnnotationAsync(0, new PdfShapeSpec(PdfAnnotationKind.Square, new NormalizedRect(0.1, 0.1, 0.2, 0.1), 2, Red));
+            var gone = await document.AddAnnotationAsync(0, new PdfNoteSpec(new NormalizedPoint(0.5, 0.5), Yellow, "secret"));
+
+            await document.DeleteAnnotationAsync(new PdfAnnotationRef(0, -1, kept));
+            Assert.Equal(gone, Assert.Single(await document.GetAnnotationsAsync(0)).Id);
+
+            await document.RestoreAnnotationAsync(new PdfAnnotationRef(0, -1, kept));
+            Assert.Equal(2, (await document.GetAnnotationsAsync(0)).Count);
+
+            // Deleted, then removed for good before saving: nothing of it is left in the file.
+            await document.DeleteAnnotationAsync(new PdfAnnotationRef(0, -1, gone));
+            var purged = Assert.Single(await document.PurgeDeletedAnnotationsAsync());
+            Assert.Equal((0, 1), (purged.PageIndex, purged.Index));
+            await document.SaveAsync(target);
+        }
+
+        Assert.DoesNotContain("secret", Encoding.Latin1.GetString(await File.ReadAllBytesAsync(target)));
+        await using var reopened = await _engine.OpenAsync(target);
+        Assert.Equal(PdfAnnotationKind.Square, Assert.Single(await reopened.GetAnnotationsAsync(0)).Kind);
+    }
+
+    [Fact]
+    public async Task Moves_and_resizes_annotations_with_their_ink()
+    {
+        await using var document = await _engine.OpenAsync(SamplePath);
+        var ink = await document.AddAnnotationAsync(0, new PdfInkSpec([[new(0.2, 0.6), new(0.3, 0.65), new(0.4, 0.6)]], 2, Red));
+        var before = Assert.Single(await document.GetAnnotationsAsync(0)).Bounds;
+
+        var moved = new NormalizedRect(before.X + 0.3, before.Y - 0.2, before.Width * 2, before.Height * 2);
+        await document.MoveAnnotationAsync(new PdfAnnotationRef(0, -1, ink), moved);
+
+        var after = Assert.Single(await document.GetAnnotationsAsync(0)).Bounds;
+        Assert.Equal(moved.X, after.X, 3);
+        Assert.Equal(moved.Y, after.Y, 3);
+        Assert.Equal(moved.Width, after.Width, 3);
+
+        // The stroke is drawn in its new place, and no longer in the old one.
+        var bitmap = await document.RenderPageAsync(0, 595, 842);
+        bool RedNear(double x, double y)
+        {
+            for (var dy = -4; dy <= 4; dy++)
+            {
+                for (var dx = -4; dx <= 4; dx++)
+                {
+                    var offset = (((int)(y * 842) + dy) * bitmap.Stride) + (((int)(x * 595) + dx) * 4);
+                    if (bitmap.Pixels[offset + 2] > 150 && bitmap.Pixels[offset] < 120)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        Assert.False(RedNear(0.3, 0.65), "the old place should be empty");
+        Assert.True(RedNear(0.3 + 0.3 + 0.1, 0.65 - 0.2 + 0.05), "the stroke's middle point, moved and scaled");
+    }
+
+    [Fact]
     public async Task Annotations_on_rotated_pages_stay_where_they_were_drawn()
     {
         await using var document = await _engine.OpenAsync(SamplePath);

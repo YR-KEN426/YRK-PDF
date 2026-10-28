@@ -1395,6 +1395,27 @@
                                                        Width="{Binding AnnotationSelection.Width}" Height="{Binding AnnotationSelection.Height}"
                                                        Margin="-2" Stroke="{StaticResource AccentBrush}" StrokeThickness="1" StrokeDashArray="3 2"
                                                        Visibility="{Binding HasAnnotationSelection, Converter={StaticResource BoolToVisibility}}" />
+                                            <!-- Corners of a selected shape or drawing: drag one to resize it. -->
+                                            <ItemsControl ItemsSource="{Binding AnnotationHandles}" ItemContainerStyle="{StaticResource CanvasItem}" Focusable="False">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <Canvas />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate DataType="{x:Type vm:MeasureHandle}">
+                                                        <Rectangle Width="8" Height="8" Fill="White" Stroke="{StaticResource AccentBrush}" StrokeThickness="1.5">
+                                                            <Rectangle.RenderTransform>
+                                                                <TransformGroup>
+                                                                    <TranslateTransform X="-4" Y="-4" />
+                                                                    <ScaleTransform ScaleX="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                    ScaleY="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                                </TransformGroup>
+                                                            </Rectangle.RenderTransform>
+                                                        </Rectangle>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
                                         </Canvas>
                                     </Grid>
                                 </Viewbox>
