@@ -768,7 +768,14 @@ public sealed partial class MainViewModel
     private Task ApplyNewFieldsAsync() =>
         ApplyNowAsync("Adding the fields…", "Fields ready to fill", "Couldn't add the fields.\n\n{0}", () => _newFields.Count > 0);
 
-    private ViewState CaptureViewState() => new(_zoomMode, _zoom, _scrollOffset, _currentPageIndex);
+    private ViewState CaptureViewState()
+    {
+        // Where the view is, as a place on a page: while the document reopens the sidebar is gone for a moment, so
+        // the fitted zoom (and every offset in pixels) changes before the view comes back.
+        var top = _pageTops.Length == 0 ? 0 : PageIndexAt(_scrollOffset);
+        var fraction = top < Pages.Count ? (_scrollOffset - _pageTops[top]) / Math.Max(1, Pages[top].DisplayHeight) : 0;
+        return new(_zoomMode, _zoom, _scrollOffset, _currentPageIndex, top, fraction);
+    }
 
     /// <summary>The saved bytes with PDFium's unchanged objects left out; the bytes as they are if that is not possible.</summary>
     private static async Task<byte[]> TrimSaveAsync(string originalPath, byte[] saved)
@@ -799,5 +806,5 @@ public sealed partial class MainViewModel
         PlacedItemKind Kind, BitmapSource? Image, (double Width, double Height)? NaturalSize, string Hint, SignatureArt? Art = null, bool LockAfterwards = false,
         RenderedStamp? Stamp = null);
 
-    private sealed record ViewState(ZoomMode ZoomMode, double Zoom, double ScrollOffset, int PageIndex);
+    private sealed record ViewState(ZoomMode ZoomMode, double Zoom, double ScrollOffset, int PageIndex, int TopPage, double TopFraction);
 }

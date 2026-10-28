@@ -51,6 +51,7 @@ public sealed partial class MainViewModel : ObservableObject
     private double _viewportWidth;
     private double _viewportHeight;
     private double? _requestedScrollOffset;
+    private ViewState? _pendingRestore;
     private int? _navigationTarget;
     private double _zoom = 1.0;
     private ZoomMode _zoomMode = ZoomMode.FitWidth;
@@ -371,12 +372,24 @@ public sealed partial class MainViewModel : ObservableObject
         _scrollOffset = offset;
         _viewportWidth = width;
         _viewportHeight = height;
+        if (_pendingRestore is not null && _requestedScrollOffset is double requested && Math.Abs(requested - offset) < 1.5)
+        {
+            _pendingRestore = null; // The reopened document is back where it was.
+        }
 
         if (resized && _document is not null && _zoomMode != ZoomMode.Custom)
         {
             var fit = ComputeFitZoom(_zoomMode);
             if (Math.Abs(fit - _zoom) > 0.0005)
             {
+                if (_pendingRestore is { } restore)
+                {
+                    // The offset on screen is still the old one: go to the remembered place at the new size instead.
+                    ApplyZoom(fit, keepAnchor: false);
+                    RequestScroll(RestoredOffset(restore));
+                    return;
+                }
+
                 ApplyZoom(fit, keepAnchor: true);
                 return;
             }
@@ -466,7 +479,8 @@ public sealed partial class MainViewModel : ObservableObject
         }
         else
         {
-            RequestScroll(restore.ScrollOffset);
+            _pendingRestore = restore;
+            RequestScroll(RestoredOffset(restore));
         }
 
         RaiseDocumentPropertiesChanged();
@@ -523,6 +537,7 @@ public sealed partial class MainViewModel : ObservableObject
         _currentPageIndex = 0;
         _navigationTarget = null;
         _requestedScrollOffset = null;
+        _pendingRestore = null;
         RaiseDocumentPropertiesChanged();
 
         await document.DisposeAsync();
@@ -651,6 +666,12 @@ public sealed partial class MainViewModel : ObservableObject
 
         return Math.Clamp(index, 0, _pageTops.Length - 1);
     }
+
+    /// <summary>The offset of the place on a page that <paramref name="restore"/> remembers, at the current size.</summary>
+    private double RestoredOffset(ViewState restore) =>
+        restore.TopPage < Pages.Count
+            ? _pageTops[restore.TopPage] + (restore.TopFraction * Pages[restore.TopPage].DisplayHeight)
+            : restore.ScrollOffset;
 
     private void RequestScroll(double offset, int? navigationTarget = null)
     {

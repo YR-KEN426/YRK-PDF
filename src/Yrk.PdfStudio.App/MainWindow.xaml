@@ -422,7 +422,7 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Height="50">
-                    <TextBlock Text="{Binding StatusMessage}" Margin="10,0,10,0" VerticalAlignment="Center" MaxWidth="280"
+                    <TextBlock Text="{Binding StatusMessage}" Margin="10,0,10,0" VerticalAlignment="Center" Width="240" TextAlignment="Right"
                                TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusMessage}"
                                Foreground="{StaticResource SecondaryTextBrush}" />
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)" AutomationProperties.Name="Undo">
