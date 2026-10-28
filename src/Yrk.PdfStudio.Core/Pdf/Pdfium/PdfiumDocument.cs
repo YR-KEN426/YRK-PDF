@@ -317,15 +317,16 @@ internal sealed partial class PdfiumDocument : IPdfDocument
 
         try
         {
-            // PDFium's own search reads repeated /ActualText as written; such pages are searched here instead.
+            // PDFium's own search reads the text as stored: pages with repeated /ActualText or Thai stored out of
+            // order are searched here instead, in the repaired text.
             var charCount = PdfiumNative.FPDFText_CountChars(textPage);
             if (charCount > 0)
             {
                 var chars = new ushort[charCount + 1];
                 PdfiumNative.FPDFText_GetText(textPage, 0, charCount, chars);
-                if (RepeatedText(textPage, chars, charCount) is { } repeated)
+                if (RepairedText(textPage, chars, charCount) is { } repaired)
                 {
-                    return FindWithout(page, pageIndex, textPage, chars, charCount, repeated, query, options);
+                    return FindIn(page, pageIndex, textPage, repaired, query, options);
                 }
             }
 
@@ -382,12 +383,11 @@ internal sealed partial class PdfiumDocument : IPdfDocument
         }
     }
 
-    /// <summary>Finds <paramref name="query"/> in the page text with the <paramref name="repeated"/> characters left out.</summary>
-    private IReadOnlyList<PdfTextMatch> FindWithout(
-        IntPtr page, int pageIndex, IntPtr textPage, ushort[] chars, int count, bool[] repeated, string query, PdfSearchOptions options)
+    /// <summary>Finds <paramref name="query"/> in the repaired page text (see <see cref="RepairedText"/>).</summary>
+    private IReadOnlyList<PdfTextMatch> FindIn(
+        IntPtr page, int pageIndex, IntPtr textPage, List<ReadChar> repaired, string query, PdfSearchOptions options)
     {
-        var kept = Enumerable.Range(0, count).Where(i => !repeated[i]).ToList();
-        var text = string.Concat(kept.Select(i => (char)chars[i]));
+        var text = string.Concat(repaired.Select(e => e.C));
         var comparison = options.HasFlag(PdfSearchOptions.MatchCase) ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         var size = PageSizes[pageIndex];
         var deviceWidth = Math.Max(1, (int)Math.Round(size.Width * DeviceUnitsPerPoint));
@@ -402,9 +402,11 @@ internal sealed partial class PdfiumDocument : IPdfDocument
                 continue;
             }
 
-            // The match on the page: from its first to its last character (the repeats in between lie inside).
-            var start = kept[at];
-            var length = kept[end - 1] - start + 1;
+            // The match on the page: from its first to its last character (left-out ones in between lie inside;
+            // reordered marks may come from either end).
+            var sources = repaired.GetRange(at, end - at).Select(e => e.Source).ToList();
+            var start = sources.Min();
+            var length = sources.Max() - start + 1;
             var rectCount = PdfiumNative.FPDFText_CountRects(textPage, start, length);
             var rects = new List<NormalizedRect>(Math.Max(0, rectCount));
             for (var i = 0; i < rectCount; i++)

@@ -252,9 +252,19 @@ internal sealed partial class PdfiumDocument
             }
         }
 
-        var buffer = new ushort[count + 1];
-        var written = PdfiumNative.FPDFText_GetText(text, first, count, buffer);
-        var selected = new string(MemoryMarshal.Cast<ushort, char>(buffer.AsSpan(0, Math.Max(0, written - 1))));
+        string selected;
+        if (RepairedTextOf(text) is { } repaired)
+        {
+            // Copied text reads as it does on the page (Thai vowels and marks put right).
+            selected = string.Concat(repaired.Where(e => e.Source >= first && e.Source <= last).Select(e => e.C));
+        }
+        else
+        {
+            var buffer = new ushort[count + 1];
+            var written = PdfiumNative.FPDFText_GetText(text, first, count, buffer);
+            selected = new string(MemoryMarshal.Cast<ushort, char>(buffer.AsSpan(0, Math.Max(0, written - 1))));
+        }
+
         return new PdfTextSelection(pageIndex, first, count, rects, selected);
     }
 
@@ -320,6 +330,30 @@ internal sealed partial class PdfiumDocument
             PdfiumNative.FPDFText_ClosePage(cached.Text);
             _textPageCache = null;
         }
+
+        _repairedTextCache = null;
+    }
+
+    // The repaired text of the cached text page, worked out once while the user drags a selection.
+    private (IntPtr Text, List<ReadChar>? Chars)? _repairedTextCache;
+
+    private List<ReadChar>? RepairedTextOf(IntPtr text)
+    {
+        if (_repairedTextCache is { } cached && cached.Text == text)
+        {
+            return cached.Chars;
+        }
+
+        var count = PdfiumNative.FPDFText_CountChars(text);
+        var chars = new ushort[Math.Max(0, count) + 1];
+        if (count > 0)
+        {
+            PdfiumNative.FPDFText_GetText(text, 0, count, chars);
+        }
+
+        var repaired = count > 0 ? RepairedText(text, chars, count) : null;
+        _repairedTextCache = (text, repaired);
+        return repaired;
     }
 
     // --- Reading ---------------------------------------------------------------------------

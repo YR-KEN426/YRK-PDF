@@ -46,6 +46,26 @@ public sealed class TextWriterTests : IDisposable
     }
 
     [Fact]
+    public async Task Search_and_copy_read_Thai_marks_in_written_order()
+    {
+        // Stored the way some PDFs do: the tone mark before the vowel above ("น้ี" for "นี้").
+        const string stored = "ข้อความน้ีสำคัญ";
+        var blocks = Sta.Run(() => TextShaper.ToBlocks([(0, new NormalizedPoint(0.1, 0.7), new PdfColor(0, 0, 0), TextShaper.Shape(stored, "Leelawadee UI", false, false, 18))]));
+        var path = Path.Combine(_folder.FullName, "marks.pdf");
+        File.WriteAllBytes(path, PdfTextWriter.AddText(File.ReadAllBytes(SamplePath), blocks));
+
+        await using var document = await _engine.OpenAsync(path);
+        Assert.Contains("น้ี", await document.GetPageTextAsync(0), StringComparison.Ordinal); // As stored.
+
+        var match = Assert.Single(await document.FindTextAsync(0, "ความนี้สำคัญ", PdfSearchOptions.None));
+        var box = match.Rects[0];
+        var middle = box.Y + (box.Height / 2);
+        var selection = await document.GetTextSelectionAsync(0, new NormalizedPoint(box.X + 0.001, middle), new NormalizedPoint(box.X + box.Width - 0.001, middle));
+        Assert.NotNull(selection);
+        Assert.Contains("นี้สำคัญ", selection.Text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Replaces_a_line_of_text()
     {
         PdfTextLine line;
