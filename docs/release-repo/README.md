@@ -38,6 +38,15 @@ key, and the program refuses an update whose signature does not match. The sourc
   [Report a vulnerability](https://github.com/YR-KEN426/YRK-PDF/security/advisories/new)
   or yrken.official@gmail.com
 
+## สนับสนุนผู้พัฒนา / Support
+
+YRK PDF ฟรีสำหรับทุกคน รวมถึงใช้ในบริษัท และจะฟรีทุกความสามารถต่อไป ถ้าโปรแกรมช่วยให้งานของคุณง่ายขึ้น
+สนับสนุนการพัฒนาได้ที่ [GitHub Sponsors](https://github.com/sponsors/YR-KEN426)
+เงินสนับสนุนใช้เป็นค่าใบรับรองเซ็นโปรแกรมและเวลาพัฒนา ขอบคุณครับ
+
+YRK PDF is free for everyone, including businesses, and will stay that way. If it saves you time, you can
+support its development through [GitHub Sponsors](https://github.com/sponsors/YR-KEN426). Thank you!
+
 ## How it is made
 
 YRK PDF is built with .NET and open-source components under permissive licenses (PDFium, PDFsharp,

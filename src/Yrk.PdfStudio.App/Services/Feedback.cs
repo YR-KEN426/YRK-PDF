@@ -33,10 +33,9 @@ public static class Feedback
     public const string WebsiteUrl = "https://yr-ken426.github.io/yrk-easy-pdf-release/";
 
     /// <summary>
-    /// The website's "support the developer" section (PromptPay QR). An empty link hides the menu item: set it to
-    /// WebsiteUrl + "#support" once that section is on the website.
+    /// The website's "support the developer" answer (GitHub Sponsors). An empty link hides the menu item.
     /// </summary>
-    public const string SupportUrl = "";
+    public const string SupportUrl = WebsiteUrl + "#support";
 
     public static void Open(string target) =>
         Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
