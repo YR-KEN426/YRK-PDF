@@ -246,6 +246,9 @@
   footer a { color: var(--muted-2); }
   footer .links { display: flex; flex-wrap: wrap; gap: 20px; }
   footer .lab { font-weight: 600; color: var(--text); }
+  footer .by { display: flex; align-items: center; gap: 12px; }
+  /* The team logo has navy lettering: a white tile keeps it readable in dark mode too. */
+  footer .lab-logo { flex: none; width: 48px; height: auto; background: #ffffff; border-radius: 10px; padding: 4px; }
   footer .small { margin-top: 12px; font-size: 13px; }
 
   /* Download bar at the bottom, once the hero's button has scrolled away */
