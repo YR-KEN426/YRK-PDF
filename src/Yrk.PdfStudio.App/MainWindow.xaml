@@ -186,7 +186,7 @@
                     <TextBox Text="{Binding Text, UpdateSourceTrigger=Explicit}" FontSize="{Binding FontSize}"
                              FontFamily="{Binding FontFamily}" FontWeight="{Binding FontWeight}" FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" Padding="0" BorderThickness="0.6" MinWidth="40"
                              BorderBrush="{StaticResource AccentBrush}" Background="#F2FFFFFF" AcceptsReturn="True"
-                             IsVisibleChanged="OnTextEditorVisibleChanged" LostKeyboardFocus="OnTextEditorLostFocus"
+                             IsVisibleChanged="OnTextEditorVisibleChanged" Loaded="OnTextEditorLoaded" LostKeyboardFocus="OnTextEditorLostFocus"
                              PreviewKeyDown="OnTextEditorKeyDown" />
                 </Canvas>
                 <Rectangle Stroke="{StaticResource AccentBrush}" StrokeThickness="0.8" StrokeDashArray="3 2" IsHitTestVisible="False"
@@ -260,8 +260,13 @@
 
         <!-- Toolbar -->
         <Border Grid.Row="0" Background="{StaticResource ToolbarBrush}" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1">
-            <DockPanel Margin="6,5" LastChildFill="False">
-                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+            <!-- Buttons wrap to a second line when the window is narrow, so search always keeps its place. -->
+            <Grid Margin="6,5">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <WrapPanel Grid.Column="0" Orientation="Horizontal">
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding ToggleSidebarCommand}" ToolTip="Show or hide the sidebar" AutomationProperties.Name="Sidebar">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE700;" />
                     </Button>
@@ -369,11 +374,11 @@
                             <TextBlock Style="{StaticResource IconText}" Text="&#xED5E;" />
                         </ToggleButton>
                     </StackPanel>
-                </StackPanel>
+                </WrapPanel>
 
 
                 <!-- Search -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" IsEnabled="{Binding HasDocument}">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,0,0" IsEnabled="{Binding HasDocument}">
                     <TextBlock Text="{Binding SearchStatus}" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" />
                     <Grid Width="220" VerticalAlignment="Center">
                         <TextBox x:Name="SearchBox" Style="{StaticResource ToolbarTextBox}" Padding="26,4,4,4"
@@ -404,15 +409,21 @@
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" />
                     </Button>
                 </StackPanel>
-            </DockPanel>
+            </Grid>
         </Border>
 
         <!-- Secondary toolbar: Comment / Fill & Sign / Pages tabs -->
         <Border Grid.Row="1" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1"
                 Visibility="{Binding HasDocument, Converter={StaticResource BoolToVisibility}}">
-            <DockPanel Margin="6,0" LastChildFill="False" MinHeight="50">
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <TextBlock Text="{Binding StatusMessage}" Margin="0,0,10,0" VerticalAlignment="Center"
+            <!-- Tools wrap to a second line when the window is narrow, so they never cover the status text or Undo/Redo. -->
+            <Grid Margin="6,0" MinHeight="50">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Height="50">
+                    <TextBlock Text="{Binding StatusMessage}" Margin="10,0,10,0" VerticalAlignment="Center" MaxWidth="280"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding StatusMessage}"
                                Foreground="{StaticResource SecondaryTextBrush}" />
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding UndoCommand}" ToolTip="Undo (Ctrl+Z)" AutomationProperties.Name="Undo">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE7A7;" />
@@ -423,7 +434,7 @@
                 </StackPanel>
 
 
-                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
+                <WrapPanel Grid.Column="0" Orientation="Horizontal">
                     <RadioButton x:Name="CommentTab" GroupName="ToolbarTabs" Content="Comment" Style="{StaticResource ToolbarTab}" IsChecked="True" />
                     <RadioButton x:Name="EditTab" GroupName="ToolbarTabs" Content="Edit" Style="{StaticResource ToolbarTab}"
                                  Checked="OnEditTabChecked" Unchecked="OnEditTabUnchecked" />
@@ -436,7 +447,7 @@
                     <Border Style="{StaticResource ToolbarDivider}" Margin="8,0" />
 
                     <!-- Comment tools -->
-                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=CommentTab, Converter={StaticResource BoolToVisibility}}">
+                    <WrapPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=CommentTab, Converter={StaticResource BoolToVisibility}}">
                         <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Select and copy text (Ctrl+C), or drag a comment to move it" AutomationProperties.Name="Select text"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Select}}">
                             <StackPanel>
@@ -532,10 +543,10 @@
                         </ItemsControl>
                         <ComboBox ItemsSource="{x:Static vm:MainViewModel.StrokeWidths}" SelectedItem="{Binding StrokeWidth}" Width="74" Margin="8,0,0,0"
                                   VerticalAlignment="Center" ToolTip="Line width (pen and shapes)" AutomationProperties.Name="Line width" ItemStringFormat="{}{0} pt" />
-                    </StackPanel>
+                    </WrapPanel>
 
                     <!-- Fill & Sign tools -->
-                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=FillSignTab, Converter={StaticResource BoolToVisibility}}">
+                    <WrapPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=FillSignTab, Converter={StaticResource BoolToVisibility}}">
                         <Button Style="{StaticResource ToolbarButton}" Command="{Binding AddTextCommand}"
                                 ToolTip="Type text anywhere on the page" AutomationProperties.Name="Add text">
                             <StackPanel Orientation="Horizontal">
@@ -605,10 +616,10 @@
                                 <TextBlock Text="Edit fields" Margin="6,0,2,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </RadioButton>
-                    </StackPanel>
+                    </WrapPanel>
 
                     <!-- Edit tools -->
-                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=EditTab, Converter={StaticResource BoolToVisibility}}">
+                    <WrapPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=EditTab, Converter={StaticResource BoolToVisibility}}">
                         <RadioButton Style="{StaticResource ToolbarToggle}" GroupName="EditTools" IsChecked="True"
                                      ToolTip="Click a line of text to change it" AutomationProperties.Name="Edit text">
                             <StackPanel Orientation="Horizontal">
@@ -624,12 +635,12 @@
                             </StackPanel>
                         </Button>
                         <Border Style="{StaticResource ToolbarDivider}" />
-                        <TextBlock Text="Click a line, type, press Enter. Changes are applied when you save." VerticalAlignment="Center"
+                        <TextBlock Text="Click a line, type, then press Enter or click outside it." VerticalAlignment="Center"
                                    Margin="6,0" Foreground="{StaticResource SecondaryTextBrush}" />
-                    </StackPanel>
+                    </WrapPanel>
 
                     <!-- Measure tools -->
-                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=MeasureTab, Converter={StaticResource BoolToVisibility}}">
+                    <WrapPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=MeasureTab, Converter={StaticResource BoolToVisibility}}">
                         <RadioButton Style="{StaticResource ToolbarToggle}" GroupName="MeasureTools" AutomationProperties.Name="Distance"
                                      ToolTip="Distance: drag from one point to another (hold Shift for 45° steps)"
                                      IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.MeasureDistance}}">
@@ -708,16 +719,16 @@
                             </Button>
                         </StackPanel>
 
-                        <StackPanel Orientation="Horizontal">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
+                        <WrapPanel Orientation="Horizontal">
+                        <WrapPanel.Style>
+                            <Style TargetType="WrapPanel">
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsCounting}" Value="True">
                                         <Setter Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </Style.Triggers>
                             </Style>
-                        </StackPanel.Style>
+                        </WrapPanel.Style>
                         <TextBlock Text="Scale" VerticalAlignment="Center" Margin="4,0,6,0" Foreground="{StaticResource SecondaryTextBrush}" />
                         <ComboBox ItemsSource="{Binding MeasureScales}" SelectedItem="{Binding MeasureScale}" Width="150" VerticalAlignment="Center"
                                   AutomationProperties.Name="Scale" ToolTip="From the drawing uses the scale stored in the PDF (CAD exports)" />
@@ -748,13 +759,13 @@
                                 ToolTip="Remove all measurements" AutomationProperties.Name="Clear measurements">
                             <TextBlock Text="Clear" />
                         </Button>
-                        </StackPanel>
+                        </WrapPanel>
                         <TextBlock Text="{Binding MeasureResult}" VerticalAlignment="Center" Margin="10,0,0,0" FontWeight="SemiBold"
                                    AutomationProperties.Name="Measurement result" />
-                    </StackPanel>
+                    </WrapPanel>
 
                     <!-- Redaction tools -->
-                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=RedactTab, Converter={StaticResource BoolToVisibility}}">
+                    <WrapPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=RedactTab, Converter={StaticResource BoolToVisibility}}">
                         <RadioButton Style="{StaticResource ToolbarToggle}" GroupName="RedactTools" IsChecked="True"
                                      ToolTip="Drag over text, images or drawings to mark them for removal" AutomationProperties.Name="Mark area">
                             <StackPanel Orientation="Horizontal">
@@ -780,10 +791,10 @@
                                 ToolTip="Remove the marked content for good and save the result as a new file">
                             <TextBlock Text="Apply redactions" />
                         </Button>
-                    </StackPanel>
+                    </WrapPanel>
 
                     <!-- Page tools -->
-                    <StackPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=PagesTab, Converter={StaticResource BoolToVisibility}}">
+                    <WrapPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=PagesTab, Converter={StaticResource BoolToVisibility}}">
                         <Button Style="{StaticResource ToolbarButton}" Click="OnRotateLeft"
                                 ToolTip="Rotate left (selected pages, or the current page)" AutomationProperties.Name="Rotate left">
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE7AD;" RenderTransformOrigin="0.5,0.5">
@@ -814,14 +825,14 @@
                                 <TextBlock Text="Extract" Margin="6,0,2,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
-                    </StackPanel>
+                    </WrapPanel>
 
                     <Border Background="#FFF4CE" CornerRadius="4" Padding="10,4" Margin="12,0,0,0" VerticalAlignment="Center"
                             Visibility="{Binding IsPlacing, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Text="{Binding PlacementHint}" />
                     </Border>
-                </StackPanel>
-            </DockPanel>
+                </WrapPanel>
+            </Grid>
         </Border>
 
         <Grid Grid.Row="2">
@@ -1252,7 +1263,7 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type vm:TextEditViewModel}">
                                                     <Grid MinHeight="{Binding Height}">
-                                                        <!-- Covers the old line until the document is saved. -->
+                                                        <!-- Covers the old line until the change is written into the page (Enter, a click outside, or Save). -->
                                                         <Border Background="White" Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Left" VerticalAlignment="Top" />
                                                         <TextBlock Text="{Binding Text}" Background="White" VerticalAlignment="Center" MinWidth="{Binding Width}"
                                                                    FontFamily="{Binding FontFamily}" FontSize="{Binding FontSize}" FontWeight="{Binding FontWeight}"
@@ -1272,7 +1283,7 @@
                                                                  FontFamily="{Binding FontFamily}" FontSize="{Binding FontSize}" FontWeight="{Binding FontWeight}"
                                                                  FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" AutomationProperties.Name="Line text"
                                                                  Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
-                                                                 IsVisibleChanged="OnLineEditorVisibleChanged" PreviewKeyDown="OnLineEditorKeyDown"
+                                                                 IsVisibleChanged="OnLineEditorVisibleChanged" Loaded="OnLineEditorLoaded" PreviewKeyDown="OnLineEditorKeyDown"
                                                                  LostKeyboardFocus="OnLineEditorLostFocus" />
                                                     </Grid>
                                                 </DataTemplate>

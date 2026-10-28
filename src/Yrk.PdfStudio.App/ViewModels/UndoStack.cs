@@ -53,6 +53,13 @@ public sealed class UndoStack
         Changed?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>Records a step that has been undone already, so Redo does it again (used when rebuilding the history).</summary>
+    public void PushRedo(Action undo, Action redo)
+    {
+        _redo.Push(new UndoEntry(undo, redo, false));
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
     public void Clear()
     {
         _undo.Clear();

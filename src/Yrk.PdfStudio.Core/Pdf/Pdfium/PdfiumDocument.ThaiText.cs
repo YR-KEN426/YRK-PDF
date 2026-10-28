@@ -43,6 +43,14 @@ internal sealed partial class PdfiumDocument
                 continue;
             }
 
+            if (c == ' ' && hasThai && i > 0 && i + 1 < count && IsThaiLetter(chars[i - 1]) && Export.TextLayout.FollowsLetter((char)chars[i + 1]))
+            {
+                // "ประจ ำปี": a vowel that follows its letter never starts a word, but PDFium sometimes puts a space
+                // before it (as in exporting, see ReadTextSpans).
+                changed = true;
+                continue;
+            }
+
             if (c == 'ำ' && brokenSaraAa(i) && !CircleNear(text, chars, count, i))
             {
                 c = 'า';
@@ -130,6 +138,8 @@ internal sealed partial class PdfiumDocument
 
         return false;
     }
+
+    private static bool IsThaiLetter(ushort c) => c is >= 0x0E01 and <= 0x0E2E;
 
     private static int NextLetterIndex(ushort[] chars, int count, int i)
     {

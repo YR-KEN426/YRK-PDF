@@ -25,6 +25,13 @@ internal sealed partial class PdfiumDocument
 
         var (deviceWidth, deviceHeight) = GetDeviceSize(pageIndex);
         var hit = CharIndexAt(text, page, deviceWidth, deviceHeight, point);
+        if (hit < 0)
+        {
+            // A click in a table row's padding, a little above or below the letters, still means that line.
+            var (x, y) = DeviceToPage(page, deviceWidth, deviceHeight, point.X, point.Y);
+            hit = PdfiumNative.FPDFText_GetCharIndexAtPos(text, x, y, 40, 16);
+        }
+
         var count = PdfiumNative.FPDFText_CountChars(text);
         if (hit < 0 || count <= 0)
         {
@@ -34,6 +41,11 @@ internal sealed partial class PdfiumDocument
         var buffer = new ushort[count + 1];
         PdfiumNative.FPDFText_GetText(text, 0, count, buffer);
         static bool IsBreak(ushort c) => c is '\r' or '\n';
+        while (hit > 0 && IsBreak(buffer[hit]))
+        {
+            hit--; // A click just below a line can find the line break PDFium adds after it: the line is the one it ends.
+        }
+
         if (IsBreak(buffer[hit]))
         {
             return null;
@@ -52,6 +64,7 @@ internal sealed partial class PdfiumDocument
             last++;
         }
 
+        (first, last) = CellAround(text, first, last, hit, EffectiveFontSize(text, hit));
         double left = double.MaxValue, bottom = double.MaxValue, right = double.MinValue, top = double.MinValue;
         for (var i = first; i <= last; i++)
         {
@@ -69,7 +82,11 @@ internal sealed partial class PdfiumDocument
             return null;
         }
 
-        var lineText = new string(buffer.AsSpan(first, last - first + 1).ToArray().Select(u => (char)u).ToArray()).Trim();
+        // The same Thai repairs as copying (sara am circle, sara aa, mark order), so the editor gets the words as they read.
+        var repaired = RepairedText(text, buffer, count);
+        var lineText = (repaired is null
+            ? new string(buffer.AsSpan(first, last - first + 1).ToArray().Select(u => (char)u).ToArray())
+            : new string(repaired.Where(e => e.Source >= first && e.Source <= last).Select(e => e.C).ToArray())).Trim();
         var fontSize = EffectiveFontSize(text, hit);
         PdfiumNative.FPDFText_GetFillColor(text, hit, out var red, out var green, out var blue, out _);
         var (fontName, flags) = FontInfo(text, hit);
@@ -88,6 +105,67 @@ internal sealed partial class PdfiumDocument
             fontName,
             weight >= 600 || (flags & ForceBoldFlag) != 0 || fontName.Contains("Bold", StringComparison.OrdinalIgnoreCase),
             (flags & ItalicFlag) != 0 || fontName.Contains("Italic", StringComparison.OrdinalIgnoreCase) || fontName.Contains("Oblique", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// The part of the line around <paramref name="hit"/> that belongs together. PDFium reads a table row as one
+    /// line, so a gap wider than about one and a half letters (between columns) ends the part: editing a cell
+    /// must not move the other cells of its row.
+    /// </summary>
+    private static (int First, int Last) CellAround(IntPtr text, int first, int last, int hit, double fontSize)
+    {
+        var gap = Math.Max(fontSize, 1) * 1.5;
+        bool Box(int i, out double l, out double r)
+        {
+            l = r = 0;
+            return PdfiumNative.FPDFText_IsGenerated(text, i) != 1
+                && PdfiumNative.FPDFText_GetCharBox(text, i, out l, out r, out _, out _) != 0 && r > l;
+        }
+
+        // Start from a character that has a box (the click can land on a generated space).
+        var start = hit;
+        while (start <= last && !Box(start, out _, out _))
+        {
+            start++;
+        }
+
+        if (start > last)
+        {
+            return (first, last);
+        }
+
+        Box(start, out var edgeLeft, out var edgeRight);
+        var cellFirst = start;
+        for (var i = start - 1; i >= first; i--)
+        {
+            if (Box(i, out var l, out var r))
+            {
+                if (edgeLeft - r > gap)
+                {
+                    break;
+                }
+
+                cellFirst = i;
+                edgeLeft = Math.Min(edgeLeft, l);
+            }
+        }
+
+        var cellLast = start;
+        for (var i = start + 1; i <= last; i++)
+        {
+            if (Box(i, out var l, out var r))
+            {
+                if (l - edgeRight > gap)
+                {
+                    break;
+                }
+
+                cellLast = i;
+                edgeRight = Math.Max(edgeRight, r);
+            }
+        }
+
+        return (cellFirst, cellLast);
     }
 
     /// <summary>

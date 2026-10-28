@@ -58,7 +58,7 @@ public sealed partial class MainViewModel
         ActiveTextEdit = edit;
         edit.IsEditing = true;
         StatusMessage = exact
-            ? "Edit the text, then press Enter. Save to apply."
+            ? "Edit the text, then press Enter or click outside it."
             : Loc.F("The document's font {0} is not installed: {1} is used instead. Change the font or size on the toolbar if needed.", line.FontName, family);
     }
 
@@ -123,8 +123,21 @@ public sealed partial class MainViewModel
         OnEditsChanged();
     }
 
-    /// <summary>Called by the view when editing a line ends (Enter or focus leaves); Escape passes <paramref name="cancel"/>.</summary>
-    public void EndTextEdit(TextEditViewModel edit, string text, bool cancel)
+    /// <summary>
+    /// Called by the view when editing a line ends (Enter or focus leaves); Escape passes <paramref name="cancel"/>.
+    /// Enter passes <paramref name="apply"/>: the changed lines are written into the page now. When the focus only
+    /// moves (to the font bar, say) the line stays a preview until a click outside it or another tool.
+    /// </summary>
+    public void EndTextEdit(TextEditViewModel edit, string text, bool cancel, bool apply = false)
+    {
+        KeepTextEdit(edit, text, cancel);
+        if (apply)
+        {
+            _ = ApplyTextEditsNowAsync();
+        }
+    }
+
+    private void KeepTextEdit(TextEditViewModel edit, string text, bool cancel)
     {
         edit.IsEditing = false;
         var before = edit.Text;
@@ -163,6 +176,10 @@ public sealed partial class MainViewModel
             });
         OnEditsChanged();
     }
+
+    /// <summary>Writes the changed lines into the page now (see <see cref="ApplyNowAsync"/>); Undo brings the old text back.</summary>
+    private Task ApplyTextEditsNowAsync() =>
+        ApplyNowAsync("Changing the text…", "Text changed. Undo (Ctrl+Z) brings the old text back.", "Couldn't change the text.\n\n{0}", () => HasTextEdits);
 
     /// <summary>Applies the changed lines to saved document bytes (used when saving).</summary>
     /// <exception cref="PdfException">A line cannot be edited.</exception>

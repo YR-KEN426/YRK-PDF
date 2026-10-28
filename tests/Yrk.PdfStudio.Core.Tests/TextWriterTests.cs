@@ -46,6 +46,46 @@ public sealed class TextWriterTests : IDisposable
     }
 
     [Fact]
+    public async Task Editing_takes_one_cell_of_a_table_row()
+    {
+        // One row of a table: PDFium reads it as one line, but the cells are far apart.
+        var blocks = Sta.Run(() => TextShaper.ToBlocks(
+        [
+            (0, new NormalizedPoint(0.1, 0.5), new PdfColor(0, 0, 0), TextShaper.Shape("Floor plan and 3D design", "Leelawadee UI", false, false, 11)),
+            (0, new NormalizedPoint(0.6, 0.5), new PdfColor(0, 0, 0), TextShaper.Shape("1", "Leelawadee UI", false, false, 11)),
+            (0, new NormalizedPoint(0.8, 0.5), new PdfColor(0, 0, 0), TextShaper.Shape("25,000", "Leelawadee UI", false, false, 11)),
+        ]));
+        var path = Path.Combine(_folder.FullName, "row.pdf");
+        File.WriteAllBytes(path, PdfTextWriter.AddText(File.ReadAllBytes(SamplePath), blocks));
+
+        await using var document = await _engine.OpenAsync(path);
+        var plan = Assert.Single(await document.FindTextAsync(0, "plan", PdfSearchOptions.None)).Rects[0];
+        var line = await document.GetTextLineAtAsync(0, new NormalizedPoint(plan.X + 0.002, plan.Y + (plan.Height / 2)));
+        Assert.NotNull(line);
+        Assert.Equal("Floor plan and 3D design", line.Text);
+        Assert.True(line.Bounds.X + line.Bounds.Width < 0.6);
+
+        var price = Assert.Single(await document.FindTextAsync(0, "25,000", PdfSearchOptions.None)).Rects[0];
+        line = await document.GetTextLineAtAsync(0, new NormalizedPoint(price.X + 0.002, price.Y + (price.Height / 2)));
+        Assert.Equal("25,000", line?.Text);
+    }
+
+    [Fact]
+    public async Task Editing_reads_Thai_as_copying_does()
+    {
+        // The tone mark stored before the vowel, and a stray space before a sara am (as some fonts make PDFium
+        // read it): the editor must get the words as they read, like copying.
+        var blocks = Sta.Run(() => TextShaper.ToBlocks([(0, new NormalizedPoint(0.1, 0.7), new PdfColor(0, 0, 0), TextShaper.Shape("ข้อความน้ีสำคัญประจ ำปี", "Leelawadee UI", false, false, 18))]));
+        var path = Path.Combine(_folder.FullName, "edit-thai.pdf");
+        File.WriteAllBytes(path, PdfTextWriter.AddText(File.ReadAllBytes(SamplePath), blocks));
+
+        await using var document = await _engine.OpenAsync(path);
+        var box = Assert.Single(await document.FindTextAsync(0, "สำคัญ", PdfSearchOptions.None)).Rects[0];
+        var line = await document.GetTextLineAtAsync(0, new NormalizedPoint(box.X + 0.002, box.Y + (box.Height / 2)));
+        Assert.Equal("ข้อความนี้สำคัญประจำปี", line?.Text);
+    }
+
+    [Fact]
     public async Task Search_and_copy_read_Thai_marks_in_written_order()
     {
         // Stored the way some PDFs do: the tone mark before the vowel above ("น้ี" for "นี้").

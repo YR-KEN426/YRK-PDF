@@ -569,6 +569,7 @@ public sealed partial class MainViewModel
         ClearTextEdits();
         ClearNewFields();
         _undo.Clear();
+        ClearVersions();
         ReleasePageSnapshots();
         _documentModified = false;
         OnEditsChanged();
@@ -763,55 +764,9 @@ public sealed partial class MainViewModel
         await File.WriteAllBytesAsync(path, saved);
     }
 
-    /// <summary>
-    /// Makes the new form fields real now, so they can be filled before saving: the document with every change
-    /// not saved yet is written to a working copy, which is opened in place of the file. The file itself only
-    /// changes on Save; Undo starts again from here.
-    /// </summary>
-    private async Task ApplyNewFieldsAsync()
-    {
-        if (_document is not { } document || IsBusy || _newFields.Count == 0)
-        {
-            return;
-        }
-
-        CommitEditsRequested?.Invoke(this, EventArgs.Empty);
-        EndPlacement();
-        IsBusy = true;
-        StatusMessage = "Adding the fields…";
-        var restore = CaptureViewState();
-        var folder = Path.Combine(Path.GetTempPath(), "YRK", "Working");
-        var copy = Path.Combine(folder, $"{Guid.NewGuid():N}.pdf");
-        try
-        {
-            try
-            {
-                Directory.CreateDirectory(folder);
-                await WriteChangesAsync(document, copy);
-            }
-            catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
-            {
-                TryDelete(copy);
-                _dialogs.ShowError(Loc.F("Couldn't add the fields.\n\n{0}", ex.Message));
-                return;
-            }
-
-            if (await OpenDocumentAsync(document.FilePath, _password, restore, keepEdits: false, copyPath: copy))
-            {
-                _documentModified = true; // The file on disk does not have the fields yet.
-                OnEditsChanged();
-                StatusMessage = "Fields ready to fill";
-            }
-        }
-        finally
-        {
-            IsBusy = false;
-            if (StatusMessage == Loc.T("Adding the fields…"))
-            {
-                StatusMessage = string.Empty;
-            }
-        }
-    }
+    /// <summary>Makes the new form fields real now, so they can be filled before saving (see <see cref="ApplyNowAsync"/>).</summary>
+    private Task ApplyNewFieldsAsync() =>
+        ApplyNowAsync("Adding the fields…", "Fields ready to fill", "Couldn't add the fields.\n\n{0}", () => _newFields.Count > 0);
 
     private ViewState CaptureViewState() => new(_zoomMode, _zoom, _scrollOffset, _currentPageIndex);
 

@@ -49,8 +49,14 @@ public sealed partial class MainViewModel
         get => _currentTool;
         set
         {
+            var leftTextEditing = _currentTool == AnnotationTool.EditText && value != AnnotationTool.EditText;
             if (SetProperty(ref _currentTool, value))
             {
+                if (leftTextEditing)
+                {
+                    _ = ApplyTextEditsNowAsync(); // Another tool finishes the changed lines.
+                }
+
                 EndPlacement();
                 CancelMeasurementDraft();
                 ClearTextSelection();
@@ -147,6 +153,17 @@ public sealed partial class MainViewModel
         if (_newFields.Count > 0 && !IsFieldTool(_currentTool))
         {
             _ = ApplyNewFieldsAsync(); // A click outside the new fields finishes them.
+            return false;
+        }
+
+        if (_activeTextEdit is { IsEditing: true })
+        {
+            CommitEditsRequested?.Invoke(this, EventArgs.Empty); // Ends the line being typed, so its change counts below.
+        }
+
+        if (HasTextEdits && !(_currentTool == AnnotationTool.EditText && _textEdits.Any(e => e.Page == page && e.Contains(point))))
+        {
+            _ = ApplyTextEditsNowAsync(); // A click outside the changed lines finishes them.
             return false;
         }
 

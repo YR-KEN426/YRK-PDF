@@ -1010,17 +1010,26 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnTextEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    /// <summary>A text box placed just now is visible from the start, so only Loaded tells that it appeared.</summary>
+    private void OnTextEditorLoaded(object sender, RoutedEventArgs e) => FocusTextEditor(sender);
+
+    private void OnTextEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e) => FocusTextEditor(sender);
+
+    private void FocusTextEditor(object sender)
     {
-        if (e.NewValue is true && sender is TextBox editor)
+        if (sender is TextBox { IsVisible: true } editor)
         {
+            // After the click that placed it has finished, or the page keeps the keyboard.
             Dispatcher.InvokeAsync(
                 () =>
                 {
-                    editor.Focus();
-                    editor.CaretIndex = editor.Text.Length;
+                    if (editor.IsVisible)
+                    {
+                        Keyboard.Focus(editor);
+                        editor.CaretIndex = editor.Text.Length;
+                    }
                 },
-                DispatcherPriority.Input);
+                DispatcherPriority.ApplicationIdle);
         }
     }
 
@@ -1095,15 +1104,24 @@ public partial class MainWindow : Window
     }
 
     // A line being edited: focus it when it opens; Enter keeps the change, Escape drops it.
-    private void OnLineEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    /// <summary>A new line editor is visible from the start, so only Loaded tells that it appeared.</summary>
+    private void OnLineEditorLoaded(object sender, RoutedEventArgs e) => FocusLineEditor(sender);
+
+    private void OnLineEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e) => FocusLineEditor(sender);
+
+    private void FocusLineEditor(object sender)
     {
         if (sender is TextBox { IsVisible: true } box)
         {
+            // After the click that opened it has finished, or the page keeps the keyboard and typing goes nowhere.
             Dispatcher.BeginInvoke(() =>
             {
-                box.Focus();
-                box.SelectAll();
-            }, System.Windows.Threading.DispatcherPriority.Input);
+                if (box.IsVisible)
+                {
+                    Keyboard.Focus(box);
+                    box.SelectAll();
+                }
+            }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         }
     }
 
@@ -1126,7 +1144,7 @@ public partial class MainWindow : Window
         }
 
         e.Handled = true;
-        _viewModel.EndTextEdit(edit, box.Text, cancel: e.Key == Key.Escape);
+        _viewModel.EndTextEdit(edit, box.Text, cancel: e.Key == Key.Escape, apply: e.Key == Key.Enter);
         PageScroller.Focus();
     }
 

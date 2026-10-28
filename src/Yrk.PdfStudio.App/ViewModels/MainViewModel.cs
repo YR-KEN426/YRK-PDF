@@ -531,6 +531,8 @@ public sealed partial class MainViewModel : ObservableObject
             _workingCopy = null;
             TryDelete(copy); // Only read while its document was open.
         }
+
+        ClearVersions(); // Kept when the document is only reopened for a step (see ApplyNowAsync).
     }
 
     private void RaiseDocumentPropertiesChanged()
