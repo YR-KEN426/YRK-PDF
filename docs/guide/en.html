@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>YRK PDF User Guide</title>
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+
+<div class="cover">
+  <div class="brand"><img src="../release-repo/site-src/img/icon.png" alt="">YRK PDF</div>
+  <div>
+    <h1>User Guide<br><span>YRK PDF</span></h1>
+    <p class="lead">A free PDF program for Windows: read, edit, fill in forms, sign, organize pages, convert files and measure drawings. Everything runs on your own computer.</p>
+  </div>
+  <img class="shot" src="../release-repo/site-src/img/en/main.jpg" alt="">
+  <div class="foot">
+    <div>Version {{version}} · yr-ken426.github.io/yrk-easy-pdf-release</div>
+    <img src="../release-repo/site-src/img/yrk-lab.png" alt="YRK LAB">
+  </div>
+</div>
+
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#start">Getting started</a></li>
+    <li><a href="#read">Reading and finding</a></li>
+    <li><a href="#comment">Highlights and comments</a></li>
+    <li><a href="#edit">Editing text</a></li>
+    <li><a href="#fill">Forms and signatures</a></li>
+    <li><a href="#pages">Pages and files</a></li>
+    <li><a href="#convert">Converting and compressing</a></li>
+    <li><a href="#drawings">Drawings: DWG, measuring, counting</a></li>
+    <li><a href="#security">Passwords and redaction</a></li>
+    <li><a href="#save">Saving, printing and updates</a></li>
+    <li><a href="#keys">Keyboard shortcuts</a></li>
+    <li><a href="#help">Common problems and contact</a></li>
+  </ol>
+</div>
+
+<section id="start">
+  <h2>Getting started</h2>
+  <p class="intro">YRK PDF is free, with no ads and no account, and it never sends your files anywhere.</p>
+
+  <h3>Opening files</h3>
+  <ul>
+    <li>Drag a PDF from File Explorer onto the window.</li>
+    <li>Or press <kbd>Ctrl</kbd>+<kbd>O</kbd>, or the <span class="path">Open</span> button. The arrow next to it lists recent files.</li>
+    <li>Open several files at once: each one gets its own tab.</li>
+    <li>Besides PDF, AutoCAD drawings (DWG, DXF) open too.</li>
+  </ul>
+
+  <h3>Start page</h3>
+  <p>With no file open, or after the house button, the start page shows every tool, grouped by task. Click a card to start.</p>
+  <figure><img src="../release-repo/site-src/img/en/home.jpg" alt=""><figcaption>The start page: every tool, grouped by task</figcaption></figure>
+
+  <h3>The main window</h3>
+  <ul>
+    <li><b>Top row:</b> the <span class="path">File, View, Tools, Settings, Help</span> menus (<kbd>Alt</kbd> and the first letter, such as <kbd>Alt</kbd>+<kbd>F</kbd>), then Open, Save, Print, page buttons, zoom and the search box.</li>
+    <li><b>Second row:</b> the task tabs <span class="path">Comment · Edit · Fill &amp; Sign · Pages · Measure · Redact</span>, each with its own tools. Undo and Redo are at the far right.</li>
+    <li><b>Sidebar:</b> page thumbnails, the comment list, signatures, drawing layers and bookmarks. The three-line button at the top left shows or hides it.</li>
+  </ul>
+  <div class="tip"><b>Language:</b> <span class="path">Settings → Language / ภาษา</span> switches between English and Thai.</div>
+</section>
+
+<section id="read">
+  <h2>Reading and finding</h2>
+  <h3>Zooming and moving around</h3>
+  <ul>
+    <li>Zoom with the + and − buttons, or hold <kbd>Ctrl</kbd> and turn the mouse wheel. The zoom box has <span class="path">Fit page</span> and <span class="path">Fit width</span>.</li>
+    <li>Drag the page with the <span class="path">Hand tool</span> (<kbd>H</kbd>), or hold <kbd>Space</kbd> and drag, or drag with the middle mouse button.</li>
+    <li>Go to a page by typing its number in the page box, or click its thumbnail in the sidebar.</li>
+  </ul>
+  <h3>Finding and copying</h3>
+  <ul>
+    <li>Press <kbd>Ctrl</kbd>+<kbd>F</kbd>, type, then <kbd>Enter</kbd> or <kbd>F3</kbd> for the next result. Tick <span class="path">Aa</span> to match upper and lower case.</li>
+    <li>Drag over text with the <span class="path">Select</span> tool and press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy it.</li>
+    <li>Thai stored with its vowels or tone marks out of order (common in files from Excel) is put right when you copy and search.</li>
+  </ul>
+  <div class="tip"><b>Scanned files:</b> if search and copy find nothing, the pages are pictures. Run <span class="path">Recognize text (OCR)</span> first (chapter 7).</div>
+</section>
+
+<section id="comment">
+  <h2>Highlights and comments</h2>
+  <p class="intro">The <span class="path">Comment</span> tab is for reviewing, marking up and leaving notes. Other PDF programs, Adobe Acrobat included, show them too.</p>
+  <figure><img src="img/en/comment.jpg" alt=""><figcaption>Every comment tool has its name under the icon</figcaption></figure>
+  <ul>
+    <li><b>Highlight, Underline, Strikeout:</b> choose the tool and drag over text.</li>
+    <li><b>Note:</b> click where it belongs, then type in the sidebar.</li>
+    <li><b>Pen, Rectangle, Ellipse, Arrow:</b> drag on the page to draw.</li>
+    <li><b>Add text:</b> click and type.</li>
+    <li>Colour and line width are on the same row.</li>
+  </ul>
+  <h3>Changing comments</h3>
+  <ul>
+    <li>With the <span class="path">Select</span> tool, drag a comment to move it, or drag a corner to resize it.</li>
+    <li><kbd>Delete</kbd> removes it; <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings it back.</li>
+    <li>All comments are listed in the sidebar's <span class="path">Comments</span> tab; click one to go there.</li>
+  </ul>
+</section>
+
+<section id="edit">
+  <h2>Editing text</h2>
+  <p class="intro">Change words in the PDF itself, Thai included. The new words are real text that can be searched and copied.</p>
+  <figure><img src="img/en/edit.jpg" alt=""><figcaption>Click a line, or a cell of a table, and type</figcaption></figure>
+  <ol>
+    <li>On the <span class="path">Edit</span> tab, choose <span class="path">Edit text</span>.</li>
+    <li>Click the line to change. In a table only that cell is taken; the rest of the row stays where it is.</li>
+    <li>Type, then press <kbd>Enter</kbd> or click somewhere else. The new text goes into the page at once.</li>
+    <li>Not right? <kbd>Ctrl</kbd>+<kbd>Z</kbd> brings the old text back; <kbd>Esc</kbd> while typing cancels.</li>
+  </ol>
+  <h3>Fonts</h3>
+  <p>The document's own font is used when it is installed on this PC. Otherwise a similar font is chosen and sized to look as tall. While typing, the bar at the top of the page changes the font, size, bold, italic and colour.</p>
+  <div class="tip"><b>The file changes when you save:</b> while you work the changes live in a temporary copy. Your file only changes on <kbd>Ctrl</kbd>+<kbd>S</kbd>.</div>
+</section>
+
+<section id="fill">
+  <h2>Forms and signatures</h2>
+  <h3>Filling in a form</h3>
+  <p>If the PDF has form fields, click one and type. Thai shows correctly, and the form can be filled on in Adobe Acrobat as usual.</p>
+  <h3>Making your own form</h3>
+  <ol>
+    <li><span class="path">Fill &amp; Sign</span> tab → <span class="path">Create form</span>: choose a field type, such as text, list or check box.</li>
+    <li>Drag a box on the page, name the field and press <span class="path">Add field</span>.</li>
+    <li>Press <kbd>Enter</kbd> or click outside: the field can be filled straight away.</li>
+    <li><span class="path">Edit fields</span> changes or deletes fields.</li>
+  </ol>
+  <figure><img src="img/en/form.jpg" alt=""><figcaption>A new field, ready to fill before saving</figcaption></figure>
+  <h3>Signing</h3>
+  <ol>
+    <li>Press <span class="path">Sign</span> and create a signature: draw it with the mouse or a pen, type your name, or import a photo of it on white paper (the white is removed).</li>
+    <li>Click the page to place it, then drag to move or resize it.</li>
+    <li>If you keep the signature for next time, it is stored encrypted on this PC.</li>
+  </ol>
+  <h3>Certified true copy</h3>
+  <p><span class="path">สำเนาถูกต้อง</span> stamps "สำเนาถูกต้อง" (certified true copy) on a copy of an ID card or document, with your signature. Write what the copy is for, such as a job application, so it cannot be reused elsewhere, and add today's date if you like.</p>
+  <figure class="half"><img src="../release-repo/site-src/img/en/certified-copy.jpg" alt=""><figcaption>The certified copy stamp with its purpose and signature</figcaption></figure>
+  <h3>Digital signatures (Digital ID)</h3>
+  <p>A digital signature (PAdES) proves who signed and shows whether the document changed afterwards. Press <span class="path">Digital ID</span> and choose an ID on a USB token, add a .pfx file from your certificate authority, or create your own. Choose whether the signature shows on the page and whether to add a trusted timestamp (needs internet). Signatures in a file are listed in the sidebar's <span class="path">Signatures</span> tab.</p>
+</section>
+
+<section id="pages">
+  <h2>Pages and files</h2>
+  <figure><img src="img/en/pages.jpg" alt=""><figcaption>The Pages tab: rotate, delete, insert and extract</figcaption></figure>
+  <ul>
+    <li><b>Rotate, delete, insert, extract:</b> select thumbnails in the sidebar (hold <kbd>Ctrl</kbd> for several), then use the <span class="path">Pages</span> tab.</li>
+    <li><b>Move pages:</b> drag a thumbnail to its new place.</li>
+    <li><b>Combine files:</b> <span class="path">Tools → Combine files…</span>; pick the files and put them in order.</li>
+    <li><b>Split:</b> <span class="path">Tools → Split this PDF…</span> saves chosen pages, or every few pages, as separate files.</li>
+    <li><b>Images to PDF:</b> <span class="path">Tools → Images to PDF…</span> makes one PDF from photos and scans (JPG, PNG).</li>
+    <li><b>Watermark and page numbers:</b> add a watermark, header, footer or page numbers from the <span class="path">Tools</span> menu.</li>
+  </ul>
+</section>
+
+<section id="convert">
+  <h2>Converting and compressing</h2>
+  <div class="grid">
+    <div><h4>PDF to Word</h4><p>Editable text with tables and pictures in place</p></div>
+    <div><h4>PDF to Excel</h4><p>Tables as cells; amounts as numbers you can add up</p></div>
+    <div><h4>PDF to PowerPoint</h4><p>One slide per page, looking just like the PDF</p></div>
+    <div><h4>PDF to images</h4><p>Each page as a PNG or JPG picture</p></div>
+  </div>
+  <p>Start from the cards on the start page, or <span class="path">File → Export</span>.</p>
+
+  <h3>Compress PDF</h3>
+  <p><span class="path">Tools → Compress this PDF…</span>, then choose:</p>
+  <ul>
+    <li><b>Recommended</b>, 150 dpi: good for email and most upload forms; text stays sharp.</li>
+    <li><b>Smallest file</b>, 96 dpi: for strict size limits such as 1–2 MB.</li>
+    <li><b>High quality</b>, 220 dpi: for printing.</li>
+  </ul>
+  <p>A new copy is always saved; the original does not change. Photos and scans shrink a lot; files of plain text shrink little.</p>
+
+  <h3>Recognize text (OCR)</h3>
+  <p>Makes scans searchable and copyable, in Thai and English. It is on the <span class="path">Edit</span> tab and in the <span class="path">Tools</span> menu.</p>
+
+  <h3>PDF/A for archiving</h3>
+  <p>The long-term archive format many offices ask for: <span class="path">Tools → Save as PDF/A (for archiving)…</span></p>
+
+  <h3>Many files at once</h3>
+  <p><span class="path">Tools → Process many files…</span> compresses, converts or watermarks a whole folder in one go.</p>
+  <div class="tip warn"><b>Digital signatures:</b> compressing or converting a digitally signed file makes the signature in the copy invalid. Do it before signing.</div>
+</section>
+
+<section id="drawings">
+  <h2>Drawings: DWG, measuring, counting</h2>
+  <h3>Opening AutoCAD drawings</h3>
+  <p>DWG and DXF files open without AutoCAD. The drawing is shown like a PDF, at its scale, and layers can be shown or hidden in the sidebar's <span class="path">Layers</span> tab.</p>
+  <figure><img src="../release-repo/site-src/img/en/dwg-measure.jpg" alt=""><figcaption>Areas and lengths on a drawing, at the drawing's scale</figcaption></figure>
+  <h3>Measuring</h3>
+  <ul>
+    <li>The <span class="path">Measure</span> tab has <span class="path">Distance</span>, <span class="path">Path</span>, <span class="path">Area</span> and <span class="path">Count</span>.</li>
+    <li><b>Scale:</b> <span class="path">From the drawing</span> uses the scale stored in the file; or pick one; or press <span class="path">Calibrate</span> and drag over a length you know.</li>
+    <li><b>Snap:</b> catches line ends and middles of the drawing. Hold <kbd>Shift</kbd> for 45° steps.</li>
+    <li>For an area or a path, click each corner, then press <kbd>Enter</kbd> or double-click to finish.</li>
+    <li>Click a result's label to select it, then drag a corner to correct it. <kbd>Delete</kbd> removes it.</li>
+    <li><span class="path">Add to document</span> keeps the measurements in the file as comments.</li>
+  </ul>
+  <h3>Counting</h3>
+  <p>Name a type, such as "Door" or "Light", and click each one on the drawing. Numbered marks are added; copy the list into Excel or save it as a file.</p>
+  <h3>Comparing versions</h3>
+  <p><span class="path">Tools → Compare with another version…</span> shows what changed between two revisions.</p>
+  <div class="tip"><b>Rulers:</b> <kbd>Ctrl</kbd>+<kbd>R</kbd>. They show millimetres on paper, or the drawing's units at its scale.</div>
+</section>
+
+<section id="security">
+  <h2>Passwords and redaction</h2>
+  <h3>Adding and removing a password</h3>
+  <ul>
+    <li><span class="path">File → Protect with password…</span> locks the whole file, or only printing and copying.</li>
+    <li><span class="path">File → Remove password protection…</span> saves a copy without the password (you need the password to open it).</li>
+  </ul>
+  <h3>Redact (black out for good)</h3>
+  <ol>
+    <li>On the <span class="path">Redact</span> tab, drag over what must go, or press <span class="path">Mark search results</span> to mark every place with the word in the search box.</li>
+    <li>Check the marks, then press <span class="path">Apply redactions</span>.</li>
+    <li>The text, pictures and lines under the marks are removed, not just covered, and the result is saved as a new file.</li>
+  </ol>
+  <h3>Privacy</h3>
+  <p>Everything happens on your computer: no uploads, no usage statistics, no AI. The only internet use is the update check, which can be turned off in <span class="path">Settings → Privacy and safety…</span></p>
+</section>
+
+<section id="save">
+  <h2>Saving, printing and updates</h2>
+  <ul>
+    <li><b>Save</b> <kbd>Ctrl</kbd>+<kbd>S</kbd>: the new file is written in full first and only then replaces the old one, so a problem halfway cannot damage it.</li>
+    <li><b>Save a copy</b> <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd>: a new file; the original stays as it was.</li>
+    <li><b>Undo</b> <kbd>Ctrl</kbd>+<kbd>Z</kbd> and <b>Redo</b> <kbd>Ctrl</kbd>+<kbd>Y</kbd>: for text edits, comments, form fields, measurements and page changes.</li>
+    <li><b>Print</b> <kbd>Ctrl</kbd>+<kbd>P</kbd>.</li>
+    <li>A dot • before the file name means there are unsaved changes. Closing always asks first.</li>
+  </ul>
+  <h3>Updates</h3>
+  <p>If update checks are allowed, a new version is downloaded for you and a button offers to restart into it. Every version is signed by the developer; a file whose signature does not check out is never installed. Check now in <span class="path">Settings → Updates…</span></p>
+</section>
+
+<section id="keys">
+  <h2>Keyboard shortcuts</h2>
+  <p class="intro">The same list is in the program: <span class="path">Help → Keyboard shortcuts</span>.</p>
+  <table>
+    <tr><th>Keys</th><th>What it does</th></tr>
+    <tr><td><kbd>F1</kbd></td><td>Open this guide</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Save a copy</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>W</kbd></td><td>Close file</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / Redo</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy selected text</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>Delete the selected item</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Cancel</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find in document</td></tr>
+    <tr><td><kbd>F3</kbd> / <kbd>Shift</kbd>+<kbd>F3</kbd></td><td>Next / previous result</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>+</kbd> / <kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Zoom in / out</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd> / <kbd>1</kbd> / <kbd>2</kbd></td><td>Fit page / actual size / fit width</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Home</kbd> / <kbd>End</kbd></td><td>First / last page</td></tr>
+    <tr><td><kbd>H</kbd>, or hold <kbd>Space</kbd></td><td>Hand tool</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>R</kbd></td><td>Rulers</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>F</kbd> <kbd>V</kbd> <kbd>T</kbd> <kbd>S</kbd> <kbd>H</kbd></td><td>File, View, Tools, Settings, Help menus</td></tr>
+    <tr><td><kbd>Shift</kbd> (measuring)</td><td>Keep lines at 45° steps</td></tr>
+    <tr><td><kbd>Enter</kbd> (measuring)</td><td>Finish an area or path</td></tr>
+  </table>
+</section>
+
+<section id="help">
+  <h2>Common problems and contact</h2>
+  <h3>Windows shows a SmartScreen warning when installing</h3>
+  <p>The program does not have a paid developer certificate yet. Press <span class="path">More info</span>, then <span class="path">Run anyway</span>. Only download from the official website.</p>
+  <h3>Search and copy find no text</h3>
+  <p>The file is a scan. Run <span class="path">Recognize text (OCR)</span> first.</p>
+  <h3>Edited text is in a different font</h3>
+  <p>The document's font is not installed on this PC, so a similar one is used. Install that font, or choose one in the bar at the top of the page.</p>
+  <h3>Saving fails</h3>
+  <p>The file may be open in another program. Your work is then saved under a new name next to it, so nothing is lost.</p>
+  <h3>Contact</h3>
+  <ul>
+    <li><span class="path">Help → Suggestions and problems…</span></li>
+    <li><span class="path">Help → Common questions (website)</span></li>
+    <li>Website: yr-ken426.github.io/yrk-easy-pdf-release</li>
+  </ul>
+  <p style="margin-top:24px;color:var(--muted)">YRK PDF is made by YRK LAB — Your Reliable Kit · Free software under the Apache-2.0 license</p>
+</section>
+
+</body>
+</html>

@@ -41,6 +41,8 @@ public partial class MainWindow : Window
             InputBindings.Add(new KeyBinding(new CommunityToolkit.Mvvm.Input.RelayCommand(() => open(button, new RoutedEventArgs())), key, ModifierKeys.Alt));
         }
 
+        InputBindings.Add(new KeyBinding(new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(OpenUserGuideAsync), Key.F1, ModifierKeys.None));
+
         Loaded += (_, _) =>
         {
             _viewModel.DpiScale = VisualTreeHelper.GetDpi(this).DpiScaleX;
@@ -1344,6 +1346,9 @@ public partial class MainWindow : Window
     private void OnHelpButtonClick(object sender, RoutedEventArgs e)
     {
         var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = PlacementMode.Bottom };
+        var guide = new MenuItem { Header = "User guide", InputGestureText = "F1" };
+        guide.Click += async (_, _) => await OpenUserGuideAsync();
+        menu.Items.Add(guide);
         var shortcuts = new MenuItem { Header = "Keyboard shortcuts…" };
         shortcuts.Click += (_, _) => new Views.ShortcutsDialog { Owner = this }.ShowDialog();
         menu.Items.Add(shortcuts);
@@ -1364,6 +1369,19 @@ public partial class MainWindow : Window
             item.Click += (_, _) => Services.Feedback.TryOpen(this, url);
             return item;
         }
+    }
+
+    /// <summary>The user guide (a PDF next to the program, in the program's language), opened in a tab of its own.</summary>
+    private async Task OpenUserGuideAsync()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "Assets", "Guide", Loc.IsThai ? "YRK-PDF-Guide-th.pdf" : "YRK-PDF-Guide-en.pdf");
+        if (!File.Exists(path))
+        {
+            Services.Feedback.TryOpen(this, Services.Feedback.WebsiteUrl);
+            return;
+        }
+
+        await OpenInTabAsync(path);
     }
 
     // Drag a thumbnail to move pages. The data names the dragged page indices.

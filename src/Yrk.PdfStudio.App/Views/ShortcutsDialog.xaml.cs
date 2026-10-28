@@ -13,7 +13,7 @@ public partial class ShortcutsDialog : Window
         ("Find", [("Ctrl+F", "Find in document"), ("F3", "Next result"), ("Shift+F3", "Previous result")]),
         ("View", [("Ctrl++ / Ctrl+-", "Zoom in / out"), ("Ctrl+0", "Fit page"), ("Ctrl+1", "Actual size"), ("Ctrl+2", "Fit width"),
             ("Ctrl+Home / Ctrl+End", "First / last page"), ("H", "Hand tool"), ("Space (hold)", "Hand tool while held"), ("Ctrl+R", "Rulers")]),
-        ("Menus", [("Alt+F", "File"), ("Alt+V", "View"), ("Alt+T", "Tools"), ("Alt+S", "Settings"), ("Alt+H", "Help")]),
+        ("Menus", [("F1", "User guide"), ("Alt+F", "File"), ("Alt+V", "View"), ("Alt+T", "Tools"), ("Alt+S", "Settings"), ("Alt+H", "Help")]),
         ("Measuring", [("Shift", "Keep lines at 45° steps"), ("Enter", "Finish an area or length (or double-click)")]),
     ];
 
