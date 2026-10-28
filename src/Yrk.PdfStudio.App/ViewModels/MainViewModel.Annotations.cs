@@ -152,6 +152,7 @@ public sealed partial class MainViewModel
 
         SelectItem(null);
         ClearTextSelection();
+        var pressed = point;
         if (IsMeasuring && !IsCounting)
         {
             BeginMeasureGesture(page, point);
@@ -164,7 +165,7 @@ public sealed partial class MainViewModel
             BeginCommentDrag(page, point);
         }
 
-        _gesture = new Gesture(page, point, [point]);
+        _gesture = new Gesture(page, point, [point]) { Pressed = pressed };
         return true;
     }
 
@@ -249,7 +250,8 @@ public sealed partial class MainViewModel
 
         _gesture = null;
         var page = gesture.Page;
-        var isClick = Distance(page, gesture.Start, point) < ClickTolerance;
+        // Measured from where the mouse went down: a snapped start can be a few pixels away.
+        var isClick = Distance(page, gesture.Pressed ?? gesture.Start, point) < ClickTolerance;
         page.ClearPreview();
         if (_pendingDigitalSign is not null)
         {
@@ -766,6 +768,9 @@ public sealed partial class MainViewModel
         public PageViewModel Page { get; } = page;
 
         public NormalizedPoint Start { get; } = start;
+
+        /// <summary>Where the mouse went down, when <see cref="Start"/> was snapped to the drawing.</summary>
+        public NormalizedPoint? Pressed { get; init; }
 
         public List<NormalizedPoint> Points { get; } = points;
 
