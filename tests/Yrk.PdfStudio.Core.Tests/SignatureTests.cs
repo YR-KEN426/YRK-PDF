@@ -81,6 +81,35 @@ public sealed class SignatureTests : IDisposable
     }
 
     [Fact]
+    public async Task Builds_the_layered_appearance_acrobat_expects()
+    {
+        // Adobe Acrobat fails to validate a visible signature ("Expected a dict object") without /FRM, /n0 and /n2.
+        var bounds = new NormalizedRect(0.1, 0.1, 0.3, 0.08);
+        var signed = await PdfSigner.SignAsync(File.ReadAllBytes(SamplePath), new PdfSignRequest(Signer.Value, new PdfSignatureAppearance(0, bounds, SolidImage(120, 32))));
+
+        var document = CosDocument.Load(signed);
+        var widget = Assert.IsType<CosDictionary>(document.Resolve(((CosArray)document.Resolve(document.GetPages()[0].Dictionary["Annots"])!).Items[^1]));
+        CosDictionary XObjects(CosObject? form) =>
+            (CosDictionary)document.Resolve(((CosDictionary)document.Resolve(((CosStream)document.Resolve(form)!).Dictionary["Resources"])!)["XObject"])!;
+        var normal = ((CosDictionary)document.Resolve(widget["AP"])!)["N"];
+        var frm = XObjects(normal)["FRM"];
+        Assert.NotNull(XObjects(frm)["n0"]);
+        Assert.NotNull(XObjects(XObjects(frm)["n2"])["Im0"]);
+
+        // The picture still shows.
+        var path = PathFor("layered.pdf");
+        File.WriteAllBytes(path, signed);
+        await using var opened = await _engine.OpenAsync(path);
+        var size = opened.PageSizes[0];
+        var bitmap = await opened.RenderPageAsync(0, (int)size.Width, (int)size.Height);
+        var x = (int)((bounds.X + (bounds.Width / 2)) * bitmap.Width);
+        var y = (int)((bounds.Y + (bounds.Height / 2)) * bitmap.Height);
+        var blue = bitmap.Pixels[(y * bitmap.Stride) + (x * 4)];
+        var red = bitmap.Pixels[(y * bitmap.Stride) + (x * 4) + 2];
+        Assert.True(blue > red + 50, $"Expected the blue picture, got B={blue} R={red}");
+    }
+
+    [Fact]
     public async Task Detects_a_changed_byte()
     {
         var signed = await PdfSigner.SignAsync(File.ReadAllBytes(SamplePath), new PdfSignRequest(Signer.Value));

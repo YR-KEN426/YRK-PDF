@@ -253,15 +253,30 @@ public static class PdfSigner
             0,
             0);
 
+        // Adobe's layered signature appearance: N draws /FRM, which draws the background layer /n0 (blank) and the
+        // signature layer /n2 (the picture). Adobe Acrobat looks for these layers when it validates a visible signature,
+        // and fails with "Expected a dict object" when the appearance is one plain form.
+        CosStream Form(string content, CosDictionary xobjects, CosArray? formMatrix = null)
+        {
+            var dictionary = new CosDictionary()
+                .Set("Type", new CosName("XObject"))
+                .Set("Subtype", new CosName("Form"))
+                .Set("BBox", CosArray.FromNumbers(0, 0, width, height))
+                .Set("Resources", new CosDictionary().Set("XObject", xobjects));
+            if (formMatrix is not null)
+            {
+                dictionary["Matrix"] = formMatrix;
+            }
+
+            return new CosStream(dictionary, Encoding.ASCII.GetBytes(content));
+        }
+
         var image = update.Add(BuildImage(update, appearance.Image));
-        var content = string.Create(CultureInfo.InvariantCulture, $"q {CosWriter.FormatReal(width)} 0 0 {CosWriter.FormatReal(height)} 0 0 cm /Im0 Do Q");
-        var form = new CosDictionary()
-            .Set("Type", new CosName("XObject"))
-            .Set("Subtype", new CosName("Form"))
-            .Set("BBox", CosArray.FromNumbers(0, 0, width, height))
-            .Set("Matrix", matrix)
-            .Set("Resources", new CosDictionary().Set("XObject", new CosDictionary().Set("Im0", image)));
-        return (rect, new CosStream(form, Encoding.ASCII.GetBytes(content)));
+        var picture = string.Create(CultureInfo.InvariantCulture, $"q {CosWriter.FormatReal(width)} 0 0 {CosWriter.FormatReal(height)} 0 0 cm /Im0 Do Q");
+        var n0 = update.Add(Form("% DSBlank", new CosDictionary()));
+        var n2 = update.Add(Form(picture, new CosDictionary().Set("Im0", image)));
+        var frm = update.Add(Form("q /n0 Do Q q /n2 Do Q", new CosDictionary().Set("n0", n0).Set("n2", n2)));
+        return (rect, Form("q /FRM Do Q", new CosDictionary().Set("FRM", frm), matrix));
     }
 
     /// <summary>An RGB image XObject with the alpha channel as a soft mask.</summary>
