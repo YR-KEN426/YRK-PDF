@@ -3,9 +3,9 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Company>YRK</Company>
+    <Company>YRK LAB</Company>
     <Product>YRK PDF</Product>
-    <Copyright>© 2026 YRK</Copyright>
+    <Copyright>© 2026 YRK LAB</Copyright>
     <Version>1.0.8</Version>
   </PropertyGroup>
 </Project>

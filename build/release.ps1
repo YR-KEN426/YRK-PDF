@@ -145,7 +145,7 @@ try {
         "--packDir", $publishDir,
         "--mainExe", "YrkEasyPdf.exe",
         "--packTitle", "YRK PDF",
-        "--packAuthors", "YRK",
+        "--packAuthors", "YRK LAB",
         "--icon", "src\Yrk.PdfStudio.App\Assets\app.ico",
         "--runtime", $Runtime,
         "--outputDir", $releaseDir,
