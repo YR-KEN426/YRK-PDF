@@ -140,9 +140,33 @@
   .red .ico, .ico.red { background: var(--red-soft); } .red svg, .ico.red svg { stroke: var(--red); }
   .blue .ico, .ico.blue { background: var(--blue-soft); } .blue svg, .ico.blue svg { stroke: var(--blue); }
   .green .ico, .ico.green { background: var(--green-soft); } .green svg, .ico.green svg { stroke: var(--green); }
+  .float-chip.card .ico { display: none; } /* Only in the small layout below, where the picture is left out. */
+  /* Smaller laptops: the same chips, smaller, with the name only. */
+  @media (min-width: 960px) and (max-width: 1199px) {
+    .float-chip { gap: 8px; padding: 7px 12px 7px 7px; }
+    .float-chip .ico { width: 30px; height: 30px; }
+    .float-chip.left, .float-chip.right { width: auto; }
+    .float-chip b { white-space: nowrap; }
+    .float-chip small { display: none; }
+    .c7 { width: 200px; } .c10 { width: 176px; } .c8, .c9 { width: auto; }
+    .float-chip.card { padding: 8px; }
+    .float-chip.card img { height: 84px; }
+    .float-chip.card b { margin: 6px 2px 0; font-size: 13px; }
+  }
+  /* Tablets and phones: no room around the picture, so the chips line up under it, grouped by colour
+     (PDF tasks, documents, drawings), with the "stays on your computer" pill above it. */
   @media (max-width: 959px) {
-    .stage .float-chip { display: none; }
-    .stage { padding: 8px 0 0; }
+    .stage { padding: 8px 0 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+    .stage > .shot { flex: 0 0 100%; order: 0; margin: 8px 0 12px; }
+    .stage .float-chip { position: static; transform: none; width: auto; max-width: 100%; gap: 8px;
+      padding: 6px 14px 6px 6px; border-radius: 999px; box-shadow: none; }
+    .stage .float-chip small, .stage .float-chip.card .crop { display: none; }
+    .stage .float-chip b { margin: 0; font-size: 14px; }
+    .stage .float-chip .ico { display: flex; width: 30px; height: 30px; border-radius: 999px; }
+    .stage .float-chip.card { display: flex; align-items: center; }
+    .stage .float-chip.pill { order: -1; padding: 8px 16px; box-shadow: none; }
+    .stage .red { order: 1; } .stage .blue { order: 2; } .stage .green { order: 3; }
+    .legend { margin-top: 20px; }
   }
   .legend { max-width: 1160px; margin: 24px auto 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 32px; font-size: 15px; color: var(--link); }
   .legend span { display: inline-flex; align-items: center; gap: 8px; }
