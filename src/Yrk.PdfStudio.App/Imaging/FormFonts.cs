@@ -22,16 +22,18 @@ internal static class FormFonts
             var data = File.ReadAllBytes(path);
             var typeface = new GlyphTypeface(new Uri(path));
             var widths = new Dictionary<char, double>();
+            var glyphs = new Dictionary<char, ushort>();
             for (var c = ' '; c <= '๛'; c++)
             {
-                if (PdfFormFont.Code(c) is not null && typeface.CharacterToGlyphMap.TryGetValue(c, out var glyph))
+                if (PdfFormFont.Covers(c) && typeface.CharacterToGlyphMap.TryGetValue(c, out var glyph))
                 {
                     widths[c] = typeface.AdvanceWidths[glyph] * 1000;
+                    glyphs[c] = glyph;
                 }
             }
 
             var name = typeface.Win32FamilyNames.Values.FirstOrDefault() ?? "Sarabun";
-            return new PdfFormFont(name.Replace(" ", string.Empty, StringComparison.Ordinal) + "-Regular", data, widths,
+            return new PdfFormFont(name.Replace(" ", string.Empty, StringComparison.Ordinal) + "-Regular", data, widths, glyphs,
                 typeface.Baseline * 1000, -(typeface.Height - typeface.Baseline) * 1000);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or FileFormatException or NotSupportedException or ArgumentException)

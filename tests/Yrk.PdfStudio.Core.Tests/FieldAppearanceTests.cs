@@ -93,7 +93,7 @@ public sealed class FieldAppearanceTests : IDisposable
         var editedPath = Path.Combine(_folder.FullName, "edited.pdf");
         await using (var document = await _engine.OpenAsync(filledPath))
         {
-            await document.ApplyFormEditsAsync([new PdfFormFieldEdit(0, nameIndex, Text: "กขคงจฉชซ")]);
+            await document.ApplyFormEditsAsync([new PdfFormFieldEdit(0, nameIndex, Text: "กขคง ABC")]);
             await document.SaveAsync(editedPath);
         }
 
@@ -107,6 +107,7 @@ public sealed class FieldAppearanceTests : IDisposable
         Assert.Contains("/DA (/YrkTh 11 Tf", filled, StringComparison.Ordinal);
         Assert.Matches(@"/YrkTh \d+ 0 R", filled);
         Assert.Contains("/BaseFont /Sarabun-Regular", filled, StringComparison.Ordinal);
+        Assert.Contains("/Encoding /Identity-H", filled, StringComparison.Ordinal); // Two-byte: Acrobat types with it.
         Assert.Contains("/ToUnicode", filled, StringComparison.Ordinal);
         Assert.True(ink > 150, $"The redrawn Thai text is missing ({ink} dark pixels).");
     }

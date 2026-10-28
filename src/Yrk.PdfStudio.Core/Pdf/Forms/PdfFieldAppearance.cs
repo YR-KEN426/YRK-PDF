@@ -196,9 +196,9 @@ public static partial class PdfFieldAppearance
         var form = existing.Clone();
         var resources = (document.Resolve(form["DR"]) as CosDictionary)?.Clone() ?? new CosDictionary();
         var fonts = (document.Resolve(resources["Font"]) as CosDictionary)?.Clone() ?? new CosDictionary();
-        if (fonts[PdfFormFont.ResourceName] is not null)
+        if (document.Resolve(fonts[PdfFormFont.ResourceName]) is CosDictionary { } saved && saved["Subtype"] is CosName { Value: "Type0" })
         {
-            return; // Saved before with this font.
+            return; // Saved before with this font. An older one-byte version (Acrobat cannot type with it) is replaced.
         }
 
         fonts[PdfFormFont.ResourceName] = font.AddTo(update);
