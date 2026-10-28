@@ -1,8 +1,9 @@
 # Builds the download pages for GitHub Pages from docs\release-repo\site-src:
 #   index.html    (Thai)    -> docs\release-repo\site\index.html
 #   en\index.html (English) -> docs\release-repo\site\en\index.html
-# In the sources, {{include:file}} is replaced by that file's text (the shared style.css) and {{img:path}} by
-# that picture from site-src\img as a data: URI, so each page is one file with nothing loaded from elsewhere.
+# In the sources, {{include:file}} is replaced by that file's text (the shared style.css), {{img:path}} by
+# that picture from site-src\img and {{font:path}} by that font from site-src\fonts (IBM Plex Sans Thai, SIL
+# Open Font License) as data: URIs, so each page is one file with nothing loaded from elsewhere.
 # Upload the results as docs/index.html and docs/en/index.html of the releases repository.
 #
 #   powershell -ExecutionPolicy Bypass -File build\build-site.ps1
@@ -37,6 +38,12 @@ foreach ($page in @("index.html", "en\index.html")) {
         $value = $release[$m.Groups[1].Value]
         if ($null -eq $value) { throw "Unknown release field: $($m.Groups[1].Value)" }
         $value
+    })
+    $html = [regex]::Replace($html, "\{\{font:([^}]+)\}\}", {
+        param($m)
+        $file = Join-Path $source ("fonts\" + $m.Groups[1].Value)
+        if (-not (Test-Path $file)) { throw "Missing font: $file" }
+        "data:font/woff2;base64," + [Convert]::ToBase64String([IO.File]::ReadAllBytes($file))
     })
     $html = [regex]::Replace($html, "\{\{img:([^}]+)\}\}", {
         param($m)

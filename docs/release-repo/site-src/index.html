@@ -15,362 +15,256 @@
 </head>
 <body>
 <a class="skip" href="#main">ข้ามไปที่เนื้อหา</a>
+<div class="page">
 
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="#"><img src="{{img:icon.png}}" alt=""> YRK PDF</a>
-    <div class="actions">
-      <a class="lang" href="en/" hreflang="en" lang="en">English</a>
-      <a class="btn primary small" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">ดาวน์โหลด</a>
-    </div>
+    <a class="brand" href="#top"><img src="{{img:icon.png}}" alt=""> YRK PDF</a>
+    <nav class="menu" aria-label="เมนูหลัก">
+      <a class="text" href="#tasks">ทำอะไรได้บ้าง</a>
+      <a class="text" href="#install">วิธีติดตั้ง</a>
+      <a class="text" href="#faq">คำถาม</a>
+      <a href="en/" hreflang="en" lang="en">EN</a>
+      <a class="btn dark" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">ดาวน์โหลด</a>
+    </nav>
   </div>
 </header>
 
 <main id="main">
-  <div class="hero">
-    <div class="wrap hero-grid">
-      <div class="hero-text">
-        <h1><span class="nw">อ่าน แก้ไข และเซ็น PDF</span> <span class="nw">ด้วยเมนูภาษาไทย</span></h1>
-        <p class="lead">กรอกฟอร์ม จัดการหน้า แปลงเป็น Word และ Excel และเปิดแบบ AutoCAD ได้ในโปรแกรมเดียว ทำงานในเครื่องของคุณ ใช้ได้ทั้งที่บ้านและในบริษัท</p>
-        <div class="cta" id="hero-cta">
-          <a class="btn primary" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">ดาวน์โหลดฟรี</a>
-          <a class="btn ghost" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Portable.zip">แบบพกพา (zip)</a>
-        </div>
-        <p class="facts">
-          <span class="nw">Windows 10 และ 11 (64 บิต)</span> · <span class="nw">รุ่น {{release:version}} · {{release:date-th}}</span> · <span class="nw">{{release:size}} MB</span> ·
-          <a href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest">มีอะไรใหม่</a>
-        </p>
-        <ul class="trust">
-          <li>เอกสารไม่ถูกอัปโหลด</li>
-          <li>ไม่มีโฆษณา</li>
-          <li>ไม่ต้องสมัครบัญชี</li>
-        </ul>
-        <nav class="jump" aria-label="ทางลัด">
-          <a href="#features">ความสามารถ</a><a href="#install">วิธีติดตั้ง</a><a href="#faq">คำถามที่พบบ่อย</a>
-        </nav>
-      </div>
-      <figure class="hero-shot">
-        <img src="{{img:main.jpg}}" width="1280" height="820" alt="หน้าต่างโปรแกรม YRK PDF เปิดใบเสนอราคาภาษาไทย มีแถบเครื่องมือและรูปย่อหน้าด้านซ้าย">
-        <figcaption>หน้าจอจริงของโปรแกรม (เอกสารในภาพเป็นตัวอย่าง)</figcaption>
-      </figure>
+<section class="hero" id="top">
+  <div class="hero-text">
+    <a class="news" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest">
+      <span class="ver">รุ่น {{release:version}}</span> ดูว่ามีอะไรใหม่
+      <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+    </a>
+    <h1>อ่าน แก้ไข และเซ็น PDF<br><span class="accent">ด้วยเมนูภาษาไทย</span></h1>
+    <p class="lead">งาน PDF งานเอกสาร และตรวจงานเขียนแบบ<br><span class="nowrap">จบในโปรแกรมเดียว</span> <span class="nowrap">ฟรีสำหรับ Windows</span></p>
+    <div class="cta" id="hero-cta">
+      <a class="btn primary big" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">
+        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
+        ดาวน์โหลดฟรี
+      </a>
+      <p class="meta">Windows 10 / 11 · {{release:size}} MB · <a href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Portable.zip">แบบไม่ต้องติดตั้ง (zip)</a></p>
     </div>
   </div>
 
-  <section>
-    <div class="wrap">
-      <p class="eyebrow">เริ่มใช้งาน</p>
-      <h2>เลือกงานจากหน้าแรก แล้วเลือกไฟล์</h2>
-      <p class="intro">รวมไฟล์ แยกหน้า แปลงไฟล์ เซ็นเอกสาร หรือเปิดแบบก่อสร้าง ทุกเครื่องมืออยู่ในหน้าเดียว ไม่ต้องจำว่าอยู่เมนูไหน ยังไม่มีรุ่นสำหรับ Mac และมือถือ</p>
-      <figure class="shot">
-        <img src="{{img:home.jpg}}" width="1280" height="820" loading="lazy" alt="หน้าแรกของ YRK PDF มีการ์ดเครื่องมือ เช่น รวม PDF แยก PDF และ PDF เป็น Word">
-      </figure>
+  <div class="stage">
+    <img class="shot" src="{{img:main.jpg}}" width="1280" height="820" alt="หน้าต่างโปรแกรม YRK PDF เปิดใบเสนอราคาภาษาไทย">
+
+    <div class="float-chip pill">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7ee2a0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+      เอกสารอยู่ในเครื่องคุณ ไม่อัปโหลด
     </div>
-  </section>
 
-  <section>
-    <div class="wrap">
-      <p class="eyebrow">จุดเด่น</p>
-      <h2>สิ่งที่ทำให้ YRK PDF ต่าง</h2>
+    <div class="float-chip left red c1"><span class="ico"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v6H8z"/><path d="M4 14h7v6H4zM13 14h7v6h-7z"/><path d="M12 10v2"/></svg></span>
+      <span><b>รวม PDF</b><small>3 ไฟล์ → 1 ไฟล์</small></span></div>
+    <div class="float-chip left red c2"><span class="ico"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="9" rx="1"/><rect x="14" y="4" width="7" height="9" rx="1"/><path d="M6.5 17v3M17.5 17v3M6.5 20h11"/></svg></span>
+      <span><b>แยก / จัดหน้า</b><small>หมุน ลบ สลับหน้า</small></span></div>
+    <div class="float-chip left red c3"><span class="ico"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path d="M9 12h6"/></svg></span>
+      <span><b>บีบอัดไฟล์</b><small>เล็กลง ส่งอีเมลง่าย</small></span></div>
 
-      <div class="feature">
-        <div>
-          <span class="tag">ไม่ต้องมี AutoCAD</span>
-          <h3>เปิดแบบ DWG / DXF ได้โดยตรง แล้ววัดได้เลย</h3>
-          <p>เปิดไฟล์แบบจาก AutoCAD ได้ทันที ข้อความภาษาไทยในแบบแสดงถูกต้อง เปิดหรือปิดเลเยอร์ได้ และ Layout แต่ละแผ่นกลายเป็นหน้า PDF ตามสเกลจริง</p>
-          <ul>
-            <li>วัดระยะ ระยะตามเส้น และพื้นที่ ตามสเกลของแบบ</li>
-            <li>นับจำนวนสิ่งของบนแบบ เช่น ดวงไฟ เต้ารับ</li>
-            <li>บันทึกเป็น PDF ส่งต่อให้คนที่ไม่มีโปรแกรม CAD ได้</li>
-          </ul>
-        </div>
-        <figure class="shot">
-          <img src="{{img:dwg-measure.jpg}}" width="1100" height="706" loading="lazy" alt="แปลนบ้านจากไฟล์ DWG เปิดในโปรแกรม แสดงรายการเลเยอร์ด้านซ้าย วัดระยะห้องนั่งเล่นได้ 4.74 เมตร และวัดพื้นที่ห้องนอนได้ 25.31 ตารางเมตร">
-          <figcaption>เปิดไฟล์ .dwg แล้ววัดระยะและพื้นที่ได้ทันที (แบบในภาพเป็นตัวอย่าง)</figcaption>
-        </figure>
-      </div>
+    <div class="float-chip right blue c4"><span class="ico"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/></svg></span>
+      <span><b>PDF → Word / Excel</b><small>ตารางยังเป็นตาราง</small></span></div>
+    <div class="float-chip right blue c5"><span class="ico"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 11h8M9 14h6"/></svg></span>
+      <span><b>ตรา “สำเนาถูกต้อง”</b><small>ประทับในคลิกเดียว</small></span></div>
+    <div class="float-chip right blue c6"><span class="ico"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"/><path d="M8 10h8M8 14h5"/></svg></span>
+      <span><b>OCR ไฟล์สแกน</b><small>ค้นหาข้อความได้</small></span></div>
 
-      <div class="feature flip">
-        <div>
-          <span class="tag">ไม่ต้องพิมพ์ ไม่ต้องสแกน</span>
-          <h3>เซ็นชื่อบนเอกสารได้ในไม่กี่วินาที</h3>
-          <p>วาดลายเซ็นด้วยเมาส์หรือปากกา พิมพ์ชื่อ หรือนำเข้ารูปลายเซ็นบนกระดาษ แล้วคลิกวางตรงจุดที่ต้องการ ย่อขยายและย้ายได้</p>
-          <ul>
-            <li>เลือกเก็บลายเซ็นไว้ใช้ครั้งหน้า แบบเข้ารหัสในเครื่องนี้</li>
-            <li>เซ็นด้วย Digital ID เพื่อยืนยันตัวผู้เซ็นและตรวจพบการแก้ไขภายหลังได้</li>
-          </ul>
-        </div>
-        <div class="pair">
-          <figure class="shot">
-            <img src="{{img:sign-draw.jpg}}" width="560" height="464" loading="lazy" alt="หน้าต่างสร้างลายเซ็น วาดลายเซ็นสีน้ำเงินด้วยเมาส์">
-            <figcaption>วาดลายเซ็น</figcaption>
-          </figure>
-          <figure class="shot">
-            <img src="{{img:sign-placed.jpg}}" width="1100" height="417" loading="lazy" alt="ลายเซ็นวางอยู่บนเส้นผู้เสนอราคาในใบเสนอราคา">
-            <figcaption>วางบนเอกสารตรงจุดที่ต้องการ</figcaption>
-          </figure>
-        </div>
-      </div>
-
-      <div class="feature">
-        <div>
-          <span class="tag">ทำมาเพื่อคนไทย</span>
-          <h3>ตราประทับ “สำเนาถูกต้อง” ในคลิกเดียว</h3>
-          <p>รับรองสำเนาบัตรประชาชนหรือเอกสารได้โดยไม่ต้องพิมพ์ออกมาเซ็น ระบุว่าใช้สำหรับอะไรและใส่วันที่ ช่วยลดความเสี่ยงที่สำเนาจะถูกนำไปใช้ที่อื่น</p>
-          <p>เมนูและข้อความทั้งหมดเป็นภาษาไทย และแก้ข้อความภาษาไทยในไฟล์ PDF ได้</p>
-        </div>
-        <figure class="shot" style="max-width: 460px; justify-self: center">
-          <img src="{{img:certified-copy.jpg}}" width="500" height="505" loading="lazy" alt="หน้าต่างตราประทับสำเนาถูกต้อง ระบุว่าใช้สมัครงานบริษัทตัวอย่างเท่านั้น พร้อมวันที่">
-          <figcaption>กำหนดข้อความบนตราประทับได้เอง</figcaption>
-        </figure>
-      </div>
+    <div class="float-chip card c7">
+      <div class="crop"><img src="{{img:dwg-measure.jpg}}" alt=""><span class="badge">พื้นที่ 25.31 ตร.ม.</span></div>
+      <b>ตรวจแบบ .dwg ได้เลย</b><small>วัดระยะ วัดพื้นที่ ไม่ต้องมี AutoCAD</small>
     </div>
-  </section>
-
-  <section class="soft" id="features">
-    <div class="wrap">
-      <p class="eyebrow">ความสามารถ</p>
-      <h2>ครบสำหรับงานเอกสารประจำวัน</h2>
-      <p class="intro">ทุกอย่างด้านล่างอยู่ในโปรแกรมเดียว ไม่มีรุ่นเสียเงิน ไม่ต้องสมัครสมาชิก</p>
-      <div class="grid">
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
-          <h3>อ่านและค้นหา</h3>
-          <p>เปิดหลายไฟล์เป็นแท็บ ค้นหาข้อความ ดูบุ๊กมาร์ก และ OCR ไฟล์สแกนให้ค้นหาได้</p>
-        </div>
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h4"/></svg>
-          <h3>กรอกและสร้างฟอร์ม</h3>
-          <p>กรอกฟอร์ม PDF และสร้างฟอร์มเอง: ช่องข้อความ ช่องติ๊ก รายการเลือก ช่องลายเซ็น</p>
-        </div>
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>
-          <h3>แก้ข้อความในไฟล์</h3>
-          <p>แก้ข้อความไทยและอังกฤษ เลือกฟอนต์และขนาดได้ <span>เหมาะกับการแก้คำหรือบรรทัดสั้นๆ ไม่ใช่การจัดหน้าใหม่</span></p>
-        </div>
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="8" height="10" rx="1"/><rect x="13" y="10" width="8" height="10" rx="1"/><path d="M15 5h3a2 2 0 012 2v1"/></svg>
-          <h3>จัดการหน้า</h3>
-          <p>หมุน ลบ ย้าย แทรกหน้า แยกและรวมไฟล์ ทำผิดก็กดเลิกทำได้</p>
-        </div>
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
-          <h3>คอมเมนต์และไฮไลต์</h3>
-          <p>เน้นข้อความ ใส่โน้ต วาดรูปทรง แล้วส่งไฟล์ให้ผู้อื่นอ่านความเห็นต่อได้</p>
-        </div>
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
-          <h3>แปลงเป็น Word, Excel และ PowerPoint</h3>
-          <p>ตารางเป็นตารางจริง รูปภาพและกราฟอยู่ตำแหน่งเดิม ตัวเลขใน Excel คำนวณได้ <span>ได้ผลดีกับเอกสารที่มีข้อความจริง ไฟล์สแกนต้อง OCR ก่อน</span></p>
-        </div>
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>
-          <h3>รหัสผ่านและปิดทับข้อมูลลับ</h3>
-          <p>ใส่รหัสผ่าน และลบข้อมูลลับออกจริง <span>ผลลัพธ์บันทึกเป็นไฟล์ใหม่ ไฟล์เดิมไม่เปลี่ยน</span></p>
-        </div>
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 14l2 2 4-4"/></svg>
-          <h3>PDF/A และบีบอัดไฟล์</h3>
-          <p>บันทึกเป็น PDF/A สำหรับเก็บเอกสารระยะยาว และทำไฟล์ให้เล็กลงก่อนส่ง</p>
-        </div>
-        <div class="card">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="16" rx="1"/><path d="M10 12h4"/></svg>
-          <h3>เปรียบเทียบและทำหลายไฟล์</h3>
-          <p>เทียบเอกสารสองฉบับว่าอะไรเปลี่ยน ใส่ลายน้ำ เลขหน้า และทำหลายไฟล์พร้อมกัน</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap">
-      <p class="eyebrow">ใช้งานจริง</p>
-      <h2>ใช้ได้ทั้งที่บ้านและที่ทำงาน</h2>
-      <p class="intro">เอกสารส่วนตัว ใบเสนอราคา สัญญา หรือแบบงานก่อสร้าง ใช้โปรแกรมเดียวกัน ติดตั้งในบริษัทได้ไม่จำกัดจำนวนเครื่อง</p>
-      <div class="photo-pair">
-        <img src="{{img:people-laptop.jpg}}" width="1100" height="619" loading="lazy" alt="คนกำลังใช้ YRK PDF บนโน้ตบุ๊กในร้านกาแฟ">
-        <img src="{{img:people-office.jpg}}" width="1100" height="619" loading="lazy" alt="เพื่อนร่วมงานสองคนดูหน้าแรกของ YRK PDF ด้วยกันในออฟฟิศ">
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap center">
-      <p class="eyebrow">ราคา</p>
-      <h2>ฟรีทุกความสามารถ ตลอดไป</h2>
-      <p class="intro">ไม่มีรุ่นทดลองที่หมดอายุ ไม่มีรุ่น Pro ให้จ่ายเพิ่ม ไม่ต้องใส่บัตรเครดิต</p>
-      <div class="price">
-        <div class="amount">฿0 <small>/ ตลอดไป</small></div>
-        <ul class="check">
-          <li>ใช้ได้ทั้งส่วนตัว ในงาน และในบริษัท ติดตั้งได้ไม่จำกัดจำนวนเครื่อง</li>
-          <li>ไม่ต้องสมัครบัญชี ไม่ต้องลงทะเบียน</li>
-          <li>ไม่มีโฆษณา ไม่ส่งเอกสารให้ AI ไม่อัปโหลดเอกสาร</li>
-          <li>อัปเดตฟรี โปรแกรมถามก่อนว่าจะให้ตรวจหาอัปเดตหรือไม่</li>
-        </ul>
-        <a class="btn primary" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">ดาวน์โหลดตัวติดตั้ง</a>
-      </div>
-    </div>
-  </section>
-
-  <section class="soft">
-    <div class="wrap two">
-      <div>
-        <p class="eyebrow">ความปลอดภัย</p>
-        <h2>เอกสารของคุณอยู่ในเครื่องของคุณ</h2>
-        <h3 class="sub">ตัวโปรแกรม</h3>
-        <ul class="check" style="margin-top: 0">
-          <li>เปิดและแก้เอกสารในเครื่อง ไม่อัปโหลดเอกสารไปที่ไหน</li>
-          <li>ไม่ใช้บริการ AI ไม่มีโฆษณา ไม่เก็บสถิติการใช้งาน</li>
-          <li>ใช้อินเทอร์เน็ตแค่ 3 กรณี: ตรวจอัปเดต (ถามก่อนตอนเปิดครั้งแรก) ดาวน์โหลดภาษาสำหรับ OCR เมื่อใช้ครั้งแรก และประทับเวลาลายเซ็นดิจิทัลถ้าคุณเลือก</li>
-          <li>อัปเดตทุกครั้งมีลายเซ็นของ YRK โปรแกรมติดตั้งเฉพาะอัปเดตที่ลายเซ็นตรงกับกุญแจที่ฝังไว้ในโปรแกรม <span class="ext">(คนละเรื่องกับใบรับรองผู้เผยแพร่ของ Windows)</span></li>
-        </ul>
-        <h3 class="sub">หน้าเว็บนี้</h3>
-        <ul class="check" style="margin-top: 0">
-          <li>ไม่มีตัวติดตาม คุกกี้ หรือสคริปต์จากเว็บอื่น</li>
-          <li>เว็บและไฟล์ดาวน์โหลดอยู่บน GitHub ซึ่งมีนโยบายความเป็นส่วนตัวของตัวเอง</li>
-        </ul>
-      </div>
-      <figure class="shot">
-        <img src="{{img:privacy.jpg}}" width="734" height="717" loading="lazy" alt="หน้าความเป็นส่วนตัวและความปลอดภัยในโปรแกรม อธิบายว่าเอกสารอยู่ในเครื่อง และใช้อินเทอร์เน็ตเฉพาะ 3 กรณี">
-        <figcaption>หน้า “ความเป็นส่วนตัวและความปลอดภัย” ในโปรแกรม (เครื่องมือ → ความเป็นส่วนตัวและความปลอดภัย)</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <section id="install">
-    <div class="wrap two">
-      <div>
-        <p class="eyebrow">เริ่มใช้งาน</p>
-        <h2>ติดตั้งใน 3 ขั้นตอน</h2>
-        <ol class="steps">
-          <li>กด <strong>ดาวน์โหลดตัวติดตั้ง</strong></li>
-          <li>เปิดไฟล์ <strong>YRK.EasyPdf-win-Setup.exe</strong> ที่ดาวน์โหลดมา โดยปกติไม่ต้องใช้สิทธิ์ผู้ดูแลระบบ</li>
-          <li>รอสักครู่ โปรแกรมจะเปิดเอง และมีไอคอนบนเดสก์ท็อปกับเมนูเริ่ม</li>
-        </ol>
-        <p>ไม่อยากติดตั้ง: ดาวน์โหลด <a href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Portable.zip">แบบพกพา (zip)</a> แตกไฟล์แล้วเปิด <strong>YRK PDF.exe</strong> ได้เลย</p>
-      </div>
-      <div class="note">
-        <h3>ถ้า Windows ขึ้นหน้าจอสีน้ำเงิน “Windows protected your PC”</h3>
-        <p>ตัวติดตั้งยังไม่มีใบรับรองผู้เผยแพร่ (code signing) Windows จึงยืนยันไม่ได้ว่าใครเป็นผู้สร้าง และแสดงผู้เผยแพร่เป็น “Unknown publisher”</p>
-        <p>ก่อนกด <strong>More info</strong> แล้ว <strong>Run anyway</strong> ให้ตรวจว่าดาวน์โหลดจากหน้านี้ หรือจาก github.com/YR-KEN426 เท่านั้น และชื่อไฟล์คือ YRK.EasyPdf-win-Setup.exe ถ้าได้ไฟล์มาจากที่อื่น อย่าเปิด</p>
-        <p>การเตือนนี้ไม่ได้แปลว่าพบไวรัส <a href="#faq-smartscreen">อ่านว่าทำไมถึงขึ้น</a> และ <a href="#faq-check">วิธีตรวจไฟล์ด้วยตัวเอง</a></p>
-      </div>
-    </div>
-  </section>
-
-  <section class="soft">
-    <div class="wrap">
-      <div class="center">
-        <p class="eyebrow">คำถามที่พบบ่อย</p>
-        <h2>มีคำถาม?</h2>
-      </div>
-      <div class="faq" id="faq">
-        <details>
-          <summary>ฟรีจริงไหม มีค่าใช้จ่ายแอบแฝงหรือเปล่า</summary>
-          <p>ฟรีจริงทุกความสามารถ ไม่มีรุ่นเสียเงิน ไม่มีรุ่นทดลองที่หมดอายุ ไม่มีโฆษณา และไม่ต้องใส่บัตรเครดิตหรือสมัครบัญชี</p>
-        </details>
-        <details>
-          <summary>ใช้ในบริษัทหรือในงานได้ไหม</summary>
-          <p>ได้ ใช้ได้ฟรีทั้งส่วนตัว ในงาน และในบริษัท ติดตั้งได้ไม่จำกัดจำนวนเครื่อง</p>
-        </details>
-        <details>
-          <summary>ปลอดภัยไหม เอกสารของฉันถูกส่งไปที่ไหนหรือเปล่า</summary>
-          <p>เอกสารเปิดและแก้ในเครื่องของคุณเท่านั้น โปรแกรมไม่ส่งเอกสารให้บริการ AI หรือคลาวด์ใด ๆ (OCR ทำในเครื่องด้วย Tesseract) ไม่เก็บสถิติ และไม่อัปโหลดเอกสาร รายละเอียดอยู่ในหน้า “ความเป็นส่วนตัวและความปลอดภัย” ในโปรแกรม คำว่า “ไม่มี AI” หมายถึงการทำงานของโปรแกรมกับเอกสารของคุณ ส่วนการเขียนโค้ดของโปรแกรม ผู้พัฒนาใช้เครื่องมือ AI ช่วย และเป็นผู้ทดสอบและดูแลเอง</p>
-        </details>
-        <details id="faq-smartscreen">
-          <summary>ทำไมตอนติดตั้งขึ้นหน้าจอสีน้ำเงิน “Windows protected your PC”</summary>
-          <p>หน้าจอนี้มาจาก Microsoft Defender SmartScreen ซึ่งมักเตือนโปรแกรมที่ยังไม่มี “ใบรับรองผู้เผยแพร่” (code signing certificate) หรือยังมีคนดาวน์โหลดไม่มาก ใบรับรองนี้เป็นบริการที่ต้องซื้อรายปี โปรแกรมฟรีจากผู้พัฒนารายเล็กจึงมักยังไม่มี Windows จึงแสดงผู้เผยแพร่เป็น “Unknown publisher”</p>
-          <p>การเตือนนี้ <strong>ไม่ได้แปลว่าพบไวรัส</strong> แต่แปลว่า Windows ยังยืนยันไม่ได้ว่าใครเป็นผู้สร้าง ถ้า Microsoft Defender พบไวรัสจริง จะแจ้งว่าพบภัยคุกคาม (threat) และกักไฟล์ไว้ ไม่ใช่หน้าจอนี้</p>
-          <p>การตัดสินใจติดตั้งเป็นของคุณ ถ้าดาวน์โหลดจากหน้านี้หรือจาก github.com/YR-KEN426 และตรวจไฟล์ตามหัวข้อถัดไปแล้ว ติดตั้งต่อได้โดยกด <strong>More info</strong> (ข้อมูลเพิ่มเติม) แล้ว <strong>Run anyway</strong> (เรียกใช้ต่อไป) ถ้าได้ไฟล์มาจากที่อื่น เช่น ส่งต่อกันในแชต อย่าเปิด ให้ดาวน์โหลดใหม่จากหน้านี้</p>
-        </details>
-        <details id="faq-check">
-          <summary>ตรวจสอบไฟล์ก่อนติดตั้งอย่างไร</summary>
-          <p>ทำได้ 2 วิธี และทำทั้งสองอย่างได้:</p>
-          <p><strong>1. สแกนด้วย Windows Security:</strong> คลิกขวาที่ไฟล์ YRK.EasyPdf-win-Setup.exe แล้วเลือก “Scan with Microsoft Defender” (ใน Windows 11 อยู่ใน “Show more options”)</p>
-          <p><strong>2. เทียบลายนิ้วมือไฟล์ (SHA-256):</strong> ตรวจว่าไฟล์ที่ได้ตรงกับที่เราเผยแพร่ทุกไบต์ เปิด PowerShell ในโฟลเดอร์ที่ดาวน์โหลด แล้วพิมพ์ <code>Get-FileHash .\YRK.EasyPdf-win-Setup.exe</code> แล้วเทียบตัวเลขกับค่า sha256 ของไฟล์นั้นในหน้า <a href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest">รายละเอียดรุ่นล่าสุด</a> (ตัวพิมพ์เล็กหรือใหญ่ไม่มีผล) ถ้าตรงกัน แปลว่าไฟล์ของคุณคือไฟล์เดียวกับที่เราเผยแพร่ ไม่ถูกแก้ไขหรือสลับระหว่างทาง</p>
-          <p>หมายเหตุ: การเทียบ SHA-256 ยืนยันว่าไฟล์ตรงกับรุ่นที่เผยแพร่เท่านั้น ไม่ได้ตรวจหาไวรัส การตรวจไวรัสใช้วิธีที่ 1</p>
-        </details>
-        <details>
-          <summary>ทำไมติดตั้งได้โดยไม่ต้องใช้สิทธิ์ผู้ดูแลระบบ</summary>
-          <p>โปรแกรมติดตั้งเฉพาะในบัญชีผู้ใช้ของคุณ (โฟลเดอร์ AppData) ไม่แตะไฟล์ระบบของ Windows จึงไม่ต้องขอสิทธิ์ผู้ดูแลระบบ ยกเว้นกรณีเดียว: ถ้าเครื่องยังไม่มี Microsoft Visual C++ Runtime ที่ใช้สำหรับ OCR ตัวติดตั้งจะขอสิทธิ์เพื่อติดตั้งส่วนนี้ของ Microsoft</p>
-        </details>
-        <details>
-          <summary>อัปเดตอัตโนมัติปลอดภัยไหม ถ้ามีคนปลอมอัปเดตล่ะ</summary>
-          <p>อัปเดตทุกครั้งเซ็นด้วยกุญแจส่วนตัวของ YRK ซึ่งอยู่ในเครื่องของผู้พัฒนาเท่านั้น โปรแกรมของคุณมีกุญแจสาธารณะฝังอยู่ และจะติดตั้งเฉพาะอัปเดตที่ลายเซ็นตรงกันเท่านั้น ถ้ามีคนแก้ไฟล์อัปเดตบนเว็บ ลายเซ็นจะไม่ตรง และโปรแกรมจะไม่ติดตั้ง นอกจากนี้โปรแกรมถามก่อนตอนเปิดครั้งแรกว่าจะให้ตรวจหาอัปเดตหรือไม่ และไม่ติดตั้งอะไรจนกว่าคุณจะกด “รีสตาร์ทเพื่ออัปเดต”</p>
-        </details>
-        <details>
-          <summary>โปรแกรมแอนตี้ไวรัสของฉันเตือน ทำอย่างไรดี</summary>
-          <p>คำเตือนอาจเกิดได้จากหลายสาเหตุ เช่น โปรแกรมยังใหม่และยังไม่มีใบรับรองผู้เผยแพร่ หรือไฟล์ถูกเปลี่ยนระหว่างทาง <strong>ให้หยุดติดตั้งก่อน</strong> แล้วตรวจว่าดาวน์โหลดจากหน้านี้ และค่า SHA-256 ตรงกับหน้ารายละเอียดรุ่น</p>
-          <p>จากนั้น <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform">แจ้งเรา</a> พร้อมชื่อโปรแกรมแอนตี้ไวรัส ชื่อภัยคุกคามที่แสดง และรุ่นของไฟล์ เราจะตรวจสอบและตอบกลับ</p>
-        </details>
-        <details>
-          <summary>ต้องต่ออินเทอร์เน็ตไหม</summary>
-          <p>ไม่ต้อง ทุกความสามารถใช้แบบออฟไลน์ได้ ยกเว้น OCR ภาษาที่ยังไม่มีในเครื่อง ซึ่งต้องต่ออินเทอร์เน็ตครั้งแรกเพื่อดาวน์โหลดไฟล์ภาษา นอกจากนั้นอินเทอร์เน็ตใช้เฉพาะตอนตรวจอัปเดต (ถ้าอนุญาต) และประทับเวลาลายเซ็นดิจิทัล (ถ้าเลือก)</p>
-        </details>
-        <details>
-          <summary>ใช้กับ Mac หรือมือถือได้ไหม</summary>
-          <p>ตอนนี้รองรับเฉพาะคอมพิวเตอร์ Windows 10 และ 11 แบบ 64 บิต</p>
-        </details>
-        <details>
-          <summary>เปิดไฟล์ AutoCAD ได้จริงไหม ต้องมี AutoCAD ด้วยหรือเปล่า</summary>
-          <p>เปิดไฟล์ .dwg และ .dxf ได้โดยตรง ไม่ต้องมี AutoCAD โปรแกรมแปลงแบบเป็น PDF ในเครื่อง พร้อมเลเยอร์และสเกล แบบที่ใช้ฟอนต์หรือวัตถุพิเศษบางอย่างอาจแสดงต่างจาก AutoCAD เล็กน้อย</p>
-        </details>
-        <details>
-          <summary>อัปเดตโปรแกรมอย่างไร</summary>
-          <p>ถ้าอนุญาตให้ตรวจหาอัปเดต โปรแกรมจะดาวน์โหลดรุ่นใหม่ให้เอง แล้วขึ้นปุ่ม “รีสตาร์ทเพื่ออัปเดต” จะไม่ติดตั้งอะไรจนกว่าคุณจะกด หรือดาวน์โหลดตัวติดตั้งจากหน้านี้ใหม่ก็ได้</p>
-        </details>
-        <details>
-          <summary>ถอนการติดตั้งอย่างไร</summary>
-          <p>ไปที่ Windows Settings → Apps แล้วเลือก YRK PDF → Uninstall ส่วนรุ่นพกพา ลบโฟลเดอร์ทิ้งได้เลย</p>
-        </details>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="wrap center">
-      <p class="eyebrow">ข้อเสนอแนะ</p>
-      <h2>ช่วยกันทำให้ดีขึ้น</h2>
-      <p class="intro">ใช้แล้วติดตรงไหน หรืออยากให้เพิ่มอะไร บอกเราได้ (ในโปรแกรม: เครื่องมือ → ข้อเสนอแนะและแจ้งปัญหา)</p>
-      <p>
-        <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform">แบบฟอร์มความคิดเห็น</a> <span class="ext">(Google Forms ไม่ต้องล็อกอิน)</span>
-        · อีเมล <a href="mailto:yrken.official@gmail.com">yrken.official@gmail.com</a>
-      </p>
-    </div>
-  </section>
-
-  <div class="closing">
-    <div class="wrap closing-grid">
-      <div>
-        <h2>พร้อมลองแล้วหรือยัง</h2>
-        <p>ติดตั้งได้ในไม่กี่ขั้นตอน ไม่ต้องสมัครบัญชี เปิดเอกสารแล้วเริ่มเซ็นหรือแก้ไขได้ทันที</p>
-        <div class="cta">
-          <a class="btn primary" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">ดาวน์โหลดตัวติดตั้ง</a>
-          <a class="btn ghost" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases">ทุกรุ่นและรายการเปลี่ยนแปลง</a>
-        </div>
-      </div>
-      <img class="closing-photo" src="{{img:pen.jpg}}" width="1000" height="667" loading="lazy" alt="">
+    <div class="float-chip green c8"><span class="ico"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></span>
+      <span><b>เปิด / ปิดเลเยอร์</b><small>ดูเฉพาะชั้นที่ต้องการ</small></span></div>
+    <div class="float-chip green c9"><span class="ico"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg></span>
+      <span><b>นับจุดบนแบบ</b><small>ดวงไฟ เต้ารับ</small></span></div>
+    <div class="float-chip card c10">
+      <div class="crop"><img src="{{img:sign-draw.jpg}}" alt=""></div>
+      <b>เซ็นชื่อด้วยเมาส์</b><small>วางตรงไหนก็ได้บนเอกสาร</small>
     </div>
   </div>
+
+  <div class="legend">
+    <span><i class="dot-red"></i><strong>งาน PDF</strong> รวม แยก บีบอัด</span>
+    <span><i class="dot-blue"></i><strong>งานเอกสาร</strong> เซ็น ประทับ แปลงไฟล์ OCR</span>
+    <span><i class="dot-green"></i><strong>ตรวจงานเขียนแบบ</strong> DWG วัดระยะ เลเยอร์</span>
+  </div>
+</section>
+
+<div class="wrap trust">
+  <span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>ฟรีทุกฟีเจอร์ ตลอดไป</span>
+  <span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>ไม่อัปโหลดเอกสาร</span>
+  <span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>ไม่มีโฆษณา ไม่ต้องสมัคร</span>
+  <span><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>ใช้ในบริษัทได้ ไม่จำกัดเครื่อง</span>
+</div>
+
+<section class="wrap section" id="tasks">
+  <h2>วันนี้คุณอยากทำอะไรกับ PDF?</h2>
+  <p class="sub">เปิดโปรแกรม เลือกงานจากหน้าแรก แล้วเลือกไฟล์ ไม่ต้องหาเมนู</p>
+  <div class="tasks">
+    <div class="task red"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="9" rx="1"/><rect x="14" y="4" width="7" height="9" rx="1"/><path d="M6.5 17v3M17.5 17v3M6.5 20h11"/></svg></span>
+      <h3>รวม แยก หรือจัดหน้า</h3><p>รวมหลายไฟล์เป็นไฟล์เดียว ดึงบางหน้าออก หมุน หรือสลับหน้า</p></div>
+    <div class="task blue"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17c3 0 4-8 7-8s2 6 5 6 3-3 6-3"/><path d="M3 21h18"/></svg></span>
+      <h3>เซ็นชื่อบนเอกสาร</h3><p>วาดด้วยเมาส์ พิมพ์ชื่อ หรือใช้รูปลายเซ็น แล้ววางตรงไหนก็ได้</p></div>
+    <div class="task blue"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 11h8M9 14h6"/></svg></span>
+      <h3>รับรอง “สำเนาถูกต้อง”</h3><p>ประทับบนสำเนาบัตรได้ในคลิกเดียว ระบุว่าใช้ทำอะไรและวันที่</p></div>
+    <div class="task blue"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3"/><path d="M20 16H7l3 3"/></svg></span>
+      <h3>แปลงเป็น Word หรือ Excel</h3><p>ตารางยังเป็นตาราง ตัวเลขใน Excel คำนวณต่อได้</p></div>
+    <div class="task blue"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg></span>
+      <h3>กรอกฟอร์ม แก้คำผิด</h3><p>พิมพ์ลงฟอร์ม PDF หรือแก้ข้อความไทย–อังกฤษสั้นๆ ในไฟล์</p></div>
+    <div class="task green"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 12h8V4"/><path d="M12 12v8"/></svg></span>
+      <h3>ตรวจงานเขียนแบบ</h3><p>เปิดไฟล์ .dwg วัดระยะและพื้นที่ได้ โดยไม่ต้องมี AutoCAD</p></div>
+  </div>
+  <details class="more">
+    <summary>ดูความสามารถอื่นทั้งหมด</summary>
+    <p>ค้นหาข้อความ · OCR ไฟล์สแกน · ไฮไลต์และคอมเมนต์ · สร้างฟอร์ม · ใส่รหัสผ่าน · ปิดทับข้อมูลลับถาวร · แปลงเป็น PowerPoint · บีบอัดไฟล์ · PDF/A · เปรียบเทียบเอกสาร · ลายน้ำ · เลขหน้า · ทำหลายไฟล์พร้อมกัน · ลายเซ็น Digital ID</p>
+  </details>
+</section>
+
+<section class="wrap bento" aria-label="จุดเด่น">
+  <figure class="green-box">
+    <figcaption><b>เปิดแบบ DWG แล้ววัดได้ทันที</b><span>เปิดปิดเลเยอร์ วัดระยะ วัดพื้นที่ ตามสเกลจริง</span></figcaption>
+    <img src="{{img:dwg-measure.jpg}}" alt="แปลนบ้านจากไฟล์ DWG เปิดในโปรแกรม พร้อมผลวัดระยะและพื้นที่">
+  </figure>
+  <figure class="orange-box">
+    <figcaption><b>“สำเนาถูกต้อง” ในคลิกเดียว</b><span>ไม่ต้องพิมพ์ออกมาเซ็น แล้วสแกนกลับเข้าไปอีก</span></figcaption>
+    <img class="narrow" src="{{img:certified-copy.jpg}}" alt="หน้าต่างตราประทับสำเนาถูกต้อง พร้อมข้อความระบุการใช้งานและวันที่">
+  </figure>
+</section>
+
+<section class="wrap section" id="install">
+  <h2>ติดตั้งใน 3 ขั้นตอน</h2>
+  <p class="sub">ขั้นที่ 2 Windows จะขึ้นหน้าจอสีน้ำเงิน เป็นเรื่องปกติของโปรแกรมฟรีจากผู้พัฒนารายเล็ก</p>
+  <ol class="steps">
+    <li>
+      <span class="num">ขั้นที่ 1</span>
+      <div><p class="title">กดดาวน์โหลด</p><p class="desc">จะได้ไฟล์ YRK.EasyPdf-win-Setup.exe ในโฟลเดอร์ Downloads</p></div>
+      <div class="file"><img src="{{img:icon.png}}" alt=""><div><p>YRK.EasyPdf-win-Setup.exe</p><p>{{release:size}} MB · ดับเบิลคลิกเพื่อเปิด</p></div></div>
+    </li>
+    <li>
+      <span class="num">ขั้นที่ 2</span>
+      <div><p class="title">ถ้าขึ้นหน้าจอสีน้ำเงิน</p><p class="desc">กด <strong>ข้อมูลเพิ่มเติม</strong> แล้วกด <strong>ยืนยันการเรียกใช้</strong> (Windows ภาษาอังกฤษ: <span lang="en">More info</span> แล้ว <span lang="en">Run anyway</span>)</p></div>
+      <div class="smartscreen" aria-hidden="true">
+        <p class="head">Windows ให้การปกป้องพีซีของคุณแล้ว</p>
+        <p class="info">Microsoft Defender SmartScreen ได้ป้องกันไม่ให้แอปที่ไม่รู้จักสามารถเริ่มต้นทำงานได้…</p>
+        <p><span class="mark">① ข้อมูลเพิ่มเติม</span></p>
+        <p class="app">โปรแกรม: YRK.EasyPdf-win-Setup.exe<br>ผู้เผยแพร่: ผู้เผยแพร่ที่ไม่รู้จัก</p>
+        <div class="buttons"><span class="mark">② ยืนยันการเรียกใช้</span><span>ไม่ต้องเรียกใช้</span></div>
+      </div>
+    </li>
+    <li>
+      <span class="num">ขั้นที่ 3</span>
+      <div><p class="title">โปรแกรมเปิดเอง พร้อมใช้</p><p class="desc">มีไอคอนบนเดสก์ท็อป เลือกงานจากหน้าแรกได้เลย</p></div>
+      <img src="{{img:home.jpg}}" alt="หน้าแรกของ YRK PDF มีการ์ดเครื่องมือ เช่น รวม PDF แยก PDF">
+    </li>
+  </ol>
+  <p class="after">หน้าจอสีน้ำเงินไม่ได้แปลว่ามีไวรัส แต่ควรดาวน์โหลดจากหน้านี้เท่านั้น · <a href="#faq-smartscreen">อ่านเหตุผล</a> · <a href="#faq-check">วิธีตรวจไฟล์</a></p>
+</section>
+
+<section class="wrap section faq" id="faq">
+  <h2>คำถามที่พบบ่อย</h2>
+  <p class="sub">กดที่คำถามเพื่อดูคำตอบ ไม่เจอคำตอบที่ต้องการ <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform">ถามเราได้</a></p>
+  <nav class="faq-nav" aria-label="หมวดคำถาม">
+    <a href="#faq-general">ทั่วไป</a><a href="#faq-install">ติดตั้งและความปลอดภัย</a><a href="#faq-use">การใช้งาน</a><a href="#faq-cad">งานเขียนแบบ</a><a href="#faq-care">อัปเดตและแจ้งปัญหา</a>
+  </nav>
+
+  <h3 id="faq-general">ทั่วไป</h3>
+  <details><summary>ฟรีจริงไหม มีค่าใช้จ่ายแอบแฝงหรือเปล่า<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ฟรีจริงทุกความสามารถ ไม่มีรุ่นเสียเงิน ไม่มีรุ่นทดลองที่หมดอายุ ไม่มีโฆษณา และไม่ต้องใส่บัตรเครดิตหรือสมัครบัญชี</p></details>
+  <details><summary>ใช้ในบริษัทหรือในงานได้ไหม<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ได้ ใช้ได้ฟรีทั้งส่วนตัว ในงาน และในบริษัท ติดตั้งได้ไม่จำกัดจำนวนเครื่อง</p></details>
+  <details><summary>ใช้กับ Mac หรือมือถือได้ไหม<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ตอนนี้รองรับเฉพาะคอมพิวเตอร์ Windows 10 และ 11 แบบ 64 บิต</p></details>
+  <details><summary>ต้องต่ออินเทอร์เน็ตไหม<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ไม่ต้อง ทุกความสามารถใช้แบบออฟไลน์ได้ ยกเว้น OCR ภาษาที่ยังไม่มีในเครื่อง ซึ่งต้องต่ออินเทอร์เน็ตครั้งแรกเพื่อดาวน์โหลดไฟล์ภาษา นอกจากนั้นใช้อินเทอร์เน็ตเฉพาะตอนตรวจอัปเดต (ถ้าอนุญาต) และประทับเวลาลายเซ็นดิจิทัล (ถ้าเลือก)</p></details>
+  <details class="last"><summary>แบบติดตั้ง กับแบบไม่ต้องติดตั้ง (zip) ต่างกันอย่างไร<span class="chev" aria-hidden="true">+</span></summary>
+    <p>แบบติดตั้งจะสร้างไอคอนบนเดสก์ท็อปและเมนูเริ่ม แบบ zip แตกไฟล์แล้วเปิดโปรแกรมได้เลย เหมาะกับเครื่องที่ไม่อยากติดตั้งอะไรเพิ่ม เลิกใช้ก็ลบโฟลเดอร์ทิ้งได้ทันที ทั้งสองแบบอัปเดตเองได้</p></details>
+
+  <h3 id="faq-install">ติดตั้งและความปลอดภัย</h3>
+  <details id="faq-smartscreen"><summary>ทำไมตอนติดตั้งขึ้นหน้าจอสีน้ำเงิน “Windows ให้การปกป้องพีซีของคุณแล้ว”<span class="chev" aria-hidden="true">+</span></summary>
+    <p>หน้าจอนี้มาจาก Microsoft Defender SmartScreen ซึ่งเตือนโปรแกรมที่ยังไม่มี “ใบรับรองผู้เผยแพร่” (code signing) ใบรับรองนี้ต้องซื้อรายปี โปรแกรมฟรีจากผู้พัฒนารายเล็กจึงมักยังไม่มี Windows จึงแสดงว่า “ผู้เผยแพร่ที่ไม่รู้จัก”</p>
+    <p>การเตือนนี้ไม่ได้แปลว่าพบไวรัส ถ้าดาวน์โหลดจากหน้านี้หรือจาก github.com/YR-KEN426 กด “ข้อมูลเพิ่มเติม” แล้ว “ยืนยันการเรียกใช้” ได้ (Windows ภาษาอังกฤษ: <span lang="en">More info</span> แล้ว <span lang="en">Run anyway</span>) ถ้าได้ไฟล์มาจากที่อื่น เช่น ส่งต่อกันในแชต อย่าเปิด ให้ดาวน์โหลดใหม่จากหน้านี้</p></details>
+  <details id="faq-check"><summary>ตรวจสอบไฟล์ก่อนติดตั้งอย่างไร<span class="chev" aria-hidden="true">+</span></summary>
+    <p><strong>1. สแกนไวรัส:</strong> คลิกขวาที่ไฟล์ แล้วเลือก “Scan with Microsoft Defender” (Windows 11 อยู่ใน “Show more options”)</p>
+    <p><strong>2. เทียบลายนิ้วมือไฟล์ (SHA-256):</strong> เปิด PowerShell ในโฟลเดอร์ที่ดาวน์โหลด พิมพ์ <code>Get-FileHash .\YRK.EasyPdf-win-Setup.exe</code> แล้วเทียบกับค่า sha256 ใน<a href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest">หน้ารายละเอียดรุ่นล่าสุด</a> ถ้าตรงกัน แปลว่าเป็นไฟล์เดียวกับที่เราเผยแพร่</p></details>
+  <details><summary>โปรแกรมแอนตี้ไวรัสของฉันเตือน ทำอย่างไรดี<span class="chev" aria-hidden="true">+</span></summary>
+    <p>หยุดติดตั้งก่อน ตรวจว่าดาวน์โหลดจากหน้านี้และค่า SHA-256 ตรงกัน แล้ว<a href="https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform">แจ้งเรา</a>พร้อมชื่อโปรแกรมแอนตี้ไวรัส ชื่อภัยคุกคามที่แสดง และรุ่นของไฟล์ เราจะตรวจสอบและตอบกลับ</p></details>
+  <details><summary>ทำไมติดตั้งได้โดยไม่ต้องใช้สิทธิ์ผู้ดูแลระบบ<span class="chev" aria-hidden="true">+</span></summary>
+    <p>โปรแกรมติดตั้งเฉพาะในบัญชีผู้ใช้ของคุณ (โฟลเดอร์ AppData) ไม่แตะไฟล์ระบบ ยกเว้นเครื่องที่ยังไม่มี Microsoft Visual C++ Runtime สำหรับ OCR ตัวติดตั้งจะขอสิทธิ์เพื่อติดตั้งส่วนนี้ของ Microsoft</p></details>
+  <details><summary>เอกสารของฉันถูกส่งไปที่ไหนหรือเปล่า<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ไม่ เอกสารเปิดและแก้ในเครื่องของคุณเท่านั้น ไม่ส่งให้บริการ AI หรือคลาวด์ (OCR ทำในเครื่อง) ไม่เก็บสถิติการใช้งาน รายละเอียดดูได้ในโปรแกรม: ตั้งค่า → ความเป็นส่วนตัวและความปลอดภัย</p></details>
+  <details class="last"><summary>อัปเดตอัตโนมัติปลอดภัยไหม ถ้ามีคนปลอมอัปเดตล่ะ<span class="chev" aria-hidden="true">+</span></summary>
+    <p>อัปเดตทุกครั้งเซ็นด้วยกุญแจของผู้พัฒนา และโปรแกรมจะติดตั้งเฉพาะอัปเดตที่ลายเซ็นตรงกับกุญแจที่ฝังไว้ ถ้ามีคนแก้ไฟล์อัปเดต ลายเซ็นจะไม่ตรงและโปรแกรมจะไม่ติดตั้ง</p></details>
+
+  <h3 id="faq-use">การใช้งาน</h3>
+  <details><summary>รวมหลายไฟล์ หรือแยกบางหน้าออกมา ทำอย่างไร<span class="chev" aria-hidden="true">+</span></summary>
+    <p>เปิดโปรแกรม เลือก “รวม PDF” หรือ “แยก PDF” จากหน้าแรก แล้วเลือกไฟล์ ผลลัพธ์บันทึกเป็นไฟล์ใหม่ ไฟล์เดิมไม่เปลี่ยน</p></details>
+  <details><summary>แก้ข้อความในไฟล์ PDF ได้แค่ไหน<span class="chev" aria-hidden="true">+</span></summary>
+    <p>แก้ข้อความไทยและอังกฤษ เลือกฟอนต์และขนาดได้ เหมาะกับการแก้คำหรือบรรทัดสั้นๆ ไม่เหมาะกับการจัดหน้าใหม่ทั้งหน้า</p></details>
+  <details><summary>แปลงเป็น Word แล้วได้แต่รูป ไม่ได้ข้อความ<span class="chev" aria-hidden="true">+</span></summary>
+    <p>มักเป็นไฟล์สแกน ซึ่งในไฟล์มีแต่ภาพ ให้ทำ OCR ก่อน แล้วค่อยแปลงเป็น Word หรือ Excel การแปลงได้ผลดีที่สุดกับเอกสารที่มีข้อความจริง</p></details>
+  <details><summary>ลายเซ็นที่บันทึกไว้เก็บที่ไหน ปลอดภัยไหม<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ถ้าเลือกเก็บไว้ใช้ครั้งหน้า ลายเซ็นจะถูกเข้ารหัสและเก็บในเครื่องนี้เท่านั้น</p></details>
+  <details><summary>ลายเซ็นธรรมดา กับลายเซ็น Digital ID ต่างกันอย่างไร<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ลายเซ็นธรรมดาคือภาพลายมือชื่อวางบนเอกสาร ส่วน Digital ID ยืนยันตัวผู้เซ็น และตรวจพบได้ถ้ามีคนแก้เอกสารหลังเซ็น</p></details>
+  <details class="last"><summary>ปิดทับข้อมูลลับแล้ว ไฟล์เดิมจะหายไหม<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ไม่หาย ผลลัพธ์บันทึกเป็นไฟล์ใหม่ และข้อมูลที่ปิดทับจะถูกลบออกจริงในไฟล์ใหม่นั้น ไฟล์เดิมไม่เปลี่ยน</p></details>
+
+  <h3 id="faq-cad">งานเขียนแบบ</h3>
+  <details><summary>เปิดไฟล์ AutoCAD ได้จริงไหม ต้องมี AutoCAD ด้วยหรือเปล่า<span class="chev" aria-hidden="true">+</span></summary>
+    <p>เปิดไฟล์ .dwg และ .dxf ได้โดยตรง ไม่ต้องมี AutoCAD พร้อมเลเยอร์และสเกล แบบที่ใช้ฟอนต์หรือวัตถุพิเศษบางอย่างอาจแสดงต่างจาก AutoCAD เล็กน้อย</p></details>
+  <details><summary>วัดอะไรบนแบบได้บ้าง<span class="chev" aria-hidden="true">+</span></summary>
+    <p>วัดระยะ ระยะตามเส้น และพื้นที่ ตามสเกลของแบบ และนับจำนวนสิ่งของบนแบบ เช่น ดวงไฟ เต้ารับ วัดผิดก็ลากมุมแก้ หรือกด Ctrl+Z ย้อนกลับได้</p></details>
+  <details class="last"><summary>ส่งแบบให้คนที่ไม่มีโปรแกรม CAD ได้ไหม<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ได้ บันทึกเป็น PDF แล้วส่งต่อได้เลย Layout แต่ละแผ่นจะกลายเป็นหน้า PDF ตามสเกลจริง</p></details>
+
+  <h3 id="faq-care">อัปเดตและแจ้งปัญหา</h3>
+  <details><summary>อัปเดตโปรแกรมอย่างไร<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ถ้าอนุญาตให้ตรวจหาอัปเดต โปรแกรมจะดาวน์โหลดรุ่นใหม่ให้เอง แล้วขึ้นปุ่ม “รีสตาร์ทเพื่ออัปเดต” จะไม่ติดตั้งอะไรจนกว่าคุณจะกด หรือดาวน์โหลดตัวติดตั้งจากหน้านี้ใหม่ก็ได้</p></details>
+  <details><summary>ถอนการติดตั้งอย่างไร<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ไปที่ Windows Settings → Apps แล้วเลือก YRK PDF → Uninstall ส่วนแบบ zip ลบโฟลเดอร์ทิ้งได้เลย</p></details>
+  <details class="last"><summary>ใช้แล้วติดปัญหา หรืออยากให้เพิ่มฟีเจอร์ แจ้งที่ไหน<span class="chev" aria-hidden="true">+</span></summary>
+    <p>ในโปรแกรม: ช่วยเหลือ → ข้อเสนอแนะและแจ้งปัญหา หรือผ่าน<a href="https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform">แบบฟอร์มความคิดเห็น</a> (ไม่ต้องล็อกอิน) หรืออีเมล <a href="mailto:yrken.official@gmail.com">yrken.official@gmail.com</a></p></details>
+</section>
+
+<section class="wrap final">
+  <div class="final-box">
+    <div class="final-text">
+      <img src="{{img:icon.png}}" alt="">
+      <h2>พร้อมลองแล้วหรือยัง</h2>
+      <p>ไม่ต้องสมัคร เปิดไฟล์แล้วเริ่มใช้ได้เลย</p>
+      <a class="btn" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">ดาวน์โหลดฟรี</a>
+    </div>
+    <div class="final-photo"><img src="{{img:people-office.jpg}}" alt="คนทำงานในออฟฟิศใช้โปรแกรมบนคอมพิวเตอร์"></div>
+  </div>
+</section>
 </main>
 
 <footer>
   <div class="wrap">
-    <p>YRK PDF (เดิมชื่อ YRK Easy PDF) · ฟรีแวร์โดย YRK · <a href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases">ทุกรุ่น</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
-    <p>ใช้ได้ฟรีทั้งส่วนตัว ในงาน และในบริษัท ไม่มีค่าใช้จ่าย ไม่ต้องลงทะเบียน และติดตั้งได้ไม่จำกัดจำนวนเครื่อง</p>
-    <p>ใช้ส่วนประกอบโอเพนซอร์สหลายตัว ดูรายชื่อและสัญญาอนุญาตได้ในโปรแกรม: เกี่ยวกับ YRK PDF</p>
+    <div class="row">
+      <p>YRK PDF (เดิมชื่อ YRK Easy PDF) · ฟรีแวร์โดย <span class="lab">YRK LAB</span> · <span lang="en">Your Reliable Kit</span></p>
+      <div class="links">
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform">แจ้งปัญหา / ข้อเสนอแนะ</a>
+        <a href="mailto:yrken.official@gmail.com">yrken.official@gmail.com</a>
+        <a href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases">ทุกรุ่น</a>
+      </div>
+    </div>
+    <p class="small">ใช้ส่วนประกอบโอเพนซอร์สหลายตัว ดูรายชื่อและสัญญาอนุญาตได้ในโปรแกรม: ช่วยเหลือ → เกี่ยวกับ YRK PDF</p>
   </div>
 </footer>
+</div>
 
 <div class="sticky" id="sticky" aria-hidden="true">
   <div class="wrap">
     <img src="{{img:icon.png}}" alt="">
     <div class="name">YRK PDF<small>สำหรับ Windows 10 และ 11</small></div>
-    <a class="btn primary small" tabindex="-1" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">ดาวน์โหลด</a>
+    <a class="btn primary" tabindex="-1" href="https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest/download/YRK.EasyPdf-win-Setup.exe">ดาวน์โหลด</a>
   </div>
 </div>
 
 <script>
-  // The bar at the bottom appears once the big download buttons have scrolled out of view.
+  // The bar at the bottom appears once the big download button has scrolled out of view.
   (function () {
     var bar = document.getElementById("sticky"), cta = document.getElementById("hero-cta");
     if (!("IntersectionObserver" in window) || !bar || !cta) return;
