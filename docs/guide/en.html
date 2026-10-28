@@ -137,6 +137,10 @@
   <figure class="half"><img src="../release-repo/site-src/img/en/certified-copy.jpg" alt=""><figcaption>The certified copy stamp with its purpose and signature</figcaption></figure>
   <h3>Digital signatures (Digital ID)</h3>
   <p>A digital signature (PAdES) proves who signed and shows whether the document changed afterwards. Press <span class="path">Digital ID</span> and choose an ID on a USB token, add a .pfx file from your certificate authority, or create your own. Choose whether the signature shows on the page and whether to add a trusted timestamp (needs internet). Signatures in a file are listed in the sidebar's <span class="path">Signatures</span> tab.</p>
+  <ul>
+    <li><b>Signature type:</b> <span class="path">Approval</span> for an ordinary signature, or <span class="path">Certify as the author</span> to decide what may still happen afterwards (form filling and signing, comments as well, or no changes at all). Only the first signature of a document can certify it.</li>
+    <li><b>Long-term validation data:</b> stores your certificates and their revocation lists in the file (PAdES B-LT), so the signature can be checked years later, even after the certificate expires. Best together with a trusted timestamp.</li>
+  </ul>
 </section>
 
 <section id="pages">

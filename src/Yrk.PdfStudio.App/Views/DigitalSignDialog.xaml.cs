@@ -31,6 +31,7 @@ public partial class DigitalSignDialog : Window
         (_settings.Visible && !lockOnly ? VisibleOption : InvisibleOption).IsChecked = true;
         TimestampBox.IsChecked = _settings.Timestamp;
         TimestampUrlInput.Text = _settings.TimestampUrl;
+        LongTermBox.IsChecked = _settings.LongTermValidation;
         LoadIds(_settings.LastId);
     }
 
@@ -180,7 +181,9 @@ public partial class DigitalSignDialog : Window
             VisibleOption.IsChecked == true,
             handwritten?.Image,
             timestampUrl,
-            (CertifyChoice.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag is string tag ? (PdfCertification)int.Parse(tag, System.Globalization.CultureInfo.InvariantCulture) : PdfCertification.None);
+            (CertifyChoice.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag is string tag ? (PdfCertification)int.Parse(tag, System.Globalization.CultureInfo.InvariantCulture) : PdfCertification.None,
+            LongTermBox.IsChecked == true);
+        _settings.LongTermValidation = Options.LongTermValidation;
 
         _settings.LastId = Key(id);
         _settings.Reason = Options.Reason;

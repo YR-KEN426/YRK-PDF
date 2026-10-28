@@ -25,6 +25,8 @@ public sealed class DigitalSignSettings
 
     public string TimestampUrl { get; set; } = DefaultTimestampUrl;
 
+    public bool LongTermValidation { get; set; }
+
     public static DigitalSignSettings Load()
     {
         try

@@ -36,7 +36,7 @@
         <CheckBox x:Name="AutoUpdateBox" Content="Check for updates automatically" Margin="16,6,0,4" FontWeight="SemiBold"
                   Checked="OnAutoUpdateChanged" Unchecked="OnAutoUpdateChanged" AutomationProperties.Name="Automatic updates" />
         <TextBlock Style="{StaticResource Body}" Text="2. Text recognition languages: when you choose a language that is not on this computer yet, its data file is downloaded once from the Tesseract project on GitHub." />
-        <TextBlock Style="{StaticResource Body}" Text="3. Digital signatures, only if you tick &quot;Add a trusted timestamp&quot; when signing: a fingerprint (hash) of the signature is sent to the timestamp server. The document itself is not sent." />
+        <TextBlock Style="{StaticResource Body}" Text="3. Digital signatures, only if you tick &quot;Add a trusted timestamp&quot; or &quot;Add long-term validation data&quot; when signing: a fingerprint (hash) of the signature is sent to the timestamp server, and the revocation lists named in the certificates are downloaded from their issuers. The document itself is not sent." />
         <TextBlock Style="{StaticResource Body}" Text="4. Opening a digitally signed PDF whose certificate comes from a trusted authority: Windows asks that authority whether the certificate has been revoked. The document is not sent." />
 
         <TextBlock Style="{StaticResource Heading}" Text="What is kept on this computer" />

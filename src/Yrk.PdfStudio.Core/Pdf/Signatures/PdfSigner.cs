@@ -70,7 +70,9 @@ public static class PdfSigner
             if (cms.Length <= reserve)
             {
                 Encoding.ASCII.GetBytes(Convert.ToHexString(cms)).CopyTo(bytes, contentsStart + 1);
-                return bytes;
+                return request.RevocationSource is { } source
+                    ? await LongTermValidation.AddAsync(bytes, cms, source, cancellationToken).ConfigureAwait(false)
+                    : bytes;
             }
 
             reserve = cms.Length + 2048;

@@ -172,7 +172,7 @@ public sealed partial class MainViewModel
 
         var saved = await TransformToFileAsync(
             targetPath,
-            options.TimestampUrl is null ? "Signing…" : "Signing and getting a timestamp…",
+            options.LongTermValidation ? "Signing and getting validation data…" : options.TimestampUrl is null ? "Signing…" : "Signing and getting a timestamp…",
             async (_, input, cancellationToken) =>
             {
                 var signingTime = DateTimeOffset.Now;
@@ -196,7 +196,8 @@ public sealed partial class MainViewModel
                     options.Location,
                     TimestampAuthority: options.TimestampUrl is { } url ? new HttpTimestampAuthority(url) : null,
                     SigningTime: signingTime,
-                    Certification: options.Certification);
+                    Certification: options.Certification,
+                    RevocationSource: options.LongTermValidation ? new HttpRevocationSource() : null);
                 return await PdfSigner.SignAsync(input, request, cancellationToken);
             });
         if (saved is not null)

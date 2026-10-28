@@ -46,6 +46,105 @@ public static class PdfSignatureVerifier
         return results.OrderBy(r => r.SignedLength).ToList();
     }
 
+    /// <summary>
+    /// Whether the revisions after <paramref name="signedLength"/> only added long-term validation data (/DSS: certificates
+    /// and revocation lists), which does not change the document. Every other object must be as it was when signed.
+    /// </summary>
+    private static bool OnlyValidationDataAfter(CosDocument document, byte[] file, long signedLength)
+    {
+        if (document.Catalog["DSS"] is null || document.Trailer["Root"] is not CosReference root)
+        {
+            return false;
+        }
+
+        CosDocument signed;
+        try
+        {
+            signed = CosDocument.Load(file.AsSpan(0, (int)signedLength).ToArray());
+        }
+        catch (PdfException)
+        {
+            return false;
+        }
+
+        // The store and everything in it may be new.
+        var validationData = new HashSet<CosObjectId>();
+        var pending = new Stack<CosObject?>([document.Catalog["DSS"]]);
+        while (pending.Count > 0)
+        {
+            switch (pending.Pop())
+            {
+                case CosReference reference when validationData.Add(reference.Id):
+                    pending.Push(document.GetObject(reference.Id));
+                    break;
+                case CosDictionary dictionary:
+                    dictionary.Entries.Values.ToList().ForEach(pending.Push);
+                    break;
+                case CosArray array:
+                    array.Items.ForEach(pending.Push);
+                    break;
+                case CosStream stream:
+                    pending.Push(stream.Dictionary);
+                    break;
+            }
+        }
+
+        for (var number = 1; number < document.Size; number++)
+        {
+            var id = new CosObjectId(number, 0);
+            if (validationData.Contains(id))
+            {
+                continue;
+            }
+
+            var now = document.GetObject(id);
+            var then = signed.GetObject(id);
+            if (now is CosStream { Dictionary: var header } && (header["Type"] as CosName)?.Value is "XRef" or "ObjStm")
+            {
+                continue; // File structure: the objects an object stream holds are compared one by one.
+            }
+
+            if (id == root.Id)
+            {
+                // The catalog only gained (or changed) /DSS.
+                if (now is not CosDictionary catalog || then is not CosDictionary signedCatalog)
+                {
+                    return false;
+                }
+
+                now = catalog.Clone();
+                ((CosDictionary)now)["DSS"] = null;
+                then = signedCatalog.Clone();
+                ((CosDictionary)then)["DSS"] = null;
+            }
+
+            if (!Same(now, then))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool Same(CosObject? a, CosObject? b) => (a, b) switch
+    {
+        (null or CosNull, null or CosNull) => true,
+        (CosBoolean x, CosBoolean y) => x.Value == y.Value,
+        (CosInteger x, CosInteger y) => x.Value == y.Value,
+        (CosReal x, CosReal y) => x.Value.Equals(y.Value),
+        (CosInteger x, CosReal y) => x.Value == y.Value,
+        (CosReal x, CosInteger y) => x.Value == y.Value,
+        (CosName x, CosName y) => x.Value == y.Value,
+        (CosString x, CosString y) => x.Bytes.AsSpan().SequenceEqual(y.Bytes),
+        (CosReference x, CosReference y) => x.Id == y.Id,
+        (CosArray x, CosArray y) => x.Items.Count == y.Items.Count && x.Items.Zip(y.Items).All(p => Same(p.First, p.Second)),
+        (CosDictionary x, CosDictionary y) => x.Entries.Count == y.Entries.Count
+            && x.Entries.All(e => y.Entries.TryGetValue(e.Key, out var other) && Same(e.Value, other)),
+        (CosStream x, CosStream y) => Same(x.Dictionary, y.Dictionary) && x.Data.Span.SequenceEqual(y.Data.Span),
+        _ => false,
+    };
+
     private static PdfSignatureInfo Check(CosDocument document, byte[] file, string fieldName, CosDictionary field, CosDictionary signature, PdfVerifyOptions options)
     {
         var subFilter = (document.Resolve(signature["SubFilter"]) as CosName)?.Value ?? string.Empty;
@@ -70,7 +169,7 @@ public static class PdfSignatureVerifier
         }
 
         var signedLength = range[2] + range[3];
-        var covers = file.AsSpan((int)signedLength).Trim("\r\n\0 \t"u8).IsEmpty;
+        var covers = file.AsSpan((int)signedLength).Trim("\r\n\0 \t"u8).IsEmpty || OnlyValidationDataAfter(document, file, signedLength);
         if (document.Resolve(signature["Contents"]) is not CosString { Bytes.Length: > 0 } contents)
         {
             return Result(PdfSignatureStatus.Invalid, "The signature has no contents.", signedLength, covers);
