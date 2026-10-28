@@ -818,6 +818,19 @@ public partial class MainWindow : Window
 
     private void OnPageMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
+        // A measurement label or count mark: offer to remove it.
+        if (sender is FrameworkElement { DataContext: PageViewModel page } element && element.ActualWidth > 0
+            && _viewModel.MeasureItemAt(page, Relative(element, e)) is { } measureItem)
+        {
+            var delete = new MenuItem { Header = measureItem is MeasurementViewModel ? "Delete measurement" : "Delete count mark" };
+            delete.Click += (_, _) => _viewModel.DeleteMeasureItem(measureItem);
+            var itemMenu = new ContextMenu();
+            itemMenu.Items.Add(delete);
+            itemMenu.IsOpen = true;
+            e.Handled = true;
+            return;
+        }
+
         if (!_viewModel.HasTextSelection)
         {
             return;

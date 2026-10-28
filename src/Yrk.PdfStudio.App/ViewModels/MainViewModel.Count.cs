@@ -72,29 +72,80 @@ public sealed partial class MainViewModel
     /// <summary>Adds a mark of the current type, or removes the mark under the click.</summary>
     private void CountAt(PageViewModel page, NormalizedPoint point)
     {
+        if (CountMarkAt(page, point) is { } hit)
+        {
+            RemoveCountMark(hit);
+            return;
+        }
+
+        var type = CurrentCountType ??= CountTypes.FirstOrDefault() ?? NewCountType();
+        var mark = new CountMarkViewModel(page, type, point);
+        var index = _countMarks.Count;
+        AttachMark(mark, index);
+        _undo.Push(() => DetachMark(mark), () => AttachMark(mark, index));
+    }
+
+    private CountMarkViewModel? CountMarkAt(PageViewModel page, NormalizedPoint point)
+    {
         var radius = CountHitRadiusDips * OverlayUnit;
-        var hit = page.CountMarks
+        return page.CountMarks
             .Select(m => (Mark: m, Distance: Math.Sqrt(Math.Pow(m.Left - (point.X * page.WidthPoints), 2) + Math.Pow(m.Top - (point.Y * page.HeightPoints), 2))))
             .Where(h => h.Distance <= radius)
             .OrderBy(h => h.Distance)
             .Select(h => h.Mark)
             .FirstOrDefault();
-        if (hit is not null)
+    }
+
+    private void RemoveCountMark(CountMarkViewModel mark)
+    {
+        var index = DetachMark(mark);
+        if (index >= 0)
         {
-            _countMarks.Remove(hit);
-            page.CountMarks.Remove(hit);
-            Renumber(hit.Type);
+            _undo.Push(() => AttachMark(mark, index), () => DetachMark(mark));
+        }
+    }
+
+    /// <summary>Puts a mark back at its place in the click order, so it gets its old number again.</summary>
+    private void AttachMark(CountMarkViewModel mark, int index)
+    {
+        // A step from before the pages changed refers to pages that are no longer shown.
+        if (_countMarks.Contains(mark) || !Pages.Contains(mark.Page))
+        {
+            return;
+        }
+
+        _countMarks.Insert(Math.Min(index, _countMarks.Count), mark);
+        mark.Page.CountMarks.Add(mark);
+        Renumber(mark.Type);
+        CountsChanged();
+    }
+
+    /// <summary>Takes a mark off its page; returns where it was in the click order, or -1.</summary>
+    private int DetachMark(CountMarkViewModel mark)
+    {
+        var index = _countMarks.IndexOf(mark);
+        if (index < 0)
+        {
+            return -1;
+        }
+
+        _countMarks.RemoveAt(index);
+        mark.Page.CountMarks.Remove(mark);
+        Renumber(mark.Type);
+        CountsChanged();
+        return index;
+    }
+
+    private void CountsChanged()
+    {
+        if (IsCounting)
+        {
+            UpdateCountSummary();
         }
         else
         {
-            var type = CurrentCountType ??= CountTypes.FirstOrDefault() ?? NewCountType();
-            var mark = new CountMarkViewModel(page, type, point);
-            _countMarks.Add(mark);
-            page.CountMarks.Add(mark);
-            Renumber(type);
+            OnPropertyChanged(nameof(HasCounts));
         }
-
-        UpdateCountSummary();
     }
 
     private CountTypeViewModel NewCountType()
@@ -186,7 +237,10 @@ public sealed partial class MainViewModel
             return;
         }
 
-        foreach (var mark in _countMarks.ToList())
+        // Removed first, so undoing goes back through the comments to the marks on screen.
+        var marks = _countMarks.Select(m => (Mark: m, m.Number)).ToList();
+        ClearCounts();
+        foreach (var (mark, number) in marks)
         {
             var page = mark.Page;
             var radius = Math.Max(5, Math.Max(page.WidthPoints, page.HeightPoints) / 120);
@@ -195,32 +249,32 @@ public sealed partial class MainViewModel
                 mark.Position.Y - (radius / page.HeightPoints),
                 2 * radius / page.WidthPoints,
                 2 * radius / page.HeightPoints);
-            await AddAnnotationAsync(page, new PdfShapeSpec(PdfAnnotationKind.Circle, bounds, 2, mark.Type.PdfColor, $"{mark.Type.Name} {mark.Number}", Author));
+            await AddAnnotationAsync(page, new PdfShapeSpec(PdfAnnotationKind.Circle, bounds, 2, mark.Type.PdfColor, $"{mark.Type.Name} {number}", Author));
         }
 
-        ClearCounts();
         StatusMessage = "Count marks added as comments";
     }
 
+    /// <summary>Takes every mark off the pages, as one step that Undo brings back.</summary>
     private void ClearCounts()
     {
-        foreach (var mark in _countMarks)
+        var removed = _countMarks.ToList();
+        if (removed.Count == 0)
         {
-            mark.Page.CountMarks.Remove(mark);
+            return;
         }
 
-        _countMarks.Clear();
-        foreach (var type in CountTypes)
+        void Remove() => removed.ForEach(m => DetachMark(m));
+        void Restore()
         {
-            type.Total = 0;
+            for (var i = 0; i < removed.Count; i++)
+            {
+                AttachMark(removed[i], i);
+            }
         }
 
-        if (IsCounting)
-        {
-            UpdateCountSummary();
-        }
-
-        OnPropertyChanged(nameof(HasCounts));
+        Remove();
+        _undo.Push(Restore, Remove);
     }
 
     /// <summary>The marks belong to the old pages; the types (and their names) stay for the next count.</summary>

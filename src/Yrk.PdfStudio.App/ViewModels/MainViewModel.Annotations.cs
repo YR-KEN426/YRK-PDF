@@ -146,6 +146,7 @@ public sealed partial class MainViewModel
         ClearTextSelection();
         if (IsMeasuring && !IsCounting)
         {
+            BeginMeasureGesture(page, point);
             point = Snap(page, point); // A measurement starts on the drawing point under the cursor.
         }
 
@@ -165,6 +166,12 @@ public sealed partial class MainViewModel
         if (_pendingDigitalSign is not null)
         {
             UpdateDigitalPlacementPreview(gesture, point);
+            return;
+        }
+
+        if (_measureEdit is { } edit)
+        {
+            UpdateMeasureEdit(edit, point);
             return;
         }
 
@@ -201,6 +208,7 @@ public sealed partial class MainViewModel
 
     public void CancelPageGesture()
     {
+        CancelMeasureEdit();
         _gesture?.Page.ClearPreview();
         _gesture = null;
     }
@@ -219,6 +227,13 @@ public sealed partial class MainViewModel
         if (_pendingDigitalSign is not null)
         {
             await EndDigitalPlacementAsync(page, gesture.Start, point, isClick);
+            return;
+        }
+
+        if (_measureEdit is { } edit)
+        {
+            _measureEdit = null;
+            await EndMeasureEditAsync(edit);
             return;
         }
 

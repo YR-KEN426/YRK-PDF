@@ -105,6 +105,15 @@ public sealed partial class MainViewModel
 
     private async Task EndMeasureGestureAsync(PageViewModel page, NormalizedPoint start, NormalizedPoint end, bool isClick)
     {
+        var pressed = _pressedMeasurement;
+        _pressedMeasurement = null;
+        if (isClick && pressed is not null)
+        {
+            SelectMeasurement(pressed);
+            return;
+        }
+
+        SelectMeasurement(null);
         switch (CurrentTool)
         {
             case AnnotationTool.MeasureDistance when !isClick:
@@ -285,6 +294,7 @@ public sealed partial class MainViewModel
     {
         ClearSnapMarker();
         CancelDraftOnly();
+        SelectMeasurement(null);
     }
 
     private void CancelDraftOnly()
@@ -316,11 +326,211 @@ public sealed partial class MainViewModel
         page.ClearPreview();
         var result = await DescribeAsync(page, kind, points);
         var measurement = new MeasurementViewModel(page, kind, points, result);
-        _measurements.Add(measurement);
-        page.Measurements.Add(measurement);
+        AttachMeasurement(measurement);
+        _undo.Push(() => DetachMeasurement(measurement), () => AttachMeasurement(measurement));
         MeasureResult = result;
+    }
+
+    // --- Selecting, correcting and deleting ---------------------------------------------------
+
+    /// <summary>How near (screen DIPs) a press must be to a corner handle to drag it.</summary>
+    private const double HandleHitRadiusDips = 8;
+
+    private MeasurementViewModel? _selectedMeasurement;
+    private MeasurementViewModel? _pressedMeasurement;
+    private MeasureEdit? _measureEdit;
+
+    /// <summary>
+    /// A press with a measure tool: on a corner of the selected measurement it starts dragging that corner,
+    /// on a result label it may select that measurement (if the press turns out to be a click).
+    /// </summary>
+    private void BeginMeasureGesture(PageViewModel page, NormalizedPoint point)
+    {
+        _measureEdit = null;
+        _pressedMeasurement = null;
+        if (_draftPoints.Count > 0)
+        {
+            return; // Clicks add points to the shape being drawn.
+        }
+
+        if (_selectedMeasurement is { } selected && selected.Page == page && HandleAt(selected, point) is { } index)
+        {
+            _measureEdit = new MeasureEdit(selected, index, selected.Points, selected.Result);
+            return;
+        }
+
+        _pressedMeasurement = MeasurementAt(page, point);
+    }
+
+    private async void UpdateMeasureEdit(MeasureEdit edit, NormalizedPoint point)
+    {
+        var measurement = edit.Measurement;
+        var page = measurement.Page;
+        var neighbour = edit.Index > 0 ? measurement.Points[edit.Index - 1] : measurement.Points[1];
+        point = Pick(page, neighbour, point);
+        var points = measurement.Points.ToList();
+        points[edit.Index] = point;
+        measurement.Points = points;
+        var result = await DescribeAsync(page, measurement.Kind, points);
+        if (ReferenceEquals(measurement.Points, points))
+        {
+            measurement.Result = result; // Not when a later move has already replaced the points.
+            MeasureResult = result;
+        }
+    }
+
+    private async Task EndMeasureEditAsync(MeasureEdit edit)
+    {
+        ClearSnapMarker();
+        var measurement = edit.Measurement;
+        var after = measurement.Points;
+        if (after.SequenceEqual(edit.Points))
+        {
+            return;
+        }
+
+        var result = await DescribeAsync(measurement.Page, measurement.Kind, after);
+        measurement.Result = result;
+        MeasureResult = result;
+        _undo.Push(
+            () => SetMeasurement(measurement, edit.Points, edit.Result),
+            () => SetMeasurement(measurement, after, result));
+    }
+
+    private void CancelMeasureEdit()
+    {
+        if (_measureEdit is { } edit)
+        {
+            _measureEdit = null;
+            SetMeasurement(edit.Measurement, edit.Points, edit.Result);
+        }
+    }
+
+    private static void SetMeasurement(MeasurementViewModel measurement, IReadOnlyList<NormalizedPoint> points, string result)
+    {
+        measurement.Points = points;
+        measurement.Result = result;
+    }
+
+    private void SelectMeasurement(MeasurementViewModel? measurement)
+    {
+        if (_selectedMeasurement == measurement)
+        {
+            return;
+        }
+
+        if (_selectedMeasurement is { } previous)
+        {
+            previous.IsSelected = false;
+        }
+
+        _selectedMeasurement = measurement;
+        if (measurement is not null)
+        {
+            measurement.IsSelected = true;
+            MeasureResult = measurement.Result + Loc.T("  ·  drag a corner to correct it, Delete removes it");
+        }
+    }
+
+    /// <summary>The corner of <paramref name="measurement"/> under the point, if any.</summary>
+    private int? HandleAt(MeasurementViewModel measurement, NormalizedPoint point)
+    {
+        var page = measurement.Page;
+        var radius = HandleHitRadiusDips * OverlayUnit;
+        int? best = null;
+        var bestDistance = radius;
+        for (var i = 0; i < measurement.Points.Count; i++)
+        {
+            var corner = measurement.Points[i];
+            var distance = Math.Sqrt(Math.Pow((corner.X - point.X) * page.WidthPoints, 2) + Math.Pow((corner.Y - point.Y) * page.HeightPoints, 2));
+            if (distance <= bestDistance)
+            {
+                best = i;
+                bestDistance = distance;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>The measurement whose result label is under the point (labels are drawn at a fixed size on screen).</summary>
+    private MeasurementViewModel? MeasurementAt(PageViewModel page, NormalizedPoint point)
+    {
+        var x = point.X * page.WidthPoints;
+        var y = point.Y * page.HeightPoints;
+        return page.Measurements.LastOrDefault(m =>
+        {
+            // About 6.5 DIPs per character at 12 px, plus the label's margins.
+            var width = ((m.Result.Length * 6.5) + 14) * OverlayUnit;
+            var height = 20 * OverlayUnit;
+            return x >= m.LabelLeft && x <= m.LabelLeft + width && y >= m.LabelTop && y <= m.LabelTop + height;
+        });
+    }
+
+    /// <summary>Removes the selected measurement (Delete key); returns false when none is selected.</summary>
+    private bool DeleteSelectedMeasurement()
+    {
+        if (_selectedMeasurement is not { } measurement)
+        {
+            return false;
+        }
+
+        DeleteMeasurement(measurement);
+        return true;
+    }
+
+    private void DeleteMeasurement(MeasurementViewModel measurement)
+    {
+        DetachMeasurement(measurement);
+        _undo.Push(() => AttachMeasurement(measurement), () => DetachMeasurement(measurement));
+        MeasureResult = "Measurement removed. Undo (Ctrl+Z) brings it back.";
+    }
+
+    private void AttachMeasurement(MeasurementViewModel measurement)
+    {
+        // A step from before the pages changed refers to pages that are no longer shown.
+        if (_measurements.Contains(measurement) || !Pages.Contains(measurement.Page))
+        {
+            return;
+        }
+
+        _measurements.Add(measurement);
+        measurement.Page.Measurements.Add(measurement);
         OnPropertyChanged(nameof(HasMeasurements));
     }
+
+    private void DetachMeasurement(MeasurementViewModel measurement)
+    {
+        if (_selectedMeasurement == measurement)
+        {
+            SelectMeasurement(null);
+        }
+
+        _measurements.Remove(measurement);
+        measurement.Page.Measurements.Remove(measurement);
+        OnPropertyChanged(nameof(HasMeasurements));
+    }
+
+    /// <summary>The measurement or count mark under the point, for the right-click menu.</summary>
+    public object? MeasureItemAt(PageViewModel page, NormalizedPoint point) =>
+        IsMeasuring ? (object?)MeasurementAt(page, point) ?? CountMarkAt(page, point) : null;
+
+    /// <summary>Removes a measurement or count mark chosen from the right-click menu.</summary>
+    public void DeleteMeasureItem(object item)
+    {
+        switch (item)
+        {
+            case MeasurementViewModel measurement:
+                DeleteMeasurement(measurement);
+                break;
+            case CountMarkViewModel mark:
+                RemoveCountMark(mark);
+                break;
+        }
+    }
+
+    /// <summary>A corner being dragged, with the measurement as it was before.</summary>
+    private sealed record MeasureEdit(MeasurementViewModel Measurement, int Index, IReadOnlyList<NormalizedPoint> Points, string Result);
 
     /// <summary>"Distance 1,234.5 mm (1:25)", using the chosen scale and unit.</summary>
     private async Task<string> DescribeAsync(PageViewModel page, MeasureKind kind, IReadOnlyList<NormalizedPoint> points)
@@ -408,14 +618,21 @@ public sealed partial class MainViewModel
     private void ClearMeasurements()
     {
         CancelMeasurementDraft();
-        foreach (var measurement in _measurements)
+        RemoveAllMeasurements();
+        MeasureResult = string.Empty;
+    }
+
+    /// <summary>Takes every measurement off the pages, as one step that Undo brings back.</summary>
+    private List<MeasurementViewModel> RemoveAllMeasurements()
+    {
+        var removed = _measurements.ToList();
+        removed.ForEach(DetachMeasurement);
+        if (removed.Count > 0)
         {
-            measurement.Page.Measurements.Remove(measurement);
+            _undo.Push(() => removed.ForEach(AttachMeasurement), () => removed.ForEach(DetachMeasurement));
         }
 
-        _measurements.Clear();
-        MeasureResult = string.Empty;
-        OnPropertyChanged(nameof(HasMeasurements));
+        return removed;
     }
 
     /// <summary>Keeps the measurements in the file as comments (ink lines with the result as their text).</summary>
@@ -426,18 +643,15 @@ public sealed partial class MainViewModel
             return;
         }
 
-        foreach (var measurement in _measurements.ToList())
+        // Removed first, so undoing goes back through the comments to the measurements on screen.
+        CancelMeasurementDraft();
+        foreach (var measurement in RemoveAllMeasurements())
         {
-            var stroke = measurement.Kind == MeasureKind.Distance ? measurement.Points.ToList() : [.. measurement.Points, measurement.Points[0]];
-            if (measurement.Kind == MeasureKind.Perimeter)
-            {
-                stroke = measurement.Points.ToList();
-            }
-
+            var stroke = measurement.Kind == MeasureKind.Area ? [.. measurement.Points, measurement.Points[0]] : measurement.Points.ToList();
             await AddAnnotationAsync(measurement.Page, new PdfInkSpec([stroke], 1, MeasureColor, measurement.Result, Author));
         }
 
-        ClearMeasurements();
+        MeasureResult = string.Empty;
         StatusMessage = "Measurements added as comments";
     }
 
@@ -451,6 +665,8 @@ public sealed partial class MainViewModel
     private void ClearMeasurementsOnly()
     {
         CancelMeasurementDraft();
+        _measureEdit = null;
+        _pressedMeasurement = null;
         _measurements.Clear();
         OnPropertyChanged(nameof(HasMeasurements));
     }

@@ -366,6 +366,11 @@ public sealed partial class MainViewModel
 
     private void DeleteSelected()
     {
+        if (DeleteSelectedMeasurement())
+        {
+            return;
+        }
+
         if (_selectedItem is null && SelectedComment is { } comment)
         {
             _ = DeleteCommentAsync(comment);

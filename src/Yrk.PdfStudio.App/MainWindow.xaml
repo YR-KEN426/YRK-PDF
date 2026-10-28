@@ -1269,13 +1269,45 @@
                                                                 </Style>
                                                             </Path.Style>
                                                         </Path>
-                                                        <Border Canvas.Left="{Binding LabelLeft}" Canvas.Top="{Binding LabelTop}" Background="#E8590C">
+                                                        <!-- Clicking the label selects the measurement: it turns dark and its corners get handles. -->
+                                                        <Border Canvas.Left="{Binding LabelLeft}" Canvas.Top="{Binding LabelTop}">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="#E8590C" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                            <Setter Property="Background" Value="#9A3412" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
                                                             <Border.LayoutTransform>
                                                                 <ScaleTransform ScaleX="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}"
                                                                                 ScaleY="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}" />
                                                             </Border.LayoutTransform>
                                                             <TextBlock Text="{Binding Result}" Foreground="White" FontSize="12" Margin="6,2" />
                                                         </Border>
+                                                        <ItemsControl ItemsSource="{Binding Handles}" ItemContainerStyle="{StaticResource CanvasItem}" Focusable="False"
+                                                                      Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
+                                                            <ItemsControl.ItemsPanel>
+                                                                <ItemsPanelTemplate>
+                                                                    <Canvas />
+                                                                </ItemsPanelTemplate>
+                                                            </ItemsControl.ItemsPanel>
+                                                            <ItemsControl.ItemTemplate>
+                                                                <DataTemplate DataType="{x:Type vm:MeasureHandle}">
+                                                                    <Rectangle Width="9" Height="9" Fill="White" Stroke="#9A3412" StrokeThickness="1.5">
+                                                                        <Rectangle.RenderTransform>
+                                                                            <TransformGroup>
+                                                                                <TranslateTransform X="-4.5" Y="-4.5" />
+                                                                                <ScaleTransform ScaleX="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                                                ScaleY="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}" />
+                                                                            </TransformGroup>
+                                                                        </Rectangle.RenderTransform>
+                                                                    </Rectangle>
+                                                                </DataTemplate>
+                                                            </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
                                                     </Canvas>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
