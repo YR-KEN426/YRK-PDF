@@ -70,7 +70,7 @@ public sealed partial class MainViewModel
         {
             await Task.Delay(ChoiceDelay); // Let the window finish appearing first.
             _settings.CheckForUpdates = _dialogs.AskYesNo(
-                "Check for updates automatically?\n\nShortly after starting, YRK PDF would ask its download page on GitHub whether a newer version exists and download it in the background. It is installed only when you click \"Restart to update\". Nothing about you or your files is sent.\n\nYou can change this any time in Tools ▸ Privacy and safety.");
+                "Check for updates automatically?\n\nShortly after starting, YRK PDF would ask its download page on GitHub whether a newer version exists and download it in the background. It is installed only when you click \"Restart to update\". Nothing about you or your files is sent.\n\nYou can change this any time in Settings ▸ Privacy and safety.");
             _settings.UpdateChoiceMade = true;
             _settings.Save();
         }
