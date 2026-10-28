@@ -87,6 +87,16 @@
         </ComboBox>
         <RadioButton x:Name="InvisibleOption" Content="Invisible (shown only in the Signatures panel)" Margin="0,8,0,0" Checked="OnAppearanceChanged" />
 
+        <TextBlock Text="Signature type" Margin="0,14,0,4" />
+        <ComboBox x:Name="CertifyChoice" AutomationProperties.Name="Signature type" SelectedIndex="0">
+            <ComboBoxItem Content="Approval: others can still fill in and sign" Tag="0" />
+            <ComboBoxItem Content="Certify as the author: only form filling and signing allowed after" Tag="2" />
+            <ComboBoxItem Content="Certify as the author: form filling, signing and comments allowed after" Tag="3" />
+            <ComboBoxItem Content="Certify as the author: no changes allowed after" Tag="1" />
+        </ComboBox>
+        <TextBlock Text="Only the first signature of a document can certify it. Viewers such as Adobe Acrobat then show which later changes break the certification."
+                   FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+
         <CheckBox x:Name="TimestampBox" Content="Add a trusted timestamp (needs internet; proves when you signed)" Margin="0,14,0,4" />
         <TextBox x:Name="TimestampUrlInput" Padding="6,4" Margin="20,0,0,0" AutomationProperties.Name="Timestamp server"
                  IsEnabled="{Binding IsChecked, ElementName=TimestampBox}" />

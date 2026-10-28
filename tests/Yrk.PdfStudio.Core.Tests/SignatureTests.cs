@@ -180,6 +180,39 @@ public sealed class SignatureTests : IDisposable
     }
 
     [Fact]
+    public async Task Certifies_a_document()
+    {
+        var source = File.ReadAllBytes(TestPdfFactory.CreateFormPdf(PathFor("to-certify.pdf")));
+        var certified = await PdfSigner.SignAsync(source, new PdfSignRequest(Signer.Value, Certification: PdfCertification.FormFilling));
+
+        var document = CosDocument.Load(certified);
+        var perms = Assert.IsType<CosDictionary>(document.Resolve(document.Catalog["Perms"]));
+        var signature = Assert.IsType<CosDictionary>(document.Resolve(perms["DocMDP"]));
+        var reference = Assert.IsType<CosDictionary>(document.Resolve(((CosArray)document.Resolve(signature["Reference"])!)[0]));
+        Assert.Equal(2, ((CosInteger)document.Resolve(((CosDictionary)document.Resolve(reference["TransformParams"])!)["P"])!).Value);
+        Assert.NotNull(document.Resolve(document.Catalog["AcroForm"])); // The form survives the catalog change.
+
+        var path = PathFor("certified-form.pdf");
+        File.WriteAllBytes(path, certified);
+        var result = Assert.Single(await PdfSignatureVerifier.VerifyFileAsync(path, Offline));
+        Assert.True(result.IsCertification);
+        Assert.True(result.IsIntact);
+
+        // Signing is allowed after a certification that allows form filling, but certifying again is not.
+        var signedAgain = await PdfSigner.SignAsync(certified, new PdfSignRequest(Signer.Value));
+        File.WriteAllBytes(path, signedAgain);
+        Assert.Equal(2, (await PdfSignatureVerifier.VerifyFileAsync(path, Offline)).Count);
+        await Assert.ThrowsAsync<PdfException>(() => PdfSigner.SignAsync(certified, new PdfSignRequest(Signer.Value, Certification: PdfCertification.NoChanges)));
+    }
+
+    [Fact]
+    public async Task A_certification_without_changes_refuses_more_signatures()
+    {
+        var certified = await PdfSigner.SignAsync(File.ReadAllBytes(SamplePath), new PdfSignRequest(Signer.Value, Certification: PdfCertification.NoChanges));
+        await Assert.ThrowsAsync<PdfException>(() => PdfSigner.SignAsync(certified, new PdfSignRequest(Signer.Value)));
+    }
+
+    [Fact]
     public void Parses_strings_names_and_references()
     {
         var parser = new CosParser("<< /A (a\\(b\\)\\101) /B <48 49> /C [1 0 R 2 3.5 -4] /D#20E true /F null >>"u8.ToArray());

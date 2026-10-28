@@ -4,6 +4,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Windows;
 using Microsoft.Win32;
 using Yrk.PdfStudio.App.Services;
+using Yrk.PdfStudio.Core.Pdf.Signatures;
 
 namespace Yrk.PdfStudio.App.Views;
 
@@ -178,7 +179,8 @@ public partial class DigitalSignDialog : Window
             Clean(LocationInput.Text),
             VisibleOption.IsChecked == true,
             handwritten?.Image,
-            timestampUrl);
+            timestampUrl,
+            (CertifyChoice.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag is string tag ? (PdfCertification)int.Parse(tag, System.Globalization.CultureInfo.InvariantCulture) : PdfCertification.None);
 
         _settings.LastId = Key(id);
         _settings.Reason = Options.Reason;

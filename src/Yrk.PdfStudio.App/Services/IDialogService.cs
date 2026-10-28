@@ -28,7 +28,8 @@ public sealed record DigitalSignOptions(
     string? Location,
     bool Visible,
     BitmapSource? Handwritten,
-    Uri? TimestampUrl);
+    Uri? TimestampUrl,
+    Core.Pdf.Signatures.PdfCertification Certification = Core.Pdf.Signatures.PdfCertification.None);
 
 /// <summary>Keeps view models free of window and dialog code.</summary>
 public interface IDialogService

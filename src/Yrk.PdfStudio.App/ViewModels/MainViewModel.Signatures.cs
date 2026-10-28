@@ -195,7 +195,8 @@ public sealed partial class MainViewModel
                     options.Reason,
                     options.Location,
                     TimestampAuthority: options.TimestampUrl is { } url ? new HttpTimestampAuthority(url) : null,
-                    SigningTime: signingTime);
+                    SigningTime: signingTime,
+                    Certification: options.Certification);
                 return await PdfSigner.SignAsync(input, request, cancellationToken);
             });
         if (saved is not null)

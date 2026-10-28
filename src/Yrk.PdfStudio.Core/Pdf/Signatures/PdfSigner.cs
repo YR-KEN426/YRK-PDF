@@ -45,6 +45,10 @@ public static class PdfSigner
         }
 
         EnsureChangesAllowed(document);
+        if (request.Certification != PdfCertification.None && HasSignatures(document))
+        {
+            throw new PdfException("Only the first signature can certify a document, and this one is signed already.");
+        }
 
         var reserve = BaseReserve + ChainLength(request.Certificate) + (request.TimestampAuthority is null ? 0 : TimestampReserve);
         for (var attempt = 0; attempt < 3; attempt++)
@@ -106,7 +110,40 @@ public static class PdfSigner
         AddText(signature, "Location", request.Location);
         AddText(signature, "ContactInfo", request.ContactInfo);
         signature["Prop_Build"] = new CosDictionary().Set("App", new CosDictionary().Set("Name", new CosName("YRK_PDF_Studio")));
+        if (request.Certification != PdfCertification.None)
+        {
+            // A certifying signature (§12.8.2.2): the changes still allowed, checked by viewers on later revisions.
+            signature["Reference"] = new CosArray([
+                new CosDictionary()
+                    .Set("Type", new CosName("SigRef"))
+                    .Set("TransformMethod", new CosName("DocMDP"))
+                    .Set("TransformParams", new CosDictionary()
+                        .Set("Type", new CosName("TransformParams"))
+                        .Set("P", new CosInteger((int)request.Certification))
+                        .Set("V", new CosName("1.2"))),
+            ]);
+        }
+
         var signatureRef = update.Add(signature);
+
+        // The catalog changes at most once (new /AcroForm, /Perms), whichever step needs it first.
+        var rootId = (document.Trailer["Root"] as CosReference)?.Id ?? throw new PdfException("The document has no catalog.");
+        CosDictionary? catalogCopy = null;
+        CosDictionary Catalog()
+        {
+            if (catalogCopy is null)
+            {
+                catalogCopy = document.Catalog.Clone();
+                update.Replace(rootId, catalogCopy);
+            }
+
+            return catalogCopy;
+        }
+
+        if (request.Certification != PdfCertification.None)
+        {
+            Catalog()["Perms"] = new CosDictionary().Set("DocMDP", signatureRef);
+        }
 
         // The field and its widget, merged into one dictionary.
         var widget = new CosDictionary()
@@ -132,18 +169,17 @@ public static class PdfSigner
         var widgetRef = update.Add(widget);
 
         AddToArray(document, update, page.Dictionary, page.Id, "Annots", widgetRef);
-        AddField(document, update, widgetRef);
+        AddField(document, update, widgetRef, Catalog);
 
         var (bytes, placeholders) = update.Build();
         return (bytes, placeholders[byteRange], placeholders[contents]);
     }
 
-    private static void AddField(CosDocument document, CosIncrementalUpdate update, CosReference field)
+    /// <param name="catalog">The catalog copy that goes into the update (made on first use).</param>
+    private static void AddField(CosDocument document, CosIncrementalUpdate update, CosReference field, Func<CosDictionary> catalog)
     {
-        var rootId = (document.Trailer["Root"] as CosReference)?.Id ?? throw new PdfException("The document has no catalog.");
-        var catalog = document.Catalog;
         CosDictionary acroForm;
-        switch (catalog["AcroForm"])
+        switch (document.Catalog["AcroForm"])
         {
             case CosReference reference when document.Resolve(reference) is CosDictionary existing:
                 acroForm = existing.Clone();
@@ -151,11 +187,11 @@ public static class PdfSigner
                 break;
             case CosDictionary direct:
                 acroForm = direct.Clone();
-                update.Replace(rootId, catalog.Clone().Set("AcroForm", acroForm));
+                catalog()["AcroForm"] = acroForm;
                 break;
             default:
                 acroForm = new CosDictionary();
-                update.Replace(rootId, catalog.Clone().Set("AcroForm", update.Add(acroForm)));
+                catalog()["AcroForm"] = update.Add(acroForm);
                 break;
         }
 
@@ -282,6 +318,37 @@ public static class PdfSigner
                 return candidate;
             }
         }
+    }
+
+    /// <summary>Whether a signature field of the document is signed already.</summary>
+    private static bool HasSignatures(CosDocument document)
+    {
+        if (document.Resolve(document.Catalog["AcroForm"]) is not CosDictionary acroForm || document.Resolve(acroForm["Fields"]) is not CosArray fields)
+        {
+            return false;
+        }
+
+        var pending = new Stack<CosObject>(fields.Items);
+        var seen = new HashSet<CosObject>();
+        while (pending.Count > 0)
+        {
+            if (document.Resolve(pending.Pop()) is not CosDictionary field || !seen.Add(field))
+            {
+                continue;
+            }
+
+            if ((document.Resolve(field["FT"]) as CosName)?.Value == "Sig" && document.Resolve(field["V"]) is CosDictionary)
+            {
+                return true;
+            }
+
+            if (document.Resolve(field["Kids"]) is CosArray kids)
+            {
+                kids.Items.ForEach(pending.Push);
+            }
+        }
+
+        return false;
     }
 
     /// <summary>A certifying signature that forbids any change (DocMDP P=1) also forbids more signatures.</summary>
