@@ -995,6 +995,10 @@
   "Give the field a name.": "ตั้งชื่อช่อง",
   "Add at least one choice.": "ใส่ตัวเลือกอย่างน้อย 1 รายการ",
   "Field added. It becomes part of the document when you save.": "เพิ่มช่องแล้ว จะเป็นส่วนหนึ่งของเอกสารเมื่อบันทึก",
+  "Press Enter or click outside to finish the field": "กด Enter หรือคลิกนอกช่องเพื่อจบ",
+  "Adding the fields…": "กำลังเพิ่มช่องกรอก…",
+  "Fields ready to fill": "ช่องกรอกพร้อมใช้แล้ว",
+  "Couldn't add the fields.\n\n{0}": "เพิ่มช่องกรอกไม่สำเร็จ\n\n{0}",
   "Remove this field": "ลบช่องนี้",
   "Remove the password protection first (Tools › Remove password protection), then add form fields.": "ยกเลิกรหัสผ่านก่อน (เครื่องมือ › ยกเลิกรหัสผ่านป้องกัน) แล้วจึงเพิ่มช่องฟอร์ม",
 

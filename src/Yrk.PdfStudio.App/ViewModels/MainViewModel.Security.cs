@@ -122,7 +122,7 @@ public sealed partial class MainViewModel
                     }
                 }
 
-                await OpenDocumentAsync(document.FilePath, password, CaptureViewState(), keepEdits: true);
+                await OpenDocumentAsync(document.FilePath, password, CaptureViewState(), keepEdits: true, copyPath: _workingCopy);
                 return _document?.Permissions == PdfPermissions.All;
             }
             catch (PdfPasswordRequiredException)

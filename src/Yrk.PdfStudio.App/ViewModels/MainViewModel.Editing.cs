@@ -697,23 +697,7 @@ public sealed partial class MainViewModel
         {
             try
             {
-                var realText = CanWriteRealText(document);
-                var fieldLooks = BuildFieldLooks(document); // Before the fields are committed and reloaded.
-                await CommitOverlaysAsync(document, keepText: realText);
-                fieldLooks = await PurgeDeletedCommentsAsync(document, fieldLooks);
-                await document.SaveAsync(tempPath);
-
-                // PDFium writes every object it has loaded, changed or not (about 1 MB more per save of a filled
-                // form); only the objects that really changed are kept.
-                var saved = await TrimSaveAsync(document.FilePath, await File.ReadAllBytesAsync(tempPath));
-                if (HasTextEdits || _layerDefaultsChanged || _newFields.Count > 0 || _fieldChanges.Count > 0 || (realText && HasPlacedText) || fieldLooks.Count > 0)
-                {
-                    // Text edits, added text, field looks and layer defaults work on the file itself (PDFium cannot shape Thai).
-                    // Field looks come first: they find widgets by their place in /Annots, which new fields extend.
-                    saved = ApplyNewFields(ApplyLayerDefaults(ApplyTextEdits(ApplyPlacedText(ApplyFieldLooks(saved, fieldLooks)))));
-                }
-
-                await File.WriteAllBytesAsync(tempPath, saved);
+                await WriteChangesAsync(document, tempPath);
             }
             catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
             {
@@ -751,6 +735,78 @@ public sealed partial class MainViewModel
         {
             IsBusy = false;
             if (StatusMessage == Loc.T("Saving…"))
+            {
+                StatusMessage = string.Empty;
+            }
+        }
+    }
+
+    /// <summary>Writes the document with every change not saved yet to <paramref name="path"/>.</summary>
+    private async Task WriteChangesAsync(IPdfDocument document, string path)
+    {
+        var realText = CanWriteRealText(document);
+        var fieldLooks = BuildFieldLooks(document); // Before the fields are committed and reloaded.
+        await CommitOverlaysAsync(document, keepText: realText);
+        fieldLooks = await PurgeDeletedCommentsAsync(document, fieldLooks);
+        await document.SaveAsync(path);
+
+        // PDFium writes every object it has loaded, changed or not (about 1 MB more per save of a filled
+        // form); only the objects that really changed are kept.
+        var saved = await TrimSaveAsync(document.FilePath, await File.ReadAllBytesAsync(path));
+        if (HasTextEdits || _layerDefaultsChanged || _newFields.Count > 0 || _fieldChanges.Count > 0 || (realText && HasPlacedText) || fieldLooks.Count > 0)
+        {
+            // Text edits, added text, field looks and layer defaults work on the file itself (PDFium cannot shape Thai).
+            // Field looks come first: they find widgets by their place in /Annots, which new fields extend.
+            saved = ApplyNewFields(ApplyLayerDefaults(ApplyTextEdits(ApplyPlacedText(ApplyFieldLooks(saved, fieldLooks)))));
+        }
+
+        await File.WriteAllBytesAsync(path, saved);
+    }
+
+    /// <summary>
+    /// Makes the new form fields real now, so they can be filled before saving: the document with every change
+    /// not saved yet is written to a working copy, which is opened in place of the file. The file itself only
+    /// changes on Save; Undo starts again from here.
+    /// </summary>
+    private async Task ApplyNewFieldsAsync()
+    {
+        if (_document is not { } document || IsBusy || _newFields.Count == 0)
+        {
+            return;
+        }
+
+        CommitEditsRequested?.Invoke(this, EventArgs.Empty);
+        EndPlacement();
+        IsBusy = true;
+        StatusMessage = "Adding the fields…";
+        var restore = CaptureViewState();
+        var folder = Path.Combine(Path.GetTempPath(), "YRK", "Working");
+        var copy = Path.Combine(folder, $"{Guid.NewGuid():N}.pdf");
+        try
+        {
+            try
+            {
+                Directory.CreateDirectory(folder);
+                await WriteChangesAsync(document, copy);
+            }
+            catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
+            {
+                TryDelete(copy);
+                _dialogs.ShowError(Loc.F("Couldn't add the fields.\n\n{0}", ex.Message));
+                return;
+            }
+
+            if (await OpenDocumentAsync(document.FilePath, _password, restore, keepEdits: false, copyPath: copy))
+            {
+                _documentModified = true; // The file on disk does not have the fields yet.
+                OnEditsChanged();
+                StatusMessage = "Fields ready to fill";
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+            if (StatusMessage == Loc.T("Adding the fields…"))
             {
                 StatusMessage = string.Empty;
             }

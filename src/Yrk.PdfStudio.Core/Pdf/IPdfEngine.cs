@@ -10,6 +10,12 @@ public interface IPdfEngine : IDisposable
     /// <exception cref="PdfException">The file is not a readable PDF.</exception>
     Task<IPdfDocument> OpenAsync(string filePath, string? password = null, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Opens <paramref name="copyPath"/>, a working copy of <paramref name="filePath"/> with changes not saved yet,
+    /// as that file's document: its <see cref="IPdfDocument.FilePath"/> is <paramref name="filePath"/>.
+    /// </summary>
+    Task<IPdfDocument> OpenCopyAsync(string filePath, string copyPath, string? password = null, CancellationToken cancellationToken = default);
+
     /// <summary>Writes all pages of <paramref name="sources"/>, in order, into a new PDF.</summary>
     Task CombineAsync(IReadOnlyList<IPdfDocument> sources, string outputPath, CancellationToken cancellationToken = default);
 

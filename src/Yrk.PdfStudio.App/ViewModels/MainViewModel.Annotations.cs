@@ -144,6 +144,12 @@ public sealed partial class MainViewModel
             return false;
         }
 
+        if (_newFields.Count > 0 && !IsFieldTool(_currentTool))
+        {
+            _ = ApplyNewFieldsAsync(); // A click outside the new fields finishes them.
+            return false;
+        }
+
         SelectItem(null);
         ClearTextSelection();
         if (IsMeasuring && !IsCounting)

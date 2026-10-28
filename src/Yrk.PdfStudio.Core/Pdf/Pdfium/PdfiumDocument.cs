@@ -56,11 +56,12 @@ internal sealed partial class PdfiumDocument : IPdfDocument
     public IReadOnlyList<PdfPageSize> PageSizes { get; private set; } = [];
 
     /// <summary>Runs on the engine thread.</summary>
-    internal static PdfiumDocument Open(PdfiumEngine engine, string filePath, string? password)
+    /// <param name="readFrom">The file to read: <paramref name="filePath"/> itself, or a working copy of it.</param>
+    internal static PdfiumDocument Open(PdfiumEngine engine, string filePath, string? password, string readFrom)
     {
         // Streaming through a callback (instead of FPDF_LoadDocument) keeps memory low and avoids
         // PDFium's narrow-string file paths, which break on Thai and other non-ASCII folder names.
-        var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess);
+        var stream = new FileStream(readFrom, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess);
         if (stream.Length > uint.MaxValue)
         {
             stream.Dispose();

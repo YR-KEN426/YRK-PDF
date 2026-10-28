@@ -247,7 +247,7 @@
         <KeyBinding Key="Y" Modifiers="Ctrl" Command="{Binding RedoCommand}" />
         <KeyBinding Key="Delete" Command="{Binding DeleteSelectedCommand}" />
         <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
-        <KeyBinding Key="Return" Command="{Binding FinishMeasurementCommand}" />
+        <KeyBinding Key="Return" Command="{Binding ConfirmCommand}" />
     </Window.InputBindings>
 
     <Grid>

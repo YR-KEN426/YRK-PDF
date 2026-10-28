@@ -7,15 +7,30 @@ namespace Yrk.PdfStudio.App.ViewModels;
 
 /// <summary>
 /// Creating forms (Fill &amp; Sign tab): drag a box (or click) with a field tool to add a text box, check box,
-/// dropdown or signature field. The new fields are written into the PDF when it is saved, then work like
-/// any form: fill them here or in other PDF programs.
+/// dropdown or signature field. Enter or a click outside them puts them into the document (a working copy until
+/// Save); from then on they work like any form: fill them here or in other PDF programs.
 /// </summary>
 public sealed partial class MainViewModel
 {
     private readonly List<FormFieldDraftViewModel> _newFields = [];
     private IRelayCommand<FormFieldDraftViewModel>? _removeNewFieldCommand;
+    private IRelayCommand? _confirmCommand;
 
     public bool HasNewFields => _newFields.Count > 0;
+
+    /// <summary>Enter: finishes the new form fields, or the area or length being measured.</summary>
+    public IRelayCommand ConfirmCommand => _confirmCommand ??= new RelayCommand(() =>
+    {
+        if (_newFields.Count > 0)
+        {
+            CurrentTool = AnnotationTool.Select;
+            _ = ApplyNewFieldsAsync();
+        }
+        else
+        {
+            FinishMeasurementCommand.Execute(null);
+        }
+    });
 
     public IRelayCommand<FormFieldDraftViewModel> RemoveNewFieldCommand => _removeNewFieldCommand ??= new RelayCommand<FormFieldDraftViewModel>(draft =>
     {
@@ -83,7 +98,8 @@ public sealed partial class MainViewModel
         var draft = new FormFieldDraftViewModel(page, new PdfNewField(page.Index, box, kind, answer.Name, answer.Options, answer.Required));
         AddNewField(draft);
         _undo.Push(() => RemoveNewField(draft), () => AddNewField(draft));
-        StatusMessage = "Field added. It becomes part of the document when you save.";
+        CurrentTool = AnnotationTool.Select;
+        StatusMessage = "Press Enter or click outside to finish the field";
     }
 
     private static string DefaultFieldName(PdfNewFieldKind kind) => kind switch

@@ -11,13 +11,17 @@ public sealed partial class PdfiumEngine : IPdfEngine
     private readonly HashSet<PdfiumDocument> _openDocuments = []; // Touched on the worker thread only.
     private volatile bool _disposed;
 
-    public Task<IPdfDocument> OpenAsync(string filePath, string? password = null, CancellationToken cancellationToken = default)
+    public Task<IPdfDocument> OpenAsync(string filePath, string? password = null, CancellationToken cancellationToken = default) =>
+        OpenCopyAsync(filePath, filePath, password, cancellationToken);
+
+    public Task<IPdfDocument> OpenCopyAsync(string filePath, string copyPath, string? password = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(filePath);
+        ArgumentException.ThrowIfNullOrEmpty(copyPath);
         return InvokeAsync<IPdfDocument>(
             () =>
             {
-                var document = PdfiumDocument.Open(this, filePath, password);
+                var document = PdfiumDocument.Open(this, filePath, password, copyPath);
                 _openDocuments.Add(document);
                 return document;
             },

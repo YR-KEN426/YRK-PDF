@@ -39,6 +39,9 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IDialogService _dialogs;
 
     private IPdfDocument? _document;
+    /// <summary>The working copy the open document is read from, when it has changes the file does not have yet.</summary>
+    private string? _workingCopy;
+
     private ObservableCollection<PageViewModel> _pages = [];
     private IReadOnlyList<BookmarkViewModel> _bookmarks = [];
     private double[] _pageTops = [];
@@ -317,14 +320,21 @@ public sealed partial class MainViewModel : ObservableObject
     /// Opens <paramref name="path"/> and replaces the current document. With <paramref name="keepEdits"/>
     /// the unsaved overlays and field values are re-attached (used when reloading the same file).
     /// </summary>
-    private async Task<bool> OpenDocumentAsync(string path, string? password, ViewState? restore, bool keepEdits)
+    /// <param name="copyPath">A working copy of <paramref name="path"/> to read instead (see <see cref="ApplyNewFieldsAsync"/>).</param>
+    private async Task<bool> OpenDocumentAsync(string path, string? password, ViewState? restore, bool keepEdits, string? copyPath = null)
     {
         while (true)
         {
             try
             {
-                var document = await _engine.OpenAsync(path, password);
+                var document = copyPath is null ? await _engine.OpenAsync(path, password) : await _engine.OpenCopyAsync(path, copyPath, password);
+                if (copyPath == _workingCopy)
+                {
+                    _workingCopy = null; // Read again by the new document: releasing the old one must not delete it.
+                }
+
                 await ReleaseDocumentAsync();
+                _workingCopy = copyPath;
                 if (!keepEdits)
                 {
                     ClearEdits();
@@ -516,6 +526,11 @@ public sealed partial class MainViewModel : ObservableObject
         RaiseDocumentPropertiesChanged();
 
         await document.DisposeAsync();
+        if (_workingCopy is { } copy)
+        {
+            _workingCopy = null;
+            TryDelete(copy); // Only read while its document was open.
+        }
     }
 
     private void RaiseDocumentPropertiesChanged()
