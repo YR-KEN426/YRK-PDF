@@ -242,6 +242,7 @@
   .faq details[open] > summary .chev { transform: rotate(45deg); }
   .faq details p { margin: 10px 0 0; color: var(--muted); }
   .faq details p + p { margin-top: 8px; }
+  .faq details p.qr img { display: block; width: 210px; height: auto; border-radius: 12px; border: 1px solid var(--line); background: #ffffff; }
   .faq details strong { color: var(--text); }
   .faq code { background: var(--bg-soft); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 14px; overflow-wrap: anywhere; }
 
