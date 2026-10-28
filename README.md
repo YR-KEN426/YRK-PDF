@@ -478,7 +478,7 @@ Sponsorship pays for a code-signing certificate and development time. Thank you!
 - Bug reports, ideas and pull requests: [CONTRIBUTING.md](CONTRIBUTING.md)
 - Security problems (please report privately): [SECURITY.md](SECURITY.md)
 - YRK PDF's own code is licensed under the [Apache License 2.0](LICENSE), see also [NOTICE](NOTICE).
-  You may use, change and redistribute it, also commercially; the names "YRK" and "YRK PDF" and the icon
+  You may use, change and redistribute it, also commercially; the names "YRK", "YRK LAB" and "YRK PDF" and the icon
   are not part of the license, so modified versions need their own name and icon. Third-party
   components keep their own licenses, listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) with
   full texts in [licenses](licenses).

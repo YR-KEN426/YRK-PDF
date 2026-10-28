@@ -79,9 +79,42 @@ Rules:
 | 2 | Fill & Sign: forms, electronic signatures, certified-copy stamp, save (**done**) |
 | 3 | Page tools: merge, split, rotate, reorder, images to PDF, compress (**done**) |
 | 4 | Annotations: highlight, comments, ink, shapes (**done**) |
-| 5 | Digital signatures (PAdES B-B/B-T), validation, USB tokens (**done**; B-LT next) |
+| 5 | Digital signatures (PAdES B-B/B-T/B-LT), certification (DocMDP), validation, USB tokens (**done**; OCSP and B-LTA later) |
 | 6 | OCR, true redaction, text editing (**done**; scanner input moved to a later phase) |
 | 7 | Installer, auto-update, code signing (**done**; v1.0 needs a real signing certificate and a feed URL) |
+
+### Planned (not started; order to be decided)
+
+Windows first: the program should be stable before new platforms or paid distribution.
+
+**For Thai offices (what sets YRK PDF apart)**
+- Rubber stamps: ready-made stamps (อนุมัติ, ได้รับแล้ว, จ่ายแล้ว, ต้นฉบับ, สำเนา) with a Thai (B.E.) date, and the
+  user's own company stamps.
+- e-Tax Invoice: save as PDF/A-3 with the XML attached, in the Revenue Department's format.
+- Amounts in Thai words ("หนึ่งหมื่นบาทถ้วน") when filling in forms (receipts, quotations).
+
+**Scans**
+- Clean up scans: straighten tilted pages, crop black borders, remove blank pages.
+- Split a file by its bookmarks.
+
+**Polish**
+- Dark mode.
+- Top toolbar on one line at medium widths (about 1500 px): Open and Save as icons only.
+- Recover unsaved work after a crash.
+- Print as a booklet, and several pages per sheet.
+
+**Signatures**
+- OCSP revocation data and document timestamps (PAdES B-LTA).
+
+**Distribution** (on hold until the program is stable)
+- Code signing; or the Microsoft Store, which may avoid SmartScreen warnings at lower cost (check its
+  current terms first).
+- Windows on ARM (OCR is not supported there yet).
+
+**Later platforms**
+- Android: a small app to read, fill in, sign and stamp PDFs, with the same Thai support, reusing
+  `Yrk.PdfStudio.Core`.
+- Mac (Avalonia UI on the same core), once sponsorship covers the Apple Developer fee.
 
 ### Phase 2 design notes
 
