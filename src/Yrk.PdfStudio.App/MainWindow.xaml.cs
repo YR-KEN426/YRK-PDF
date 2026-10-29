@@ -28,7 +28,7 @@ public partial class MainWindow : Window
         _viewModel = viewModel;
         Tabs.Add(viewModel);
         TabStrip.ItemsSource = Tabs;
-        Tabs.CollectionChanged += (_, _) => TabStripBar.Visibility = Tabs.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+        Tabs.CollectionChanged += (_, _) => UpdateTabStrip();
         Attach(viewModel);
         InitializeHome();
         // Alt + the menu's letter opens it, as in Office.
@@ -184,6 +184,13 @@ public partial class MainWindow : Window
             await tab.CloseTabAsync();
         }
     }
+
+    /// <summary>
+    /// Tabs show whenever a file is open, even one, so it can be closed with its × (back to the start page) without
+    /// closing the program. Only the start page on its own has no tab.
+    /// </summary>
+    private void UpdateTabStrip() =>
+        TabStripBar.Visibility = Tabs.Count > 1 || Tabs.Any(t => t.HasDocument) ? Visibility.Visible : Visibility.Collapsed;
 
     private async Task CloseTabAsync(MainViewModel tab)
     {
@@ -360,6 +367,11 @@ public partial class MainWindow : Window
         {
             // After layout, so the page positions are current.
             Dispatcher.BeginInvoke(UpdateRulers, System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        if (e.PropertyName is nameof(MainViewModel.HasDocument) or "")
+        {
+            UpdateTabStrip();
         }
 
         switch (e.PropertyName)

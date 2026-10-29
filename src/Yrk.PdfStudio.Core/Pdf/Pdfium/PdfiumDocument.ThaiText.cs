@@ -72,8 +72,77 @@ internal sealed partial class PdfiumDocument
             result.Add(new ReadChar(c, i));
         }
 
+        if (hasThai)
+        {
+            changed |= MoveMarksToTheirLetters(text, result);
+        }
+
         changed |= OrderMarks(result);
         return changed ? result : null;
+    }
+
+    /// <summary>
+    /// Thai marks stored after a later letter (Excel: "เจ้าหนShopee mallี้" for "เจ้าหนี้Shopee mall") are moved back
+    /// to the letter they are drawn on, found by position within the same line. True when one moved.
+    /// </summary>
+    private static bool MoveMarksToTheirLetters(IntPtr text, List<ReadChar> letters)
+    {
+        static bool IsMark(char c) => IsThai(c) && IsCombiningMark(c);
+        bool Box(int index, out double left, out double right) =>
+            PdfiumNative.FPDFText_GetCharBox(text, letters[index].Source, out left, out right, out _, out _) != 0 && right > left;
+
+        var moved = false;
+        for (var k = 0; k < letters.Count; k++)
+        {
+            if (!IsMark(letters[k].C) || !Box(k, out var markLeft, out var markRight))
+            {
+                continue;
+            }
+
+            var previous = k - 1;
+            while (previous >= 0 && IsMark(letters[previous].C))
+            {
+                previous--;
+            }
+
+            var middle = (markLeft + markRight) / 2;
+            if (previous < 0 || (Box(previous, out var pl, out var pr) && middle >= pl - 1 && middle <= pr + 1))
+            {
+                continue; // Already on its letter.
+            }
+
+            for (int j = previous - 1, seen = 0; j >= 0 && seen < MarkSearchLetters; j--)
+            {
+                var c = letters[j].C;
+                if (c is '\r' or '\n')
+                {
+                    break; // Another line.
+                }
+
+                if (IsMark(c) || c == ' ')
+                {
+                    continue;
+                }
+
+                seen++;
+                if (IsThaiLetter(c) && Box(j, out var left, out var right) && middle >= left - 1 && middle <= right + 1)
+                {
+                    var mark = letters[k];
+                    letters.RemoveAt(k);
+                    var at = j + 1;
+                    while (at < letters.Count && IsMark(letters[at].C))
+                    {
+                        at++;
+                    }
+
+                    letters.Insert(at, mark);
+                    moved = true;
+                    break;
+                }
+            }
+        }
+
+        return moved;
     }
 
     /// <summary>A space at <paramref name="i"/> that is drawn as the circle of the sara am next to it.</summary>

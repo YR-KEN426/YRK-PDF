@@ -6,6 +6,9 @@ namespace Yrk.PdfStudio.Core.Pdf.Pdfium;
 /// <summary>Text with positions and styles, for exporting to Word, Excel and plain text.</summary>
 internal sealed partial class PdfiumDocument
 {
+    /// <summary>How many letters back a Thai mark looks for the letter it sits on (see ReadTextSpans).</summary>
+    private const int MarkSearchLetters = 64;
+
     public Task<PdfPageText> GetPageTextSpansAsync(int pageIndex, CancellationToken cancellationToken = default)
     {
         ValidatePageIndex(pageIndex);
@@ -272,13 +275,15 @@ internal sealed partial class PdfiumDocument
                 if (hasCharBox)
                 {
                     var (markLeft, markRight) = Across(l, r, b, t);
-                    // The letter it sits on: of the last few letters, the one whose middle is nearest. A Thai mark goes
-                    // on a consonant (or a vowel above), never on a vowel written beside like "า".
+                    // The letter it sits on: of the letters before it, the one under it whose middle is nearest. A Thai
+                    // mark goes on a consonant (or a vowel above), never on a vowel written beside like "า". Excel can
+                    // store the marks after a whole word ("เจ้าหนShopee mallี้" for "เจ้าหนี้Shopee mall"), so the
+                    // search goes back further than the last few letters.
                     var middle = (markLeft + markRight) / 2;
                     var best = -1;
                     var bestDistance = double.MaxValue;
                     var bases = 0;
-                    for (var j = current.Count - 1; j >= 0 && bases < 3; j--)
+                    for (var j = current.Count - 1; j >= 0 && bases < MarkSearchLetters; j--)
                     {
                         if (current[j].Mark || current[j].C == ' ')
                         {

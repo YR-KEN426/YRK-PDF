@@ -77,6 +77,31 @@ public sealed class ExportTests : IDisposable
     }
 
     [Fact]
+    public async Task Thai_marks_stored_after_a_latin_word_go_back_to_their_letter()
+    {
+        // Excel stores "เจ้าหนี้Shopee mall" as "เจ้าหนShopee mallี้": the marks come after the word, drawn over "น".
+        var blocks = Sta.Run(() => App.Imaging.TextShaper.ToBlocks([(0, new NormalizedPoint(0.1, 0.9), new PdfColor(0, 0, 0),
+            App.Imaging.TextShaper.Shape("เจ้าหนี้Shopee mall", "Leelawadee UI", false, false, 18))]));
+        var run = blocks[0].Runs[0];
+        var glyphs = run.Glyphs.ToList();
+        var marks = glyphs.Select((g, i) => (g, i)).Where(x => x.g.Text is "ี" or "้" && x.i > 3).Select(x => x.i).ToList();
+        Assert.Equal(2, marks.Count);
+        var moved = marks.Select(i => glyphs[i]).ToList();
+        var skipped = glyphs.Skip(marks[^1] + 1).Sum(g => g.Advance);
+        glyphs.RemoveRange(marks[0], marks.Count);
+        glyphs.AddRange(moved.Select(g => g with { OffsetX = g.OffsetX - skipped }));
+        blocks = [blocks[0] with { Runs = [run with { Glyphs = glyphs }, .. blocks[0].Runs.Skip(1)] }];
+
+        var path = Path.Combine(_folder.FullName, "excel-marks.pdf");
+        File.WriteAllBytes(path, Yrk.PdfStudio.Core.Pdf.Text.PdfTextWriter.AddText(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf")), blocks));
+        await using var document = await _engine.OpenAsync(path);
+
+        var lines = TextLayout.PlainText(await document.GetPageTextSpansAsync(0)).Split('\n');
+        Assert.Contains(lines, l => l.Contains("เจ้าหนี้Shopee mall", StringComparison.Ordinal)); // Word and Excel.
+        Assert.Single(await document.FindTextAsync(0, "เจ้าหนี้Shopee", PdfSearchOptions.None));    // Search and copy.
+    }
+
+    [Fact]
     public async Task The_certified_copy_stamp_saves_its_words_as_text()
     {
         // As the app saves a stamp: its frame as a picture, its words as real text in the frame.
