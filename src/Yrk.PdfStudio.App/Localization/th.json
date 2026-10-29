@@ -1199,7 +1199,7 @@
   "{0} (recovered)": "{0} (กู้คืน)",
   "{0} (recovered {1})": "{0} (กู้คืน {1})",
   "No folder could take the recovered file.": "ไม่มีโฟลเดอร์ที่บันทึกไฟล์ที่กู้คืนได้",
-  "• {0} (changes of {1:g})": "• {0} (แก้ไขเมื่อ {1:g})",
+  "• {0} (changes of {1})": "• {0} (แก้ไขเมื่อ {1})",
   "YRK PDF closed before these changes were saved:\n\n{0}\n\nOpen the recovered copies? They are saved next to the originals as \"(recovered)\". No deletes them.": "YRK PDF ปิดไปก่อนบันทึกการแก้ไขเหล่านี้:\n\n{0}\n\nเปิดสำเนาที่กู้คืนไหม สำเนาจะบันทึกไว้ข้างไฟล์เดิมโดยมีคำว่า \"(กู้คืน)\" ถ้าเลือก ไม่ จะลบสำเนาทิ้ง",
   "Couldn't recover \"{0}\".\n\n{1}": "กู้คืน \"{0}\" ไม่ได้\n\n{1}",
   "Pages per sheet": "หน้าต่อแผ่น",

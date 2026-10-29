@@ -446,7 +446,7 @@ public sealed partial class PrintViewModel : ObservableObject
             PaperHeight = height;
             (PrintableLeft, PrintableTop, PrintableWidth, PrintableHeight) = (printable.X, printable.Y, printable.Width, printable.Height);
             (ImageLeft, ImageTop, ImageWidth, ImageHeight, PreviewAngle) = (0, 0, width, height, 0);
-            ScaleText = _layout == PagesPerSheet.Booklet ? Loc.T("Both sides, flip on the short edge") : string.Empty;
+            ScaleText = _layout == PagesPerSheet.Booklet ? Loc.T("Both sides, flip on the short edge") : Loc.T("Fit to paper");
         }
         foreach (var name in new[]
                  {
