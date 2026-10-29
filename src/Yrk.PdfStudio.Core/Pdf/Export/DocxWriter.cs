@@ -105,8 +105,14 @@ public static class DocxWriter
             Math.Clamp(flow.Min(f => f.Block.Left), 18, 72),
             Math.Clamp(flow.Min(f => f.Block.Left) / 2, 14, 24),
             Math.Clamp(flow.Min(f => f.Block.Top) - 2, 14, 54),
-            Math.Clamp(flow.Min(f => f.Page.Height - WordBottom(f.Block)) - 10, 0, 54));
+            // Every PDF page starts a new Word page, so the bottom margin only says where Word must stop: kept small,
+            // since Word draws text and table borders a little taller than the PDF, and a full page (a table of 45
+            // rows, say) would otherwise run onto a page of its own and double the page count.
+            Math.Clamp(flow.Min(f => f.Page.Height - WordBottom(f.Block)) - 10, 0, MaxBottomMargin));
     }
+
+    /// <summary>Points (half a centimetre).</summary>
+    private const double MaxBottomMargin = 14;
 
     /// <summary>Text at the foot of the page (page numbers, a report title): kept there whatever happens above it.</summary>
     /// <remarks>Lines in the last tenth of the page, below a clear gap: body text running down there is not one.</remarks>
