@@ -315,6 +315,11 @@ internal sealed partial class PdfiumDocument : IPdfDocument
 
     private IReadOnlyList<PdfTextMatch> Find(int pageIndex, string query, PdfSearchOptions options)
     {
+        if (PlacedLines(pageIndex) is { } placed)
+        {
+            return FindByPosition(pageIndex, placed, query, options);
+        }
+
         var page = GetPage(pageIndex);
         var textPage = PdfiumNative.FPDFText_LoadPage(page);
         if (textPage == IntPtr.Zero)

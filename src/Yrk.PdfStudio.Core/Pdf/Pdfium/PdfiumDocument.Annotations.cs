@@ -212,6 +212,11 @@ internal sealed partial class PdfiumDocument
 
     private PdfTextSelection? SelectText(int pageIndex, NormalizedPoint start, NormalizedPoint end)
     {
+        if (PlacedLines(pageIndex) is { } placed)
+        {
+            return SelectByPosition(pageIndex, placed, start, end);
+        }
+
         var page = GetPage(pageIndex);
         var text = GetTextPage(pageIndex, page);
         if (text == IntPtr.Zero)
@@ -283,6 +288,11 @@ internal sealed partial class PdfiumDocument
 
     private string ReadTextInArea(int pageIndex, NormalizedRect area)
     {
+        if (PlacedLines(pageIndex) is { } placed)
+        {
+            return TextInAreaByPosition(PageSizes[pageIndex], placed, area);
+        }
+
         var page = GetPage(pageIndex);
         var text = GetTextPage(pageIndex, page);
         if (text == IntPtr.Zero)
