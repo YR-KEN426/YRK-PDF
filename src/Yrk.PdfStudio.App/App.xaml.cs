@@ -33,6 +33,7 @@ public partial class App : Application
         if (SingleInstance.IsFirst)
         {
             DeletePageSnapshots(); // Left over if the app was stopped before it could clean up.
+            _ = window.OfferRecoveryAsync(); // Copies left by a run that was cut off before saving.
             SingleInstance.Listen(args => Dispatcher.InvokeAsync(() =>
             {
                 window.BringToFront();
@@ -71,6 +72,7 @@ public partial class App : Application
     {
         _engine?.Dispose();
         DeletePageSnapshots();
+        RecoveryStore.DeleteWritten(); // Closing normally: every change was saved or discarded.
         base.OnExit(e);
     }
 

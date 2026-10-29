@@ -226,6 +226,7 @@ public partial class MainWindow : Window
             }
         }
 
+        tab.ForgetRecovery(); // Saved or discarded.
         if (tab.DocumentPath is { } closing)
         {
             _closedFiles.Remove(closing);
