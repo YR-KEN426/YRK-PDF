@@ -90,25 +90,22 @@ Windows first: the program should be stable before new platforms or paid distrib
 
 **For Thai offices (what sets YRK PDF apart)**
 - e-Tax Invoice: save as PDF/A-3 with the XML attached, in the Revenue Department's format.
-- Amounts in Thai words ("หนึ่งหมื่นบาทถ้วน") when filling in forms (receipts, quotations).
 
 **Scans**
 - Clean up scans: straighten tilted pages, crop black borders, remove blank pages.
 - Split a file by its bookmarks.
 
 **Thai text**
-- Copy and search in PDFs printed from Excel: Thai is stored out of order there and PDFium breaks lines inside
-  words, so copied text can be wrong (export to Word and Excel reads by position and is right). Rebuild the copy
-  and search text from character positions, as the export does.
+- Thai marks in fonts used only in their shifted forms (the user's memo, Sarabun Light: raised ์ and ็), which
+  no outline in the file names: bundle Sarabun Light and Bold and match against the full fonts.
 
 **Polish**
 - Dark mode.
-- Top toolbar on one line at medium widths (about 1500 px): Open and Save as icons only.
-- Recover unsaved work after a crash.
-- Print as a booklet, and several pages per sheet.
 
 **Signatures**
 - OCSP revocation data and document timestamps (PAdES B-LTA).
+- Signing and redacting password-protected files (today: "Save an unprotected copy first"). Redaction can work on a
+  decrypted copy and protect it again with the same password; signing must encrypt the new objects.
 
 **Distribution** (on hold until the program is stable)
 - Code signing; or the Microsoft Store, which may avoid SmartScreen warnings at lower cost (check its
