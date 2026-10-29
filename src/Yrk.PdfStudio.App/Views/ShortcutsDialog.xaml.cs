@@ -8,7 +8,7 @@ public partial class ShortcutsDialog : Window
 {
     private static readonly (string Group, (string Keys, string Action)[] Items)[] Groups =
     [
-        ("File", [("Ctrl+O", "Open"), ("Ctrl+S", "Save"), ("Ctrl+Shift+S", "Save a copy"), ("Ctrl+P", "Print"), ("Ctrl+W", "Close file")]),
+        ("File", [("Ctrl+O", "Open"), ("Ctrl+S", "Save"), ("Ctrl+Shift+S", "Save a copy"), ("Ctrl+P", "Print"), ("Ctrl+W", "Close file"), ("Ctrl+Shift+T", "Reopen closed file")]),
         ("Editing", [("Ctrl+Z", "Undo"), ("Ctrl+Y", "Redo"), ("Ctrl+C", "Copy selected text"), ("Delete", "Delete the selected item"), ("Esc", "Cancel")]),
         ("Find", [("Ctrl+F", "Find in document"), ("F3", "Next result"), ("Shift+F3", "Previous result")]),
         ("View", [("Ctrl++ / Ctrl+-", "Zoom in / out"), ("Ctrl+0", "Fit page"), ("Ctrl+1", "Actual size"), ("Ctrl+2", "Fit width"),

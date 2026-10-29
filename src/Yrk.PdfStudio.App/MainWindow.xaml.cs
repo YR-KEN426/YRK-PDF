@@ -42,6 +42,7 @@ public partial class MainWindow : Window
         }
 
         InputBindings.Add(new KeyBinding(new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(OpenUserGuideAsync), Key.F1, ModifierKeys.None));
+        InputBindings.Add(new KeyBinding(new CommunityToolkit.Mvvm.Input.AsyncRelayCommand(ReopenClosedTabAsync), Key.T, ModifierKeys.Control | ModifierKeys.Shift));
 
         Loaded += (_, _) =>
         {
@@ -192,6 +193,26 @@ public partial class MainWindow : Window
     private void UpdateTabStrip() =>
         TabStripBar.Visibility = Tabs.Count > 1 || Tabs.Any(t => t.HasDocument) ? Visibility.Visible : Visibility.Collapsed;
 
+    /// <summary>Files of closed tabs, the last closed on top, for Ctrl+Shift+T (as in a browser).</summary>
+    private readonly List<string> _closedFiles = [];
+
+    private const int MaxClosedFiles = 20;
+
+    /// <summary>Opens the file of the tab closed last again (Ctrl+Shift+T); files deleted since are skipped.</summary>
+    private async Task ReopenClosedTabAsync()
+    {
+        while (_closedFiles.Count > 0)
+        {
+            var path = _closedFiles[^1];
+            _closedFiles.RemoveAt(_closedFiles.Count - 1);
+            if (File.Exists(path))
+            {
+                await OpenInTabAsync(path);
+                return;
+            }
+        }
+    }
+
     private async Task CloseTabAsync(MainViewModel tab)
     {
         if (tab.IsDirty)
@@ -201,6 +222,16 @@ public partial class MainWindow : Window
             if (!await tab.ConfirmDiscardOrSaveAsync())
             {
                 return;
+            }
+        }
+
+        if (tab.DocumentPath is { } closing)
+        {
+            _closedFiles.Remove(closing);
+            _closedFiles.Add(closing);
+            if (_closedFiles.Count > MaxClosedFiles)
+            {
+                _closedFiles.RemoveAt(0);
             }
         }
 
@@ -1229,6 +1260,9 @@ public partial class MainWindow : Window
         menu.Items.Add(new MenuItem { Header = "Remove password protection…", Command = _viewModel.RemoveProtectionCommand, IsEnabled = _viewModel.IsProtected });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Close file", Command = _viewModel.CloseCommand, InputGestureText = "Ctrl+W", IsEnabled = hasDocument });
+        var reopen = new MenuItem { Header = "Reopen closed file", InputGestureText = "Ctrl+Shift+T", IsEnabled = _closedFiles.Count > 0 };
+        reopen.Click += async (_, _) => await ReopenClosedTabAsync();
+        menu.Items.Add(reopen);
         menu.IsOpen = true;
     }
 
