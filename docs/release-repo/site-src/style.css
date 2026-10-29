@@ -27,6 +27,8 @@
       linear-gradient(180deg, #fff8f5 0%, #ffffff 100%);
     --bento-green: linear-gradient(160deg, #eef7f0 0%, #f7fbf8 100%);
     --bento-orange: linear-gradient(160deg, #fff4e6 0%, #fffaf3 100%);
+    --bento-blue: linear-gradient(160deg, #edf3fd 0%, #f7f9fe 100%);
+    --bento-purple: linear-gradient(160deg, #f3eefc 0%, #faf8fe 100%);
     --shadow-chip: 0 16px 36px -12px rgba(14, 17, 22, 0.25);
     --focus: #1565c0;
   }
@@ -52,6 +54,8 @@
         linear-gradient(180deg, #1a1214 0%, #14161a 100%);
       --bento-green: var(--bg-soft);
       --bento-orange: var(--bg-soft);
+      --bento-blue: var(--bg-soft);
+      --bento-purple: var(--bg-soft);
       --shadow-chip: 0 16px 36px -12px rgba(0, 0, 0, 0.6);
       --focus: #90caf9;
     }
@@ -193,10 +197,12 @@
   .more summary { display: inline-block; font-size: 15px; color: var(--muted); text-decoration: underline; text-underline-offset: 4px; padding: 10px 0; cursor: pointer; list-style: none; }
   .more p { margin: 12px auto 0; max-width: 720px; font-size: 15px; color: var(--muted); }
 
-  .bento { padding-top: 56px; padding-bottom: 40px; display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .bento { padding-top: 56px; padding-bottom: 40px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .bento figure { margin: 0; border-radius: 24px; padding: 32px; display: flex; flex-direction: column; gap: 24px; overflow: hidden; }
   .bento .green-box { background: var(--bento-green); }
   .bento .orange-box { background: var(--bento-orange); }
+  .bento .blue-box { background: var(--bento-blue); }
+  .bento .purple-box { background: var(--bento-purple); }
   .bento figcaption b { display: block; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
   .bento figcaption span { display: block; margin-top: 6px; font-size: 15px; color: var(--muted); }
   .bento img { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 20px 40px -20px rgba(14, 17, 22, 0.3); }
@@ -290,7 +296,7 @@
   @media (max-width: 720px) {
     .menu .text { display: none; }
     .section { padding-top: 64px; }
-    .bento { padding-top: 40px; }
+    .bento { padding-top: 40px; grid-template-columns: 1fr; }
     .final { padding-top: 56px; padding-bottom: 72px; }
     .hero { padding: 130px 20px 64px; }
     .wrap { padding-left: 20px; padding-right: 20px; }
