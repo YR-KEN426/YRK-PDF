@@ -97,6 +97,11 @@ Windows first: the program should be stable before new platforms or paid distrib
 - Clean up scans: straighten tilted pages, crop black borders, remove blank pages.
 - Split a file by its bookmarks.
 
+**Thai text**
+- Copy and search in PDFs printed from Excel: Thai is stored out of order there and PDFium breaks lines inside
+  words, so copied text can be wrong (export to Word and Excel reads by position and is right). Rebuild the copy
+  and search text from character positions, as the export does.
+
 **Polish**
 - Dark mode.
 - Top toolbar on one line at medium widths (about 1500 px): Open and Save as icons only.
