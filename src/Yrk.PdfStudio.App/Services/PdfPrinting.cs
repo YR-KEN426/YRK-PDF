@@ -3,6 +3,7 @@ using System.Printing;
 using System.Windows;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Printing;
@@ -45,7 +46,8 @@ public sealed record PrintSettings(
     bool AutoRotate,
     bool Grayscale,
     bool Comments,
-    PrintQuality Quality);
+    PrintQuality Quality,
+    PagesPerSheet Layout = PagesPerSheet.One);
 
 /// <summary>
 /// Printing through the Windows print system (XPS). Each page is rendered by PDFium for printing at the
@@ -104,13 +106,25 @@ public static class PdfPrinting
             Math.Max(0, paper.Height - top - (area.ExtentHeight * PointsPerDip)));
     }
 
-    /// <summary>Whether the paper is used in landscape for these pages.</summary>
+    /// <summary>Whether the paper is used in landscape for these pages (turned against them for 2 or 6 a sheet and booklets).</summary>
     public static bool IsLandscape(PrintSettings settings, IPdfDocument document) => settings.Orientation switch
     {
         PrintOrientation.Landscape => true,
         PrintOrientation.Portrait => false,
-        _ => settings.Pages.Count > 0 && document.PageSizes[settings.Pages[0]] is var s && s.Width > s.Height,
+        _ => (settings.Pages.Count > 0 && document.PageSizes[settings.Pages[0]] is var s && s.Width > s.Height) != PrintLayout.TurnsPaper(settings.Layout),
     };
+
+    /// <summary>The sides of paper to print, each with its pages and where they go.</summary>
+    public static IReadOnlyList<IReadOnlyList<SheetCell>> Sides(PrintSettings settings, PrintRect printable) =>
+        settings.Layout == PagesPerSheet.One
+            ? settings.Pages.Select(p => (IReadOnlyList<SheetCell>)[new SheetCell(p, printable)]).ToList()
+            : PrintLayout.Sheets(settings.Pages, settings.Layout, printable);
+
+    /// <summary>Where a page goes in its part of the sheet: as chosen when one to a sheet, else fitted.</summary>
+    public static PrintPlacement Place(PrintSettings settings, PdfPageSize size, double sheetWidth, double sheetHeight, PrintRect area) =>
+        settings.Layout == PagesPerSheet.One
+            ? PrintLayout.Place(size.Width, size.Height, sheetWidth, sheetHeight, area, settings.Sizing, settings.CustomScale, settings.AutoRotate)
+            : PrintLayout.Place(size.Width, size.Height, sheetWidth, sheetHeight, area, PrintSizing.Fit, 1, settings.AutoRotate && settings.Layout != PagesPerSheet.Booklet);
 
     /// <summary>Paper size and printable area in points, in the orientation printed (margins kept symmetric).</summary>
     public static (double Width, double Height, PrintRect Printable) Sheet(PrintSettings settings, bool landscape)
@@ -162,6 +176,12 @@ public static class PdfPrinting
         ticket.CopyCount = settings.Copies;
         ticket.Collation = settings.Collate ? Collation.Collated : Collation.Uncollated;
         ticket.OutputColor = settings.Grayscale ? OutputColor.Grayscale : OutputColor.Color;
+        if (settings.Layout == PagesPerSheet.Booklet)
+        {
+            // Both sides, flipped on the short edge, so the sheets fold into a booklet (a printer without it drops this).
+            ticket.Duplexing = Duplexing.TwoSidedShortEdge;
+        }
+
         var validated = queue.MergeAndValidatePrintTicket(baseTicket, ticket).ValidatedPrintTicket;
 
         queue.CurrentJobSettings.Description = jobName;
@@ -221,7 +241,11 @@ public static class PdfPrinting
 
         public override bool IsPageCountValid => true;
 
-        public override int PageCount => settings.Pages.Count;
+        private IReadOnlyList<IReadOnlyList<SheetCell>>? _sides;
+
+        private IReadOnlyList<IReadOnlyList<SheetCell>> SheetSides => _sides ??= Sides(settings, _sheet.Printable);
+
+        public override int PageCount => SheetSides.Count;
 
         public override Size PageSize
         {
@@ -235,44 +259,36 @@ public static class PdfPrinting
         {
             cancellationToken.ThrowIfCancellationRequested();
             progress.Report(pageNumber);
-            var index = settings.Pages[pageNumber];
-            var size = document.PageSizes[index];
-            var placement = PrintLayout.Place(size.Width, size.Height, _sheet.Width, _sheet.Height, _sheet.Printable, settings.Sizing, settings.CustomScale, settings.AutoRotate);
-
-            // Pixels for the page at the print resolution, fewer for huge pages.
-            var dpi = (double)settings.Quality;
-            double imageWidth = size.Width * placement.Scale, imageHeight = size.Height * placement.Scale; // paper points
-            var pixels = imageWidth / 72 * dpi * (imageHeight / 72 * dpi);
-            if (pixels > MaxPixelsPerPage)
-            {
-                dpi *= Math.Sqrt(MaxPixelsPerPage / pixels);
-            }
-
-            // Started from the thread pool: this thread has a WPF dispatcher context that is blocked while we wait.
-            int pixelWidth = Math.Max(1, (int)Math.Round(imageWidth / 72 * dpi)), pixelHeight = Math.Max(1, (int)Math.Round(imageHeight / 72 * dpi));
-            var bitmap = Task.Run(
-                () => document.RenderPageForPrintAsync(index, pixelWidth, pixelHeight, settings.Grayscale, settings.Comments, cancellationToken),
-                cancellationToken).GetAwaiter().GetResult();
-            var image = BitmapFactory.Create(bitmap);
-
             var visual = new DrawingVisual();
             using (var context = visual.RenderOpen())
             {
                 var paper = new Rect(0, 0, _sheet.Width * DipsPerPoint, _sheet.Height * DipsPerPoint);
                 context.PushClip(new RectangleGeometry(paper));
-                var target = placement.Target;
-                if (placement.Rotated)
+                foreach (var cell in SheetSides[pageNumber])
                 {
-                    // Turned clockwise: the page's top edge runs down the right side of the target.
-                    context.PushTransform(new TranslateTransform((target.X + target.Width) * DipsPerPoint, target.Y * DipsPerPoint));
-                    context.PushTransform(new RotateTransform(90));
-                    context.DrawImage(image, new Rect(0, 0, imageWidth * DipsPerPoint, imageHeight * DipsPerPoint));
-                    context.Pop();
-                    context.Pop();
-                }
-                else
-                {
-                    context.DrawImage(image, new Rect(target.X * DipsPerPoint, target.Y * DipsPerPoint, imageWidth * DipsPerPoint, imageHeight * DipsPerPoint));
+                    if (cell.PageIndex is not { } index)
+                    {
+                        continue; // A blank page of a booklet.
+                    }
+
+                    var size = document.PageSizes[index];
+                    var placement = Place(settings, size, _sheet.Width, _sheet.Height, cell.Area);
+
+                    // Pixels for the page at the print resolution, fewer for huge pages.
+                    var dpi = (double)settings.Quality;
+                    double imageWidth = size.Width * placement.Scale, imageHeight = size.Height * placement.Scale; // paper points
+                    var pixels = imageWidth / 72 * dpi * (imageHeight / 72 * dpi);
+                    if (pixels > MaxPixelsPerPage)
+                    {
+                        dpi *= Math.Sqrt(MaxPixelsPerPage / pixels);
+                    }
+
+                    // Started from the thread pool: this thread has a WPF dispatcher context that is blocked while we wait.
+                    int pixelWidth = Math.Max(1, (int)Math.Round(imageWidth / 72 * dpi)), pixelHeight = Math.Max(1, (int)Math.Round(imageHeight / 72 * dpi));
+                    var bitmap = Task.Run(
+                        () => document.RenderPageForPrintAsync(index, pixelWidth, pixelHeight, settings.Grayscale, settings.Comments, cancellationToken),
+                        cancellationToken).GetAwaiter().GetResult();
+                    DrawPage(context, BitmapFactory.Create(bitmap), placement, DipsPerPoint);
                 }
 
                 context.Pop();
@@ -280,6 +296,25 @@ public static class PdfPrinting
 
             var size96 = PageSize;
             return new DocumentPage(visual, size96, new Rect(size96), new Rect(size96));
+        }
+    }
+
+    /// <summary>Draws a rendered page where <paramref name="placement"/> puts it; <paramref name="unit"/> is drawing units per paper point.</summary>
+    public static void DrawPage(DrawingContext context, BitmapSource image, PrintPlacement placement, double unit)
+    {
+        var target = placement.Target;
+        if (placement.Rotated)
+        {
+            // Turned clockwise: the page's top edge runs down the right side of the target.
+            context.PushTransform(new TranslateTransform((target.X + target.Width) * unit, target.Y * unit));
+            context.PushTransform(new RotateTransform(90));
+            context.DrawImage(image, new Rect(0, 0, target.Height * unit, target.Width * unit));
+            context.Pop();
+            context.Pop();
+        }
+        else
+        {
+            context.DrawImage(image, new Rect(target.X * unit, target.Y * unit, target.Width * unit, target.Height * unit));
         }
     }
 }

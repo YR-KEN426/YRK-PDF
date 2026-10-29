@@ -50,7 +50,7 @@ public sealed partial class PrintViewModel : ObservableObject
         _document = document;
         _currentPage = currentPage;
         PreviousPreviewCommand = new RelayCommand(() => PreviewPosition--, () => _previewPosition > 0);
-        NextPreviewCommand = new RelayCommand(() => PreviewPosition++, () => _previewPosition < _pages.Count - 1);
+        NextPreviewCommand = new RelayCommand(() => PreviewPosition++, () => _previewPosition < PreviewCount - 1);
         try
         {
             Printers = PdfPrinting.PrinterNames(out var defaultPrinter);
@@ -208,6 +208,46 @@ public sealed partial class PrintViewModel : ObservableObject
         set => SetProperty(ref _quality, value);
     }
 
+    private static readonly PagesPerSheet[] LayoutChoices =
+        [PagesPerSheet.One, PagesPerSheet.Two, PagesPerSheet.Four, PagesPerSheet.Six, PagesPerSheet.Nine, PagesPerSheet.Booklet];
+
+    private PagesPerSheet _layout = PagesPerSheet.One;
+
+    /// <summary>"1", "2", … pages a sheet, and "Booklet" (in the order of <see cref="LayoutChoices"/>).</summary>
+    public IReadOnlyList<string> LayoutNames { get; } =
+        ["1", "2", "4", "6", "9", Loc.T("Booklet (print both sides, fold in half)")];
+
+    public int LayoutIndex
+    {
+        get => Array.IndexOf(LayoutChoices, _layout);
+        set
+        {
+            var layout = LayoutChoices[Math.Clamp(value, 0, LayoutChoices.Length - 1)];
+            if (layout == _layout)
+            {
+                return;
+            }
+
+            _layout = layout;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsOneToASheet));
+            OnPropertyChanged(nameof(Summary));
+            _previewPosition = -1;
+            PreviewPosition = 0;
+        }
+    }
+
+    /// <summary>Sizing and turning apply to one page a sheet; several are always fitted.</summary>
+    public bool IsOneToASheet => _layout == PagesPerSheet.One;
+
+    /// <summary>How many sides of paper the preview steps through.</summary>
+    private int PreviewCount => _layout switch
+    {
+        PagesPerSheet.One => _pages.Count,
+        PagesPerSheet.Booklet => (_pages.Count + 3) / 4 * 2,
+        _ => (_pages.Count + (int)_layout - 1) / (int)_layout,
+    };
+
     /// <summary>Why printing is not possible right now (bad page range, no printer).</summary>
     public string Error
     {
@@ -225,7 +265,8 @@ public sealed partial class PrintViewModel : ObservableObject
 
     public string PrinterError => _printerError;
 
-    public string Summary => _pages.Count == 1 ? Loc.T("1 page") : Loc.F("{0} pages", _pages.Count);
+    public string Summary => _layout != PagesPerSheet.One && _pages.Count > 0 ? Loc.F("{0} pages on {1} side(s) of paper", _pages.Count, PreviewCount)
+        : _pages.Count == 1 ? Loc.T("1 page") : Loc.F("{0} pages", _pages.Count);
 
     // --- Preview (all in paper points) ------------------------------------------------------
 
@@ -265,7 +306,7 @@ public sealed partial class PrintViewModel : ObservableObject
         get => _previewPosition;
         set
         {
-            value = Math.Clamp(value, 0, Math.Max(0, _pages.Count - 1));
+            value = Math.Clamp(value, 0, Math.Max(0, PreviewCount - 1));
             if (SetProperty(ref _previewPosition, value))
             {
                 PreviousPreviewCommand.NotifyCanExecuteChanged();
@@ -276,14 +317,16 @@ public sealed partial class PrintViewModel : ObservableObject
         }
     }
 
-    public string PreviewText => _pages.Count == 0 ? Loc.T("No pages") : Loc.F("Page {0} ({1} of {2})", _pages[_previewPosition] + 1, _previewPosition + 1, _pages.Count);
+    public string PreviewText => _pages.Count == 0 ? Loc.T("No pages")
+        : _layout != PagesPerSheet.One ? Loc.F("Side {0} of {1}", _previewPosition + 1, PreviewCount)
+        : Loc.F("Page {0} ({1} of {2})", _pages[_previewPosition] + 1, _previewPosition + 1, _pages.Count);
 
     public IRelayCommand PreviousPreviewCommand { get; }
 
     public IRelayCommand NextPreviewCommand { get; }
 
     public PrintSettings? CreateSettings() => CanPrint
-        ? new PrintSettings(_printer!, _paper!, _margins, _orientation, _pages, _copies, _collate, _sizing, _customPercent / 100, _autoRotate, _grayscale, _comments, _quality)
+        ? new PrintSettings(_printer!, _paper!, _margins, _orientation, _pages, _copies, _collate, _sizing, _customPercent / 100, _autoRotate, _grayscale, _comments, _quality, _layout)
         : null;
 
     private bool Set<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string? name = null)
@@ -377,21 +420,34 @@ public sealed partial class PrintViewModel : ObservableObject
             return;
         }
 
-        var landscape = PdfPrinting.IsLandscape(settings with { Pages = [_pages[_previewPosition]] }, _document);
-        var (width, height, printable) = PdfPrinting.Sheet(settings, landscape);
-        var size = _document.PageSizes[_pages[_previewPosition]];
-        var placement = PrintLayout.Place(size.Width, size.Height, width, height, printable, _sizing, _customPercent / 100, _autoRotate);
-        var target = placement.Target;
+        if (_layout == PagesPerSheet.One)
+        {
+            var landscape = PdfPrinting.IsLandscape(settings with { Pages = [_pages[_previewPosition]] }, _document);
+            var (width, height, printable) = PdfPrinting.Sheet(settings, landscape);
+            var size = _document.PageSizes[_pages[_previewPosition]];
+            var placement = PrintLayout.Place(size.Width, size.Height, width, height, printable, _sizing, _customPercent / 100, _autoRotate);
+            var target = placement.Target;
 
-        PaperWidth = width;
-        PaperHeight = height;
-        (PrintableLeft, PrintableTop, PrintableWidth, PrintableHeight) = (printable.X, printable.Y, printable.Width, printable.Height);
-        ImageLeft = placement.Rotated ? target.X + target.Width : target.X;
-        ImageTop = target.Y;
-        ImageWidth = placement.Rotated ? target.Height : target.Width;
-        ImageHeight = placement.Rotated ? target.Width : target.Height;
-        PreviewAngle = placement.Rotated ? 90 : 0;
-        ScaleText = $"{placement.Scale * 100:0.#} %" + (placement.Rotated ? Loc.T(" · turned") : string.Empty);
+            PaperWidth = width;
+            PaperHeight = height;
+            (PrintableLeft, PrintableTop, PrintableWidth, PrintableHeight) = (printable.X, printable.Y, printable.Width, printable.Height);
+            ImageLeft = placement.Rotated ? target.X + target.Width : target.X;
+            ImageTop = target.Y;
+            ImageWidth = placement.Rotated ? target.Height : target.Width;
+            ImageHeight = placement.Rotated ? target.Width : target.Height;
+            PreviewAngle = placement.Rotated ? 90 : 0;
+            ScaleText = $"{placement.Scale * 100:0.#} %" + (placement.Rotated ? Loc.T(" · turned") : string.Empty);
+        }
+        else
+        {
+            // Several pages: the preview is a picture of the whole side of paper.
+            var (width, height, printable) = PdfPrinting.Sheet(settings, PdfPrinting.IsLandscape(settings, _document));
+            PaperWidth = width;
+            PaperHeight = height;
+            (PrintableLeft, PrintableTop, PrintableWidth, PrintableHeight) = (printable.X, printable.Y, printable.Width, printable.Height);
+            (ImageLeft, ImageTop, ImageWidth, ImageHeight, PreviewAngle) = (0, 0, width, height, 0);
+            ScaleText = _layout == PagesPerSheet.Booklet ? Loc.T("Both sides, flip on the short edge") : string.Empty;
+        }
         foreach (var name in new[]
                  {
                      nameof(PaperWidth), nameof(PaperHeight), nameof(PrintableLeft), nameof(PrintableTop), nameof(PrintableWidth),
@@ -407,7 +463,7 @@ public sealed partial class PrintViewModel : ObservableObject
 
     private PrintSettings? CreatePreviewSettings() => _paper is null || _pages.Count == 0 || _previewPosition < 0
         ? null
-        : new PrintSettings(_printer ?? string.Empty, _paper, _margins, _orientation, _pages, 1, true, _sizing, _customPercent / 100, _autoRotate, _grayscale, _comments, _quality);
+        : new PrintSettings(_printer ?? string.Empty, _paper, _margins, _orientation, _pages, 1, true, _sizing, _customPercent / 100, _autoRotate, _grayscale, _comments, _quality, _layout);
 
     private async void RenderPreview()
     {
@@ -418,6 +474,12 @@ public sealed partial class PrintViewModel : ObservableObject
 
         _previewWork?.Cancel();
         var work = _previewWork = new CancellationTokenSource();
+        if (_layout != PagesPerSheet.One)
+        {
+            await RenderSheetPreviewAsync(work);
+            return;
+        }
+
         var index = _pages[_previewPosition];
         var size = _document.PageSizes[index];
         var scale = PreviewPixels / Math.Max(size.Width, size.Height);
@@ -434,6 +496,73 @@ public sealed partial class PrintViewModel : ObservableObject
             {
                 PreviewImage = BitmapFactory.Create(bitmap);
             }
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or PdfException or ObjectDisposedException)
+        {
+        }
+    }
+
+    /// <summary>A side of paper with its pages, drawn as the printer will get it.</summary>
+    private async Task RenderSheetPreviewAsync(CancellationTokenSource work)
+    {
+        if (CreatePreviewSettings() is not { } settings)
+        {
+            return;
+        }
+
+        var (width, height, printable) = PdfPrinting.Sheet(settings, PdfPrinting.IsLandscape(settings, _document));
+        var sides = PdfPrinting.Sides(settings, printable);
+        if (_previewPosition >= sides.Count)
+        {
+            return;
+        }
+
+        var unit = PreviewPixels / Math.Max(width, height); // pixels per paper point
+        try
+        {
+            var pages = new List<(BitmapSource Image, PrintPlacement Placement)>();
+            foreach (var cell in sides[_previewPosition])
+            {
+                if (cell.PageIndex is not { } index)
+                {
+                    continue;
+                }
+
+                var size = _document.PageSizes[index];
+                var placement = PdfPrinting.Place(settings, size, width, height, cell.Area);
+                var bitmap = await _document.RenderPageForPrintAsync(
+                    index,
+                    Math.Max(1, (int)(size.Width * placement.Scale * unit)),
+                    Math.Max(1, (int)(size.Height * placement.Scale * unit)),
+                    _grayscale,
+                    _comments,
+                    work.Token);
+                pages.Add((BitmapFactory.Create(bitmap), placement));
+            }
+
+            if (work.IsCancellationRequested)
+            {
+                return;
+            }
+
+            var visual = new System.Windows.Media.DrawingVisual();
+            using (var context = visual.RenderOpen())
+            {
+                context.DrawRectangle(System.Windows.Media.Brushes.White, null, new System.Windows.Rect(0, 0, width * unit, height * unit));
+                foreach (var (image, placement) in pages)
+                {
+                    PdfPrinting.DrawPage(context, image, placement, unit);
+                }
+
+                if (_layout == PagesPerSheet.Booklet)
+                {
+                    // Where the sheet is folded.
+                    var fold = new System.Windows.Media.Pen(System.Windows.Media.Brushes.Silver, 1) { DashStyle = System.Windows.Media.DashStyles.Dash };
+                    context.DrawLine(fold, new System.Windows.Point(width * unit / 2, 0), new System.Windows.Point(width * unit / 2, height * unit));
+                }
+            }
+
+            PreviewImage = ImageConversion.Render(visual, Math.Max(1, (int)(width * unit)), Math.Max(1, (int)(height * unit)));
         }
         catch (Exception ex) when (ex is OperationCanceledException or PdfException or ObjectDisposedException)
         {
