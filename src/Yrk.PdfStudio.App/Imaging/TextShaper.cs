@@ -25,7 +25,7 @@ internal static class TextShaper
     public static ShapedLine Shape(string text, string familyName, bool bold, bool italic, double fontSize, double wrapWidth = 0)
     {
         var typeface = new Typeface(
-            new FontFamily(familyName + ", " + ThaiFallbackFamily),
+            new FontFamily(BundledFonts.Locate(familyName + ", " + ThaiFallbackFamily)),
             italic ? FontStyles.Italic : FontStyles.Normal,
             bold ? FontWeights.Bold : FontWeights.Normal,
             FontStretches.Normal);

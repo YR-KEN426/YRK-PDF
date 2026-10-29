@@ -64,6 +64,7 @@ internal sealed partial class PdfiumDocument
             last++;
         }
 
+        (first, last) = JoinPieces(text, buffer, count, first, last, EffectiveFontSize(text, hit));
         (first, last) = CellAround(text, first, last, hit, EffectiveFontSize(text, hit));
         double left = double.MaxValue, bottom = double.MaxValue, right = double.MinValue, top = double.MinValue;
         for (var i = first; i <= last; i++)
@@ -84,9 +85,10 @@ internal sealed partial class PdfiumDocument
 
         // The same Thai repairs as copying (sara am circle, sara aa, mark order), so the editor gets the words as they read.
         var repaired = RepairedText(text, buffer, count);
-        var lineText = (repaired is null
-            ? new string(buffer.AsSpan(first, last - first + 1).ToArray().Select(u => (char)u).ToArray())
-            : new string(repaired.Where(e => e.Source >= first && e.Source <= last).Select(e => e.C).ToArray())).Trim();
+        var lineText = new string((repaired is null
+            ? buffer.AsSpan(first, last - first + 1).ToArray().Select(u => (char)u)
+            : repaired.Where(e => e.Source >= first && e.Source <= last).Select(e => e.C))
+            .Where(c => c is not ('\r' or '\n')).ToArray()).Trim();
         var fontSize = EffectiveFontSize(text, hit);
         PdfiumNative.FPDFText_GetFillColor(text, hit, out var red, out var green, out var blue, out _);
         var (fontName, flags) = FontInfo(text, hit);
@@ -105,6 +107,86 @@ internal sealed partial class PdfiumDocument
             fontName,
             weight >= 600 || (flags & ForceBoldFlag) != 0 || fontName.Contains("Bold", StringComparison.OrdinalIgnoreCase),
             (flags & ItalicFlag) != 0 || fontName.Contains("Italic", StringComparison.OrdinalIgnoreCase) || fontName.Contains("Oblique", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// PDFium sometimes starts a new line in the middle of one (a raised Thai mark can do it, leaving "ง" of "ติ้ง"
+    /// on a line of its own). Pieces on either side that sit on the same line and touch it are joined to it.
+    /// </summary>
+    private static (int First, int Last) JoinPieces(IntPtr text, ushort[] buffer, int count, int first, int last, double fontSize)
+    {
+        static bool IsBreak(ushort c) => c is '\r' or '\n';
+        var gap = Math.Max(fontSize, 1) * 1.5;
+        (double Left, double Right, double Bottom, double Top)? Band(int from, int to)
+        {
+            double left = double.MaxValue, right = double.MinValue, bottom = double.MaxValue, top = double.MinValue;
+            for (var i = from; i <= to; i++)
+            {
+                if (PdfiumNative.FPDFText_GetCharBox(text, i, out var l, out var r, out var b, out var t) != 0 && r > l && t > b)
+                {
+                    (left, right, bottom, top) = (Math.Min(left, l), Math.Max(right, r), Math.Min(bottom, b), Math.Max(top, t));
+                }
+            }
+
+            return left > right ? null : (left, right, bottom, top);
+        }
+
+        bool SameLine((double Left, double Right, double Bottom, double Top) a, (double Left, double Right, double Bottom, double Top) b, bool after)
+        {
+            var overlap = Math.Min(a.Top, b.Top) - Math.Max(a.Bottom, b.Bottom);
+            var distance = after ? b.Left - a.Right : a.Left - b.Right;
+            return distance > -fontSize && distance <= gap && overlap > 0.5 * Math.Min(a.Top - a.Bottom, b.Top - b.Bottom);
+        }
+
+        for (var joined = 0; joined < 8; joined++)
+        {
+            if (Band(first, last) is not { } line)
+            {
+                break;
+            }
+
+            // The piece after.
+            var start = last + 1;
+            while (start < count && IsBreak(buffer[start]))
+            {
+                start++;
+            }
+
+            var end = start;
+            while (end + 1 < count && !IsBreak(buffer[end + 1]))
+            {
+                end++;
+            }
+
+            if (start > last + 1 && start < count && Band(start, end) is { } next && SameLine(line, next, after: true))
+            {
+                last = end;
+                continue;
+            }
+
+            // The piece before.
+            end = first - 1;
+            while (end >= 0 && IsBreak(buffer[end]))
+            {
+                end--;
+            }
+
+            start = end;
+            while (start > 0 && !IsBreak(buffer[start - 1]))
+            {
+                start--;
+            }
+
+            if (end < first - 1 && end >= 0 && Band(start, end) is { } previous && SameLine(line, previous, after: false))
+            {
+                first = start;
+                continue;
+            }
+
+            break;
+        }
+
+        return (first, last);
     }
 
     /// <summary>

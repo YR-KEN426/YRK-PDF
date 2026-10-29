@@ -19,7 +19,7 @@ internal sealed partial class PdfiumDocument : IPdfDocument
     private static readonly PdfPageSize FallbackPageSize = new(612, 792);
 
     private readonly PdfiumEngine _engine;
-    private readonly FileStream _stream;
+    private readonly Stream _stream;
     private readonly PdfiumNative.GetBlockCallback _getBlock; // Must stay alive while PDFium holds the pointer.
     private readonly IntPtr _fileAccess;
     private readonly LinkedList<(int Index, IntPtr Page)> _pageCache = new();
@@ -28,7 +28,7 @@ internal sealed partial class PdfiumDocument : IPdfDocument
     private IntPtr _formInfo;
     private bool _closed;
 
-    private PdfiumDocument(PdfiumEngine engine, string filePath, FileStream stream)
+    private PdfiumDocument(PdfiumEngine engine, string filePath, Stream stream)
     {
         _engine = engine;
         _stream = stream;
@@ -61,11 +61,17 @@ internal sealed partial class PdfiumDocument : IPdfDocument
     {
         // Streaming through a callback (instead of FPDF_LoadDocument) keeps memory low and avoids
         // PDFium's narrow-string file paths, which break on Thai and other non-ASCII folder names.
-        var stream = new FileStream(readFrom, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess);
+        Stream stream = new FileStream(readFrom, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess);
         if (stream.Length > uint.MaxValue)
         {
             stream.Dispose();
             throw new PdfException("Files larger than 4 GB are not supported yet.");
+        }
+
+        // Thai marks a font's /ToUnicode leaves out are put back by a revision PDFium reads after the file.
+        if (Text.ToUnicodeRepair.Build(stream) is { } repair)
+        {
+            stream = new AppendedStream(stream, repair);
         }
 
         var document = new PdfiumDocument(engine, filePath, stream);

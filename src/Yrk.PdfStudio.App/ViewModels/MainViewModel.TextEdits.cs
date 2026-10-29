@@ -75,7 +75,7 @@ public sealed partial class MainViewModel
         }
 
         var typeface = new Typeface(
-            new FontFamily(family),
+            new FontFamily(BundledFonts.Locate(family)),
             line.IsItalic ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal,
             line.IsBold ? System.Windows.FontWeights.Bold : System.Windows.FontWeights.Normal,
             System.Windows.FontStretches.Normal);
@@ -266,8 +266,16 @@ public sealed partial class MainViewModel
     /// <param name="exact">False when the document's font is not installed and a substitute is returned.</param>
     internal static string ResolveFamily(string pdfFontName, out bool exact)
     {
-        exact = InstalledFamilies.Value.ContainsKey(Normalize(BaseName(pdfFontName)));
-        return InstalledFamilies.Value.TryGetValue(Normalize(BaseName(pdfFontName)), out var found) ? found : TextShaper.ThaiFallbackFamily;
+        var name = Normalize(BaseName(pdfFontName));
+        if (InstalledFamilies.Value.TryGetValue(name, out var found))
+        {
+            exact = true;
+            return found;
+        }
+
+        // "Sarabun-Light" in a Word file: the Sarabun shipped with the program has the same shapes and sizes.
+        exact = name == Normalize(BundledFonts.Sarabun) && BundledFonts.HasSarabun;
+        return exact ? BundledFonts.Sarabun : TextShaper.ThaiFallbackFamily;
     }
 
     private static string BaseName(string pdfFontName)

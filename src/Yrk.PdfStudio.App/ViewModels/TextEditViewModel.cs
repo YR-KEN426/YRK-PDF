@@ -58,7 +58,7 @@ public sealed class TextEditViewModel : ObservableObject
         }
     }
 
-    public FontFamily FontFamily => new(FontFamilyName);
+    public FontFamily FontFamily => new(Imaging.BundledFonts.Locate(FontFamilyName));
 
     /// <summary>In points, as on the page.</summary>
     public double FontSize

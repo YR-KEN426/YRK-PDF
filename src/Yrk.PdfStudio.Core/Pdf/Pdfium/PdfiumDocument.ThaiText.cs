@@ -51,6 +51,13 @@ internal sealed partial class PdfiumDocument
                 continue;
             }
 
+            if (c is '\r' or '\n' && hasThai && BreakInsideThaiWord(text, chars, count, i))
+            {
+                // "ติ้\r\nง": PDFium can start a new line in the middle of a word on one line (after a raised mark).
+                changed = true;
+                continue;
+            }
+
             if (c == 'ำ' && brokenSaraAa(i) && !CircleNear(text, chars, count, i))
             {
                 c = 'า';
@@ -140,6 +147,33 @@ internal sealed partial class PdfiumDocument
     }
 
     private static bool IsThaiLetter(ushort c) => c is >= 0x0E01 and <= 0x0E2E;
+
+    /// <summary>A line break PDFium added between two Thai characters that sit on one line, side by side.</summary>
+    private static bool BreakInsideThaiWord(IntPtr text, ushort[] chars, int count, int i)
+    {
+        var before = i - 1;
+        while (before >= 0 && chars[before] is '\r' or '\n')
+        {
+            before--;
+        }
+
+        var after = i + 1;
+        while (after < count && chars[after] is '\r' or '\n')
+        {
+            after++;
+        }
+
+        if (before < 0 || after >= count || chars[before] is < 0x0E01 or > 0x0E5B || !IsThaiLetter(chars[after])
+            || PdfiumNative.FPDFText_GetCharBox(text, before, out var l1, out var r1, out var b1, out var t1) == 0
+            || PdfiumNative.FPDFText_GetCharBox(text, after, out var l2, out _, out var b2, out var t2) == 0)
+        {
+            return false;
+        }
+
+        // The letter after starts where the one before ends, at the same height (the mark before sits higher).
+        var size = Math.Max(EffectiveFontSize(text, after), 1);
+        return Math.Abs(l2 - r1) < size && b2 < t1 && t2 > b1 - (size * 0.5) && Math.Abs(b2 - Math.Min(b1, b2)) < size;
+    }
 
     private static int NextLetterIndex(ushort[] chars, int count, int i)
     {

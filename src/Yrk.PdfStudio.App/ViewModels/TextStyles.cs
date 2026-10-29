@@ -8,7 +8,7 @@ public sealed record TextStyle(string FontFamilyName, double FontSize, bool IsBo
 {
     public static TextStyle Default { get; } = new(TextStyles.DefaultFamily, 12, false, false, Colors.Black);
 
-    public FontFamily FontFamily => new(FontFamilyName + ", " + TextStyles.DefaultFamily);
+    public FontFamily FontFamily => new(Imaging.BundledFonts.Locate(FontFamilyName + ", " + TextStyles.DefaultFamily));
 
     public FontWeight Weight => IsBold ? FontWeights.Bold : FontWeights.Normal;
 
@@ -24,13 +24,22 @@ public static class TextStyles
     public const string DefaultFamily = "Leelawadee UI";
 
     private static readonly string[] Recommended =
-        [DefaultFamily, "TH Sarabun New", "TH SarabunPSK", "Tahoma", "Angsana New", "Cordia New", "Browallia New", "Segoe UI", "Arial", "Times New Roman"];
+        [DefaultFamily, Imaging.BundledFonts.Sarabun, "TH Sarabun New", "TH SarabunPSK", "Tahoma", "Angsana New", "Cordia New", "Browallia New", "Segoe UI", "Arial", "Times New Roman"];
 
+    /// <summary>Installed families, and Sarabun, which ships with the program.</summary>
     private static readonly Lazy<Dictionary<string, string>> Installed = new(() =>
-        System.Windows.Media.Fonts.SystemFontFamilies
+    {
+        var families = System.Windows.Media.Fonts.SystemFontFamilies
             .Select(f => f.Source)
             .GroupBy(Normalize, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal));
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        if (Imaging.BundledFonts.HasSarabun)
+        {
+            families.TryAdd(Normalize(Imaging.BundledFonts.Sarabun), Imaging.BundledFonts.Sarabun);
+        }
+
+        return families;
+    });
 
     /// <summary>Fonts with Thai letters first (those installed), then every other installed font.</summary>
     public static IReadOnlyList<string> Fonts { get; } = BuildFontList();
