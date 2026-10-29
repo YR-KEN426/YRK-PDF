@@ -1173,13 +1173,7 @@
   "Oval": "วงรี",
   "Save to my stamps": "บันทึกเป็นตราของฉัน",
   "Delete from my stamps": "ลบออกจากตราของฉัน",
-  "APPROVED": "อนุมัติ",
-  "RECEIVED": "ได้รับแล้ว",
-  "PAID": "จ่ายแล้ว",
-  "CHECKED": "ตรวจสอบแล้ว",
-  "ORIGINAL": "ต้นฉบับ",
-  "COPY": "สำเนา",
-  "URGENT": "ด่วน",
-  "CANCELLED": "ยกเลิก",
-  "CONFIDENTIAL": "ลับ"
+  "Thai": "ไทย",
+  "Thai + English": "ไทย + อังกฤษ",
+  "The Thai word with the English one under it": "คำภาษาไทย มีภาษาอังกฤษตัวเล็กอยู่ใต้"
 }

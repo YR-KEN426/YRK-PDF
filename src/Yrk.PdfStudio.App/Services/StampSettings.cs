@@ -17,6 +17,9 @@ public sealed class StampSettings
 
     public StampDesign? Last { get; set; }
 
+    /// <summary>The language of the ready-made stamps; null until chosen (then the language of the app).</summary>
+    public StampLanguage? Language { get; set; }
+
     public static StampSettings Load(string? path = null)
     {
         path ??= DefaultPath;

@@ -51,7 +51,15 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Grid.Column="0">
-                <TextBlock Text="Ready-made" FontWeight="SemiBold" Margin="0,0,0,4" />
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock Text="Ready-made" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <RadioButton x:Name="ThaiWords" Content="Thai" GroupName="Language" Margin="0,0,10,0" Checked="OnLanguageChanged" />
+                        <RadioButton x:Name="EnglishWords" Content="English" GroupName="Language" Margin="0,0,10,0" Checked="OnLanguageChanged" />
+                        <RadioButton x:Name="BothWords" Content="Thai + English" GroupName="Language" Checked="OnLanguageChanged"
+                                     ToolTip="The Thai word with the English one under it" />
+                    </StackPanel>
+                </DockPanel>
                 <ListBox x:Name="PresetList" Style="{StaticResource StampList}" SelectionChanged="OnStampChosen" />
                 <TextBlock Text="My stamps" FontWeight="SemiBold" Margin="0,12,0,4" />
                 <ListBox x:Name="MyList" Style="{StaticResource StampList}" SelectionChanged="OnStampChosen" MaxHeight="200" />

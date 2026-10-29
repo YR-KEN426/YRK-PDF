@@ -38,6 +38,15 @@ public enum StampDateStyle
     English,
 }
 
+public enum StampLanguage
+{
+    Thai,
+    English,
+
+    /// <summary>The Thai word with the English one under it.</summary>
+    Both,
+}
+
 /// <summary>An office rubber stamp: a big word ("อนุมัติ"), optional smaller lines (a company or a name) and a date.</summary>
 /// <param name="Detail">Lines under the word, e.g. "บริษัท ABC จำกัด"; null or empty for none.</param>
 public sealed record StampDesign(string Text, string? Detail, StampInk Ink, StampShape Shape, StampDateStyle Date)
@@ -56,25 +65,38 @@ internal static class RubberStamp
     private static readonly CultureInfo ThaiCulture = CreateThai();
     private static readonly CultureInfo EnglishCulture = new("en-GB");
 
-    /// <summary>The ready-made stamps, worded in the language of the app.</summary>
-    public static IReadOnlyList<StampDesign> Presets
+    private static readonly (string Thai, string English, StampInk Ink, StampShape Shape, bool Dated)[] Ready =
+    [
+        ("อนุมัติ", "APPROVED", StampInk.Green, StampShape.DoubleBox, true),
+        ("ได้รับแล้ว", "RECEIVED", StampInk.Blue, StampShape.Box, true),
+        ("จ่ายแล้ว", "PAID", StampInk.Red, StampShape.DoubleBox, true),
+        ("ตรวจสอบแล้ว", "CHECKED", StampInk.Green, StampShape.Box, true),
+        ("ต้นฉบับ", "ORIGINAL", StampInk.Red, StampShape.Box, false),
+        ("สำเนา", "COPY", StampInk.Blue, StampShape.Box, false),
+        ("ด่วน", "URGENT", StampInk.Red, StampShape.Oval, false),
+        ("ยกเลิก", "CANCELLED", StampInk.Red, StampShape.DoubleBox, false),
+        ("ลับ", "CONFIDENTIAL", StampInk.Red, StampShape.Box, false),
+    ];
+
+    /// <summary>Which ready-made stamp, in any language, has these words; -1 for none.</summary>
+    public static int PresetIndex(StampDesign design) => Array.FindIndex(Ready, r =>
+        (design.Text, design.Detail ?? string.Empty) is var (text, detail)
+        && ((text == r.Thai && detail.Length == 0) || (text == r.English && detail.Length == 0) || (text == r.Thai && detail == r.English)));
+
+    /// <summary>The language of the app's interface, for a first stamp.</summary>
+    public static StampLanguage DefaultLanguage => Loc.IsThai ? StampLanguage.Thai : StampLanguage.English;
+
+    /// <summary>The ready-made stamps in Thai, English, or Thai with the English word under it.</summary>
+    public static IReadOnlyList<StampDesign> Presets(StampLanguage language)
     {
-        get
-        {
-            var date = Loc.IsThai ? StampDateStyle.ThaiShort : StampDateStyle.English;
-            return
-            [
-                new(Loc.T("APPROVED"), null, StampInk.Green, StampShape.DoubleBox, date),
-                new(Loc.T("RECEIVED"), null, StampInk.Blue, StampShape.Box, date),
-                new(Loc.T("PAID"), null, StampInk.Red, StampShape.DoubleBox, date),
-                new(Loc.T("CHECKED"), null, StampInk.Green, StampShape.Box, date),
-                new(Loc.T("ORIGINAL"), null, StampInk.Red, StampShape.Box, StampDateStyle.None),
-                new(Loc.T("COPY"), null, StampInk.Blue, StampShape.Box, StampDateStyle.None),
-                new(Loc.T("URGENT"), null, StampInk.Red, StampShape.Oval, StampDateStyle.None),
-                new(Loc.T("CANCELLED"), null, StampInk.Red, StampShape.DoubleBox, StampDateStyle.None),
-                new(Loc.T("CONFIDENTIAL"), null, StampInk.Red, StampShape.Box, StampDateStyle.None),
-            ];
-        }
+        var date = language == StampLanguage.English ? StampDateStyle.English : StampDateStyle.ThaiShort;
+        return Ready.Select(r => new StampDesign(
+                language == StampLanguage.English ? r.English : r.Thai,
+                language == StampLanguage.Both ? r.English : null,
+                r.Ink,
+                r.Shape,
+                r.Dated ? date : StampDateStyle.None))
+            .ToList();
     }
 
     public static Color ColorOf(StampInk ink) => ink switch
@@ -98,7 +120,7 @@ internal static class RubberStamp
     /// <returns>The artwork and its natural size in points.</returns>
     public static RenderedStamp Render(StampDesign design, DateTime date, double pixelsPerPoint = TextRendering.DefaultPixelsPerPoint)
     {
-        const double titleSize = 20, detailSize = 9, dateSize = 10, gap = 1, stroke = 2, thin = 0.75, ring = 3;
+        const double titleSize = 20, detailSize = 10, dateSize = 10, gap = 1, stroke = 2, thin = 0.75, ring = 3;
 
         var color = ColorOf(design.Ink);
         var ink = new SolidColorBrush(color);
@@ -110,7 +132,7 @@ internal static class RubberStamp
             texts.Add((title, titleSize, true));
         }
 
-        texts.AddRange(design.DetailLines.Select(l => (l, detailSize, false)));
+        texts.AddRange(design.DetailLines.Select(l => (l, detailSize, true)));
         if (FormatDate(date, design.Date) is { } shown)
         {
             texts.Add((shown, dateSize, true));

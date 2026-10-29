@@ -56,13 +56,30 @@ public sealed class RubberStampTests
     }
 
     [Fact]
+    public void Offers_ready_made_stamps_in_thai_english_or_both()
+    {
+        var thai = RubberStamp.Presets(StampLanguage.Thai)[0];
+        var english = RubberStamp.Presets(StampLanguage.English)[0];
+        var both = RubberStamp.Presets(StampLanguage.Both)[0];
+
+        Assert.Equal(("อนุมัติ", StampDateStyle.ThaiShort), (thai.Text, thai.Date));
+        Assert.Equal(("APPROVED", StampDateStyle.English), (english.Text, english.Date));
+        Assert.Equal(("อนุมัติ", "APPROVED"), (both.Text, both.Detail));
+        Assert.Equal([0, 0, 0], new[] { thai, english, both }.Select(RubberStamp.PresetIndex));
+        Assert.Equal(-1, RubberStamp.PresetIndex(thai with { Detail = "บริษัท ABC จำกัด" }));
+        Assert.Equal(
+            RubberStamp.Presets(StampLanguage.Thai).Select(p => (p.Ink, p.Shape)),
+            RubberStamp.Presets(StampLanguage.English).Select(p => (p.Ink, p.Shape)));
+    }
+
+    [Fact]
     public void Remembers_the_users_own_stamps()
     {
         var path = Path.Combine(Path.GetTempPath(), "yrk-stamps-" + Guid.NewGuid().ToString("N") + ".json");
         try
         {
             var company = new StampDesign("รับเงินแล้ว", "บริษัท ABC จำกัด", StampInk.Blue, StampShape.Oval, StampDateStyle.ThaiLong);
-            var settings = new StampSettings { Last = company };
+            var settings = new StampSettings { Last = company, Language = StampLanguage.Both };
             settings.MyStamps.Add(company);
             settings.Save(path);
 
@@ -70,6 +87,7 @@ public sealed class RubberStampTests
 
             Assert.Equal([company], loaded.MyStamps);
             Assert.Equal(company, loaded.Last);
+            Assert.Equal(StampLanguage.Both, loaded.Language);
             Assert.Contains("\"Oval\"", File.ReadAllText(path), StringComparison.Ordinal);
         }
         finally

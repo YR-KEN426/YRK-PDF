@@ -27,10 +27,15 @@ public partial class StampDialog : Window
         ShapeChoice.ItemsSource = new[] { Loc.T("Box"), Loc.T("Double border"), Loc.T("Oval") };
         DateInput.SelectedDate = DateTime.Today;
         FillDateChoices();
-        PresetList.ItemsSource = RubberStamp.Presets.Select(Tile).ToList();
+        ((settings.Language ?? RubberStamp.DefaultLanguage) switch
+        {
+            StampLanguage.English => EnglishWords,
+            StampLanguage.Both => BothWords,
+            _ => ThaiWords,
+        }).IsChecked = true; // Fills the ready-made list.
         FillMyStamps();
 
-        Show(settings.Last ?? RubberStamp.Presets[0]);
+        Show(settings.Last ?? RubberStamp.Presets(WordsLanguage)[0]);
         _loading = false;
         UpdatePreview();
         Loaded += (_, _) => WordsInput.Focus();
@@ -49,6 +54,29 @@ public partial class StampDialog : Window
             : StampInk.Black,
         Shapes[Math.Max(0, ShapeChoice.SelectedIndex)],
         DateStyles[Math.Max(0, DateChoice.SelectedIndex)]);
+
+    private StampLanguage WordsLanguage =>
+        EnglishWords.IsChecked == true ? StampLanguage.English
+        : BothWords.IsChecked == true ? StampLanguage.Both
+        : StampLanguage.Thai;
+
+    private void OnLanguageChanged(object sender, RoutedEventArgs e)
+    {
+        // The stamp being shown follows to the new language when it is a ready-made one (picked now or last time).
+        var chosen = PresetList.SelectedIndex >= 0 ? PresetList.SelectedIndex : RubberStamp.PresetIndex(Current);
+        PresetList.ItemsSource = RubberStamp.Presets(WordsLanguage).Select(Tile).ToList();
+        if (_loading)
+        {
+            return;
+        }
+
+        _settings.Language = WordsLanguage;
+        _settings.Save();
+        if (chosen >= 0)
+        {
+            PresetList.SelectedIndex = chosen;
+        }
+    }
 
     private static StampTile Tile(StampDesign design) => new(design, RubberStamp.Render(design, DateTime.Today, pixelsPerPoint: 2).Image);
 
