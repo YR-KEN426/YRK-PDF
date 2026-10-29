@@ -17,7 +17,7 @@ shown in **? Help ▸ About YRK PDF**. YRK PDF's own code is under the Apache Li
 | [Tesseract for .NET](https://github.com/charlesw/tesseract) 5.2.0 (`Tesseract.dll`) with [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.0.0 (`x64/tesseract50.dll`) | Text recognition (OCR) | Apache-2.0 | `licenses/tesseract-apache-2.0.txt` |
 | [Leptonica](http://www.leptonica.org/) 1.82.0 (`x64/leptonica-1.82.0.dll`), with libpng 1.6.37, zlib 1.2.13, libjpeg-turbo 2.1.4 and libtiff 4.4.0 built in | Image input for Tesseract | Leptonica (BSD-2-Clause style), libpng, zlib, IJG/BSD-3-Clause, libtiff | `licenses/leptonica/*.txt` |
 | [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast) language files | OCR language data, downloaded when first needed (not shipped) | Apache-2.0 | `licenses/tesseract-apache-2.0.txt` |
-| [Sarabun](https://github.com/cadsondemak/Sarabun) Regular (`Assets/Fonts/Sarabun-Regular.ttf`, from [google/fonts](https://github.com/google/fonts/tree/main/ofl/sarabun)) | Thai font put in forms with Thai fields, for viewers that redraw them | SIL Open Font License 1.1 | `licenses/sarabun/OFL.txt` |
+| [Sarabun](https://github.com/cadsondemak/Sarabun) Regular, Light and Bold (`Assets/Fonts/Sarabun-*.ttf`, from [google/fonts](https://github.com/google/fonts/tree/main/ofl/sarabun)) | Thai font put in forms with Thai fields, for viewers that redraw them; used for edited Sarabun text and to name Thai marks in Sarabun PDFs | SIL Open Font License 1.1 | `licenses/sarabun/OFL.txt` |
 
 The installer also asks Windows to install the **Microsoft Visual C++ Redistributable** (needed by the
 OCR libraries) when it is missing. It is Microsoft's own installer under Microsoft's license; it is not
@@ -36,8 +36,8 @@ part of the portable package.
 - Prefer MIT, BSD, Apache-2.0 and SIL OFL for new packages.
 - Text editing embeds subsets of fonts installed on the user's computer into the user's own documents.
   The font's embedding permission (OS/2 fsType) is checked first: "restricted" fonts are never embedded
-  (Leelawadee UI is used instead) and "no subsetting" fonts are embedded whole. The program ships one font,
-  Sarabun (SIL OFL, which allows embedding and redistribution with its license); `PdfSharp.WPFonts.dll`,
+  (Leelawadee UI is used instead) and "no subsetting" fonts are embedded whole. The program ships one font family,
+  Sarabun in three weights (SIL OFL, which allows embedding and redistribution with its license); `PdfSharp.WPFonts.dll`,
   part of the PDFsharp package, contains small Segoe WP fonts that PDFsharp can fall back to.
 - Velopack's `Update.exe` and `Setup.exe` are written in Rust. Velopack allows only permissive licenses for
   their crates (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, MPL-2.0 and similar, see its `deny.toml`)

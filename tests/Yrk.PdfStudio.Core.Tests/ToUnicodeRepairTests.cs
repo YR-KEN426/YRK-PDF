@@ -1,3 +1,4 @@
+using System.IO;
 using System.Buffers.Binary;
 using System.Text;
 using Yrk.PdfStudio.Core.Pdf.Text;
@@ -38,6 +39,36 @@ public sealed class ToUnicodeRepairTests
         Assert.Contains("<0005> <0000>", repaired, StringComparison.Ordinal); // Unknown shape: left alone.
         Assert.Contains("<0001><0001><0e48>", repaired, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Names_marks_used_only_shifted_from_the_full_fonts_carried()
+    {
+        // A Sarabun Light subset as Word embeds it: thanthakhat (์) and maitaikhu (็) only in forms with no
+        // unshifted copy in the file, both mapped to nothing.
+        ToUnicodeRepair.ReferenceFontFolder = Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts");
+        var light = TrueTypeOutlines.Load(File.ReadAllBytes(Path.Combine(ToUnicodeRepair.ReferenceFontFolder, "Sarabun-Light.ttf")))!;
+        var names = light.GlyphNames();
+        var thanthakhat = names.ToList().FindIndex(n => n is "uni0E4C.small");
+        var maitaikhu = names.ToList().FindIndex(n => n is "uni0E47");
+        var cmap = $"2 beginbfchar\n<{thanthakhat:X4}> <0000>\n<{maitaikhu:X4}> <0000>\nendbfchar";
+
+        var repaired = ToUnicodeRepair.Repair(cmap, light);
+
+        Assert.NotNull(repaired);
+        Assert.Contains($"<{thanthakhat:X4}> <0E4C>", repaired, StringComparison.Ordinal);
+        Assert.Contains($"<{maitaikhu:X4}> <0E47>", repaired, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("uni0E4C", "์")]
+    [InlineData("uni0E4C.small", "์")]
+    [InlineData("uni0E34_uni0E4C", "ิ์")]
+    [InlineData("uni0E01", null)] // A letter, not a mark.
+    [InlineData("uni0E48.uni0E49", "่")]
+    [InlineData("a", null)]
+    [InlineData(null, null)]
+    public void Reads_marks_from_glyph_names(string? name, string? expected) =>
+        Assert.Equal(expected, ToUnicodeRepair.MarksNamed(name));
 
     [Fact]
     public void Leaves_maps_without_empty_entries_alone() =>

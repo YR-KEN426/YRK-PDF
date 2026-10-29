@@ -46,6 +46,10 @@
     <Resource Include="Assets\yrk-lab-slogan.png" />
     <!-- Sarabun (SIL OFL), embedded whole in forms with Thai fields for viewers that redraw them (Imaging\FormFonts). -->
     <None Include="Assets\Fonts\Sarabun-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Light and Bold too: full fonts that name the Thai marks Word stores only in shifted forms (Core ToUnicodeRepair),
+         and real weights for edited Sarabun text. -->
+    <None Include="Assets\Fonts\Sarabun-Light.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\Fonts\Sarabun-Bold.ttf" CopyToOutputDirectory="PreserveNewest" />
     <!-- The user guide in Thai and English (built by build\build-guide.ps1), opened from Help. -->
     <None Include="Assets\Guide\*.pdf" CopyToOutputDirectory="PreserveNewest" />
     <!-- Thai UI texts (English text → Thai). -->

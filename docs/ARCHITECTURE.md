@@ -95,9 +95,6 @@ Windows first: the program should be stable before new platforms or paid distrib
 - Clean up scans: straighten tilted pages, crop black borders, remove blank pages.
 - Split a file by its bookmarks.
 
-**Thai text**
-- Thai marks in fonts used only in their shifted forms (the user's memo, Sarabun Light: raised ์ and ็), which
-  no outline in the file names: bundle Sarabun Light and Bold and match against the full fonts.
 
 **Polish**
 - Dark mode.
