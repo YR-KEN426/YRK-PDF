@@ -72,6 +72,31 @@ public sealed class RubberStampTests
             RubberStamp.Presets(StampLanguage.English).Select(p => (p.Ink, p.Shape)));
     }
 
+    [Theory]
+    [InlineData(StampPosition.TopRight, 595 - 28 - 100, 28)]
+    [InlineData(StampPosition.TopLeft, 28, 28)]
+    [InlineData(StampPosition.BottomRight, 595 - 28 - 100, 842 - 28 - 50)]
+    [InlineData(StampPosition.BottomLeft, 28, 842 - 28 - 50)]
+    [InlineData(StampPosition.Centre, (595 - 100) / 2.0, (842 - 50) / 2.0)]
+    public void Puts_a_stamp_in_a_corner_of_the_page(StampPosition position, double left, double top)
+    {
+        var bounds = RubberStamp.PlaceOnPage(new System.Windows.Size(100, 50), 595, 842, position);
+
+        Assert.Equal(left, bounds.X * 595, 6);
+        Assert.Equal(top, bounds.Y * 842, 6);
+        Assert.Equal(100, bounds.Width * 595, 6);
+        Assert.Equal(50, bounds.Height * 842, 6);
+    }
+
+    [Fact]
+    public void Shrinks_a_stamp_wider_than_half_the_page()
+    {
+        var bounds = RubberStamp.PlaceOnPage(new System.Windows.Size(400, 100), 595, 842, StampPosition.TopLeft);
+
+        Assert.Equal(297.5, bounds.Width * 595, 6);
+        Assert.Equal(74.375, bounds.Height * 842, 6);
+    }
+
     [Fact]
     public void Remembers_the_users_own_stamps()
     {

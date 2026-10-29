@@ -59,6 +59,7 @@
             <RadioButton x:Name="MarksAction" GroupName="Action" Content="Add a watermark, header, footer or page numbers" Checked="OnChanged" />
             <RadioButton x:Name="ProtectAction" GroupName="Action" Content="Protect with a password" Checked="OnChanged" />
             <RadioButton x:Name="ExportAction" GroupName="Action" Content="Export to Word, Excel, images or text" Checked="OnChanged" />
+            <RadioButton x:Name="StampAction" GroupName="Action" Content="Rubber stamp (approved, copy, paid …)" Checked="OnChanged" />
         </StackPanel>
 
         <TextBlock Text="Save the results in" FontWeight="SemiBold" Margin="0,14,0,4" />

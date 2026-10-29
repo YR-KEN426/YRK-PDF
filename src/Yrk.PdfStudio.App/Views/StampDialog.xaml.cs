@@ -19,10 +19,28 @@ public partial class StampDialog : Window
     private readonly StampSettings _settings;
     private bool _loading = true;
 
-    public StampDialog(StampSettings settings)
+    private static readonly StampPosition[] Positions =
+        [StampPosition.TopRight, StampPosition.TopLeft, StampPosition.BottomRight, StampPosition.BottomLeft, StampPosition.Centre];
+
+    private readonly bool _manyFiles;
+
+    /// <param name="manyFiles">Stamping many files: a corner and the pages instead of a click.</param>
+    public StampDialog(StampSettings settings, bool manyFiles = false)
     {
         InitializeComponent();
         _settings = settings;
+        _manyFiles = manyFiles;
+
+        PlacePanel.Visibility = ManyFilesLink.Visibility = manyFiles ? Visibility.Collapsed : Visibility.Visible;
+        BatchPanel.Visibility = manyFiles ? Visibility.Visible : Visibility.Collapsed;
+        PositionChoice.ItemsSource = new[] { Loc.T("Top right"), Loc.T("Top left"), Loc.T("Bottom right"), Loc.T("Bottom left"), Loc.T("Centre") };
+        PositionChoice.SelectedIndex = 0;
+        PagesChoice.ItemsSource = new[] { Loc.T("Every page"), Loc.T("First page only") };
+        PagesChoice.SelectedIndex = 0;
+        if (manyFiles)
+        {
+            PlaceButton.Content = Loc.T("Next");
+        }
 
         ShapeChoice.ItemsSource = new[] { Loc.T("Box"), Loc.T("Double border"), Loc.T("Oval") };
         DateInput.SelectedDate = DateTime.Today;
@@ -178,7 +196,21 @@ public partial class StampDialog : Window
     {
         _settings.Last = Current;
         _settings.Save();
-        Result = new StampRequest(Current, Date);
+        Result = new StampRequest(
+            Current,
+            Date,
+            EveryPage: !_manyFiles && EveryPagePlace.IsChecked == true,
+            Position: Positions[Math.Max(0, PositionChoice.SelectedIndex)],
+            FirstPageOnly: PagesChoice.SelectedIndex == 1);
+        DialogResult = true;
+    }
+
+    /// <summary>Goes on to Tools ▸ Process many files with this stamp.</summary>
+    private void OnManyFiles(object sender, RoutedEventArgs e)
+    {
+        _settings.Last = Current;
+        _settings.Save();
+        Result = new StampRequest(Current, Date, ManyFiles: true);
         DialogResult = true;
     }
 }

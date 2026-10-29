@@ -110,9 +110,9 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog() == true ? dialog.Options : null;
     }
 
-    public StampRequest? AskStamp(StampSettings settings)
+    public StampRequest? AskStamp(StampSettings settings, bool manyFiles = false)
     {
-        var dialog = new StampDialog(settings) { Owner = Owner };
+        var dialog = new StampDialog(settings, manyFiles) { Owner = Owner };
         return dialog.ShowDialog() == true ? dialog.Result : null;
     }
 
@@ -195,9 +195,9 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog() == true ? dialog.Settings : null;
     }
 
-    public BatchRequest? AskBatch(IEnumerable<string> initialFiles)
+    public BatchRequest? AskBatch(IEnumerable<string> initialFiles, BatchAction? action = null)
     {
-        var dialog = new BatchDialog(initialFiles) { Owner = Owner };
+        var dialog = new BatchDialog(initialFiles, action) { Owner = Owner };
         return dialog.ShowDialog() == true ? dialog.Request : null;
     }
 

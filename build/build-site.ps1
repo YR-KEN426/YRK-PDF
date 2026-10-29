@@ -4,7 +4,8 @@
 # In the sources, {{include:file}} is replaced by that file's text (the shared style.css), {{img:path}} by
 # that picture from site-src\img and {{font:path}} by that font from site-src\fonts (IBM Plex Sans Thai, SIL
 # Open Font License) as data: URIs, so each page is one file with nothing loaded from elsewhere.
-# Upload the results as docs/index.html and docs/en/index.html of the releases repository.
+# Upload the results as docs/index.html and docs/en/index.html of the releases repository, and site\guide\*.pdf
+# as docs/guide/ (only when the guide changed).
 #
 #   powershell -ExecutionPolicy Bypass -File build\build-site.ps1
 $ErrorActionPreference = "Stop"
@@ -26,6 +27,12 @@ $release = @{
     "size"    = [math]::Round($setup.size / 1MB).ToString()
 }
 "Latest release: $($release.version), $($release.'date-en'), Setup $($release.size) MB"
+
+# The user guide (built by build-guide.ps1) goes up with the pages, as docs/guide/ of the releases repository.
+$guide = Join-Path $site "guide"
+New-Item -ItemType Directory -Force $guide | Out-Null
+Copy-Item (Join-Path $root "src\Yrk.PdfStudio.App\Assets\Guide\YRK-PDF-Guide-*.pdf") $guide
+"Copied the user guide to $guide"
 
 foreach ($page in @("index.html", "en\index.html")) {
     $html = [IO.File]::ReadAllText((Join-Path $source $page), [Text.Encoding]::UTF8)

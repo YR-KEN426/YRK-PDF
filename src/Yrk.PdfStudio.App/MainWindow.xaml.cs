@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         Tabs.CollectionChanged += (_, _) => UpdateTabStrip();
         Attach(viewModel);
         InitializeHome();
+        InitializeTopBar();
         // Alt + the menu's letter opens it, as in Office.
         foreach (var (key, button, open) in new (Key, Button, RoutedEventHandler)[]
         {
@@ -1080,7 +1081,7 @@ public partial class MainWindow : Window
 
     private void OnTextEditorLostFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
-        if (sender is TextBox editor && ItemOf(sender) is { } item)
+        if (sender is TextBox editor && !IsMenu(e.NewFocus) && ItemOf(sender) is { } item)
         {
             _viewModel.CommitText(item, editor.Text);
         }
@@ -1195,7 +1196,7 @@ public partial class MainWindow : Window
 
     private void OnLineEditorLostFocus(object sender, KeyboardFocusChangedEventArgs e)
     {
-        if (sender is TextBox { DataContext: TextEditViewModel { IsEditing: true } edit } box)
+        if (sender is TextBox { DataContext: TextEditViewModel { IsEditing: true } edit } box && !IsMenu(e.NewFocus))
         {
             _viewModel.EndTextEdit(edit, box.Text, cancel: false);
         }

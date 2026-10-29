@@ -72,19 +72,26 @@ public sealed partial class MainViewModel
         // A stamp's words, centred in its frame as drawn on screen, at the size the stamp was given.
         foreach (var item in _placedItems.Where(i => i.HasStampText))
         {
-            var stamp = item.Stamp!;
-            var scale = item.Width / stamp.Size.Width;
-            var color = new PdfColor(stamp.Ink.R, stamp.Ink.G, stamp.Ink.B);
-            foreach (var line in stamp.Lines!)
-            {
-                var shaped = TextShaper.Shape(line.Text, TextShaper.ThaiFallbackFamily, line.Bold, italic: false, line.FontSize * scale);
-                var topLeft = new NormalizedPoint(
-                    item.Bounds.X + (line.TopLeft.X * scale / item.PageWidth),
-                    item.Bounds.Y + (line.TopLeft.Y * scale / item.PageHeight));
-                lines.Add((item.PageIndex, topLeft, color, shaped));
-            }
+            AddStampWords(lines, item.Stamp!, item.PageIndex, item.Bounds, item.PageWidth, item.PageHeight);
         }
 
         return lines.Count == 0 ? pdf : PdfTextWriter.AddText(pdf, TextShaper.ToBlocks(lines));
+    }
+
+    /// <summary>The words of a stamp placed at <paramref name="bounds"/>, as lines of real text.</summary>
+    private static void AddStampWords(
+        List<(int PageIndex, NormalizedPoint TopLeft, PdfColor Color, TextShaper.ShapedLine Line)> lines,
+        RenderedStamp stamp, int pageIndex, NormalizedRect bounds, double pageWidth, double pageHeight)
+    {
+        var scale = bounds.Width * pageWidth / stamp.Size.Width;
+        var color = new PdfColor(stamp.Ink.R, stamp.Ink.G, stamp.Ink.B);
+        foreach (var line in stamp.Lines!)
+        {
+            var shaped = TextShaper.Shape(line.Text, TextShaper.ThaiFallbackFamily, line.Bold, italic: false, line.FontSize * scale);
+            var topLeft = new NormalizedPoint(
+                bounds.X + (line.TopLeft.X * scale / pageWidth),
+                bounds.Y + (line.TopLeft.Y * scale / pageHeight));
+            lines.Add((pageIndex, topLeft, color, shaped));
+        }
     }
 }

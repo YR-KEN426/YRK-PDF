@@ -1175,5 +1175,25 @@
   "Delete from my stamps": "ลบออกจากตราของฉัน",
   "Thai": "ไทย",
   "Thai + English": "ไทย + อังกฤษ",
-  "The Thai word with the English one under it": "คำภาษาไทย มีภาษาอังกฤษตัวเล็กอยู่ใต้"
+  "The Thai word with the English one under it": "คำภาษาไทย มีภาษาอังกฤษตัวเล็กอยู่ใต้",
+  // --- 1.1.2: amounts in words, stamping many pages and files --------------------------------
+  "Amount in Thai words": "จำนวนเงินเป็นตัวหนังสือไทย",
+  "Amount in English words": "จำนวนเงินเป็นตัวหนังสืออังกฤษ",
+  "10000 becomes หนึ่งหมื่นบาทถ้วน": "10000 จะกลายเป็น หนึ่งหมื่นบาทถ้วน",
+  "10000 becomes Ten Thousand Baht Only": "10000 จะกลายเป็น Ten Thousand Baht Only",
+  "Cut": "ตัด",
+  "Paste": "วาง",
+  "Click where it goes": "คลิกตรงที่จะวาง",
+  "Same place on every page (click once)": "ตำแหน่งเดียวกันทุกหน้า (คลิกครั้งเดียว)",
+  "Click where the stamp should go: it goes in the same place on every page. Press Esc to cancel.": "คลิกตรงที่ต้องการวางตรา ตราจะไปอยู่ตำแหน่งเดียวกันทุกหน้า กด Esc เพื่อยกเลิก",
+  "Stamp many files at once…": "ประทับหลายไฟล์พร้อมกัน…",
+  "Position": "ตำแหน่ง",
+  "Top right": "มุมขวาบน",
+  "Top left": "มุมซ้ายบน",
+  "Bottom right": "มุมขวาล่าง",
+  "Bottom left": "มุมซ้ายล่าง",
+  "Every page": "ทุกหน้า",
+  "First page only": "หน้าแรกเท่านั้น",
+  "Next": "ถัดไป",
+  "Rubber stamp (approved, copy, paid …)": "ประทับตรายาง (อนุมัติ สำเนา จ่ายแล้ว …)"
 }

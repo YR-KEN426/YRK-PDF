@@ -20,9 +20,10 @@ public sealed partial class MainViewModel
 {
     private IAsyncRelayCommand? _batchCommand;
 
-    public IAsyncRelayCommand BatchCommand => _batchCommand ??= new AsyncRelayCommand(BatchAsync);
+    public IAsyncRelayCommand BatchCommand => _batchCommand ??= new AsyncRelayCommand(() => BatchAsync());
 
-    private async Task BatchAsync()
+    /// <param name="action">The job to start with selected (stamping many files from the stamp dialog).</param>
+    private async Task BatchAsync(BatchAction? action = null)
     {
         if (IsBusy)
         {
@@ -30,7 +31,7 @@ public sealed partial class MainViewModel
         }
 
         var initial = _document is { } open ? [_convertedFrom is null ? open.FilePath : string.Empty] : Array.Empty<string>();
-        if (_dialogs.AskBatch(initial.Where(p => p.Length > 0)) is not { } request)
+        if (_dialogs.AskBatch(initial.Where(p => p.Length > 0), action) is not { } request)
         {
             return;
         }
@@ -40,6 +41,7 @@ public sealed partial class MainViewModel
         Imaging.PageMarkSettings? marks = null;
         PdfProtection? protection = null;
         ExportSettings? export = null;
+        StampRequest? stamp = null;
         switch (request.Action)
         {
             case BatchAction.Compress:
@@ -61,6 +63,14 @@ public sealed partial class MainViewModel
             case BatchAction.Protect:
                 protection = _dialogs.AskProtection();
                 if (protection is null)
+                {
+                    return;
+                }
+
+                break;
+            case BatchAction.Stamp:
+                stamp = _dialogs.AskStamp(StampSettings.Load(), manyFiles: true);
+                if (stamp is null)
                 {
                     return;
                 }
@@ -107,7 +117,7 @@ public sealed partial class MainViewModel
                 ReportOperation(Loc.F("File {0} of {1}: {2}", i + 1, request.Files.Count, Path.GetFileName(file)));
                 try
                 {
-                    done.AddRange(await ProcessOneAsync(file, request, compression, marks, protection, export, _operation.Token));
+                    done.AddRange(await ProcessOneAsync(file, request, compression, marks, protection, export, stamp, _operation.Token));
                     succeeded++;
                 }
                 catch (OperationCanceledException)
@@ -202,6 +212,7 @@ public sealed partial class MainViewModel
         Imaging.PageMarkSettings? marks,
         PdfProtection? protection,
         ExportSettings? export,
+        StampRequest? stamp,
         CancellationToken cancellationToken)
     {
         var name = Path.GetFileNameWithoutExtension(file);
@@ -242,6 +253,28 @@ public sealed partial class MainViewModel
                 var marked = await Task.Run(() => PdfFiles.Compact(PdfTextWriter.AddText(bytes, blocks)), cancellationToken);
                 var output = Target(" (marked)", ".pdf");
                 await File.WriteAllBytesAsync(output, marked, cancellationToken);
+                return [output];
+            }
+
+            case BatchAction.Stamp:
+            {
+                // The frame goes into each page as a picture; the words over it as real text, as when placed by hand.
+                var rendered = RubberStamp.Render(stamp!.Design, stamp.Date);
+                var frame = ImageConversion.ToPdfImage(rendered.Frame!);
+                var lines = new List<(int PageIndex, NormalizedPoint TopLeft, PdfColor Color, TextShaper.ShapedLine Line)>();
+                foreach (var page in stamp.FirstPageOnly ? [0] : Enumerable.Range(0, document.PageCount))
+                {
+                    var size = document.PageSizes[page];
+                    var bounds = RubberStamp.PlaceOnPage(rendered.Size, size.Width, size.Height, stamp.Position);
+                    await document.AddImageAsync(page, frame, bounds, cancellationToken);
+                    AddStampWords(lines, rendered, page, bounds, size.Width, size.Height); // WPF shaping: this thread.
+                }
+
+                var bytes = await document.SaveDecryptedAsync(cancellationToken);
+                var blocks = TextShaper.ToBlocks(lines);
+                var stamped = await Task.Run(() => PdfFiles.Compact(PdfTextWriter.AddText(bytes, blocks)), cancellationToken);
+                var output = Target(" (stamped)", ".pdf");
+                await File.WriteAllBytesAsync(output, stamped, cancellationToken);
                 return [output];
             }
 

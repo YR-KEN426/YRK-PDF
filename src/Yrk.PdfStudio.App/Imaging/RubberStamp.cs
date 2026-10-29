@@ -56,8 +56,28 @@ public sealed record StampDesign(string Text, string? Detail, StampInk Ink, Stam
         .Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 }
 
+/// <summary>Where a stamp goes when no one clicks to place it (stamping many files).</summary>
+public enum StampPosition
+{
+    TopRight,
+    TopLeft,
+    BottomRight,
+    BottomLeft,
+    Centre,
+}
+
 /// <summary>The stamp to place and the date to show on it.</summary>
-public sealed record StampRequest(StampDesign Design, DateTime Date);
+/// <param name="EveryPage">One click places it at the same spot on every page.</param>
+/// <param name="ManyFiles">The user chose to stamp many files instead (Tools ▸ Process many files).</param>
+/// <param name="Position">For many files: where on the page.</param>
+/// <param name="FirstPageOnly">For many files: only the first page of each.</param>
+public sealed record StampRequest(
+    StampDesign Design,
+    DateTime Date,
+    bool EveryPage = false,
+    bool ManyFiles = false,
+    StampPosition Position = StampPosition.TopRight,
+    bool FirstPageOnly = false);
 
 /// <summary>Ready-made stamps and drawing of rubber stamps.</summary>
 internal static class RubberStamp
@@ -197,6 +217,27 @@ internal static class RubberStamp
         }
 
         return new RenderedStamp(Draw(withText: true), new Size(width, height), Draw(withText: false), placed, color);
+    }
+
+    /// <summary>A stamp of <paramref name="size"/> points at a corner (or the middle) of a page, clear of the edge.</summary>
+    public static Core.Pdf.NormalizedRect PlaceOnPage(Size size, double pageWidth, double pageHeight, StampPosition position, double margin = 28)
+    {
+        // A stamp never takes more than half the page's width.
+        var scale = Math.Min(1, pageWidth / 2 / size.Width);
+        var (width, height) = (size.Width * scale, size.Height * scale);
+        var left = position switch
+        {
+            StampPosition.TopLeft or StampPosition.BottomLeft => margin,
+            StampPosition.Centre => (pageWidth - width) / 2,
+            _ => pageWidth - margin - width,
+        };
+        var top = position switch
+        {
+            StampPosition.TopLeft or StampPosition.TopRight => margin,
+            StampPosition.Centre => (pageHeight - height) / 2,
+            _ => pageHeight - margin - height,
+        };
+        return new Core.Pdf.NormalizedRect(left / pageWidth, top / pageHeight, width / pageWidth, height / pageHeight);
     }
 
     private static Point Center(Rect rect) => new(rect.X + (rect.Width / 2), rect.Y + (rect.Height / 2));

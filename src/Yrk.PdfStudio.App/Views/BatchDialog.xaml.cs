@@ -12,7 +12,7 @@ public partial class BatchDialog : Window
     private const int MaxFiles = 2000;
     private readonly ObservableCollection<RecentFile> _files = [];
 
-    public BatchDialog(IEnumerable<string> initialFiles)
+    public BatchDialog(IEnumerable<string> initialFiles, BatchAction? action = null)
     {
         InitializeComponent();
         FileList.ItemsSource = _files;
@@ -20,6 +20,11 @@ public partial class BatchDialog : Window
         if (_files.Count > 0)
         {
             FolderBox.Text = Path.Combine(_files[0].Folder, Loc.T("Processed"));
+        }
+
+        if (action == BatchAction.Stamp)
+        {
+            StampAction.IsChecked = true;
         }
 
         Update();
@@ -32,6 +37,7 @@ public partial class BatchDialog : Window
         : MarksAction.IsChecked == true ? BatchAction.PageMarks
         : ProtectAction.IsChecked == true ? BatchAction.Protect
         : ExportAction.IsChecked == true ? BatchAction.Export
+        : StampAction.IsChecked == true ? BatchAction.Stamp
         : BatchAction.PdfA;
 
     private void AddFiles(IEnumerable<string> paths)

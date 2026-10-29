@@ -7,6 +7,7 @@ public enum BatchAction
     PageMarks,
     Protect,
     Export,
+    Stamp,
 }
 
 /// <summary>The files, the job, and the folder for the results (see Tools ▸ Process many files).</summary>

@@ -64,7 +64,7 @@ public interface IDialogService
     CertifiedCopyOptions? AskCertifiedCopy(IReadOnlyList<SavedSignature> signatures);
 
     /// <summary>The rubber stamp dialog; null when cancelled.</summary>
-    StampRequest? AskStamp(StampSettings settings);
+    StampRequest? AskStamp(StampSettings settings, bool manyFiles = false);
 
     /// <summary>Name, dropdown choices and "required" for a new form field; null when cancelled.</summary>
     FormFieldAnswer? AskFormField(Yrk.PdfStudio.Core.Pdf.Forms.PdfNewFieldKind kind, string suggestedName, FormFieldAnswer? existing = null);
@@ -114,7 +114,7 @@ public interface IDialogService
     ExportSettings? AskExport(int pageCount, int currentPage, bool batch = false, ExportFormat? format = null);
 
     /// <summary>Tools ▸ Process many files: the files, the job and the output folder; null when cancelled.</summary>
-    BatchRequest? AskBatch(IEnumerable<string> initialFiles);
+    BatchRequest? AskBatch(IEnumerable<string> initialFiles, BatchAction? action = null);
 
     /// <summary>Save dialog for any file type; asks before overwriting.</summary>
     string? PickSaveFile(string suggestedFileName, string? initialFolder, string title, string filter, string extension);

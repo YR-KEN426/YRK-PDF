@@ -223,4 +223,5 @@ if ($Publish) {
     Write-Host "Next: upload the website pages to $GitHubRepo (Add file > Upload files):" -ForegroundColor Cyan
     Write-Host "  docs\release-repo\site\index.html    -> docs/"
     Write-Host "  docs\release-repo\site\en\index.html -> docs/en/"
+    Write-Host "  docs\release-repo\site\guide\*.pdf   -> docs/guide/   (when the user guide changed)"
 }

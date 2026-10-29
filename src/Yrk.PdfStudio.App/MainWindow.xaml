@@ -24,6 +24,18 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
 
+        <!-- Right-click menu of the boxes text is typed into on a page: the usual editing commands, and an amount in words. -->
+        <ContextMenu x:Key="TypingMenu" x:Shared="False" Opened="OnTypingMenuOpened">
+            <MenuItem Header="Undo" Command="ApplicationCommands.Undo" InputGestureText="Ctrl+Z" />
+            <Separator />
+            <MenuItem Header="Cut" Command="ApplicationCommands.Cut" InputGestureText="Ctrl+X" />
+            <MenuItem Header="Copy" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" />
+            <MenuItem Header="Paste" Command="ApplicationCommands.Paste" InputGestureText="Ctrl+V" />
+            <Separator />
+            <MenuItem Header="Amount in Thai words" Tag="th" Click="OnAmountInWords" ToolTip="10000 becomes หนึ่งหมื่นบาทถ้วน" />
+            <MenuItem Header="Amount in English words" Tag="en" Click="OnAmountInWords" ToolTip="10000 becomes Ten Thousand Baht Only" />
+        </ContextMenu>
+
         <!-- Form widget editors. They live in a canvas measured in PDF points, scaled by a Viewbox. -->
         <!-- Opaque, so the field's own (stale) appearance in the rendered page does not show through. -->
         <SolidColorBrush x:Key="FieldBrush" Color="#E3ECFF" />
@@ -39,7 +51,7 @@
                      Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}"
                      AcceptsReturn="{Binding IsMultiline}"
                      BorderBrush="{StaticResource AccentBrush}" Padding="1,0"
-                     GotKeyboardFocus="OnFormFieldFocused" Tag="keep-text">
+                     GotKeyboardFocus="OnFormFieldFocused" Tag="keep-text" ContextMenu="{StaticResource TypingMenu}">
                 <TextBox.LayoutTransform>
                     <RotateTransform Angle="{Binding TextAngle}" />
                 </TextBox.LayoutTransform>
@@ -187,7 +199,7 @@
                              FontFamily="{Binding FontFamily}" FontWeight="{Binding FontWeight}" FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" Padding="0" BorderThickness="0.6" MinWidth="40"
                              BorderBrush="{StaticResource AccentBrush}" Background="#F2FFFFFF" AcceptsReturn="True"
                              IsVisibleChanged="OnTextEditorVisibleChanged" Loaded="OnTextEditorLoaded" LostKeyboardFocus="OnTextEditorLostFocus"
-                             PreviewKeyDown="OnTextEditorKeyDown" />
+                             PreviewKeyDown="OnTextEditorKeyDown" ContextMenu="{StaticResource TypingMenu}" />
                 </Canvas>
                 <Rectangle Stroke="{StaticResource AccentBrush}" StrokeThickness="0.8" StrokeDashArray="3 2" IsHitTestVisible="False"
                            Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}" />
@@ -260,13 +272,14 @@
 
         <!-- Toolbar -->
         <Border Grid.Row="0" Background="{StaticResource ToolbarBrush}" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1">
-            <!-- Buttons wrap to a second line when the window is narrow, so search always keeps its place. -->
-            <Grid Margin="6,5">
+            <!-- Buttons wrap to a second line when the window is narrow, so search always keeps its place. Before that, Open and
+                 Save drop their words and search gets narrower (MainWindow.Toolbar.cs). -->
+            <Grid x:Name="TopBar" Margin="6,5">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <WrapPanel Grid.Column="0" Orientation="Horizontal">
+                <WrapPanel x:Name="TopButtons" Grid.Column="0" Orientation="Horizontal">
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding ToggleSidebarCommand}" ToolTip="Show or hide the sidebar" AutomationProperties.Name="Sidebar">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE700;" />
                     </Button>
@@ -315,7 +328,7 @@
                     <Button Style="{StaticResource ToolbarButton}" Command="ApplicationCommands.Open" ToolTip="Open (Ctrl+O)">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" />
-                            <TextBlock Text="Open" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="OpenLabel" Text="Open" Margin="6,0,2,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Click="OnRecentMenuClick" Padding="3,0" Margin="-2,0,0,0"
@@ -326,7 +339,7 @@
                             ToolTip="Save (Ctrl+S)" AutomationProperties.Name="Save">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE74E;" />
-                            <TextBlock Text="Save" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SaveLabel" Text="Save" Margin="6,0,2,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding SaveAsCommand}" IsEnabled="{Binding HasDocument}"
@@ -378,9 +391,9 @@
 
 
                 <!-- Search -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,0,0" IsEnabled="{Binding HasDocument}">
+                <StackPanel x:Name="SearchPanel" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,0,0" IsEnabled="{Binding HasDocument}">
                     <TextBlock Text="{Binding SearchStatus}" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" />
-                    <Grid Width="220" VerticalAlignment="Center">
+                    <Grid x:Name="SearchField" Width="220" VerticalAlignment="Center">
                         <TextBox x:Name="SearchBox" Style="{StaticResource ToolbarTextBox}" Padding="26,4,4,4"
                                  Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
                                  KeyDown="OnSearchBoxKeyDown" GotKeyboardFocus="OnTextBoxGotKeyboardFocus"
@@ -1292,7 +1305,7 @@
                                                                  FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" AutomationProperties.Name="Line text"
                                                                  Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
                                                                  IsVisibleChanged="OnLineEditorVisibleChanged" Loaded="OnLineEditorLoaded" PreviewKeyDown="OnLineEditorKeyDown"
-                                                                 LostKeyboardFocus="OnLineEditorLostFocus" />
+                                                                 LostKeyboardFocus="OnLineEditorLostFocus" ContextMenu="{StaticResource TypingMenu}" />
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>

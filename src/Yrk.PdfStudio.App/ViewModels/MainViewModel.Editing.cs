@@ -124,6 +124,21 @@ public sealed partial class MainViewModel
 
         var image = placement.Image!;
         var (width, height) = placement.NaturalSize ?? DefaultSignatureSize(image);
+        if (placement.EveryPage)
+        {
+            // The same spot (as a share of the page) on every page; one Undo takes them all off.
+            var all = Pages.Select(p =>
+            {
+                var copy = PlacedItemViewModel.CreateImage(p.Index, placement.Kind, p.WidthPoints, p.HeightPoints, image, placement.Art, placement.Stamp);
+                copy.Bounds = copy.ToBounds((x * p.WidthPoints) - (width / 2), (y * p.HeightPoints) - (height / 2), width, height);
+                return copy;
+            }).ToList();
+            all.ForEach(AttachItem);
+            _undo.Push(() => all.ForEach(DetachItem), () => all.ForEach(AttachItem));
+            SelectItem(all[page.Index]);
+            return;
+        }
+
         var placed = PlacedItemViewModel.CreateImage(page.Index, placement.Kind, page.WidthPoints, page.HeightPoints, image, placement.Art, placement.Stamp);
         placed.Bounds = placed.ToBounds(pointX - (width / 2), pointY - (height / 2), width, height);
         AttachItem(placed);
@@ -374,9 +389,22 @@ public sealed partial class MainViewModel
             return;
         }
 
+        if (request.ManyFiles)
+        {
+            _ = BatchAsync(BatchAction.Stamp);
+            return;
+        }
+
         var stamp = RubberStamp.Render(request.Design, request.Date);
         BeginPlacement(new Placement(
-            PlacedItemKind.Stamp, stamp.Image, (stamp.Size.Width, stamp.Size.Height), "Click where the stamp should go. Press Esc to cancel.", Stamp: stamp));
+            PlacedItemKind.Stamp,
+            stamp.Image,
+            (stamp.Size.Width, stamp.Size.Height),
+            request.EveryPage
+                ? "Click where the stamp should go: it goes in the same place on every page. Press Esc to cancel."
+                : "Click where the stamp should go. Press Esc to cancel.",
+            Stamp: stamp,
+            EveryPage: request.EveryPage));
     }
 
     private void DeleteSelected()
@@ -819,7 +847,7 @@ public sealed partial class MainViewModel
 
     private sealed record Placement(
         PlacedItemKind Kind, BitmapSource? Image, (double Width, double Height)? NaturalSize, string Hint, SignatureArt? Art = null, bool LockAfterwards = false,
-        RenderedStamp? Stamp = null);
+        RenderedStamp? Stamp = null, bool EveryPage = false);
 
     private sealed record ViewState(ZoomMode ZoomMode, double Zoom, double ScrollOffset, int PageIndex, int TopPage, double TopFraction);
 }
