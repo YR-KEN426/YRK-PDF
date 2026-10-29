@@ -7,6 +7,7 @@ namespace Yrk.PdfStudio.App.Services;
 /// <param name="OriginalPath">The file the changes belong to.</param>
 public sealed record RecoveryEntry(string Id, string OriginalPath, string Name, DateTime SavedAt)
 {
+    [System.Text.Json.Serialization.JsonIgnore]
     public string PdfPath => Path.Combine(RecoveryStore.Folder, Id + ".pdf");
 }
 
