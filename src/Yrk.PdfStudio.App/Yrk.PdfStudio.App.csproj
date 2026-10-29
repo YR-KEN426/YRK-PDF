@@ -43,7 +43,7 @@
 
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
-    <Resource Include="Assets\yrk-lab.png" />
+    <Resource Include="Assets\yrk-lab-slogan.png" />
     <!-- Sarabun (SIL OFL), embedded whole in forms with Thai fields for viewers that redraw them (Imaging\FormFonts). -->
     <None Include="Assets\Fonts\Sarabun-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
     <!-- The user guide in Thai and English (built by build\build-guide.ps1), opened from Help. -->

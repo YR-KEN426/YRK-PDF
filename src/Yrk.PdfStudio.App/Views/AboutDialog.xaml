@@ -13,8 +13,8 @@
     <StackPanel Margin="20">
         <DockPanel>
             <Image Source="/Assets/app.ico" Width="56" Height="56" DockPanel.Dock="Left" Margin="0,0,14,0" VerticalAlignment="Top" />
-            <!-- The developer's logo: a lab flask with a Y, and "YRK LAB" -->
-            <Image Source="/Assets/yrk-lab.png" Height="76" DockPanel.Dock="Right" Margin="14,0,0,0" VerticalAlignment="Top"
+            <!-- The developer's logo, introducing the maker: the flask with a Y, "YRK LAB" and the slogan -->
+            <Image Source="/Assets/yrk-lab-slogan.png" Height="104" DockPanel.Dock="Right" Margin="14,0,0,0" VerticalAlignment="Top"
                    RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="YRK LAB" />
             <StackPanel>
                 <TextBlock Text="YRK PDF" FontSize="20" FontWeight="SemiBold" />
