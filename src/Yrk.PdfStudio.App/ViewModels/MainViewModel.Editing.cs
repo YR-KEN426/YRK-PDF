@@ -49,6 +49,8 @@ public sealed partial class MainViewModel
 
     public IRelayCommand CertifiedCopyCommand { get; private set; } = null!;
 
+    public IRelayCommand StampCommand { get; private set; } = null!;
+
     public IRelayCommand DeleteSelectedCommand { get; private set; } = null!;
 
     public IRelayCommand UndoCommand { get; private set; } = null!;
@@ -252,6 +254,7 @@ public sealed partial class MainViewModel
         });
         DeleteSignatureCommand = new RelayCommand<SavedSignature>(DeleteSignature);
         CertifiedCopyCommand = new RelayCommand(CertifiedCopy);
+        StampCommand = new RelayCommand(Stamp);
         DeleteSelectedCommand = new RelayCommand(DeleteSelected);
         UndoCommand = new RelayCommand(_undo.Undo, () => _undo.CanUndo);
         RedoCommand = new RelayCommand(_undo.Redo, () => _undo.CanRedo);
@@ -360,6 +363,18 @@ public sealed partial class MainViewModel
         }
 
         var stamp = StampRenderer.RenderCertifiedCopy(options);
+        BeginPlacement(new Placement(
+            PlacedItemKind.Stamp, stamp.Image, (stamp.Size.Width, stamp.Size.Height), "Click where the stamp should go. Press Esc to cancel.", Stamp: stamp));
+    }
+
+    private void Stamp()
+    {
+        if (_document is null || _dialogs.AskStamp(StampSettings.Load()) is not { } request)
+        {
+            return;
+        }
+
+        var stamp = RubberStamp.Render(request.Design, request.Date);
         BeginPlacement(new Placement(
             PlacedItemKind.Stamp, stamp.Image, (stamp.Size.Width, stamp.Size.Height), "Click where the stamp should go. Press Esc to cancel.", Stamp: stamp));
     }

@@ -60,7 +60,8 @@ Rules:
 
 - **Electronic signature:** draw (Windows Ink), type with a handwriting font, or import an image.
   Saved signatures are encrypted with DPAPI. Includes a one-click "สำเนาถูกต้อง" (certified copy)
-  stamp and a usage watermark for ID-card copies.
+  stamp, rubber stamps (อนุมัติ, ได้รับแล้ว, จ่ายแล้ว ... with a Thai B.E. date, and the user's own stamps kept
+  in stamps.json) and a usage watermark for ID-card copies.
 - **Digital signature (PAdES B-B / B-T today, B-LT planned):** .pfx files, the Windows certificate store and USB
   tokens from Thai CAs; RFC 3161 timestamps; a signature panel that validates received documents.
 
@@ -88,8 +89,6 @@ Rules:
 Windows first: the program should be stable before new platforms or paid distribution.
 
 **For Thai offices (what sets YRK PDF apart)**
-- Rubber stamps: ready-made stamps (อนุมัติ, ได้รับแล้ว, จ่ายแล้ว, ต้นฉบับ, สำเนา) with a Thai (B.E.) date, and the
-  user's own company stamps.
 - e-Tax Invoice: save as PDF/A-3 with the XML attached, in the Revenue Department's format.
 - Amounts in Thai words ("หนึ่งหมื่นบาทถ้วน") when filling in forms (receipts, quotations).
 

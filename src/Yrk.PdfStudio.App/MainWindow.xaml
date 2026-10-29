@@ -577,6 +577,14 @@
                                 <TextBlock Text="สำเนาถูกต้อง" Margin="6,0,2,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
+                        <Button Style="{StaticResource ToolbarButton}" Command="{Binding StampCommand}"
+                                ToolTip="Rubber stamp: approved, received, paid, original, copy, with the date, or your own stamp"
+                                AutomationProperties.Name="Stamp">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE930;" />
+                                <TextBlock Text="Rubber stamp" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                         <Border Style="{StaticResource ToolbarDivider}" />
                         <!-- Create a form: drag a box (or click) on the page with one of these. -->
                         <TextBlock Text="Create form:" VerticalAlignment="Center" Margin="4,0,6,0" Foreground="{StaticResource SecondaryTextBrush}" />

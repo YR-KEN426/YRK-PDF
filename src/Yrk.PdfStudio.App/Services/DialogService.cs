@@ -110,6 +110,12 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog() == true ? dialog.Options : null;
     }
 
+    public StampRequest? AskStamp(StampSettings settings)
+    {
+        var dialog = new StampDialog(settings) { Owner = Owner };
+        return dialog.ShowDialog() == true ? dialog.Result : null;
+    }
+
     public FormFieldAnswer? AskFormField(Yrk.PdfStudio.Core.Pdf.Forms.PdfNewFieldKind kind, string suggestedName, FormFieldAnswer? existing = null)
     {
         var dialog = new FormFieldDialog(kind, suggestedName, existing) { Owner = Owner };

@@ -63,6 +63,9 @@ public interface IDialogService
 
     CertifiedCopyOptions? AskCertifiedCopy(IReadOnlyList<SavedSignature> signatures);
 
+    /// <summary>The rubber stamp dialog; null when cancelled.</summary>
+    StampRequest? AskStamp(StampSettings settings);
+
     /// <summary>Name, dropdown choices and "required" for a new form field; null when cancelled.</summary>
     FormFieldAnswer? AskFormField(Yrk.PdfStudio.Core.Pdf.Forms.PdfNewFieldKind kind, string suggestedName, FormFieldAnswer? existing = null);
 

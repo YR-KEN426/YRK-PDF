@@ -69,6 +69,8 @@ public partial class MainWindow
             Loc.T("Digital signature"), Loc.T("Sign with a digital ID; later changes show")),
         new("certified", "edit", "\uEB95",
             Loc.T("Certified true copy"), Loc.T("Stamp \"สำเนาถูกต้อง\" with your signature")),
+        new("stamp", "edit", "",
+            Loc.T("Rubber stamp"), Loc.T("Approved, received, paid, with the Thai date, or your company stamp")),
         new("comment", "edit", "\uE7E6",
             Loc.T("Highlight and comment"), Loc.T("Highlight, underline, notes and drawing")),
         new("marks", "edit", "\uE8A1",
@@ -259,6 +261,9 @@ public partial class MainWindow
                 break;
             case "digital":
                 await tab.DigitalSignCommand.ExecuteAsync(null);
+                break;
+            case "stamp":
+                tab.StampCommand.Execute(null);
                 break;
             case "certified":
                 tab.CertifiedCopyCommand.Execute(null);
