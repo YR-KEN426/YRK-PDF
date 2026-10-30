@@ -105,10 +105,14 @@ public partial class MainWindow
 
     private void InitializeHome()
     {
-        // The start page fills the document area, below the tab strip when there is one.
-        void KeepBelowTabs() => HomePage.Margin = new Thickness(0, TabStripBar.IsVisible ? TabStripBar.ActualHeight : 0, 0, 0);
-        TabStripBar.SizeChanged += (_, _) => KeepBelowTabs();
-        TabStripBar.IsVisibleChanged += (_, _) => KeepBelowTabs();
+        // The start page fills the document area, below the tab strip and the update bar when they are there.
+        void KeepBelowBars() => HomePage.Margin = new Thickness(0,
+            (TabStripBar.IsVisible ? TabStripBar.ActualHeight : 0) + (UpdateBanner.IsVisible ? UpdateBanner.ActualHeight : 0), 0, 0);
+        foreach (var bar in new FrameworkElement[] { TabStripBar, UpdateBanner })
+        {
+            bar.SizeChanged += (_, _) => KeepBelowBars();
+            bar.IsVisibleChanged += (_, _) => KeepBelowBars();
+        }
 
         BuildHomeCards();
         ShowHomeLanguage();

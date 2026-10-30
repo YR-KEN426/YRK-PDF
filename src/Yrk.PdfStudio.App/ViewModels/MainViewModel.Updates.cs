@@ -13,7 +13,10 @@ public sealed partial class MainViewModel
     /// <summary>One settings object for all tabs, so a change in one tab is not undone by another saving.</summary>
     private static readonly AppSettings SharedSettings = AppSettings.Load();
 
-    private readonly AppUpdater _updater = new();
+    /// <summary>One updater for all tabs: the tab that shows the button may not be the one that downloaded.</summary>
+    private static readonly AppUpdater SharedUpdater = new();
+
+    private AppUpdater _updater => SharedUpdater;
 
     private AppSettings _settings => SharedSettings;
     private static string? s_readyVersion; // Shared: every tab shows the same update banner.
@@ -21,7 +24,7 @@ public sealed partial class MainViewModel
 
     /// <summary>Set by the window: asks about unsaved changes in every tab before a restart.</summary>
     public Func<Task<bool>>? ConfirmAllTabsAsync { get; set; }
-    private bool _isCheckingForUpdates;
+    private static bool s_isCheckingForUpdates;
     private IAsyncRelayCommand? _restartToUpdateCommand;
     private IRelayCommand? _showAboutCommand;
     private IRelayCommand<string>? _setLanguageCommand;
@@ -97,7 +100,7 @@ public sealed partial class MainViewModel
                 : Loc.T("Updates work in the installed (or portable) app, not in a development build.");
         }
 
-        if (_isCheckingForUpdates)
+        if (s_isCheckingForUpdates)
         {
             return Loc.T("Already checking for updates…");
         }
@@ -107,7 +110,7 @@ public sealed partial class MainViewModel
             return Loc.F("Version {0} is downloaded. Restart to install it.", s_readyVersion);
         }
 
-        _isCheckingForUpdates = true;
+        s_isCheckingForUpdates = true;
         try
         {
             var update = await _updater.CheckAndDownloadAsync(percent =>
@@ -142,7 +145,7 @@ public sealed partial class MainViewModel
         }
         finally
         {
-            _isCheckingForUpdates = false;
+            s_isCheckingForUpdates = false;
         }
     }
 
@@ -177,6 +180,12 @@ public sealed partial class MainViewModel
             }
         }
 
+        public bool IsUpdateReady => owner.IsUpdateReady;
+
+        public string UpdateReadyText => owner.UpdateReadyText;
+
         public Task<string> CheckNowAsync() => owner.CheckForUpdatesAsync(quiet: false);
+
+        public Task RestartToUpdateAsync() => owner.RestartToUpdateAsync();
     }
 }

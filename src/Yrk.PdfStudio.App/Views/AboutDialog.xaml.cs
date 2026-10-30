@@ -21,9 +21,18 @@ public partial class AboutDialog : Window
         CheckButton.IsEnabled = model.CanUpdate;
         AutoCheckBox.Checked += (_, _) => _model.CheckAutomatically = true;
         AutoCheckBox.Unchecked += (_, _) => _model.CheckAutomatically = false;
+        if (model.IsUpdateReady)
+        {
+            ResultText.Text = model.UpdateReadyText;
+        }
+
+        ShowRestartButton();
 
         NoticesText.Text = Notices();
     }
+
+    private void ShowRestartButton() =>
+        RestartButton.Visibility = _model.IsUpdateReady ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>
     /// The program's own notice, the summary of open-source components, the program's license, and every
@@ -61,5 +70,12 @@ public partial class AboutDialog : Window
         ResultText.Text = Loc.T("Checking…");
         ResultText.Text = await _model.CheckNowAsync();
         CheckButton.IsEnabled = true;
+        ShowRestartButton();
+    }
+
+    private async void OnRestartToUpdate(object sender, RoutedEventArgs e)
+    {
+        Close(); // Questions about unsaved work need the main window.
+        await _model.RestartToUpdateAsync();
     }
 }
