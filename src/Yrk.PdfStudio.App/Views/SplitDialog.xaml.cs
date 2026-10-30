@@ -12,14 +12,35 @@ public partial class SplitDialog : Window
 {
     private readonly int _pageCount;
     private readonly Brush _normalBrush;
+    private readonly IReadOnlyList<PdfBookmark> _bookmarks;
 
-    public SplitDialog(int pageCount, string folder)
+    public SplitDialog(int pageCount, string folder, IReadOnlyList<PdfBookmark> bookmarks)
     {
         InitializeComponent();
         _pageCount = pageCount;
+        _bookmarks = bookmarks;
         _normalBrush = Preview.Foreground;
         Description.Text = pageCount == 1 ? Loc.T("This document has 1 page. The original file is not changed.") : Loc.F("This document has {0} pages. The original file is not changed.", pageCount);
         FolderInput.Text = folder;
+        var depth = Math.Min(PageRanges.BookmarkDepth(bookmarks), 4);
+        if (depth > 0 && pageCount > 1)
+        {
+            BookmarkMode.Visibility = BookmarkHint.Visibility = Visibility.Visible;
+            LevelInput.ItemsSource = Enumerable.Range(1, depth).ToList();
+            LevelInput.SelectedIndex = 0;
+            BookmarkMode.IsChecked = true; // A file with chapters is usually split by them.
+        }
+
+        UpdatePreview();
+    }
+
+    private void OnLevelChanged(object sender, RoutedEventArgs e)
+    {
+        if (BookmarkMode is not null)
+        {
+            BookmarkMode.IsChecked = true;
+        }
+
         UpdatePreview();
     }
 
@@ -67,9 +88,15 @@ public partial class SplitDialog : Window
         Preview.Foreground = valid ? _normalBrush : (Brush)FindResource("ErrorBrush");
         Preview.Text = valid
             ? Loc.F(plan!.Parts.Count == 1 ? "Creates 1 file: " : "Creates {0} files: ", plan.Parts.Count) +
-              string.Join("; ", plan.Parts.Take(6).Select(p => Loc.F("pages {0}", ViewModels.MainViewModel.FormatPageList(p)))) +
+              string.Join("; ", plan.Parts.Take(6).Select((p, i) => Part(plan, i, p))) +
               (plan.Parts.Count > 6 ? "; …" : string.Empty)
             : error;
+    }
+
+    private static string Part(SplitPlan plan, int index, IReadOnlyList<int> pages)
+    {
+        var range = Loc.F("pages {0}", ViewModels.MainViewModel.FormatPageList(pages));
+        return plan.Titles?[index] is { Length: > 0 } title ? $"{title} ({range})" : range;
     }
 
     private bool TryBuildPlan(out SplitPlan? plan, out string error)
@@ -79,7 +106,14 @@ public partial class SplitDialog : Window
         try
         {
             IReadOnlyList<IReadOnlyList<int>> parts;
-            if (EveryMode.IsChecked == true)
+            IReadOnlyList<string>? titles = null;
+            if (BookmarkMode.IsChecked == true)
+            {
+                var chapters = PageRanges.ByBookmarks(_bookmarks, _pageCount, LevelInput.SelectedItem as int? ?? 1);
+                parts = chapters.Select(c => c.Pages).ToList();
+                titles = chapters.Select(c => c.Title).ToList();
+            }
+            else if (EveryMode.IsChecked == true)
             {
                 if (!int.TryParse(EveryInput.Text, NumberStyles.None, CultureInfo.InvariantCulture, out var size) || size < 1)
                 {
@@ -100,7 +134,7 @@ public partial class SplitDialog : Window
                 return false;
             }
 
-            plan = new SplitPlan(FolderInput.Text, parts);
+            plan = new SplitPlan(FolderInput.Text, parts, titles);
             return true;
         }
         catch (FormatException ex)

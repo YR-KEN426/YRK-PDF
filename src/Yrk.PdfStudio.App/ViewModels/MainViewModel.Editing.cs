@@ -723,6 +723,11 @@ public sealed partial class MainViewModel
             return false;
         }
 
+        if (IsDirty && !ConfirmPassword(SavePermission, "save changes to it").Confirmed)
+        {
+            return false;
+        }
+
         if (_document is not { } document)
         {
             return false;

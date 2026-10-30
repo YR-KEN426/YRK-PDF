@@ -23,3 +23,12 @@ public sealed class PdfPasswordRequiredException : PdfException
 
     public bool PasswordWasWrong { get; }
 }
+
+/// <summary>The file opened with its user password, and its restrictions forbid the change: the owner password is needed.</summary>
+public sealed class PdfRestrictedException : PdfException
+{
+    public PdfRestrictedException()
+        : base("The file's restrictions do not allow this change. The owner password is needed.")
+    {
+    }
+}

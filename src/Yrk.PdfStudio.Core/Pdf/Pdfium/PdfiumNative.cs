@@ -514,6 +514,9 @@ internal static class PdfiumNative
     public static extern void FPDFPage_SetCropBox(IntPtr page, float left, float bottom, float right, float top);
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFPage_TransFormWithClip(IntPtr page, ref FsMatrix matrix, IntPtr clipRect);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern int FPDFPage_GenerateContent(IntPtr page);
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

@@ -33,6 +33,9 @@ public interface IPdfDocument : IAsyncDisposable
     /// <summary>The file is encrypted (with an open password, restrictions, or both).</summary>
     bool IsEncrypted { get; }
 
+    /// <summary>The password the file was opened with (null when none was needed).</summary>
+    string? OpenPassword { get; }
+
     /// <summary>
     /// What is allowed with the password the file was opened with: everything for unencrypted files and
     /// when it was opened with the owner password.
@@ -130,6 +133,12 @@ public interface IPdfDocument : IAsyncDisposable
 
     /// <summary>Rotates pages clockwise by <paramref name="quarterTurns"/> × 90° (negative = counter-clockwise).</summary>
     Task RotatePagesAsync(IReadOnlyList<int> pageIndices, int quarterTurns, CancellationToken cancellationToken = default);
+
+    /// <summary>Turns everything on the page by <paramref name="degrees"/> about its centre (positive = counter-clockwise as displayed), to straighten a tilted scan.</summary>
+    Task StraightenPageAsync(int pageIndex, double degrees, CancellationToken cancellationToken = default);
+
+    /// <summary>Shows only <paramref name="keep"/> of the page (its crop box); what lies outside stays in the file.</summary>
+    Task CropPageAsync(int pageIndex, NormalizedRect keep, CancellationToken cancellationToken = default);
 
     /// <exception cref="PdfException">The deletion would leave the document without pages.</exception>
     Task DeletePagesAsync(IReadOnlyList<int> pageIndices, CancellationToken cancellationToken = default);

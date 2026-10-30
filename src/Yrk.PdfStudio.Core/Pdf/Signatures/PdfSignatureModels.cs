@@ -8,6 +8,7 @@ namespace Yrk.PdfStudio.Core.Pdf.Signatures;
 /// <param name="TimestampAuthority">Adds a trusted timestamp (PAdES B-T) when set.</param>
 /// <param name="Certification">Certifies the document (the first signature only): what may still change after it.</param>
 /// <param name="RevocationSource">Adds long-term validation data (PAdES B-LT) when set: the certificates and their revocation lists.</param>
+/// <param name="Password">The password of a protected file (either one); the signed file keeps its protection.</param>
 public sealed record PdfSignRequest(
     X509Certificate2 Certificate,
     PdfSignatureAppearance? Appearance = null,
@@ -17,7 +18,8 @@ public sealed record PdfSignRequest(
     IPdfTimestampAuthority? TimestampAuthority = null,
     DateTimeOffset? SigningTime = null,
     PdfCertification Certification = PdfCertification.None,
-    IPdfRevocationSource? RevocationSource = null);
+    IPdfRevocationSource? RevocationSource = null,
+    string? Password = null);
 
 /// <summary>A certifying (author) signature and the changes it still allows (DocMDP /P).</summary>
 public enum PdfCertification

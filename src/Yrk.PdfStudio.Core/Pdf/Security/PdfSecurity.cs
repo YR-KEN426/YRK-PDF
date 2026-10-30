@@ -102,6 +102,67 @@ public static class PdfSecurity
         return CosCompactWriter.Write(document, new CosEncryption(fileKey, encrypt));
     }
 
+    /// <summary>Whether <paramref name="password"/> opens the file and allows <paramref name="needed"/>.</summary>
+    public static PdfUnlockResult CheckPassword(byte[] pdf, string? password, PdfPermissions needed)
+    {
+        try
+        {
+            Open(pdf, password, needed);
+            return PdfUnlockResult.Unlocked;
+        }
+        catch (PdfPasswordRequiredException)
+        {
+            return PdfUnlockResult.WrongPassword;
+        }
+        catch (PdfRestrictedException)
+        {
+            return PdfUnlockResult.Restricted;
+        }
+    }
+
+    /// <summary>
+    /// The file without its encryption, as one clean revision, for a step that rewrites the whole file;
+    /// <see cref="Relock"/> then puts the same protection back.
+    /// </summary>
+    /// <exception cref="PdfPasswordRequiredException">The password is wrong.</exception>
+    /// <exception cref="PdfRestrictedException">The password is the user password and the restrictions forbid <paramref name="needed"/>.</exception>
+    public static byte[] Unlock(byte[] pdf, string? password, PdfPermissions needed) =>
+        CosCompactWriter.Write(Open(pdf, password, needed), decrypt: true);
+
+    /// <summary>
+    /// Encrypts <paramref name="plain"/> exactly as <paramref name="original"/> was: same file key, passwords,
+    /// restrictions and method (RC4, AES-128 or AES-256).
+    /// </summary>
+    public static byte[] Relock(byte[] plain, byte[] original, string? password)
+    {
+        var source = CosDocument.Load(original, password ?? string.Empty);
+        var document = CosDocument.Load(plain);
+        if (source.Crypt is not { } crypt || document.IsEncrypted)
+        {
+            throw new PdfException("The protection could not be put back.");
+        }
+
+        // RC4 and AES-128 keys depend on the first file identifier, so it must stay the same.
+        if (source.Trailer["ID"] is CosArray id)
+        {
+            document.Trailer["ID"] = id;
+        }
+
+        return CosCompactWriter.Write(document, crypt);
+    }
+
+    /// <summary>Opens an encrypted (or plain) file for changes made as incremental updates, encrypted with its own key.</summary>
+    internal static CosDocument Open(byte[] pdf, string? password, PdfPermissions needed)
+    {
+        var document = CosDocument.Load(pdf, password ?? string.Empty);
+        if (needed != PdfPermissions.None && document.Crypt is { IsOwner: false } crypt && (crypt.Permissions & needed) == 0)
+        {
+            throw new PdfRestrictedException();
+        }
+
+        return document;
+    }
+
     /// <summary>A password as UTF-8, at most 127 bytes (§7.6.4.3.3; SASLprep is not applied).</summary>
     private static byte[] Password(string? password)
     {
@@ -156,16 +217,49 @@ public static class PdfSecurity
     }
 }
 
-/// <summary>Encrypts strings and streams for the compact writer (AESV3: random IV in front, PKCS#7 padding).</summary>
-internal sealed class CosEncryption(byte[] fileKey, CosDictionary encryptDictionary)
+/// <summary>Encrypts strings and streams for the writers (AESV3: random IV in front, PKCS#7 padding).</summary>
+internal class CosEncryption(byte[] fileKey, CosDictionary encryptDictionary)
 {
     public CosDictionary Dictionary { get; } = encryptDictionary;
 
-    public byte[] Encrypt(ReadOnlySpan<byte> data)
+    /// <summary>The catalog must declare Adobe extension level 8 (AES-256 in a 1.7 file).</summary>
+    public virtual bool DeclaresAes256 => true;
+
+    /// <summary>Encrypts the strings and stream data inside object <paramref name="id"/> (references and names stay as they are).</summary>
+    public virtual CosObject EncryptObject(CosObject value, CosObjectId id) => value switch
+    {
+        CosString s => new CosString(Encrypt(s.Bytes), isHex: true),
+        CosArray array => new CosArray(array.Items.Select(i => EncryptObject(i, id))),
+        CosStream stream => new CosStream((CosDictionary)EncryptObject(stream.Dictionary, id), Encrypt(stream.Data.Span)),
+        CosDictionary dictionary => EncryptEntries(dictionary, id),
+        _ => value,
+    };
+
+    private CosDictionary EncryptEntries(CosDictionary dictionary, CosObjectId id)
+    {
+        var copy = new CosDictionary();
+        foreach (var (key, value) in dictionary.Entries)
+        {
+            copy[key] = EncryptObject(value, id);
+        }
+
+        return copy;
+    }
+
+    private byte[] Encrypt(ReadOnlySpan<byte> data)
     {
         using var aes = Aes.Create();
         aes.Key = fileKey;
         var iv = RandomNumberGenerator.GetBytes(16);
         return [.. iv, .. aes.EncryptCbc(data, iv, PaddingMode.PKCS7)];
     }
+}
+
+public enum PdfUnlockResult
+{
+    Unlocked,
+    WrongPassword,
+
+    /// <summary>The user password is right, but the owner password is needed for the change.</summary>
+    Restricted,
 }

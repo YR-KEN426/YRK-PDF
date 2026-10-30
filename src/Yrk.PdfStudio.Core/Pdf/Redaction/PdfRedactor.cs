@@ -29,8 +29,17 @@ public static class PdfRedactor
         IReadOnlyList<PdfRedactionArea> areas,
         IPdfEngine engine,
         IPdfImageCodec? codec = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? password = null)
     {
+        // A protected file is redacted without its encryption, then gets the same protection back.
+        var original = pdf;
+        var locked = Cos.CosDocument.Load(pdf).IsEncrypted;
+        if (locked)
+        {
+            pdf = Security.PdfSecurity.Unlock(pdf, password, Security.PdfPermissions.Modify);
+        }
+
         var byPage = areas
             .Where(a => a.Bounds.Width > 0 && a.Bounds.Height > 0)
             .GroupBy(a => a.PageIndex)
@@ -85,7 +94,7 @@ public static class PdfRedactor
                 }
             }
 
-            return new PdfRedactionResult(output, imagePages.Order().ToList());
+            return new PdfRedactionResult(locked ? Security.PdfSecurity.Relock(output, original, password) : output, imagePages.Order().ToList());
         }
         finally
         {

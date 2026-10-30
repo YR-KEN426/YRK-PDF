@@ -33,6 +33,11 @@ public sealed record PdfANote(string Format, string? Argument = null)
     public override string ToString() => Argument is null ? Format : string.Format(CultureInfo.InvariantCulture, Format, Argument);
 }
 
+/// <summary>A file carried inside a PDF/A-3 document (ISO 19005-3), such as the XML of an e-Tax Invoice.</summary>
+/// <param name="MimeType">For example "text/xml".</param>
+/// <param name="Relationship">How it relates to the document: "Source", "Data", "Alternative", "Supplement" or "Unspecified".</param>
+public sealed record PdfAAttachment(string FileName, byte[] Data, string MimeType, string Relationship, string? Description = null);
+
 /// <summary>What the conversion did.</summary>
 /// <param name="Changes">What was adjusted to meet the standard.</param>
 public sealed record PdfAResult(byte[] Pdf, IReadOnlyList<PdfANote> Changes);
@@ -80,7 +85,8 @@ public static class PdfA
 
     /// <exception cref="PdfAException">Something cannot be made compliant; the list says what.</exception>
     /// <exception cref="PdfException">The file cannot be read or is encrypted.</exception>
-    public static PdfAResult Convert(byte[] pdf, IPdfAFontSource fonts, string? title = null, DateTimeOffset? now = null)
+    /// <param name="attachments">Files to carry in the document; the result is then PDF/A-3b instead of PDF/A-2b.</param>
+    public static PdfAResult Convert(byte[] pdf, IPdfAFontSource fonts, string? title = null, DateTimeOffset? now = null, IReadOnlyList<PdfAAttachment>? attachments = null)
     {
         var document = CosDocument.Load(pdf);
         if (document.IsEncrypted)
@@ -88,7 +94,7 @@ public static class PdfA
             throw new PdfException("Remove the password protection first.");
         }
 
-        var job = new Job(document, fonts);
+        var job = new Job(document, fonts, attachments ?? []);
         job.Run(title, now ?? DateTimeOffset.Now);
         if (job.Problems.Count > 0)
         {
@@ -98,7 +104,7 @@ public static class PdfA
         return new PdfAResult(CosCompactWriter.Write(document, version: "1.7"), job.Changes.Distinct().ToList());
     }
 
-    private sealed class Job(CosDocument document, IPdfAFontSource fonts)
+    private sealed class Job(CosDocument document, IPdfAFontSource fonts, IReadOnlyList<PdfAAttachment> attachments)
     {
         private readonly HashSet<CosObjectId> _visited = [];
 
@@ -117,6 +123,7 @@ public static class PdfA
 
             Visit(document.Trailer["Root"], null);
             AddOutputIntent(catalog);
+            Attach(catalog, now);
             WriteMetadata(catalog, title, now);
             if (document.Trailer["ID"] is not CosArray { Count: 2 })
             {
@@ -636,6 +643,53 @@ public static class PdfA
                 .Set("DestOutputProfile", profile)]);
         }
 
+        /// <summary>PDF/A-3 associated files: each in the EmbeddedFiles name tree and in the catalog's /AF (ISO 19005-3, 6.8).</summary>
+        private void Attach(CosDictionary catalog, DateTimeOffset now)
+        {
+            if (attachments.Count == 0)
+            {
+                return;
+            }
+
+            var names = new CosArray([]);
+            var associated = new CosArray([]);
+            foreach (var file in attachments.OrderBy(a => a.FileName, StringComparer.Ordinal)) // Name trees are sorted.
+            {
+                var stream = document.AddObject(new CosStream(
+                    new CosDictionary()
+                        .Set("Type", new CosName("EmbeddedFile"))
+                        .Set("Subtype", new CosName(file.MimeType))
+                        .Set("Params", new CosDictionary()
+                            .Set("Size", new CosInteger(file.Data.Length))
+                            .Set("ModDate", CosString.FromDate(now))),
+                    file.Data));
+                var spec = new CosDictionary()
+                    .Set("Type", new CosName("Filespec"))
+                    .Set("F", CosString.FromText(file.FileName))
+                    .Set("UF", CosString.FromText(file.FileName))
+                    .Set("EF", new CosDictionary().Set("F", stream).Set("UF", stream))
+                    .Set("AFRelationship", new CosName(file.Relationship));
+                if (file.Description is { Length: > 0 } description)
+                {
+                    spec["Desc"] = CosString.FromText(description);
+                }
+
+                var reference = document.AddObject(spec);
+                names.Items.Add(CosString.FromText(file.FileName));
+                names.Items.Add(reference);
+                associated.Items.Add(reference);
+            }
+
+            if (document.Resolve(catalog["Names"]) is not CosDictionary tree)
+            {
+                tree = new CosDictionary();
+                catalog["Names"] = tree;
+            }
+
+            tree["EmbeddedFiles"] = new CosDictionary().Set("Names", names);
+            catalog["AF"] = associated;
+        }
+
         private void WriteMetadata(CosDictionary catalog, string? title, DateTimeOffset now)
         {
             var info = document.Resolve(document.Trailer["Info"]) as CosDictionary;
@@ -665,7 +719,7 @@ public static class PdfA
             xmp.Append("<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n");
             xmp.Append("<rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" ")
                .Append("xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" xmlns:pdf=\"http://ns.adobe.com/pdf/1.3/\">\n");
-            xmp.Append("<pdfaid:part>2</pdfaid:part>\n<pdfaid:conformance>B</pdfaid:conformance>\n<dc:format>application/pdf</dc:format>\n");
+            xmp.Append("<pdfaid:part>").Append(attachments.Count > 0 ? 3 : 2).Append("</pdfaid:part>\n<pdfaid:conformance>B</pdfaid:conformance>\n<dc:format>application/pdf</dc:format>\n");
             if (Text("Title") is { Length: > 0 } t)
             {
                 xmp.Append("<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">").Append(Escape(t)).Append("</rdf:li></rdf:Alt></dc:title>\n");

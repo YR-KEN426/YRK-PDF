@@ -71,6 +71,12 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog() == true ? dialog.Password : null;
     }
 
+    public string? ConfirmPassword(string fileName, string message, bool previousAttemptFailed)
+    {
+        var dialog = new PasswordDialog(fileName, previousAttemptFailed, message, Loc.T("Continue")) { Owner = Owner, Title = Loc.T("Confirm the password") };
+        return dialog.ShowDialog() == true ? dialog.Password : null;
+    }
+
     public Imaging.PageMarkSettings? AskPageMarks(ViewModels.PageMarksViewModel model)
     {
         var dialog = new PageMarksDialog(model) { Owner = Owner };
@@ -149,9 +155,21 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog() == true ? new ImagesToPdfRequest(dialog.Files, dialog.ImageOptionsResult) : null;
     }
 
-    public SplitPlan? AskSplit(int pageCount, string defaultFolder)
+    public Yrk.PdfStudio.Core.Pdf.ETax.TaxInvoice? AskETaxInvoice(ETaxSettings settings)
     {
-        var dialog = new SplitDialog(pageCount, defaultFolder) { Owner = Owner };
+        var dialog = new ETaxInvoiceDialog(settings) { Owner = Owner };
+        return dialog.ShowDialog() == true ? dialog.Invoice : null;
+    }
+
+    public ScanCleanupChoice? AskScanCleanup(IReadOnlyList<int> tilted, IReadOnlyList<int> edged, IReadOnlyList<int> blank)
+    {
+        var dialog = new ScanCleanupDialog(tilted, edged, blank) { Owner = Owner };
+        return dialog.ShowDialog() == true ? dialog.Choice : null;
+    }
+
+    public SplitPlan? AskSplit(int pageCount, string defaultFolder, IReadOnlyList<PdfBookmark> bookmarks)
+    {
+        var dialog = new SplitDialog(pageCount, defaultFolder, bookmarks) { Owner = Owner };
         return dialog.ShowDialog() == true ? dialog.Plan : null;
     }
 

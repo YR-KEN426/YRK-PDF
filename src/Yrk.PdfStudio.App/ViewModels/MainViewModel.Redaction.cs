@@ -147,6 +147,12 @@ public sealed partial class MainViewModel
             return;
         }
 
+        var (confirmed, password) = ConfirmPassword(Core.Pdf.Security.PdfPermissions.Modify, "change it");
+        if (!confirmed)
+        {
+            return;
+        }
+
         var targetPath = _dialogs.PickSavePdfFile(
             Path.GetFileNameWithoutExtension(document.FilePath) + " (redacted).pdf", Path.GetDirectoryName(document.FilePath), "Save the redacted document");
         if (targetPath is null)
@@ -158,7 +164,7 @@ public sealed partial class MainViewModel
         PdfRedactionResult? result = null;
         var saved = await TransformToFileAsync(targetPath, "Redacting…", async (_, input, cancellationToken) =>
         {
-            result = await PdfRedactor.RedactAsync(input, areas, _engine, new WpfImageCodec(), cancellationToken);
+            result = await PdfRedactor.RedactAsync(input, areas, _engine, new WpfImageCodec(), cancellationToken, password);
             return result.Output;
         });
 

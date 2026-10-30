@@ -28,6 +28,11 @@ internal sealed class CosIncrementalUpdate(CosDocument document)
     /// <summary>Writes original bytes + update. Returns the output and where each placeholder landed.</summary>
     public (byte[] Bytes, Dictionary<CosPlaceholder, long> Placeholders) Build()
     {
+        if (_document.IsLocked)
+        {
+            throw new PdfException("The document is password protected and was not unlocked.");
+        }
+
         using var output = new MemoryStream(_document.Data.Length + 64 * 1024);
         output.Write(_document.Data);
         var writer = new CosWriter(output);
@@ -40,11 +45,11 @@ internal sealed class CosIncrementalUpdate(CosDocument document)
         foreach (var (number, (id, value)) in _objects)
         {
             offsets[number] = (writer.Position, id.Generation);
-            writer.WriteIndirectObject(id, value);
+            writer.WriteIndirectObject(id, _document.Crypt is { } crypt ? crypt.EncryptObject(value, id) : value); // Same key as the file.
         }
 
         var trailer = new CosDictionary();
-        foreach (var key in new[] { "Root", "Info", "ID" })
+        foreach (var key in new[] { "Root", "Info", "ID", "Encrypt" })
         {
             if (_document.Trailer[key] is { } value)
             {

@@ -30,6 +30,7 @@
     <li><a href="#fill">Forms and signatures</a></li>
     <li><a href="#pages">Pages and files</a></li>
     <li><a href="#convert">Converting and compressing</a></li>
+    <li><a href="#etax">e-Tax Invoice</a></li>
     <li><a href="#drawings">Drawings: DWG, measuring, counting</a></li>
     <li><a href="#security">Passwords and redaction</a></li>
     <li><a href="#save">Saving, printing and updates</a></li>
@@ -161,10 +162,18 @@
     <li><b>Rotate, delete, insert, extract:</b> select thumbnails in the sidebar (hold <kbd>Ctrl</kbd> for several), then use the <span class="path">Pages</span> tab.</li>
     <li><b>Move pages:</b> drag a thumbnail to its new place.</li>
     <li><b>Combine files:</b> <span class="path">Tools → Combine files…</span>; pick the files and put them in order.</li>
-    <li><b>Split:</b> <span class="path">Tools → Split this PDF…</span> saves chosen pages, or every few pages, as separate files.</li>
+    <li><b>Split:</b> <span class="path">Tools → Split this PDF…</span> saves chosen pages, or every few pages, as separate files, or <b>splits at the bookmarks</b>: one file per chapter, named after it, such as "01 - Introduction.pdf" (choose how many levels deep).</li>
     <li><b>Images to PDF:</b> <span class="path">Tools → Images to PDF…</span> makes one PDF from photos and scans (JPG, PNG).</li>
     <li><b>Watermark and page numbers:</b> add a watermark, header, footer or page numbers from the <span class="path">Tools</span> menu.</li>
   </ul>
+  <h3>Cleaning up scans</h3>
+  <p><span class="path">Tools → Clean up scan (straighten, edges, blank pages)…</span> (or the <span class="path">Clean up scans</span> card on the home page) checks every page and shows what it found; tick what to fix:</p>
+  <ul>
+    <li><b>Straighten tilted pages:</b> turns a page scanned at an angle so its lines are level (up to about 6°).</li>
+    <li><b>Trim dark scanner edges:</b> cuts off the black bands a scanner lid leaves around the page.</li>
+    <li><b>Delete blank pages:</b> such as empty backs of sheets; specks and faint show-through from the other side still count as blank.</li>
+  </ul>
+  <p><kbd>Ctrl</kbd>+<kbd>Z</kbd> puts everything back, and the file only changes when you save.</p>
 </section>
 
 <section id="convert">
@@ -195,6 +204,24 @@
   <h3>Many files at once</h3>
   <p><span class="path">Tools → Process many files…</span> compresses, converts, watermarks or rubber-stamps a whole folder in one go.</p>
   <div class="tip warn"><b>Digital signatures:</b> compressing or converting a digitally signed file makes the signature in the copy invalid. Do it before signing.</div>
+</section>
+
+<section id="etax">
+  <h2>e-Tax Invoice</h2>
+  <p>Makes a Thai tax invoice as PDF/A-3 with the Revenue Department's XML (ETDA standard ขมธอ. 3-2560) inside: the <span class="path">e-Tax Invoice</span> card on the home page, or <span class="path">Tools → e-Tax Invoice…</span></p>
+  <ol>
+    <li>Choose the document: tax invoice, invoice/tax invoice, receipt/tax invoice or delivery order/tax invoice.</li>
+    <li>Fill in the seller (once; it is remembered) and the buyer. A buyer is identified by tax ID and branch, Thai ID card or passport; 13-digit numbers are checked.</li>
+    <li>Type the items in the table. The amount before VAT, the VAT and the total, with the total in Thai words, show as you type. Tick <span class="path">Prices include VAT</span> when the prices you type already include it.</li>
+    <li>Press <span class="path">Create e-Tax Invoice</span> and choose where to save. The next document number counts on by itself.</li>
+  </ol>
+  <figure><img src="img/th/etax-pdf.jpg" alt=""><figcaption>The invoice made (PDF/A-3 with the XML inside); the invoice itself is in Thai</figcaption></figure>
+  <p><b>Sending it to the buyer:</b></p>
+  <ul>
+    <li><b>e-Tax Invoice &amp; e-Receipt:</b> sign the file with your company's digital ID (<span class="path">Digital signature</span>), then send it the way you registered with the Revenue Department.</li>
+    <li><b>e-Tax Invoice by Email:</b> from the email address registered with the Revenue Department, send this one file to the buyer with a copy to csemail@etax.teda.th, with the subject written as the Revenue Department asks. The service stamps the time on it.</li>
+  </ul>
+  <div class="tip warn"><b>Before using it for real:</b> register with the Revenue Department first, and send one test document through their system. In this version the XML is not signed separately (XAdES).</div>
 </section>
 
 <section id="drawings">
@@ -231,6 +258,13 @@
     <li>Check the marks, then press <span class="path">Apply redactions</span>.</li>
     <li>The text, pictures and lines under the marks are removed, not just covered, and the result is saved as a new file.</li>
   </ol>
+  <h3>Signing and redacting files with a password</h3>
+  <ul>
+    <li>Password-protected files can now be signed digitally and redacted. The result keeps the same passwords and restrictions.</li>
+    <li><b>The password is asked again before saving:</b> before a protected file is saved, signed or redacted, its password is asked once more, so nobody can change a file left open. With a wrong password nothing changes.</li>
+    <li>Files whose author forbids changes need the <b>owner password</b>.</li>
+  </ul>
+  <div class="tip"><b>Leaving your desk:</b> asking again stops changes, not reading. Press <kbd>Win</kbd>+<kbd>L</kbd> to lock the computer.</div>
   <h3>Privacy</h3>
   <p>Everything happens on your computer: no uploads, no usage statistics, no AI. The only internet use is the update check, which can be turned off in <span class="path">Settings → Privacy and safety…</span></p>
 </section>

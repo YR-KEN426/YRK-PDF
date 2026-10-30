@@ -165,6 +165,13 @@ public sealed partial class MainViewModel
 
     // --- File tools ------------------------------------------------------------------------------
 
+    /// <summary>A bookmark title cut to a length that keeps the full path well under Windows' limit.</summary>
+    private static string Shorten(string title)
+    {
+        title = title.Replace(": ", " - ", StringComparison.Ordinal); // "Chapter 1: Introduction": a colon cannot be in a file name.
+        return title.Length <= 80 ? title : title[..80].TrimEnd();
+    }
+
     private async Task SplitAsync()
     {
         if (!await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.Assemble, "split it"))
@@ -172,14 +179,19 @@ public sealed partial class MainViewModel
             return;
         }
 
-        if (_document is not { } document || _dialogs.AskSplit(document.PageCount, Path.GetDirectoryName(document.FilePath)!) is not { } plan)
+        if (_document is not { } document
+            || _dialogs.AskSplit(document.PageCount, Path.GetDirectoryName(document.FilePath)!, await document.GetBookmarksAsync()) is not { } plan)
         {
             return;
         }
 
+        // Split at bookmarks: "01 - Chapter title.pdf", numbered so the files sort in the document's order.
         var baseName = Path.GetFileNameWithoutExtension(document.FilePath);
+        var digits = Math.Max(2, plan.Parts.Count.ToString(System.Globalization.CultureInfo.InvariantCulture).Length);
         var outputs = plan.Parts
-            .Select((part, i) => Path.Combine(plan.Folder, $"{baseName} (part {i + 1}).pdf"))
+            .Select((part, i) => Path.Combine(plan.Folder, plan.Titles is { } titles
+                ? $"{(i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture).PadLeft(digits, '0')} - {Sanitize(Shorten(titles[i] is { Length: > 0 } t ? t : baseName))}.pdf"
+                : $"{baseName} (part {i + 1}).pdf"))
             .ToList();
         var existing = outputs.Count(File.Exists);
         if (existing > 0 && !_dialogs.Confirm(Loc.F("{0} of the {1} files already exist in this folder. Replace them?", existing, outputs.Count)))

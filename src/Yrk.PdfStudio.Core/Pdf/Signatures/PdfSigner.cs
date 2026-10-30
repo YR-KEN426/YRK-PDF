@@ -38,11 +38,7 @@ public static class PdfSigner
         ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(request);
 
-        var document = CosDocument.Load(input);
-        if (document.IsEncrypted)
-        {
-            throw new PdfException("Password-protected PDFs cannot be signed yet. Save an unprotected copy first.");
-        }
+        var document = Security.PdfSecurity.Open(input, request.Password, Security.PdfPermissions.FillForms | Security.PdfPermissions.Annotate);
 
         EnsureChangesAllowed(document);
         if (request.Certification != PdfCertification.None && HasSignatures(document))
@@ -71,7 +67,7 @@ public static class PdfSigner
             {
                 Encoding.ASCII.GetBytes(Convert.ToHexString(cms)).CopyTo(bytes, contentsStart + 1);
                 return request.RevocationSource is { } source
-                    ? await LongTermValidation.AddAsync(bytes, cms, source, cancellationToken).ConfigureAwait(false)
+                    ? await LongTermValidation.AddAsync(bytes, cms, source, request.Password, cancellationToken).ConfigureAwait(false)
                     : bytes;
             }
 

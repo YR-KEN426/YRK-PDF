@@ -89,20 +89,20 @@ Rules:
 Windows first: the program should be stable before new platforms or paid distribution.
 
 **For Thai offices (what sets YRK PDF apart)**
-- e-Tax Invoice: save as PDF/A-3 with the XML attached, in the Revenue Department's format.
+- e-Tax Invoice, next steps: XAdES signature of the XML itself (for the e-Tax Invoice & e-Receipt system), structured Thai
+  addresses (province, district and subdistrict codes), discounts, credit and debit notes (80, 81), receipts (T01).
+  Done: the form, the invoice PDF in Sarabun, PDF/A-3b with the ETDA XML (ขมธอ. 3-2560 v2.0) attached as "Source".
 
-**Scans**
-- Clean up scans: straighten tilted pages, crop black borders, remove blank pages.
-- Split a file by its bookmarks.
-
+**Scans** (done: straighten, trim dark edges, delete blank pages; split by bookmarks)
+- Scanner input (TWAIN/WIA) straight into a PDF.
 
 **Polish**
 - Dark mode.
 
 **Signatures**
 - OCSP revocation data and document timestamps (PAdES B-LTA).
-- Signing and redacting password-protected files (today: "Save an unprotected copy first"). Redaction can work on a
-  decrypted copy and protect it again with the same password; signing must encrypt the new objects.
+- Done: signing and redacting password-protected files (RC4, AES-128, AES-256), keeping the same key and passwords.
+  Still blocked with "Save an unprotected copy first": real text, form field looks, OCR and page marks on encrypted files.
 
 **Distribution** (on hold until the program is stable)
 - Code signing; or the Microsoft Store, which may avoid SmartScreen warnings at lower cost (check its

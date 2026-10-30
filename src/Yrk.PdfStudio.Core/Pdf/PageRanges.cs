@@ -58,6 +58,47 @@ public static class PageRanges
         return Enumerable.Range(0, pageCount).Chunk(pagesPerPart).Select(chunk => (IReadOnlyList<int>)chunk).ToList();
     }
 
+    /// <summary>
+    /// One part per bookmark down to <paramref name="levels"/> deep (1 = top level only): from the bookmark's page to
+    /// the page before the next one. Pages before the first bookmark become a part of their own; bookmarks that point
+    /// nowhere, or to the same page as an earlier one, are skipped.
+    /// </summary>
+    public static IReadOnlyList<(string Title, IReadOnlyList<int> Pages)> ByBookmarks(IReadOnlyList<PdfBookmark> bookmarks, int pageCount, int levels)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(pageCount);
+        var starts = new SortedDictionary<int, string>();
+        void Collect(IEnumerable<PdfBookmark> items, int depth)
+        {
+            foreach (var bookmark in items)
+            {
+                if (bookmark.PageIndex is { } page && page >= 0 && page < pageCount)
+                {
+                    starts.TryAdd(page, bookmark.Title.Trim());
+                }
+
+                if (depth < levels)
+                {
+                    Collect(bookmark.Children, depth + 1);
+                }
+            }
+        }
+
+        Collect(bookmarks, 1);
+        if (starts.Count > 0 && !starts.ContainsKey(0))
+        {
+            starts[0] = string.Empty; // The pages before the first bookmark (a cover, for example).
+        }
+
+        var firsts = starts.Keys.ToList();
+        return firsts
+            .Select((first, i) => (starts[first], (IReadOnlyList<int>)Enumerable.Range(first, (i + 1 < firsts.Count ? firsts[i + 1] : pageCount) - first).ToList()))
+            .ToList();
+    }
+
+    /// <summary>How many levels deep the bookmarks go.</summary>
+    public static int BookmarkDepth(IReadOnlyList<PdfBookmark> bookmarks) =>
+        bookmarks.Count == 0 ? 0 : 1 + bookmarks.Max(b => BookmarkDepth(b.Children));
+
     private static int ParseNumber(string text, int pageCount)
     {
         if (!int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out var number))

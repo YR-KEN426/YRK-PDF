@@ -229,6 +229,8 @@ internal sealed partial class PdfiumDocument : IPdfDocument
 
     public bool IsEncrypted { get; private set; }
 
+    public string? OpenPassword => _password;
+
     public Security.PdfPermissions Permissions { get; private set; }
 
     public Task<byte[]> SaveDecryptedAsync(CancellationToken cancellationToken = default) =>

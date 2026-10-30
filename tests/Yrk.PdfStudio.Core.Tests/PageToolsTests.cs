@@ -219,6 +219,25 @@ public sealed class PageToolsTests : IDisposable
     }
 
     [Theory]
+    [InlineData(1, "|0;บทที่ 1|1,2,3;บทที่ 2|4,5,6,7,8,9")]
+    [InlineData(2, "|0;บทที่ 1|1;1.1|2;1.2|3;บทที่ 2|4,5;2.1|6,7,8,9")]
+    public void Splits_at_bookmarks(int levels, string expected)
+    {
+        PdfBookmark B(string title, int? page, params PdfBookmark[] children) => new(title, page, children);
+        var bookmarks = new[]
+        {
+            B("บทที่ 1", 1, B("1.1", 2), B("1.2", 3), B("ซ้ำ", 3)),
+            B("ไม่มีหน้า", null),
+            B("บทที่ 2", 4, B("2.1", 6, B("2.1.1", 7))),
+        };
+
+        var parts = PageRanges.ByBookmarks(bookmarks, 10, levels);
+
+        Assert.Equal(expected, string.Join(";", parts.Select(p => p.Title + "|" + string.Join(",", p.Pages))));
+        Assert.Equal(3, PageRanges.BookmarkDepth(bookmarks));
+    }
+
+    [Theory]
     [InlineData("สมัครงาน", "ใช้สำหรับสมัครงานเท่านั้น")]
     [InlineData("สมัครงาน ABC", "ใช้สำหรับสมัครงาน ABC เท่านั้น")]
     [InlineData("ใช้สำหรับยื่นธนาคารเท่านั้น", "ใช้สำหรับยื่นธนาคารเท่านั้น")]

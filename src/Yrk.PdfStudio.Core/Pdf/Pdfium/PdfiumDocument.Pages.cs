@@ -27,6 +27,46 @@ internal sealed partial class PdfiumDocument
         }, cancellationToken);
     }
 
+    public Task StraightenPageAsync(int pageIndex, double degrees, CancellationToken cancellationToken = default)
+    {
+        ValidatePageIndex(pageIndex);
+        return RunStructural(() =>
+        {
+            // About the centre of the page as displayed; a quarter-turn /Rotate does not change the direction.
+            var page = GetPage(pageIndex);
+            var (deviceWidth, deviceHeight) = GetDeviceSize(pageIndex);
+            var (cx, cy) = DeviceToPage(page, deviceWidth, deviceHeight, 0.5, 0.5);
+            var radians = degrees * Math.PI / 180;
+            var (cos, sin) = (Math.Cos(radians), Math.Sin(radians));
+            var matrix = new PdfiumNative.FsMatrix
+            {
+                A = (float)cos,
+                B = (float)sin,
+                C = (float)-sin,
+                D = (float)cos,
+                E = (float)(cx - (cx * cos) + (cy * sin)),
+                F = (float)(cy - (cx * sin) - (cy * cos)),
+            };
+            if (PdfiumNative.FPDFPage_TransFormWithClip(page, ref matrix, IntPtr.Zero) == 0)
+            {
+                throw new PdfException($"Page {pageIndex + 1} could not be straightened.");
+            }
+        }, cancellationToken);
+    }
+
+    public Task CropPageAsync(int pageIndex, NormalizedRect keep, CancellationToken cancellationToken = default)
+    {
+        ValidatePageIndex(pageIndex);
+        return RunStructural(() =>
+        {
+            var page = GetPage(pageIndex);
+            var (deviceWidth, deviceHeight) = GetDeviceSize(pageIndex);
+            var a = DeviceToPage(page, deviceWidth, deviceHeight, keep.X, keep.Y);
+            var b = DeviceToPage(page, deviceWidth, deviceHeight, keep.X + keep.Width, keep.Y + keep.Height);
+            PdfiumNative.FPDFPage_SetCropBox(page, (float)Math.Min(a.X, b.X), (float)Math.Min(a.Y, b.Y), (float)Math.Max(a.X, b.X), (float)Math.Max(a.Y, b.Y));
+        }, cancellationToken);
+    }
+
     public Task DeletePagesAsync(IReadOnlyList<int> pageIndices, CancellationToken cancellationToken = default)
     {
         var pages = ValidatePageList(pageIndices);

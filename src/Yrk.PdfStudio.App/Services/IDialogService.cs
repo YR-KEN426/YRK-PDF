@@ -17,7 +17,10 @@ public enum SaveChangesChoice
 public sealed record SignatureDialogResult(SignatureArt Art, bool Remember, bool LockWithDigitalId);
 
 /// <summary>Where to save the parts and which pages (0-based) go into each file.</summary>
-public sealed record SplitPlan(string Folder, IReadOnlyList<IReadOnlyList<int>> Parts);
+/// <param name="Titles">The bookmark title of each part when split at bookmarks (empty: the pages before the first one).</param>
+public sealed record ScanCleanupChoice(bool Straighten, bool TrimEdges, bool DeleteBlank);
+
+public sealed record SplitPlan(string Folder, IReadOnlyList<IReadOnlyList<int>> Parts, IReadOnlyList<string>? Titles = null);
 
 public sealed record ImagesToPdfRequest(IReadOnlyList<string> Files, ImagesToPdfOptions Options);
 
@@ -49,6 +52,9 @@ public interface IDialogService
     /// <summary>Asks for the owner password to lift a document's restrictions; null when cancelled.</summary>
     string? AskOwnerPassword(string fileName, string reason, bool previousAttemptFailed);
 
+    /// <summary>Asks for the password of a protected file again before a change is written; null when cancelled.</summary>
+    string? ConfirmPassword(string fileName, string message, bool previousAttemptFailed);
+
     /// <summary>The Protect with password dialog; null when cancelled.</summary>
     Yrk.PdfStudio.Core.Pdf.Security.PdfProtection? AskProtection();
 
@@ -77,7 +83,13 @@ public interface IDialogService
 
     ImagesToPdfRequest? AskImagesToPdf();
 
-    SplitPlan? AskSplit(int pageCount, string defaultFolder);
+    /// <summary>The e-Tax Invoice form; null when cancelled.</summary>
+    Yrk.PdfStudio.Core.Pdf.ETax.TaxInvoice? AskETaxInvoice(ETaxSettings settings);
+
+    /// <summary>What to fix of what the scan check found; null when cancelled.</summary>
+    ScanCleanupChoice? AskScanCleanup(IReadOnlyList<int> tilted, IReadOnlyList<int> edged, IReadOnlyList<int> blank);
+
+    SplitPlan? AskSplit(int pageCount, string defaultFolder, IReadOnlyList<Yrk.PdfStudio.Core.Pdf.PdfBookmark> bookmarks);
 
     PdfCompressionOptions? AskCompression();
 

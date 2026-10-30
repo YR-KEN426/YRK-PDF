@@ -29,6 +29,14 @@
         </RadioButton>
         <TextBlock Text="For example 1-3, 4, 5- (5- means page 5 to the end)." FontSize="11" Margin="22,3,0,0"
                    Foreground="{StaticResource SecondaryTextBrush}" />
+        <RadioButton x:Name="BookmarkMode" GroupName="Mode" Margin="0,10,0,0" Checked="OnChanged" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="At each bookmark, levels:" VerticalAlignment="Center" />
+                <ComboBox x:Name="LevelInput" Width="56" Margin="6,0" SelectionChanged="OnLevelChanged" />
+            </StackPanel>
+        </RadioButton>
+        <TextBlock x:Name="BookmarkHint" Text="Each chapter in the bookmarks becomes its own file, named after it." FontSize="11" Margin="22,3,0,0"
+                   Foreground="{StaticResource SecondaryTextBrush}" Visibility="Collapsed" />
 
         <TextBlock Text="Save to folder" Margin="0,16,0,4" />
         <DockPanel>

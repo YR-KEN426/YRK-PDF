@@ -13,6 +13,7 @@ public sealed partial class MainViewModel
 {
     private IAsyncRelayCommand? _protectCommand;
     private IAsyncRelayCommand? _removeProtectionCommand;
+    private DateTime _passwordEnteredAt = DateTime.MinValue;
 
     public IAsyncRelayCommand ProtectCommand => _protectCommand ??= new AsyncRelayCommand(ProtectAsync);
 
@@ -95,6 +96,60 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>
+    /// Before a change to a file with an open password is written: asks for the password again, so nobody can
+    /// change a file left open on an unattended computer. A file without an open password is not asked about.
+    /// </summary>
+    /// <returns>Whether to go on, and the password to write the file with (null for an unprotected file).</returns>
+    private (bool Confirmed, string? Password) ConfirmPassword(PdfPermissions needed, string action)
+    {
+        if (_document is not { IsEncrypted: true } document)
+        {
+            return (true, null);
+        }
+
+        byte[] bytes;
+        try
+        {
+            bytes = File.ReadAllBytes(document.FilePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _dialogs.ShowError(ex.Message);
+            return (false, null);
+        }
+
+        // Restrictions only (anyone can open it): the password it was opened with, as unlocked before. And not twice
+        // in a row: the owner password typed a moment ago to lift the restrictions is confirmation enough.
+        if (PdfSecurity.CheckPassword(bytes, null, PdfPermissions.None) == PdfUnlockResult.Unlocked
+            || (DateTime.UtcNow - _passwordEnteredAt < TimeSpan.FromMinutes(1)
+                && PdfSecurity.CheckPassword(bytes, document.OpenPassword, needed) == PdfUnlockResult.Unlocked))
+        {
+            return (true, document.OpenPassword);
+        }
+
+        var name = Path.GetFileName(document.FilePath);
+        var message = Loc.F("\"{0}\" is protected with a password. Enter it again to {1}.", name, Loc.T(action));
+        var failed = false;
+        while (_dialogs.ConfirmPassword(name, message, failed) is { } password)
+        {
+            switch (PdfSecurity.CheckPassword(bytes, password, needed))
+            {
+                case PdfUnlockResult.Unlocked:
+                    return (true, password);
+                case PdfUnlockResult.Restricted:
+                    message = Loc.F("The author of \"{0}\" doesn't allow you to {1}. Enter the owner password to unlock it.", name, Loc.T(action));
+                    failed = false;
+                    break;
+                default:
+                    failed = true;
+                    break;
+            }
+        }
+
+        return (false, null);
+    }
+
+    /// <summary>
     /// True when the open document allows <paramref name="needed"/>. Otherwise explains what the author
     /// restricted and asks for the owner password; with the right one the document is reopened as owner.
     /// </summary>
@@ -122,7 +177,22 @@ public sealed partial class MainViewModel
                     }
                 }
 
-                await OpenDocumentAsync(document.FilePath, password, CaptureViewState(), keepEdits: true, copyPath: _workingCopy);
+                // Page changes made in memory (turned, moved or deleted pages) exist only in the open document:
+                // a copy carries them into the document reopened with the owner password.
+                var copy = _workingCopy;
+                if (_documentModified)
+                {
+                    Directory.CreateDirectory(WorkingFolder);
+                    copy = Path.Combine(WorkingFolder, $"unlocked-{Guid.NewGuid():N}.pdf");
+                    await document.SaveAsync(copy);
+                }
+
+                if (!await OpenDocumentAsync(document.FilePath, password, CaptureViewState(), keepEdits: true, copyPath: copy) && copy != _workingCopy)
+                {
+                    TryDelete(copy!);
+                }
+
+                _passwordEnteredAt = DateTime.UtcNow;
                 return _document?.Permissions == PdfPermissions.All;
             }
             catch (PdfPasswordRequiredException)

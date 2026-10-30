@@ -34,10 +34,10 @@ internal static class LongTermValidation
 {
     private const string CrlDistributionPoints = "2.5.29.31";
 
-    public static async Task<byte[]> AddAsync(byte[] pdf, byte[] cms, IPdfRevocationSource source, CancellationToken cancellationToken)
+    public static async Task<byte[]> AddAsync(byte[] pdf, byte[] cms, IPdfRevocationSource source, string? password, CancellationToken cancellationToken)
     {
         var (certificates, crls) = await CollectAsync(cms, source, cancellationToken).ConfigureAwait(false);
-        var document = CosDocument.Load(pdf);
+        var document = CosDocument.Load(pdf, password ?? string.Empty);
         var update = new CosIncrementalUpdate(document);
         var rootId = (document.Trailer["Root"] as CosReference)?.Id ?? throw new PdfException("The document has no catalog.");
 

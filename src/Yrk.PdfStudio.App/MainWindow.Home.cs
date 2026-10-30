@@ -37,6 +37,8 @@ public partial class MainWindow
             Loc.T("Split PDF"), Loc.T("Save chosen pages, or every few pages, as separate files")),
         new("pages", "organize", "\uE7C3",
             Loc.T("Organize pages"), Loc.T("Turn, delete, move, insert and extract pages")),
+        new("scan", "organize", "",
+            Loc.T("Clean up scans"), Loc.T("Straighten tilted pages, trim dark edges, delete blank pages")),
         new("images", "organize", "\uEB9F",
             Loc.T("Images to PDF"), Loc.T("Make one PDF from photos and scans (JPG, PNG)"), NeedsDocument: false),
         new("batch", "organize", "\uE762",
@@ -56,6 +58,8 @@ public partial class MainWindow
             Loc.T("Recognize text (OCR)"), Loc.T("Make scans searchable and copyable, Thai included")),
         new("pdfa", "convert", "\uE81C",
             Loc.T("PDF/A for archiving"), Loc.T("The long-term archive format many offices ask for")),
+        new("etax", "convert", "",
+            Loc.T("e-Tax Invoice"), Loc.T("Make a tax invoice as PDF/A-3 with the Revenue Department's XML"), NeedsDocument: false),
 
         new("edittext", "edit", "\uE8AC",
             Loc.T("Edit text"), Loc.T("Change words in the PDF itself, Thai included")),
@@ -201,6 +205,9 @@ public partial class MainWindow
             case "batch":
                 await tab.BatchCommand.ExecuteAsync(null);
                 return;
+            case "etax":
+                await tab.ETaxInvoiceCommand.ExecuteAsync(null);
+                return;
         }
 
         if (tool.NeedsDocument && !tab.HasDocument)
@@ -219,6 +226,9 @@ public partial class MainWindow
         {
             case "split":
                 await tab.SplitCommand.ExecuteAsync(null);
+                break;
+            case "scan":
+                await tab.CleanUpScanCommand.ExecuteAsync(null);
                 break;
             case "pages":
                 tab.IsSidebarOpen = true;

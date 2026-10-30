@@ -1350,6 +1350,7 @@ public partial class MainWindow : Window
         var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = PlacementMode.Bottom };
         menu.Items.Add(new MenuItem { Header = "Combine files…", Command = _viewModel.CombineFilesCommand });
         menu.Items.Add(new MenuItem { Header = "Images to PDF…", Command = _viewModel.ImagesToPdfCommand });
+        menu.Items.Add(new MenuItem { Header = "e-Tax Invoice…", Command = _viewModel.ETaxInvoiceCommand });
         menu.Items.Add(new MenuItem { Header = "Process many files…", Command = _viewModel.BatchCommand });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Split this PDF…", Command = _viewModel.SplitCommand, IsEnabled = _viewModel.HasDocument });
@@ -1359,6 +1360,7 @@ public partial class MainWindow : Window
         menu.Items.Add(new MenuItem { Header = "Export to Word, Excel or images…", Command = _viewModel.ExportCommand, IsEnabled = _viewModel.HasDocument });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Recognize text (OCR)…", Command = _viewModel.RecognizeTextCommand, IsEnabled = _viewModel.HasDocument });
+        menu.Items.Add(new MenuItem { Header = "Clean up scan (straighten, edges, blank pages)…", Command = _viewModel.CleanUpScanCommand, IsEnabled = _viewModel.HasDocument });
         menu.Items.Add(new MenuItem { Header = "Compare with another version…", Command = _viewModel.CompareCommand, IsEnabled = _viewModel.HasDocument });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Protect with password…", Command = _viewModel.ProtectCommand, IsEnabled = _viewModel.HasDocument });

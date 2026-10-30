@@ -41,9 +41,19 @@ internal sealed partial class CosDocument
 
     public bool IsEncrypted => Trailer["Encrypt"] is not null;
 
+    /// <summary>Encrypted and not unlocked: objects are read as stored and cannot be changed.</summary>
+    public bool IsLocked => IsEncrypted && Crypt is null;
+
+    /// <summary>The unlocked security handler: objects are decrypted when read and encrypted again when written.</summary>
+    public Security.CosCrypt? Crypt { get; private set; }
+
+    private CosObjectId? _encryptId;
+
     public CosDictionary Catalog => Resolve(Trailer["Root"]) as CosDictionary ?? throw new PdfException("The document has no catalog.");
 
-    public static CosDocument Load(byte[] data)
+    /// <param name="password">Unlocks an encrypted file (an empty password is tried when null).</param>
+    /// <exception cref="PdfPasswordRequiredException">A password was given and it fits neither password of the file.</exception>
+    public static CosDocument Load(byte[] data, string? password = null)
     {
         var document = new CosDocument(data);
         try
@@ -56,7 +66,40 @@ internal sealed partial class CosDocument
             document.Reconstruct();
         }
 
+        if (document.IsEncrypted)
+        {
+            document.Unlock(password);
+        }
+
         return document;
+    }
+
+    private void Unlock(string? password)
+    {
+        _encryptId = (Trailer["Encrypt"] as CosReference)?.Id;
+        if (Resolve(Trailer["Encrypt"]) is not CosDictionary encrypt)
+        {
+            return;
+        }
+
+        Crypt = Security.CosCrypt.Open(encrypt, Trailer, password);
+        if (Crypt is null)
+        {
+            if (password is not null)
+            {
+                throw new PdfPasswordRequiredException(passwordWasWrong: true);
+            }
+
+            return;
+        }
+
+        // Everything read so far is still encrypted: read it again.
+        _cache.Clear();
+        _objectStreams.Clear();
+        if (_encryptId is { } id)
+        {
+            _cache[id] = encrypt;
+        }
     }
 
     private int _nextNumber = -1;
@@ -101,14 +144,14 @@ internal sealed partial class CosDocument
         {
             value = entry.Kind switch
             {
-                XrefKind.InFile => ReadAt(entry.Offset, id.Number),
-                XrefKind.Compressed => ReadFromObjectStream((int)entry.Offset, id.Number),
+                XrefKind.InFile => Decrypt(ReadAt(entry.Offset, id.Number), id),
+                XrefKind.Compressed => ReadFromObjectStream((int)entry.Offset, id.Number), // Decrypted with its stream.
                 _ => null,
             };
         }
         else if (WasReconstructed && _scannedOffsets!.TryGetValue(id.Number, out var offset))
         {
-            value = ReadAt(offset, id.Number);
+            value = Decrypt(ReadAt(offset, id.Number), id);
         }
 
         value ??= CosNull.Instance;
@@ -352,6 +395,9 @@ internal sealed partial class CosDocument
             return value;
         }
     }
+
+    private CosObject? Decrypt(CosObject? value, CosObjectId id) =>
+        value is not null && Crypt is { } crypt && id != _encryptId ? crypt.Decrypt(value, id) : value;
 
     private CosObject? ReadAt(long offset, int expectedNumber)
     {

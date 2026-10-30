@@ -11,9 +11,10 @@ internal static class CosCompactWriter
 {
     /// <param name="encryption">Encrypts every string and stream, and adds the /Encrypt dictionary (null: none).</param>
     /// <param name="version">The header version to write ("1.7"); null keeps the file's own.</param>
-    public static byte[] Write(CosDocument document, Security.CosEncryption? encryption = null, string? version = null)
+    /// <param name="decrypt">Writes an unlocked encrypted document without its encryption (otherwise it is refused).</param>
+    public static byte[] Write(CosDocument document, Security.CosEncryption? encryption = null, string? version = null, bool decrypt = false)
     {
-        if (document.IsEncrypted)
+        if (document.IsLocked || (document.IsEncrypted && encryption is null && !decrypt))
         {
             throw new PdfException("Password-protected PDFs cannot be rewritten yet.");
         }
@@ -79,12 +80,12 @@ internal static class CosCompactWriter
             var value = Remap(document.GetObject(order[i])!, numbers);
             if (encryption is not null)
             {
-                if (order[i] == rootId && value is CosDictionary catalog)
+                if (order[i] == rootId && value is CosDictionary catalog && encryption.DeclaresAes256)
                 {
                     value = WithExtensionLevel(catalog);
                 }
 
-                value = Encrypt(value, encryption);
+                value = encryption.EncryptObject(value, new CosObjectId(i + 1, 0));
             }
 
             writer.WriteIndirectObject(new CosObjectId(i + 1, 0), value);
@@ -142,27 +143,6 @@ internal static class CosCompactWriter
         CosDictionary dictionary => RemapDictionary(dictionary, numbers),
         _ => value,
     };
-
-    /// <summary>Encrypts the strings and stream data inside one object (references and names stay as they are).</summary>
-    private static CosObject Encrypt(CosObject value, Security.CosEncryption encryption) => value switch
-    {
-        CosString s => new CosString(encryption.Encrypt(s.Bytes), isHex: true),
-        CosArray array => new CosArray(array.Items.Select(i => Encrypt(i, encryption))),
-        CosStream stream => new CosStream((CosDictionary)Encrypt(stream.Dictionary, encryption), encryption.Encrypt(stream.Data.Span)),
-        CosDictionary dictionary => EncryptDictionary(dictionary, encryption),
-        _ => value,
-    };
-
-    private static CosDictionary EncryptDictionary(CosDictionary dictionary, Security.CosEncryption encryption)
-    {
-        var copy = new CosDictionary();
-        foreach (var (key, value) in dictionary.Entries)
-        {
-            copy[key] = Encrypt(value, encryption);
-        }
-
-        return copy;
-    }
 
     /// <summary>Declares Adobe extension level 8 (AES-256) in the catalog, as Acrobat does for 1.7 files.</summary>
     private static CosDictionary WithExtensionLevel(CosDictionary catalog)

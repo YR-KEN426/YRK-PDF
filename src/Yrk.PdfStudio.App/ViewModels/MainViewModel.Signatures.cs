@@ -163,6 +163,12 @@ public sealed partial class MainViewModel
             return;
         }
 
+        var (confirmed, password) = ConfirmPassword(Core.Pdf.Security.PdfPermissions.FillForms | Core.Pdf.Security.PdfPermissions.Annotate, "sign it");
+        if (!confirmed)
+        {
+            return;
+        }
+
         var targetPath = _dialogs.PickSavePdfFile(
             Path.GetFileNameWithoutExtension(document.FilePath) + " (signed).pdf", Path.GetDirectoryName(document.FilePath), "Save the signed document");
         if (targetPath is null)
@@ -197,7 +203,8 @@ public sealed partial class MainViewModel
                     TimestampAuthority: options.TimestampUrl is { } url ? new HttpTimestampAuthority(url) : null,
                     SigningTime: signingTime,
                     Certification: options.Certification,
-                    RevocationSource: options.LongTermValidation ? new HttpRevocationSource() : null);
+                    RevocationSource: options.LongTermValidation ? new HttpRevocationSource() : null,
+                    Password: password);
                 return await PdfSigner.SignAsync(input, request, cancellationToken);
             });
         if (saved is not null)
