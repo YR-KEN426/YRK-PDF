@@ -82,6 +82,30 @@ public sealed class AnnotationTests : IDisposable
     }
 
     [Fact]
+    public async Task A_line_is_an_arrow_without_its_head()
+    {
+        static bool IsRed(PdfBitmap bitmap, int x, int y)
+        {
+            var i = (y * bitmap.Stride) + (x * 4);
+            return bitmap.Pixels[i + 2] > 150 && bitmap.Pixels[i] < 150;
+        }
+
+        await using var document = await _engine.OpenAsync(SamplePath);
+        var (start, end) = (new NormalizedPoint(0.2, 0.8), new NormalizedPoint(0.6, 0.8));
+        await document.AddAnnotationAsync(0, new PdfArrowSpec(start, end, 1, Red, Head: false));
+        await document.AddAnnotationAsync(1, new PdfArrowSpec(start, end, 1, Red));
+        var (width, height) = (1190, 1684);
+        var line = await document.RenderPageAsync(0, width, height);
+        var arrow = await document.RenderPageAsync(1, width, height);
+
+        var (x, y) = ((int)(0.6 * width), (int)(0.8 * height));
+        Assert.True(IsRed(line, x - 40, y) || IsRed(line, x - 40, y - 1), "expected the line itself");
+        var beside = Enumerable.Range(3, 6).Select(d => (X: x - (d * 2), Y: y - d)).ToList(); // Along one side of the head, clear of the line.
+        Assert.DoesNotContain(beside, p => IsRed(line, p.X, p.Y));
+        Assert.Contains(beside, p => IsRed(arrow, p.X, p.Y));
+    }
+
+    [Fact]
     public async Task Edits_and_removes_annotations_by_id()
     {
         await using var document = await _engine.OpenAsync(SamplePath);

@@ -35,7 +35,7 @@ public partial class MainWindow : Window
         // Alt + the menu's letter opens it, as in Office.
         foreach (var (key, button, open) in new (Key, Button, RoutedEventHandler)[]
         {
-            (Key.F, FileMenuButton, OnFileMenuClick), (Key.V, ViewMenuButton, OnViewMenuClick), (Key.T, ToolsMenuButton, OnToolsButtonClick),
+            (Key.F, FileMenuButton, OnFileMenuClick), (Key.V, ViewMenuButton, OnViewMenuClick), (Key.I, InsertMenuButton, OnInsertMenuClick), (Key.T, ToolsMenuButton, OnToolsButtonClick),
             (Key.S, SettingsMenuButton, OnSettingsButtonClick), (Key.H, HelpMenuButton, OnHelpButtonClick),
         })
         {
@@ -1350,6 +1350,66 @@ public partial class MainWindow : Window
         menu.Items.Add(scales);
         menu.IsOpen = true;
         e.Handled = true;
+    }
+
+    /// <summary>Everything that can be added to a page, in one place: shortcuts to the tools on the tabs.</summary>
+    private void OnInsertMenuClick(object sender, RoutedEventArgs e)
+    {
+        var open = _viewModel.HasDocument;
+        var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = PlacementMode.Bottom };
+
+        MenuItem Item(string header, Action action)
+        {
+            var item = new MenuItem { Header = header, IsEnabled = open };
+            item.Click += (_, _) => action();
+            return item;
+        }
+
+        MenuItem Tool(string header, AnnotationTool tool) => Item(header, () =>
+        {
+            CommentTab.IsChecked = true;
+            _viewModel.ChooseDrawingTool(tool);
+        });
+
+        menu.Items.Add(Item("Text", () =>
+        {
+            FillSignTab.IsChecked = true;
+            _viewModel.AddTextCommand.Execute(null);
+        }));
+        menu.Items.Add(Item("Picture…", () =>
+        {
+            FillSignTab.IsChecked = true;
+            _viewModel.AddPictureCommand.Execute(null);
+        }));
+        var symbols = new MenuItem { Header = "Symbol", IsEnabled = open };
+        foreach (var symbol in MainViewModel.Symbols)
+        {
+            var item = new MenuItem { Header = symbol, Tag = UiTranslator.KeepText, FontFamily = new FontFamily(MainViewModel.SymbolFont), FontSize = 16 };
+            item.Click += (_, _) => _viewModel.PlaceSymbol(symbol);
+            symbols.Items.Add(item);
+        }
+
+        menu.Items.Add(symbols);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Sign", () =>
+        {
+            FillSignTab.IsChecked = true;
+            Dispatcher.BeginInvoke(() => OnSignButtonClick(SignButton, new RoutedEventArgs()), DispatcherPriority.Loaded);
+        }));
+        menu.Items.Add(Item("Digital signature", () => _viewModel.DigitalSignCommand.Execute(null)));
+        menu.Items.Add(Item("Rubber stamp", () => _viewModel.StampCommand.Execute(null)));
+        menu.Items.Add(Item("Certified copy", () => _viewModel.CertifiedCopyCommand.Execute(null)));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Tool("Line", AnnotationTool.Line));
+        menu.Items.Add(Tool("Arrow", AnnotationTool.Arrow));
+        menu.Items.Add(Tool("Rectangle", AnnotationTool.Rectangle));
+        menu.Items.Add(Tool("Ellipse", AnnotationTool.Ellipse));
+        menu.Items.Add(Tool("Pen", AnnotationTool.Pen));
+        menu.Items.Add(Tool("Note", AnnotationTool.Note));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Insert pages from file…", () => OnInsertPages(sender, e)));
+        menu.Items.Add(Item("Watermark, header and page numbers…", () => _viewModel.PageMarksCommand.Execute(null)));
+        menu.IsOpen = true;
     }
 
     private void OnToolsButtonClick(object sender, RoutedEventArgs e)

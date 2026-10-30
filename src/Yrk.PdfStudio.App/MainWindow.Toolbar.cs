@@ -12,9 +12,9 @@ namespace Yrk.PdfStudio.App;
 public partial class MainWindow
 {
     private const double SearchWidth = 220;
-    private const double CompactSearchWidth = 130;
+    private const double CompactSearchWidth = 100;
     private const double ZoomWidth = 104;
-    private const double CompactZoomWidth = 80;
+    private const double CompactZoomWidth = 72;
 
     private double _labelsWidth;
     private bool _fitQueued;
@@ -52,7 +52,7 @@ public partial class MainWindow
 
     /// <summary>What the compact row leaves out: the words of Open and Save, and the arrows of the menus.</summary>
     private IEnumerable<UIElement> Collapsible() =>
-        new[] { FileMenuButton, ViewMenuButton, ToolsMenuButton, SettingsMenuButton, HelpMenuButton }
+        new[] { FileMenuButton, ViewMenuButton, InsertMenuButton, ToolsMenuButton, SettingsMenuButton, HelpMenuButton }
             .Select(b => ((Panel)b.Content).Children[^1])
             .Append(OpenLabel)
             .Append(SaveLabel);

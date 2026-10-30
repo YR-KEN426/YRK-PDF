@@ -301,6 +301,13 @@
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
                         </StackPanel>
                     </Button>
+                    <Button x:Name="InsertMenuButton" Style="{StaticResource ToolbarButton}" Click="OnInsertMenuClick"
+                            ToolTip="Insert: text, picture, symbol, signature, lines and shapes (Alt+I)" AutomationProperties.Name="Insert">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Insert" Margin="2,0,4,0" VerticalAlignment="Center" />
+                            <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="ToolsMenuButton" Style="{StaticResource ToolbarButton}" Click="OnToolsButtonClick"
                             ToolTip="Combine, split, compress, images to PDF (Alt+T)" AutomationProperties.Name="Tools">
                         <StackPanel Orientation="Horizontal">
@@ -522,6 +529,13 @@
                             <StackPanel>
                                 <Path Data="M1,15 L15,1 M8,1 L15,1 L15,8" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4" Width="16" Height="16" Margin="0,1" />
                                 <TextBlock Style="{StaticResource ToolLabel}" Text="Arrow" />
+                            </StackPanel>
+                        </RadioButton>
+                        <RadioButton GroupName="Tool" Style="{StaticResource LabelledTool}" ToolTip="Straight line. Hold Shift for 45° steps." AutomationProperties.Name="Line"
+                                     IsChecked="{Binding CurrentTool, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static vm:AnnotationTool.Line}}">
+                            <StackPanel>
+                                <Path Data="M1,15 L15,1" Stroke="{StaticResource TextBrush}" StrokeThickness="1.4" Width="16" Height="16" Margin="0,1" />
+                                <TextBlock Style="{StaticResource ToolLabel}" Text="Line" />
                             </StackPanel>
                         </RadioButton>
                         <Button Style="{StaticResource ToolbarButton}" Command="{Binding AddTextCommand}" Margin="2,0,0,0" Padding="6,3"

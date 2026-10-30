@@ -537,7 +537,11 @@ internal sealed partial class PdfiumDocument
                     var start = ToPage(arrow.Start);
                     var end = ToPage(arrow.End);
                     AddStroke(annot, [start, end], bounds);
-                    AddStroke(annot, ArrowHead(start, end, arrow.Width), bounds);
+                    if (arrow.Head)
+                    {
+                        AddStroke(annot, ArrowHead(start, end, arrow.Width), bounds);
+                    }
+
                     padding = arrow.Width + 1;
                     PdfiumNative.FPDFAnnot_SetBorder(annot, 0, 0, (float)arrow.Width);
                     break;

@@ -144,8 +144,9 @@ public sealed record PdfInkSpec(IReadOnlyList<IReadOnlyList<NormalizedPoint>> St
 public sealed record PdfShapeSpec(PdfAnnotationKind Kind, NormalizedRect Bounds, double Width, PdfColor Color, string? Contents = null, string? Author = null)
     : PdfAnnotationSpec(Color, Contents, Author);
 
-/// <summary>An arrow from <paramref name="Start"/> to <paramref name="End"/> (stored as ink, which every viewer draws).</summary>
-public sealed record PdfArrowSpec(NormalizedPoint Start, NormalizedPoint End, double Width, PdfColor Color, string? Contents = null, string? Author = null)
+/// <summary>A straight line or an arrow from <paramref name="Start"/> to <paramref name="End"/> (stored as ink, which every viewer draws).</summary>
+/// <param name="Head">Draws the arrowhead at <paramref name="End"/>; false makes a plain line.</param>
+public sealed record PdfArrowSpec(NormalizedPoint Start, NormalizedPoint End, double Width, PdfColor Color, string? Contents = null, string? Author = null, bool Head = true)
     : PdfAnnotationSpec(Color, Contents, Author);
 
 // --- Images to PDF ------------------------------------------------------------------------------

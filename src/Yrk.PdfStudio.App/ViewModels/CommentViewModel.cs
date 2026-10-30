@@ -16,6 +16,7 @@ public enum AnnotationTool
     Rectangle,
     Ellipse,
     Arrow,
+    Line,
     Redact,
     EditText,
     MeasureDistance,

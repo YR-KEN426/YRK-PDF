@@ -49,6 +49,12 @@ public sealed partial class MainViewModel
         get => _currentTool;
         set
         {
+            if (value == AnnotationTool.Highlight && _yellowBeforeDrawing)
+            {
+                _yellowBeforeDrawing = false; // The Insert menu chose black for drawing: the highlighter goes back to yellow.
+                AnnotationColor = Palette[0];
+            }
+
             var leftTextEditing = _currentTool == AnnotationTool.EditText && value != AnnotationTool.EditText;
             if (SetProperty(ref _currentTool, value))
             {
@@ -233,7 +239,10 @@ public sealed partial class MainViewModel
                 page.SetPreview(new EllipseGeometry(ToPoints(page, gesture.Start, point)), null, brush, _strokeWidth);
                 break;
             case AnnotationTool.Arrow:
-                page.SetPreview(ArrowGeometry(ToPoint(page, gesture.Start), ToPoint(page, point), _strokeWidth), null, brush, _strokeWidth);
+                page.SetPreview(ArrowGeometry(ToPoint(page, gesture.Start), ToPoint(page, Constrain(page, gesture.Start, point)), _strokeWidth), null, brush, _strokeWidth);
+                break;
+            case AnnotationTool.Line:
+                page.SetPreview(new LineGeometry(ToPoint(page, gesture.Start), ToPoint(page, Constrain(page, gesture.Start, point))), null, brush, _strokeWidth);
                 break;
             case AnnotationTool.Redact:
                 UpdateRedactionPreview(gesture, point);
@@ -338,8 +347,8 @@ public sealed partial class MainViewModel
                 await AddAnnotationAsync(page, new PdfShapeSpec(kind, Normalize(gesture.Start, point), _strokeWidth, color, Author: Author));
                 break;
 
-            case AnnotationTool.Arrow when !isClick:
-                await AddAnnotationAsync(page, new PdfArrowSpec(gesture.Start, point, _strokeWidth, color, Author: Author));
+            case AnnotationTool.Arrow or AnnotationTool.Line when !isClick:
+                await AddAnnotationAsync(page, new PdfArrowSpec(gesture.Start, Constrain(page, gesture.Start, point), _strokeWidth, color, Author: Author, Head: _currentTool == AnnotationTool.Arrow));
                 break;
 
             case AnnotationTool.Redact when !isClick:

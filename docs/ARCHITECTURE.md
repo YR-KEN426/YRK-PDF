@@ -98,6 +98,7 @@ Windows first: the program should be stable before new platforms or paid distrib
 
 **Pictures on a page** (done: add from a file, the clipboard or a drop; move, resize keeping proportions, delete)
 - Ideas: rotate, opacity, resize without keeping proportions (Shift), and moving or replacing pictures already in the PDF.
+- Done: the Insert menu, straight lines and symbols (vector outlines from Segoe UI Symbol, Windows-only: other platforms need their own font).
 
 **Polish**
 - Dark mode.

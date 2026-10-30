@@ -1296,5 +1296,10 @@
   "Put a picture on a page, then move and resize it": "วางรูปบนหน้า แล้วย้ายและปรับขนาดได้",
   "Put a picture on the page, then move and resize it. Ctrl+V pastes one.": "วางรูปบนหน้า แล้วย้ายและปรับขนาดได้ กด Ctrl+V เพื่อวางรูปที่คัดลอกไว้",
   "Choose a picture": "เลือกรูปภาพ",
-  "Click where the picture should go. Press Esc to cancel.": "คลิกตำแหน่งที่จะวางรูป กด Esc เพื่อยกเลิก"
+  "Click where the picture should go. Press Esc to cancel.": "คลิกตำแหน่งที่จะวางรูป กด Esc เพื่อยกเลิก",
+  "Picture…": "รูปภาพ…",
+  "Symbol": "สัญลักษณ์",
+  "Straight line. Hold Shift for 45° steps.": "เส้นตรง กด Shift ค้างเพื่อให้ไปทีละ 45°",
+  "Insert: text, picture, symbol, signature, lines and shapes (Alt+I)": "แทรก: ข้อความ รูปภาพ สัญลักษณ์ ลายเซ็น เส้น และรูปทรง (Alt+I)",
+  "Click where the symbol should go. Press Esc to cancel.": "คลิกตำแหน่งที่จะวางสัญลักษณ์ กด Esc เพื่อยกเลิก"
 }
