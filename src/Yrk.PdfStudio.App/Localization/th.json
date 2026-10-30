@@ -1290,5 +1290,11 @@
   "Seller phone": "โทรศัพท์ผู้ขาย",
   "Seller postcode": "รหัสไปรษณีย์ผู้ขาย",
   "Seller tax ID": "เลขผู้เสียภาษีของผู้ขาย",
-  "VAT percent": "อัตรา VAT"
+  "VAT percent": "อัตรา VAT",
+  "Add a picture": "เพิ่มรูปภาพ",
+  "Add picture": "เพิ่มรูปภาพ",
+  "Put a picture on a page, then move and resize it": "วางรูปบนหน้า แล้วย้ายและปรับขนาดได้",
+  "Put a picture on the page, then move and resize it. Ctrl+V pastes one.": "วางรูปบนหน้า แล้วย้ายและปรับขนาดได้ กด Ctrl+V เพื่อวางรูปที่คัดลอกไว้",
+  "Choose a picture": "เลือกรูปภาพ",
+  "Click where the picture should go. Press Esc to cancel.": "คลิกตำแหน่งที่จะวางรูป กด Esc เพื่อยกเลิก"
 }

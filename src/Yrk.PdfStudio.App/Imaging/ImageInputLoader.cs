@@ -51,6 +51,21 @@ internal static class ImageInputLoader
         return new PdfBitmapInput(ImageConversion.ToPdfImage(upright));
     }
 
+    /// <summary>The picture in a file, turned upright as its EXIF orientation says.</summary>
+    /// <exception cref="NotSupportedException">The file is not an image Windows can read.</exception>
+    public static BitmapSource LoadUpright(string path)
+    {
+        try
+        {
+            var frame = BitmapDecoder.Create(new MemoryStream(File.ReadAllBytes(path)), BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+            return ApplyOrientation(frame, ReadOrientation(frame));
+        }
+        catch (Exception ex) when (ex is NotSupportedException or FileFormatException)
+        {
+            throw new NotSupportedException(Loc.F("\"{0}\" is not an image format Windows can read.", Path.GetFileName(path)), ex);
+        }
+    }
+
     private static int ReadOrientation(BitmapFrame frame)
     {
         try

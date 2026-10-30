@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
@@ -168,7 +168,7 @@ public sealed partial class MainViewModel
     /// <summary>A bookmark title cut to a length that keeps the full path well under Windows' limit.</summary>
     private static string Shorten(string title)
     {
-        title = title.Replace(": ", " - ", StringComparison.Ordinal); // "Chapter 1: Introduction": a colon cannot be in a file name.
+        title = title.Replace(": ", " - ", StringComparison.Ordinal); // A colon cannot be in a file name.
         return title.Length <= 80 ? title : title[..80].TrimEnd();
     }
 

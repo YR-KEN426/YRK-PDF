@@ -65,6 +65,8 @@ public partial class MainWindow
             Loc.T("Edit text"), Loc.T("Change words in the PDF itself, Thai included")),
         new("addtext", "edit", "\uE8D2",
             Loc.T("Add text"), Loc.T("Type anywhere on a page, in the font and size you like")),
+        new("addpicture", "edit", "\uEB9F",
+            Loc.T("Add a picture"), Loc.T("Put a picture on a page, then move and resize it")),
         new("fill", "edit", "\uE73A",
             Loc.T("Fill in a form"), Loc.T("Type in the boxes of a form, or make your own form")),
         new("sign", "edit", "\uE76D",
@@ -261,6 +263,10 @@ public partial class MainWindow
             case "addtext":
                 FillSignTab.IsChecked = true;
                 tab.AddTextCommand.Execute(null);
+                break;
+            case "addpicture":
+                FillSignTab.IsChecked = true;
+                tab.AddPictureCommand.Execute(null);
                 break;
             case "fill":
                 FillSignTab.IsChecked = true;

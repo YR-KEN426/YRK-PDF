@@ -567,6 +567,13 @@
                                 <TextBlock Text="Add text" Margin="6,0,2,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
+                        <Button Style="{StaticResource ToolbarButton}" Command="{Binding AddPictureCommand}"
+                                ToolTip="Put a picture on the page, then move and resize it. Ctrl+V pastes one." AutomationProperties.Name="Add picture">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xEB9F;" />
+                                <TextBlock Text="Add picture" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                         <Button x:Name="SignButton" Style="{StaticResource ToolbarButton}" Click="OnSignButtonClick"
                                 ToolTip="Place your signature" AutomationProperties.Name="Sign">
                             <StackPanel Orientation="Horizontal">

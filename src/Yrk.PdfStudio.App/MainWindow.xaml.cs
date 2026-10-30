@@ -332,6 +332,13 @@ public partial class MainWindow : Window
             }
         }
 
+        // Ctrl+V with a picture on the clipboard, outside text boxes: it goes on the current page.
+        if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control && _viewModel.HasDocument && !IsTyping() && _viewModel.PastePicture())
+        {
+            e.Handled = true;
+            return;
+        }
+
         // As in Acrobat: hold Space to drag the page with the hand, H to keep the hand tool on.
         if (_viewModel.HasDocument && Keyboard.Modifiers == ModifierKeys.None && !IsTyping())
         {
@@ -1503,7 +1510,7 @@ public partial class MainWindow : Window
 
     private void OnPreviewDragOver(object sender, DragEventArgs e)
     {
-        if (GetDroppedPdf(e.Data) is not null)
+        if (GetDroppedPdf(e.Data) is not null || GetDroppedPicture(e.Data) is not null)
         {
             e.Effects = DragDropEffects.Copy;
             e.Handled = true;
@@ -1512,6 +1519,14 @@ public partial class MainWindow : Window
 
     private async void OnPreviewDrop(object sender, DragEventArgs e)
     {
+        if (GetDroppedPicture(e.Data) is { } picture)
+        {
+            e.Handled = true;
+            Activate();
+            _viewModel.PlacePictureFile(picture);
+            return;
+        }
+
         var paths = GetDroppedFiles(e.Data);
         if (paths.Count > 0)
         {
@@ -1525,6 +1540,12 @@ public partial class MainWindow : Window
     }
 
     private static string? GetDroppedPdf(IDataObject data) => GetDroppedFiles(data).FirstOrDefault();
+
+    /// <summary>A picture file dropped on an open document (when there is nothing to open among the files).</summary>
+    private string? GetDroppedPicture(IDataObject data) =>
+        _viewModel.HasDocument && GetDroppedFiles(data).Count == 0 && data.GetData(DataFormats.FileDrop) is string[] files
+            ? files.FirstOrDefault(Imaging.PictureImaging.IsPicture)
+            : null;
 
     private static List<string> GetDroppedFiles(IDataObject data) =>
         data.GetData(DataFormats.FileDrop) is string[] files

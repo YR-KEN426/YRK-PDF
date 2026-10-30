@@ -10,10 +10,11 @@ public enum PlacedItemKind
     Signature,
     Stamp,
     Text,
+    Picture,
 }
 
 /// <summary>
-/// Something the user added to a page (signature, stamp or text). It stays an overlay that can be
+/// Something the user added to a page (signature, stamp, text or picture). It stays an overlay that can be
 /// moved, resized and undone until the document is saved, when it is drawn into the page.
 /// Geometry is in PDF points of the displayed page; <see cref="Bounds"/> is the page-relative form.
 /// </summary>

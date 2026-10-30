@@ -96,6 +96,9 @@ Windows first: the program should be stable before new platforms or paid distrib
 **Scans** (done: straighten, trim dark edges, delete blank pages; split by bookmarks)
 - Scanner input (TWAIN/WIA) straight into a PDF.
 
+**Pictures on a page** (done: add from a file, the clipboard or a drop; move, resize keeping proportions, delete)
+- Ideas: rotate, opacity, resize without keeping proportions (Shift), and moving or replacing pictures already in the PDF.
+
 **Polish**
 - Dark mode.
 

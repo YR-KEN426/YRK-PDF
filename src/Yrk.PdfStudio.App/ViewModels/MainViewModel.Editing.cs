@@ -123,7 +123,8 @@ public sealed partial class MainViewModel
         }
 
         var image = placement.Image!;
-        var (width, height) = placement.NaturalSize ?? DefaultSignatureSize(image);
+        var (width, height) = placement.NaturalSize
+            ?? (placement.Kind == PlacedItemKind.Picture ? PictureImaging.FitToPage(image, page.WidthPoints, page.HeightPoints) : DefaultSignatureSize(image));
         if (placement.EveryPage)
         {
             // The same spot (as a share of the page) on every page; one Undo takes them all off.
