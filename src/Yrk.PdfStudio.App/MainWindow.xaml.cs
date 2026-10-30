@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         Attach(viewModel);
         InitializeHome();
         InitializeTopBar();
+        InitializeAmountHint();
         // Alt + the menu's letter opens it, as in Office.
         foreach (var (key, button, open) in new (Key, Button, RoutedEventHandler)[]
         {
@@ -1381,6 +1382,7 @@ public partial class MainWindow : Window
             FillSignTab.IsChecked = true;
             _viewModel.AddPictureCommand.Execute(null);
         }));
+        menu.Items.Add(Item("Amount in words…", () => _viewModel.AmountWordsCommand.Execute(null)));
         var symbols = new MenuItem { Header = "Symbol", IsEnabled = open };
         foreach (var symbol in MainViewModel.Symbols)
         {

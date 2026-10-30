@@ -61,6 +61,22 @@ public static partial class AmountInWords
     }
 
     /// <summary>
+    /// Whether a box holds just an amount, worth offering in words: not a phone number, a code or a tax ID, which
+    /// start with 0 or run long.
+    /// </summary>
+    public static bool LooksLikeAmount(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || !TryParse(text, out var amount) || amount <= 0)
+        {
+            return false;
+        }
+
+        var digits = new string(text.Where(char.IsDigit).ToArray());
+        var whole = text.Trim().Split('.')[0].Count(char.IsDigit);
+        return whole <= 12 && !(digits.Length > 1 && digits[0] is '0' or '๐' && whole > 1);
+    }
+
+    /// <summary>
     /// The amount to write out in a text being typed: the selection when it is one, else the whole text when it is
     /// one, else the number at or just before the caret ("รวม 1,500" → "1,500").
     /// </summary>

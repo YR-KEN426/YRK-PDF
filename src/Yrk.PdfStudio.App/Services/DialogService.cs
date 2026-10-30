@@ -161,6 +161,12 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog() == true ? dialog.Invoice : null;
     }
 
+    public string? AskAmountWords(bool canPlace)
+    {
+        var dialog = new AmountWordsDialog(canPlace) { Owner = Owner };
+        return dialog.ShowDialog() == true ? dialog.WordsToPlace : null;
+    }
+
     public ScanCleanupChoice? AskScanCleanup(IReadOnlyList<int> tilted, IReadOnlyList<int> edged, IReadOnlyList<int> blank)
     {
         var dialog = new ScanCleanupDialog(tilted, edged, blank) { Owner = Owner };

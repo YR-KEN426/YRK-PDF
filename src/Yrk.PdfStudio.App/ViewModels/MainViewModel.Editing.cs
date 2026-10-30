@@ -115,7 +115,9 @@ public sealed partial class MainViewModel
         {
             var item = PlacedItemViewModel.CreateText(page.Index, page.WidthPoints, page.HeightPoints, _newTextStyle);
             var lineHeight = TextRendering.Measure("Ag", _newTextStyle).Height;
-            item.Bounds = item.ToBounds(pointX, pointY - (lineHeight / 2), 40, lineHeight);
+            var textWidth = placement.Words is { } words ? TextRendering.Measure(words, _newTextStyle).Width + (2 * TextRendering.Padding) : 40;
+            item.Text = placement.Words ?? string.Empty;
+            item.Bounds = item.ToBounds(pointX, pointY - (lineHeight / 2), textWidth, lineHeight);
             AttachItem(item); // Recorded for undo once it has text (see CommitText).
             SelectItem(item);
             item.IsEditing = true;
@@ -206,6 +208,13 @@ public sealed partial class MainViewModel
             SelectItem(item);
             item.IsEditing = true;
         }
+    }
+
+    /// <summary>Changes the words of added text that is not being edited, as one step for undo.</summary>
+    public void ReplaceText(PlacedItemViewModel item, string text)
+    {
+        item.IsEditing = true;
+        CommitText(item, text);
     }
 
     public void CommitText(PlacedItemViewModel item, string text)
@@ -853,7 +862,7 @@ public sealed partial class MainViewModel
 
     private sealed record Placement(
         PlacedItemKind Kind, BitmapSource? Image, (double Width, double Height)? NaturalSize, string Hint, SignatureArt? Art = null, bool LockAfterwards = false,
-        RenderedStamp? Stamp = null, bool EveryPage = false);
+        RenderedStamp? Stamp = null, bool EveryPage = false, string? Words = null);
 
     private sealed record ViewState(ZoomMode ZoomMode, double Zoom, double ScrollOffset, int PageIndex, int TopPage, double TopFraction);
 }

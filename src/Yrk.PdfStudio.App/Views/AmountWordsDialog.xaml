@@ -1,0 +1,39 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.AmountWordsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Amount in words"
+        Width="520"
+        SizeToContent="Height"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}"
+        FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <StackPanel Margin="20">
+        <TextBlock Text="Amount in words" FontSize="16" FontWeight="SemiBold" />
+        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,12"
+                   Text="Type an amount, for example 12,500.50, then copy the words or put them on the page." />
+        <TextBox x:Name="AmountInput" Padding="6,5" FontSize="15" AutomationProperties.Name="Amount" TextChanged="OnAmountChanged" />
+        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" Margin="0,6,0,0" Visibility="Collapsed"
+                   Text="Enter an amount in numbers." />
+
+        <TextBlock Text="Thai" Margin="0,14,0,4" Foreground="{StaticResource SecondaryTextBrush}" />
+        <TextBox x:Name="ThaiWords" IsReadOnly="True" TextWrapping="Wrap" Padding="6,5" AutomationProperties.Name="Thai words" />
+        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+            <Button x:Name="CopyThai" Content="Copy" Style="{StaticResource SecondaryButton}" IsEnabled="False" Click="OnCopyThai" AutomationProperties.Name="Copy Thai words" />
+            <Button x:Name="PlaceThai" Content="Put on the page" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" IsEnabled="False" Click="OnPlaceThai" AutomationProperties.Name="Put Thai words on the page" />
+        </StackPanel>
+
+        <TextBlock Text="English" Margin="0,14,0,4" Foreground="{StaticResource SecondaryTextBrush}" />
+        <TextBox x:Name="EnglishWords" IsReadOnly="True" TextWrapping="Wrap" Padding="6,5" AutomationProperties.Name="English words" />
+        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+            <Button x:Name="CopyEnglish" Content="Copy" Style="{StaticResource SecondaryButton}" IsEnabled="False" Click="OnCopyEnglish" AutomationProperties.Name="Copy English words" />
+            <Button x:Name="PlaceEnglish" Content="Put on the page" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" IsEnabled="False" Click="OnPlaceEnglish" AutomationProperties.Name="Put English words on the page" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Close" IsCancel="True" Style="{StaticResource SecondaryButton}" />
+        </StackPanel>
+    </StackPanel>
+</Window>

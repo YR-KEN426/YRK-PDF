@@ -15,7 +15,8 @@ namespace Yrk.PdfStudio.App;
 public partial class MainWindow
 {
     /// <param name="NeedsDocument">False for tools that pick their own files (combine, images to PDF, many files).</param>
-    private sealed record HomeTool(string Id, string Category, string Glyph, string Title, string Text, bool NeedsDocument = true);
+    /// <param name="Accounting">Shown in the Accounting group too, besides its own group.</param>
+    private sealed record HomeTool(string Id, string Category, string Glyph, string Title, string Text, bool NeedsDocument = true, bool Accounting = false);
 
     private static readonly Dictionary<string, Color> CategoryColors = new()
     {
@@ -24,6 +25,7 @@ public partial class MainWindow
         ["edit"] = Color.FromRgb(0x7B, 0x4F, 0xC9),
         ["drawings"] = Color.FromRgb(0x00, 0x89, 0x7B),
         ["security"] = Color.FromRgb(0xC6, 0x28, 0x28),
+        ["accounting"] = Color.FromRgb(0x2E, 0x7D, 0x32),
     };
 
     private string _homeCategory = "all";
@@ -38,16 +40,16 @@ public partial class MainWindow
         new("pages", "organize", "\uE7C3",
             Loc.T("Organize pages"), Loc.T("Turn, delete, move, insert and extract pages")),
         new("scan", "organize", "",
-            Loc.T("Clean up scans"), Loc.T("Straighten tilted pages, trim dark edges, delete blank pages")),
+            Loc.T("Clean up scans"), Loc.T("Straighten tilted pages, trim dark edges, delete blank pages"), Accounting: true),
         new("images", "organize", "\uEB9F",
             Loc.T("Images to PDF"), Loc.T("Make one PDF from photos and scans (JPG, PNG)"), NeedsDocument: false),
         new("batch", "organize", "\uE762",
-            Loc.T("Process many files"), Loc.T("Compress, convert or mark a whole folder at once"), NeedsDocument: false),
+            Loc.T("Process many files"), Loc.T("Compress, convert or mark a whole folder at once"), NeedsDocument: false, Accounting: true),
 
         new("word", "convert", "\uE8A5",
             Loc.T("PDF to Word"), Loc.T("Editable text with tables and pictures in place")),
         new("excel", "convert", "\uE80A",
-            Loc.T("PDF to Excel"), Loc.T("Tables as cells; amounts as numbers you can add up")),
+            Loc.T("PDF to Excel"), Loc.T("Tables as cells; amounts as numbers you can add up"), Accounting: true),
         new("powerpoint", "convert", "\uE7F4",
             Loc.T("PDF to PowerPoint"), Loc.T("One slide per page, looking just like the PDF")),
         new("pictures", "convert", "\uE722",
@@ -55,11 +57,13 @@ public partial class MainWindow
         new("compress", "convert", "\uE7B8",
             Loc.T("Compress PDF"), Loc.T("Make the file smaller for email and chat")),
         new("ocr", "convert", "\uE8FF",
-            Loc.T("Recognize text (OCR)"), Loc.T("Make scans searchable and copyable, Thai included")),
+            Loc.T("Recognize text (OCR)"), Loc.T("Make scans searchable and copyable, Thai included"), Accounting: true),
         new("pdfa", "convert", "\uE81C",
             Loc.T("PDF/A for archiving"), Loc.T("The long-term archive format many offices ask for")),
-        new("etax", "convert", "",
+        new("etax", "accounting", "\uE8C7",
             Loc.T("e-Tax Invoice"), Loc.T("Make a tax invoice as PDF/A-3 with the Revenue Department's XML"), NeedsDocument: false),
+        new("amount", "accounting", "\uE8EF",
+            Loc.T("Amount in words"), Loc.T("Turn 12,500.50 into words in Thai and English"), NeedsDocument: false),
 
         new("edittext", "edit", "\uE8AC",
             Loc.T("Edit text"), Loc.T("Change words in the PDF itself, Thai included")),
@@ -72,11 +76,11 @@ public partial class MainWindow
         new("sign", "edit", "\uE76D",
             Loc.T("Sign"), Loc.T("Place your handwritten signature")),
         new("digital", "edit", "\uE8D7",
-            Loc.T("Digital signature"), Loc.T("Sign with a digital ID; later changes show")),
+            Loc.T("Digital signature"), Loc.T("Sign with a digital ID; later changes show"), Accounting: true),
         new("certified", "edit", "\uEB95",
-            Loc.T("Certified true copy"), Loc.T("Stamp \"สำเนาถูกต้อง\" with your signature")),
+            Loc.T("Certified true copy"), Loc.T("Stamp \"สำเนาถูกต้อง\" with your signature"), Accounting: true),
         new("stamp", "edit", "",
-            Loc.T("Rubber stamp"), Loc.T("Approved, received, paid, with the Thai date, or your company stamp")),
+            Loc.T("Rubber stamp"), Loc.T("Approved, received, paid, with the Thai date, or your company stamp"), Accounting: true),
         new("comment", "edit", "\uE7E6",
             Loc.T("Highlight and comment"), Loc.T("Highlight, underline, notes and drawing")),
         new("marks", "edit", "\uE8A1",
@@ -118,7 +122,7 @@ public partial class MainWindow
     private void BuildHomeCards()
     {
         HomeCards.Children.Clear();
-        foreach (var tool in HomeTools().Where(t => _homeCategory == "all" || t.Category == _homeCategory))
+        foreach (var tool in HomeTools().Where(t => _homeCategory == "all" || t.Category == _homeCategory || (t.Accounting && _homeCategory == "accounting")).OrderBy(t => _homeCategory == t.Category ? 0 : 1))
         {
             var color = CategoryColors[tool.Category];
             var icon = new Border
@@ -209,6 +213,9 @@ public partial class MainWindow
                 return;
             case "etax":
                 await tab.ETaxInvoiceCommand.ExecuteAsync(null);
+                return;
+            case "amount":
+                tab.AmountWordsCommand.Execute(null);
                 return;
         }
 

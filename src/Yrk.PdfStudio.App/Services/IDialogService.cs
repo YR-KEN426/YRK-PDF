@@ -86,6 +86,9 @@ public interface IDialogService
     /// <summary>The e-Tax Invoice form; null when cancelled.</summary>
     Yrk.PdfStudio.Core.Pdf.ETax.TaxInvoice? AskETaxInvoice(ETaxSettings settings);
 
+    /// <summary>The amount in words window; returns the words to put on the page, or null.</summary>
+    string? AskAmountWords(bool canPlace);
+
     /// <summary>What to fix of what the scan check found; null when cancelled.</summary>
     ScanCleanupChoice? AskScanCleanup(IReadOnlyList<int> tilted, IReadOnlyList<int> edged, IReadOnlyList<int> blank);
 

@@ -6,6 +6,22 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class AmountInWordsTests
 {
     [Theory]
+    [InlineData("10000", true)]
+    [InlineData("12,500.50", true)]
+    [InlineData("0.50", true)]
+    [InlineData("฿1,000", true)]
+    [InlineData("๑๐๐", true)]
+    [InlineData("0812345678", false)] // A phone number.
+    [InlineData("0105536000313", false)] // A tax ID.
+    [InlineData("1104599001276", false)] // 13 digits.
+    [InlineData("0", false)]
+    [InlineData("ค่าเช่า", false)]
+    [InlineData("รวม 1,500", false)]
+    [InlineData("", false)]
+    public void Knows_a_box_that_holds_just_an_amount(string text, bool expected) =>
+        Assert.Equal(expected, AmountInWords.LooksLikeAmount(text));
+
+    [Theory]
     [InlineData("10000", "หนึ่งหมื่นบาทถ้วน")]
     [InlineData("0", "ศูนย์บาทถ้วน")]
     [InlineData("1", "หนึ่งบาทถ้วน")]

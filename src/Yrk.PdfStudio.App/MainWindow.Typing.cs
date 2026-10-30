@@ -43,7 +43,12 @@ public partial class MainWindow
             return;
         }
 
-        var words = (sender as MenuItem)?.Tag as string == "en" ? AmountInWords.English(found.Amount) : AmountInWords.Thai(found.Amount);
+        WriteAmountInWords(box, found, (sender as MenuItem)?.Tag is "en");
+    }
+
+    private static void WriteAmountInWords(TextBox box, (int Start, int Length, decimal Amount) found, bool english)
+    {
+        var words = english ? AmountInWords.English(found.Amount) : AmountInWords.Thai(found.Amount);
 
         // Through the selection, so Ctrl+Z in the box brings the number back.
         box.Focus();
