@@ -107,12 +107,31 @@ Windows first: the program should be stable before new platforms or paid distrib
 **Distribution** (on hold until the program is stable)
 - Code signing; or the Microsoft Store, which may avoid SmartScreen warnings at lower cost (check its
   current terms first).
-- Windows on ARM (OCR is not supported there yet).
 
-**Later platforms**
-- Android: a small app to read, fill in, sign and stamp PDFs, with the same Thai support, reusing
-  `Yrk.PdfStudio.Core`.
-- Mac (Avalonia UI on the same core), once sponsorship covers the Apple Developer fee.
+### Platforms (each step only when the one before is stable, and as funding allows)
+
+The Windows x64 program comes first and must be finished and stable: few bug reports between releases,
+the guide complete, the update path proven. `Yrk.PdfStudio.Core` is plain .NET (no WPF), so the PDF work,
+Thai text, signing and e-Tax carry over to every platform and each fix there helps all of them; only the
+screens are written again.
+
+| Step | Platform | What it needs | Cost (estimate; check current prices) |
+|---|---|---|---|
+| 0 | Windows x64 (now) | Stability; code signing or the Microsoft Store against SmartScreen | A signing certificate yearly, or the Store's developer fee |
+| 1 | Windows on ARM | arm64 builds of PDFium and of the OCR engine (Tesseract); a test device (Snapdragon laptop) | Mostly time; a test device |
+| 2 | Android | A phone app to read, fill in, sign, stamp and make e-Tax Invoices; PDFium for Android | Google Play fee (one-off); test phones |
+| 3 | macOS | A desktop app on the same core; PDFium and Tesseract for Apple Silicon; signing and notarizing | Apple Developer Program (yearly) and a Mac |
+| 4 | iOS / iPadOS | Phone and tablet app like Android; shares the Apple membership and much of the macOS work | Same Apple membership; a test iPhone/iPad |
+
+Notes:
+- The WPF screens stay for Windows. A cross-platform UI (Avalonia, or .NET MAUI for the phones) is chosen when
+  step 2 or 3 starts, so Android, macOS and iOS can share one set of screens.
+- Keep the core free of WPF: anything that shapes text or draws pictures for PDFs goes behind a small
+  interface (as `IPdfImageCodec` and `IPdfAFontSource` already are), so each platform supplies its own.
+  Text shaping (`TextShaper`, WPF today) is the main piece to move behind such an interface.
+- Offline-first, no tracking and free on every platform, app stores included.
+- Funding: sponsorship (GitHub Sponsors, donations) pays the store and Apple fees and the test devices;
+  a platform starts only when its yearly costs are covered.
 
 ### Phase 2 design notes
 
