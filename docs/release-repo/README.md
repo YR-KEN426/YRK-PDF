@@ -2,13 +2,15 @@
 
 (เดิมชื่อ YRK Easy PDF / formerly YRK Easy PDF)
 
-โปรแกรม PDF ฟรีสำหรับ Windows ทำในประเทศไทย อ่าน กรอกฟอร์ม เซ็นชื่อ จัดการหน้า แปลง PDF เป็น Word / Excel / PowerPoint
+โปรแกรม PDF ฟรีสำหรับ Windows ทำในประเทศไทย อ่าน กรอกฟอร์ม แก้ข้อความ เซ็นชื่อ จัดการหน้า แปลง PDF เป็น Word / Excel / PowerPoint
 อ่านข้อความจากภาพสแกน (OCR ภาษาไทยและอังกฤษ) และเปิดแบบ AutoCAD (DWG/DXF) ได้ในโปรแกรมเดียว
+มีเครื่องมือสำหรับงานบัญชี: ออกใบกำกับภาษีอิเล็กทรอนิกส์ (e-Tax Invoice) จำนวนเงินเป็นตัวหนังสือ ตรายางพร้อมวันที่ พ.ศ. และจัดหน้าสแกน
 ฟรีทุกความสามารถ ใช้ในบริษัทได้ ไม่มีโฆษณา ไม่ต้องสมัครบัญชี เอกสารอยู่ในเครื่องของคุณ ไม่ถูกส่งให้ AI หรือคลาวด์
 
-A free PDF program for Windows, made in Thailand: read, fill in and sign PDFs, organise pages, convert PDF to
-Word, Excel and PowerPoint, recognise scanned text (Thai and English) and open AutoCAD drawings. Every
-feature is free, also for business use. No ads, no account; documents stay on your computer and are never
+A free PDF program for Windows, made in Thailand: read, fill in, edit and sign PDFs, organise pages, convert
+PDF to Word, Excel and PowerPoint, recognise scanned text (Thai and English) and open AutoCAD drawings. For
+accounting work it makes e-Tax Invoices, writes amounts in words, stamps documents with the Thai date and
+cleans up scans. Every feature is free, also for business use. No ads, no account; documents stay on your computer and are never
 sent to an AI or cloud service.
 
 ## ดาวน์โหลด / Download
@@ -42,10 +44,11 @@ key, and the program refuses an update whose signature does not match. The sourc
 
 YRK PDF ฟรีสำหรับทุกคน รวมถึงใช้ในบริษัท และจะฟรีทุกความสามารถต่อไป ถ้าโปรแกรมช่วยให้งานของคุณง่ายขึ้น
 สนับสนุนการพัฒนาได้ที่ [GitHub Sponsors](https://github.com/sponsors/YR-KEN426)
-เงินสนับสนุนใช้เป็นค่าใบรับรองเซ็นโปรแกรมและเวลาพัฒนา ขอบคุณครับ
+เงินสนับสนุนใช้เป็นค่าใบรับรองเซ็นโปรแกรม เวลาพัฒนา และค่าใช้จ่ายสำหรับทำ Platform อื่น (Windows on ARM, Android, macOS, iOS) ขอบคุณครับ
 
 YRK PDF is free for everyone, including businesses, and will stay that way. If it saves you time, you can
-support its development through [GitHub Sponsors](https://github.com/sponsors/YR-KEN426). Thank you!
+support its development through [GitHub Sponsors](https://github.com/sponsors/YR-KEN426): code signing,
+development time, and the costs of other platforms (Windows on ARM, Android, macOS, iOS). Thank you!
 
 ## How it is made
 

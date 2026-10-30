@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>YRK PDF – Free PDF software for Windows</title>
-<meta name="description" content="YRK PDF: read, sign, fill in and create forms, organise pages and open AutoCAD DWG drawings on Windows. Every feature free, also for business use. No ads, no AI services, no tracking.">
+<meta name="description" content="YRK PDF: read, sign, fill in and create forms, organise pages, make Thai e-Tax Invoices and open AutoCAD DWG drawings on Windows. Every feature free, also for business use. No ads, no AI services, no tracking.">
 <link rel="icon" type="image/png" href="{{img:icon.png}}">
 <link rel="alternate" hreflang="th" href="https://yr-ken426.github.io/yrk-easy-pdf-release/">
 <link rel="alternate" hreflang="en" href="https://yr-ken426.github.io/yrk-easy-pdf-release/en/">
@@ -116,10 +116,16 @@
       <h3>Fill in forms, fix typos</h3><p>Type into PDF forms, or correct short Thai or English text in the file.</p></div>
     <div class="task green"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 12h8V4"/><path d="M12 12v8"/></svg></span>
       <h3>Review drawings</h3><p>Open .dwg files and measure lengths and areas, without AutoCAD.</p></div>
+    <div class="task blue"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>
+      <h3>Make an e-Tax Invoice</h3><p>Fill in the items and get a PDF/A-3 with the Thai Revenue Department's XML.</p></div>
+    <div class="task blue"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v15h15"/><path d="M3 6h15v15"/></svg></span>
+      <h3>Clean up scans</h3><p>Straighten tilted pages, trim dark edges and delete blank pages in one go.</p></div>
+    <div class="task blue"><span class="ico"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="m4 18 5-5 4 4 3-3 4 4"/></svg></span>
+      <h3>Insert pictures, lines and symbols</h3><p>Place a picture, then move or resize it. Draw lines, arrows or freehand on the page.</p></div>
   </div>
   <details class="more">
     <summary>See everything else it does</summary>
-    <p>Search text · OCR for scans · Highlights and comments · Create forms · Passwords · Permanent redaction · Convert to PowerPoint · Compress · PDF/A · Compare documents · Watermarks · Page numbers · Many files at once · Digital ID signatures · Rubber stamps · Amounts in words · Several pages a sheet and booklets · Recovery of unsaved work</p>
+    <p>Search text · OCR for scans · Highlights and comments · Create forms · Passwords · Edit, sign and redact password-protected files · Permanent redaction · Split by bookmarks · Convert to PowerPoint · Compress · PDF/A · Compare documents · Watermarks · Page numbers · Many files at once · Digital ID signatures · Rubber stamps · Amounts in words · Several pages a sheet and booklets · Recovery of unsaved work</p>
   </details>
 </section>
 
@@ -137,8 +143,16 @@
     <img src="{{img:en/stamp-quote.jpg}}" alt="A green APPROVED stamp with the company name and the date on a quotation">
   </figure>
   <figure class="purple-box">
-    <figcaption><b>Amounts in words</b><span>Type 230585, right-click, and get the amount written out for a receipt</span></figcaption>
+    <figcaption><b>Amounts in words</b><span>Type 230585, click the button under the box or right-click, and get the amount written out for a receipt</span></figcaption>
     <img src="{{img:en/amount.jpg}}" alt="The right-click menu on a number, with amount in Thai words and in English words">
+  </figure>
+  <figure class="orange-box">
+    <figcaption><b>Make your own e-Tax Invoice</b><span>A PDF/A-3 with the XML inside. A sample XML passed the structure check on the Revenue Department's website.</span></figcaption>
+    <img src="{{img:etax.jpg}}" alt="A sample Thai tax invoice made with the program, for a made-up company">
+  </figure>
+  <figure class="green-box">
+    <figcaption><b>Accounting tools in one place</b><span>Click “Accounting” on the start page to see the tools you use most</span></figcaption>
+    <img src="{{img:en/accounting.jpg}}" alt="The start page with the Accounting group chosen, showing e-Tax Invoice, Amount in words, Clean up scans and more">
   </figure>
 </section>
 
@@ -217,6 +231,8 @@
     <p>If you choose to keep a signature for next time, it is encrypted and stored only on this computer.</p></details>
   <details><summary>What is the difference between a signature and a Digital ID signature?<span class="chev" aria-hidden="true">+</span></summary>
     <p>A signature is a picture of your handwriting placed on the document. A Digital ID signature proves who signed and shows if anyone changes the document afterwards.</p></details>
+  <details><summary>Can I send e-Tax Invoices from this program for real?<span class="chev" aria-hidden="true">+</span></summary>
+    <p>The program makes a PDF/A-3 with the Revenue Department's XML inside, and a sample XML passed the structure check on etax.rd.go.th. Before real use you must register for the e-Tax system with the Revenue Department, and in this version the XML has no separate XAdES signature. Check your own XML and test before sending. The steps are in the <a href="../guide/YRK-PDF-Guide-en.pdf">guide</a>.</p></details>
   <details class="last"><summary>If I redact something, is my original file lost?<span class="chev" aria-hidden="true">+</span></summary>
     <p>No. The result is saved as a new file, and the redacted content is really removed from that new file. The original doesn't change.</p></details>
 
@@ -234,7 +250,7 @@
   <details><summary>How do I uninstall it?<span class="chev" aria-hidden="true">+</span></summary>
     <p>Go to Windows Settings → Apps, choose YRK PDF → Uninstall. For the zip, just delete the folder.</p></details>
   <details id="support"><summary>How can I support the developer?<span class="chev" aria-hidden="true">+</span></summary>
-    <p>YRK PDF is free with every feature and will stay that way; nothing is locked behind sponsorship. If it makes your work easier, support is welcome and entirely voluntary. It pays for a code-signing certificate (fewer warnings when installing) and development time.</p>
+    <p>YRK PDF is free with every feature and will stay that way; nothing is locked behind sponsorship. If it makes your work easier, support is welcome and entirely voluntary. It pays for a code-signing certificate (fewer warnings when installing), development time and the costs of other platforms.</p>
     <p><strong>From abroad:</strong> <a href="https://github.com/sponsors/YR-KEN426">GitHub Sponsors</a>, monthly or once.</p>
     <p><strong>In Thailand:</strong> scan the PromptPay code with any banking app, any amount.</p>
     <p class="qr"><img src="{{img:promptpay.jpg}}" width="210" height="276" alt="PromptPay QR code (Paotang Pay) to support the developer"></p>
@@ -281,13 +297,21 @@
 </div>
 
 <script>
-  // The bar at the bottom appears once the big download button has scrolled out of view.
+  // The bar at the bottom appears once the big download button has scrolled out of view, and goes again at the
+  // last section, which has its own button: otherwise it would cover the footer.
   (function () {
-    var bar = document.getElementById("sticky"), cta = document.getElementById("hero-cta");
-    if (!("IntersectionObserver" in window) || !bar || !cta) return;
+    var bar = document.getElementById("sticky"), cta = document.getElementById("hero-cta"), end = document.querySelector(".final");
+    var past = false, atEnd = false;
+    function update() { bar.classList.toggle("show", past && !atEnd); }
+    if (!("IntersectionObserver" in window) || !bar || !cta || !end) return;
     new IntersectionObserver(function (entries) {
-      bar.classList.toggle("show", !entries[0].isIntersecting && entries[0].boundingClientRect.top < 0);
+      past = !entries[0].isIntersecting && entries[0].boundingClientRect.top < 0;
+      update();
     }).observe(cta);
+    new IntersectionObserver(function (entries) {
+      atEnd = entries[0].isIntersecting || entries[0].boundingClientRect.top < 0;
+      update();
+    }).observe(end);
   })();
 
   // A link to one question (#faq-check) opens that answer, not just the list.

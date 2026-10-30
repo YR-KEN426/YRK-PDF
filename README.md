@@ -19,6 +19,9 @@ with no ads, no account and no tracking. The interface is in Thai and English. (
 - **Thai documents done right:** Thai text is shaped correctly when you type, edit or fill in forms;
   PDF to Word/Excel repairs the Thai text that many PDFs store badly; OCR reads Thai scans; the
   "สำเนาถูกต้อง" (certified true copy) stamp takes one click
+- **Accounting work:** e-Tax Invoices as PDF/A-3 with the ETDA XML inside, amounts in words in Thai and
+  English, rubber stamps with the Thai date on every page or many files, and scan clean-up
+- **Password-protected files:** edit, sign and redact them; the result keeps the same passwords
 - **Signing:** handwritten signatures kept as sharp vector outlines, and PAdES digital signatures with
   Windows certificates, smart cards, USB tokens or .pfx files, with an optional trusted timestamp
 - **Drawings:** open .dwg and .dxf files directly, switch layers, measure at scale and compare revisions
@@ -471,7 +474,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and roadmap, and
 
 YRK PDF is free for everyone, including businesses, and will stay that way, with every feature. If it saves you
 time, you can support its development through [GitHub Sponsors](https://github.com/sponsors/YR-KEN426).
-Sponsorship pays for a code-signing certificate and development time. Thank you!
+Sponsorship pays for a code-signing certificate, development time and the costs of other platforms
+(Windows on ARM, Android, macOS, iOS). Thank you!
 
 ## Contributing, security and license
 
