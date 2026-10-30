@@ -49,6 +49,32 @@ public sealed class ETaxTests : IDisposable
     }
 
     [Fact]
+    public void The_vat_of_the_lines_adds_up_to_the_vat_of_the_invoice()
+    {
+        var invoice = Sample() with { Lines = [new TaxInvoiceLine("ก", 1, "ชิ้น", 0.33m), new TaxInvoiceLine("ข", 1, "ชิ้น", 0.33m), new TaxInvoiceLine("ค", 1, "ชิ้น", 0.33m)] };
+
+        Assert.Equal(0.07m, invoice.Vat);
+        Assert.Equal(invoice.Vat, invoice.LineVats().Sum());
+
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+        var lines = xml.Descendants(Ram + "SpecifiedTradeSettlementLineMonetarySummation").Select(s => decimal.Parse(s.Element(Ram + "TaxTotalAmount")!.Value, System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(0.07m, lines.Sum());
+    }
+
+    [Fact]
+    public void A_service_has_a_quantity_but_no_unit()
+    {
+        var invoice = Sample() with { Lines = [new TaxInvoiceLine("ค่าบริการ", 1, string.Empty, 100), new TaxInvoiceLine("กระดาษ", 2, "รีม", 100)] };
+
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+
+        var quantities = xml.Descendants(Ram + "BilledQuantity").ToList();
+        Assert.Equal(2, quantities.Count); // The ETDA schema requires it on every line.
+        Assert.Null(quantities[0].Attribute("unitCode"));
+        Assert.Equal("รีม", quantities[1].Attribute("unitCode")!.Value);
+    }
+
+    [Fact]
     public void Takes_the_vat_out_of_prices_that_include_it()
     {
         var invoice = Sample() with { Lines = [new TaxInvoiceLine("ค่าบริการ", 1, string.Empty, 1070)], PricesIncludeVat = true };
@@ -57,6 +83,49 @@ public sealed class ETaxTests : IDisposable
         Assert.Equal(70m, invoice.Vat);
         Assert.Equal(1070m, invoice.GrandTotal);
         Assert.Empty(invoice.Problems());
+    }
+
+    [Fact]
+    public void Writes_the_seller_address_with_the_codes_the_revenue_department_requires()
+    {
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(Sample().ToXml(DateTimeOffset.Now)));
+
+        var address = xml.Descendants(Ram + "SellerTradeParty").Single().Element(Ram + "PostalTradeAddress")!;
+        Assert.Equal(
+            ["PostcodeCode", "LineOne", "LineTwo", "CityName", "CitySubDivisionName", "CountryID", "CountrySubDivisionID", "BuildingNumber"],
+            address.Elements().Select(e => e.Name.LocalName)); // The order of the schema.
+        Assert.Equal("1017", address.Element(Ram + "CityName")!.Value);
+        Assert.Equal("101701", address.Element(Ram + "CitySubDivisionName")!.Value);
+        Assert.Equal("10", address.Element(Ram + "CountrySubDivisionID")!.Value);
+        Assert.Equal("99/9", address.Element(Ram + "BuildingNumber")!.Value);
+    }
+
+    [Theory]
+    [InlineData("02-000-0000", "+66-2-000-0000")]
+    [InlineData("081 234 5678", "+66-812345678")]
+    [InlineData("+66-2-111-2222", "+66-2-111-2222")]
+    [InlineData("โทร", null)]
+    [InlineData(null, null)]
+    public void Writes_the_phone_in_the_form_of_the_schema(string? phone, string? expected) =>
+        Assert.Equal(expected, (Sample().Seller with { Phone = phone }).XmlPhone);
+
+    [Fact]
+    public void Prints_the_address_with_the_names_of_the_codes()
+    {
+        var bangkok = Sample().Seller with { Address = "ถนนรัชดาภิเษก" };
+        var province = bangkok with { Province = "11", District = "1101", Subdistrict = "110101" };
+
+        Assert.Equal("99/9 ถนนรัชดาภิเษก แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพมหานคร", bangkok.PrintedAddress);
+        Assert.Equal("99/9 ถนนรัชดาภิเษก ตำบลปากน้ำ อำเภอเมืองสมุทรปราการ จังหวัดสมุทรปราการ", province.PrintedAddress);
+    }
+
+    [Fact]
+    public void Knows_the_thai_areas_without_those_no_longer_in_use()
+    {
+        Assert.Equal(77, ThaiAreas.Provinces.Count);
+        Assert.Contains(ThaiAreas.DistrictsOf("10"), a => a.Code == "1017");
+        Assert.Contains(ThaiAreas.SubdistrictsOf("1017"), a => a.Code == "101701");
+        Assert.DoesNotContain(ThaiAreas.DistrictsOf("25"), a => a.Name.Contains('*'));
     }
 
     [Fact]
@@ -89,7 +158,15 @@ public sealed class ETaxTests : IDisposable
 
         var cos = CosDocument.Load(pdf);
         var metadata = (CosStream)cos.Resolve(cos.Catalog["Metadata"])!;
-        Assert.Contains("<pdfaid:part>3</pdfaid:part>", Encoding.UTF8.GetString(CosFilters.Decode(metadata, cos.Resolve)), StringComparison.Ordinal);
+        var xmp = XDocument.Parse(Encoding.UTF8.GetString(CosFilters.Decode(metadata, cos.Resolve)).Split("<?xpacket")[1].Split("?>", 2)[1]);
+        XNamespace id = "http://www.aiim.org/pdfa/ns/id/";
+        XNamespace rsm = "urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2#";
+        Assert.Equal("3", xmp.Descendants(id + "part").Single().Value);
+        Assert.Equal("U", xmp.Descendants(id + "conformance").Single().Value); // The workshop of ETDA asks for level U.
+        Assert.Equal("ETDA-invoice.xml", xmp.Descendants(rsm + "DocumentFileName").Single().Value);
+        Assert.Equal("Tax Invoice", xmp.Descendants(rsm + "DocumentType").Single().Value);
+        Assert.Equal("2.0", xmp.Descendants(rsm + "Version").Single().Value);
+        Assert.Equal(3, xmp.Descendants(XName.Get("name", "http://www.aiim.org/pdfa/ns/property#")).Count());
         var spec = (CosDictionary)cos.Resolve(((CosArray)cos.Catalog["AF"]!)[0])!;
         Assert.Equal("Source", ((CosName)spec["AFRelationship"]!).Value);
         var file = (CosStream)cos.Resolve(((CosDictionary)spec["EF"]!)["F"])!;
@@ -101,7 +178,7 @@ public sealed class ETaxTests : IDisposable
         TaxDocumentType.ReceiptTaxInvoice,
         "INV202610-0001",
         new DateTime(2026, 10, 30),
-        new TaxParty("บริษัท ตัวอย่าง จำกัด", TaxIdKind.TaxId, "0105536000313", "00001", "99/9 ถนนพระราม 9 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพฯ\nชั้น 5", "10310", "billing@example.co.th", "02-000-0000"),
+        new TaxParty("บริษัท ตัวอย่าง จำกัด", TaxIdKind.TaxId, "0105536000313", "00001", "99/9 ถนนพระราม 9 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพฯ\nชั้น 5", "10310", "billing@example.co.th", "02-000-0000", "99/9", "10", "1017", "101701"),
         new TaxParty("นายสมชาย ใจดี", TaxIdKind.NationalId, "1104599001276", string.Empty, "1 ซอยจุฬา 10 ถนนพระราม 6 กรุงเทพฯ", "10330"),
         [new TaxInvoiceLine("กระดาษ A4 80 แกรม", 10, "รีม", 120.05m), new TaxInvoiceLine("ค่าจัดส่ง", 1, string.Empty, 300)]);
 }

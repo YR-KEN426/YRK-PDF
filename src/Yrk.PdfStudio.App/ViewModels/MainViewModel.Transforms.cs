@@ -61,7 +61,7 @@ public sealed partial class MainViewModel
                 byte[] input;
                 if (IsDirty)
                 {
-                    var realText = CanWriteRealText(document);
+                    var realText = CanWriteRealText;
                     var fieldLooks = BuildFieldLooks(document); // Before the fields are committed and reloaded.
                     await CommitOverlaysAsync(document, keepText: realText);
                     await document.SaveAsync(editsPath);

@@ -11,7 +11,11 @@ public sealed class StampSettings
     private static readonly string DefaultPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "stamps.json");
 
-    private static readonly JsonSerializerOptions Json = new() { Converters = { new JsonStringEnumConverter() } };
+    private static readonly JsonSerializerOptions Json = new()
+    {
+        Converters = { new JsonStringEnumConverter() },
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(System.Text.Unicode.UnicodeRanges.All), // Thai readable in the file.
+    };
 
     public List<StampDesign> MyStamps { get; set; } = [];
 

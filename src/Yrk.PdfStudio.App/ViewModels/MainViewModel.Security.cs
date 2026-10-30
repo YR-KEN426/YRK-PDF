@@ -14,6 +14,7 @@ public sealed partial class MainViewModel
     private IAsyncRelayCommand? _protectCommand;
     private IAsyncRelayCommand? _removeProtectionCommand;
     private DateTime _passwordEnteredAt = DateTime.MinValue;
+    private string? _editConfirmedFor;
 
     public IAsyncRelayCommand ProtectCommand => _protectCommand ??= new AsyncRelayCommand(ProtectAsync);
 
@@ -95,12 +96,35 @@ public sealed partial class MainViewModel
         }
     }
 
+    /// <summary>The first change to a protected file: its password is asked before any work is done, once per file.</summary>
+    private bool ConfirmFirstEdit()
+    {
+        if (_document is not { IsEncrypted: true } document || _editConfirmedFor == document.FilePath)
+        {
+            return true;
+        }
+
+        if (!ConfirmPassword(PdfPermissions.None, "edit it", atSave: false).Confirmed)
+        {
+            return false;
+        }
+
+        _editConfirmedFor = document.FilePath;
+        return true;
+    }
+
+    /// <summary>Tools whose use changes the file, as opposed to reading or measuring it.</summary>
+    private static bool ChangesTheFile(AnnotationTool tool) =>
+        tool is AnnotationTool.Highlight or AnnotationTool.Underline or AnnotationTool.StrikeOut or AnnotationTool.Note
+            or AnnotationTool.Pen or AnnotationTool.Rectangle or AnnotationTool.Ellipse or AnnotationTool.Arrow or AnnotationTool.Line
+            or AnnotationTool.EditText;
+
     /// <summary>
     /// Before a change to a file with an open password is written: asks for the password again, so nobody can
     /// change a file left open on an unattended computer. A file without an open password is not asked about.
     /// </summary>
     /// <returns>Whether to go on, and the password to write the file with (null for an unprotected file).</returns>
-    private (bool Confirmed, string? Password) ConfirmPassword(PdfPermissions needed, string action)
+    private (bool Confirmed, string? Password) ConfirmPassword(PdfPermissions needed, string action, bool atSave = true)
     {
         if (_document is not { IsEncrypted: true } document)
         {
@@ -121,7 +145,7 @@ public sealed partial class MainViewModel
         // Restrictions only (anyone can open it): the password it was opened with, as unlocked before. And not twice
         // in a row: the owner password typed a moment ago to lift the restrictions is confirmation enough.
         if (PdfSecurity.CheckPassword(bytes, null, PdfPermissions.None) == PdfUnlockResult.Unlocked
-            || (DateTime.UtcNow - _passwordEnteredAt < TimeSpan.FromMinutes(1)
+            || (atSave && DateTime.UtcNow - _passwordEnteredAt < TimeSpan.FromMinutes(1)
                 && PdfSecurity.CheckPassword(bytes, document.OpenPassword, needed) == PdfUnlockResult.Unlocked))
         {
             return (true, document.OpenPassword);

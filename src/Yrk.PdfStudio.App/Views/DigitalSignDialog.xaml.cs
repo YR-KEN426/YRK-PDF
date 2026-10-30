@@ -94,6 +94,78 @@ public partial class DigitalSignDialog : Window
         }
     }
 
+    private void OnBackUpId(object sender, RoutedEventArgs e)
+    {
+        if (SelectedFileId() is not { } id)
+        {
+            return;
+        }
+
+        var picker = new SaveFileDialog
+        {
+            Title = Loc.T("Back up this ID"),
+            FileName = Path.GetFileName(id.FilePath),
+            Filter = Loc.T("Digital ID files (*.pfx;*.p12)|*.pfx;*.p12"),
+            DefaultExt = ".pfx",
+        };
+        if (picker.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        try
+        {
+            _store.BackUp(id, PasswordInput.Password, picker.FileName);
+            MessageBox.Show(this, Loc.F("Saved a copy of \"{0}\". Keep it somewhere safe: anyone with this file and its password can sign as you.", id.Name), Title, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+        {
+            ShowError(ex is CryptographicException ? Loc.T("The password of this ID is not right.") : ex.Message);
+        }
+    }
+
+    private void OnDeleteId(object sender, RoutedEventArgs e)
+    {
+        if (SelectedFileId() is not { } id)
+        {
+            return;
+        }
+
+        var question = Loc.F("Delete \"{0}\"?\n\nDocuments already signed with it stay valid, but it can sign nothing more. The file goes to the Recycle Bin. If this ID came from a certificate authority, back it up first.", id.Name);
+        if (MessageBox.Show(this, question, Title, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        try
+        {
+            _store.Delete(id, PasswordInput.Password);
+            PasswordInput.Clear();
+            LoadIds(null);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+        {
+            ShowError(ex is CryptographicException ? Loc.T("The password of this ID is not right.") : ex.Message);
+        }
+    }
+
+    /// <summary>The selected ID file, once its password has been typed.</summary>
+    private DigitalId? SelectedFileId()
+    {
+        if (IdList.SelectedItem is not DigitalId { IsFile: true } id)
+        {
+            return null;
+        }
+
+        if (PasswordInput.Password.Length == 0)
+        {
+            ShowError(Loc.T("Enter the password of this ID first."));
+            return null;
+        }
+
+        return id;
+    }
+
     private void OnAddFile(object sender, RoutedEventArgs e)
     {
         var picker = new OpenFileDialog

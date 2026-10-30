@@ -355,7 +355,7 @@ public sealed partial class MainViewModel
     /// </summary>
     private async Task RunPageToolAsync(string busyText, Func<IPdfDocument, Task> change, int focusPage, bool commitFirst = false)
     {
-        if (!await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.Assemble, "rearrange its pages") || _document is not { } document)
+        if (!ConfirmFirstEdit() || !await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.Assemble, "rearrange its pages") || _document is not { } document)
         {
             return;
         }

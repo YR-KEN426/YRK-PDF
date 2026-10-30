@@ -432,7 +432,7 @@ public sealed partial class MainViewModel
 
     private void BeginPlacement(Placement placement)
     {
-        if (_document is null)
+        if (_document is null || !ConfirmFirstEdit())
         {
             return;
         }
@@ -794,7 +794,7 @@ public sealed partial class MainViewModel
     /// <summary>Writes the document with every change not saved yet to <paramref name="path"/>.</summary>
     private async Task WriteChangesAsync(IPdfDocument document, string path)
     {
-        var realText = CanWriteRealText(document);
+        var realText = CanWriteRealText;
         var fieldLooks = BuildFieldLooks(document); // Before the fields are committed and reloaded.
         await CommitOverlaysAsync(document, keepText: realText);
         fieldLooks = await PurgeDeletedCommentsAsync(document, fieldLooks);

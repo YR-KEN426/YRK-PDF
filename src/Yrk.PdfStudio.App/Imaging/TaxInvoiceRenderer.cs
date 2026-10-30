@@ -12,8 +12,6 @@ namespace Yrk.PdfStudio.App.Imaging;
 /// </summary>
 internal static class TaxInvoiceRenderer
 {
-    public const string XmlFileName = "ETDA-invoice.xml";
-
     private const double PageWidth = 595.28;
     private const double PageHeight = 841.89;
     private const double Margin = 40;
@@ -214,15 +212,16 @@ internal static class TaxInvoiceRenderer
             new WpfPdfAFontSource(),
             $"{invoice.ThaiName} {invoice.Number}",
             created,
-            [new PdfAAttachment(XmlFileName, xml, "text/xml", "Source", "e-Tax Invoice (ETDA ขมธอ. 3-2560)")]).Pdf;
+            [new PdfAAttachment(TaxInvoice.XmlFileName, xml, "text/xml", "Source", "e-Tax Invoice (ETDA ขมธอ. 3-2560)")],
+            TaxInvoice.XmpExtension).Pdf;
     }
 
     /// <summary>The address as typed, with the postcode at the end of its last line (unless it is written there already).</summary>
     private static List<string> AddressLines(TaxParty party)
     {
-        var lines = party.Address.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
+        var lines = party.PrintedAddress.Split('\n', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToList();
         var postcode = party.Postcode.Trim();
-        if (postcode.Length > 0 && !party.Address.Contains(postcode, StringComparison.Ordinal))
+        if (postcode.Length > 0 && !party.PrintedAddress.Contains(postcode, StringComparison.Ordinal))
         {
             if (lines.Count == 0)
             {

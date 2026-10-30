@@ -89,9 +89,9 @@ Rules:
 Windows first: the program should be stable before new platforms or paid distribution.
 
 **For Thai offices (what sets YRK PDF apart)**
-- e-Tax Invoice, next steps: XAdES signature of the XML itself (for the e-Tax Invoice & e-Receipt system), structured Thai
-  addresses (province, district and subdistrict codes), discounts, credit and debit notes (80, 81), receipts (T01).
-  Done: the form, the invoice PDF in Sarabun, PDF/A-3b with the ETDA XML (ขมธอ. 3-2560 v2.0) attached as "Source".
+- e-Tax Invoice, next steps: XAdES signature of the XML itself (for the e-Tax Invoice & e-Receipt system), structured addresses for the buyer too, discounts, credit and debit notes (80, 81), receipts (T01).
+  Done: the form with the seller's province, district and subdistrict codes (`thai-areas.txt`, from the Revenue Department's XMLSchemaV2 code lists), the invoice PDF in Sarabun, PDF/A-3U with the ETDA XML (ขมธอ. 3-2560 v2.0) attached as "Source" and the XMP properties of ETDA's template.
+  Check changes with XMLSchemaV2.zip from etax.rd.go.th (XSD and Schematron); it is not kept in the repository.
 
 **Scans** (done: straighten, trim dark edges, delete blank pages; split by bookmarks)
 - Scanner input (TWAIN/WIA) straight into a PDF.
@@ -106,7 +106,7 @@ Windows first: the program should be stable before new platforms or paid distrib
 **Signatures**
 - OCSP revocation data and document timestamps (PAdES B-LTA).
 - Done: signing and redacting password-protected files (RC4, AES-128, AES-256), keeping the same key and passwords.
-  Still blocked with "Save an unprotected copy first": real text, form field looks, OCR and page marks on encrypted files.
+  Text edits and added text work too. Still blocked with "Save an unprotected copy first": form field looks, new form fields, OCR and page marks on encrypted files.
 
 **Distribution** (on hold until the program is stable)
 - Code signing; or the Microsoft Store, which may avoid SmartScreen warnings at lower cost (check its

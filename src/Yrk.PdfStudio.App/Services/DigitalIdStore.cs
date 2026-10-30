@@ -24,9 +24,14 @@ public sealed record DigitalId(string Name, string? Issuer, DateTime? NotAfter, 
 public sealed class DigitalIdStore
 {
     private readonly string _folder;
+    private readonly Action<string> _remove;
 
-    public DigitalIdStore(string? folder = null) =>
+    /// <param name="remove">Takes a file away (the Recycle Bin unless a test says otherwise).</param>
+    public DigitalIdStore(string? folder = null, Action<string>? remove = null)
+    {
         _folder = folder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "DigitalIDs");
+        _remove = remove ?? MoveToRecycleBin;
+    }
 
     public IReadOnlyList<DigitalId> LoadAll()
     {
@@ -92,6 +97,35 @@ public sealed class DigitalIdStore
 
         return Save(File.ReadAllBytes(path), Path.GetFileNameWithoutExtension(path));
     }
+
+    /// <summary>Copies an ID file elsewhere, for safe keeping; the copy stays protected by the ID's password.</summary>
+    /// <exception cref="CryptographicException">Wrong password.</exception>
+    public void BackUp(DigitalId id, string password, string target)
+    {
+        CheckPassword(id, password);
+        File.Copy(id.FilePath!, target, overwrite: true);
+    }
+
+    /// <summary>Removes an ID file the app keeps. What it signed stays valid; it can sign nothing more.</summary>
+    /// <exception cref="CryptographicException">Wrong password.</exception>
+    public void Delete(DigitalId id, string password)
+    {
+        CheckPassword(id, password);
+        _remove(id.FilePath!);
+    }
+
+    private void CheckPassword(DigitalId id, string password)
+    {
+        if (!id.IsFile)
+        {
+            throw new InvalidOperationException("Only ID files kept by the app can be backed up or deleted.");
+        }
+
+        using var certificate = Open(id, password);
+    }
+
+    private static void MoveToRecycleBin(string path) =>
+        Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs, Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
 
     private DigitalId Save(byte[] pfx, string name)
     {

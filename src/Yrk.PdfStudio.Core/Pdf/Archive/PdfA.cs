@@ -38,6 +38,13 @@ public sealed record PdfANote(string Format, string? Argument = null)
 /// <param name="Relationship">How it relates to the document: "Source", "Data", "Alternative", "Supplement" or "Unspecified".</param>
 public sealed record PdfAAttachment(string FileName, byte[] Data, string MimeType, string Relationship, string? Description = null);
 
+/// <summary>An XMP extension schema (ISO 19005-3): extra properties a standard asks of the file, such as an e-Tax Invoice's.</summary>
+/// <param name="Schema">The schema's name.</param>
+public sealed record PdfAExtension(string Schema, string NamespaceUri, string Prefix, IReadOnlyList<PdfAExtensionProperty> Properties);
+
+/// <summary>One text property of an extension schema.</summary>
+public sealed record PdfAExtensionProperty(string Name, string Value, string Description);
+
 /// <summary>What the conversion did.</summary>
 /// <param name="Changes">What was adjusted to meet the standard.</param>
 public sealed record PdfAResult(byte[] Pdf, IReadOnlyList<PdfANote> Changes);
@@ -86,7 +93,8 @@ public static class PdfA
     /// <exception cref="PdfAException">Something cannot be made compliant; the list says what.</exception>
     /// <exception cref="PdfException">The file cannot be read or is encrypted.</exception>
     /// <param name="attachments">Files to carry in the document; the result is then PDF/A-3b instead of PDF/A-2b.</param>
-    public static PdfAResult Convert(byte[] pdf, IPdfAFontSource fonts, string? title = null, DateTimeOffset? now = null, IReadOnlyList<PdfAAttachment>? attachments = null)
+    /// <param name="extension">Properties to declare in the metadata; the result then claims level U (all text maps to Unicode).</param>
+    public static PdfAResult Convert(byte[] pdf, IPdfAFontSource fonts, string? title = null, DateTimeOffset? now = null, IReadOnlyList<PdfAAttachment>? attachments = null, PdfAExtension? extension = null)
     {
         var document = CosDocument.Load(pdf);
         if (document.IsEncrypted)
@@ -94,7 +102,7 @@ public static class PdfA
             throw new PdfException("Remove the password protection first.");
         }
 
-        var job = new Job(document, fonts, attachments ?? []);
+        var job = new Job(document, fonts, attachments ?? [], extension);
         job.Run(title, now ?? DateTimeOffset.Now);
         if (job.Problems.Count > 0)
         {
@@ -104,7 +112,7 @@ public static class PdfA
         return new PdfAResult(CosCompactWriter.Write(document, version: "1.7"), job.Changes.Distinct().ToList());
     }
 
-    private sealed class Job(CosDocument document, IPdfAFontSource fonts, IReadOnlyList<PdfAAttachment> attachments)
+    private sealed class Job(CosDocument document, IPdfAFontSource fonts, IReadOnlyList<PdfAAttachment> attachments, PdfAExtension? extension)
     {
         private readonly HashSet<CosObjectId> _visited = [];
 
@@ -690,6 +698,34 @@ public static class PdfA
             catalog["AF"] = associated;
         }
 
+        /// <summary>The values, and the schema that declares them (a PDF/A file may only use declared properties).</summary>
+        private static void AppendExtension(StringBuilder xmp, PdfAExtension extension)
+        {
+            xmp.Append("<rdf:Description rdf:about=\"\" xmlns:").Append(extension.Prefix).Append("=\"").Append(Escape(extension.NamespaceUri)).Append("\">\n");
+            foreach (var property in extension.Properties)
+            {
+                var tag = extension.Prefix + ":" + property.Name;
+                xmp.Append('<').Append(tag).Append('>').Append(Escape(property.Value)).Append("</").Append(tag).Append(">\n");
+            }
+
+            xmp.Append("</rdf:Description>\n");
+            xmp.Append("<rdf:Description rdf:about=\"\" xmlns:pdfaExtension=\"http://www.aiim.org/pdfa/ns/extension/\" ")
+               .Append("xmlns:pdfaSchema=\"http://www.aiim.org/pdfa/ns/schema#\" xmlns:pdfaProperty=\"http://www.aiim.org/pdfa/ns/property#\">\n");
+            xmp.Append("<pdfaExtension:schemas><rdf:Bag><rdf:li rdf:parseType=\"Resource\">\n");
+            xmp.Append("<pdfaSchema:schema>").Append(Escape(extension.Schema)).Append("</pdfaSchema:schema>\n");
+            xmp.Append("<pdfaSchema:namespaceURI>").Append(Escape(extension.NamespaceUri)).Append("</pdfaSchema:namespaceURI>\n");
+            xmp.Append("<pdfaSchema:prefix>").Append(extension.Prefix).Append("</pdfaSchema:prefix>\n");
+            xmp.Append("<pdfaSchema:property><rdf:Seq>\n");
+            foreach (var property in extension.Properties)
+            {
+                xmp.Append("<rdf:li rdf:parseType=\"Resource\"><pdfaProperty:name>").Append(property.Name).Append("</pdfaProperty:name>")
+                   .Append("<pdfaProperty:valueType>Text</pdfaProperty:valueType><pdfaProperty:category>external</pdfaProperty:category>")
+                   .Append("<pdfaProperty:description>").Append(Escape(property.Description)).Append("</pdfaProperty:description></rdf:li>\n");
+            }
+
+            xmp.Append("</rdf:Seq></pdfaSchema:property>\n</rdf:li></rdf:Bag></pdfaExtension:schemas>\n</rdf:Description>\n");
+        }
+
         private void WriteMetadata(CosDictionary catalog, string? title, DateTimeOffset now)
         {
             var info = document.Resolve(document.Trailer["Info"]) as CosDictionary;
@@ -719,7 +755,7 @@ public static class PdfA
             xmp.Append("<x:xmpmeta xmlns:x=\"adobe:ns:meta/\">\n<rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n");
             xmp.Append("<rdf:Description rdf:about=\"\" xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" ")
                .Append("xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\" xmlns:pdf=\"http://ns.adobe.com/pdf/1.3/\">\n");
-            xmp.Append("<pdfaid:part>").Append(attachments.Count > 0 ? 3 : 2).Append("</pdfaid:part>\n<pdfaid:conformance>B</pdfaid:conformance>\n<dc:format>application/pdf</dc:format>\n");
+            xmp.Append("<pdfaid:part>").Append(attachments.Count > 0 ? 3 : 2).Append("</pdfaid:part>\n<pdfaid:conformance>").Append(extension is null ? 'B' : 'U').Append("</pdfaid:conformance>\n<dc:format>application/pdf</dc:format>\n");
             if (Text("Title") is { Length: > 0 } t)
             {
                 xmp.Append("<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">").Append(Escape(t)).Append("</rdf:li></rdf:Alt></dc:title>\n");
@@ -749,7 +785,13 @@ public static class PdfA
             xmp.Append("<xmp:CreateDate>").Append(XmpDate(created)).Append("</xmp:CreateDate>\n");
             xmp.Append("<xmp:ModifyDate>").Append(XmpDate(modified)).Append("</xmp:ModifyDate>\n");
             xmp.Append("<xmp:MetadataDate>").Append(XmpDate(modified)).Append("</xmp:MetadataDate>\n");
-            xmp.Append("</rdf:Description>\n</rdf:RDF>\n</x:xmpmeta>\n");
+            xmp.Append("</rdf:Description>\n");
+            if (extension is not null)
+            {
+                AppendExtension(xmp, extension);
+            }
+
+            xmp.Append("</rdf:RDF>\n</x:xmpmeta>\n");
             xmp.Append(new string(' ', 2000)).Append('\n'); // Padding, so the metadata can be edited in place.
             xmp.Append("<?xpacket end=\"w\"?>");
 

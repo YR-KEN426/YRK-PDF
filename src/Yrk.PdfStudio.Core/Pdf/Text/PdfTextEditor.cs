@@ -11,8 +11,9 @@ public sealed record PdfTextEdit(int PageIndex, NormalizedRect Area, PdfTextBloc
 public static class PdfTextEditor
 {
     /// <summary>Applies text edits as incremental updates (earlier revisions stay in the file).</summary>
+    /// <param name="password">The password of a protected file; the changes are encrypted like the rest of it.</param>
     /// <exception cref="PdfException">Text on a page uses a font whose characters cannot be measured, so it cannot be edited.</exception>
-    public static byte[] Apply(byte[] pdf, IReadOnlyList<PdfTextEdit> edits)
+    public static byte[] Apply(byte[] pdf, IReadOnlyList<PdfTextEdit> edits, string? password = null)
     {
         if (edits.Count == 0)
         {
@@ -22,7 +23,7 @@ public static class PdfTextEditor
         var byPage = edits
             .GroupBy(e => e.PageIndex)
             .ToDictionary(g => g.Key, g => (IReadOnlyList<NormalizedRect>)g.Select(e => e.Area).ToList());
-        var (removed, unsupported) = PdfRedactor.RemoveContent(pdf, byPage, blackBoxes: false, removeAnnotations: false);
+        var (removed, unsupported) = PdfRedactor.RemoveContent(pdf, byPage, blackBoxes: false, removeAnnotations: false, password: password);
         if (unsupported.Count > 0)
         {
             var pages = string.Join(", ", unsupported.Order().Select(p => p + 1));
@@ -30,6 +31,6 @@ public static class PdfTextEditor
         }
 
         var blocks = edits.Select(e => e.Replacement).OfType<PdfTextBlock>().Where(b => b.Runs.Count > 0).ToList();
-        return blocks.Count == 0 ? removed : PdfTextWriter.AddText(removed, blocks);
+        return blocks.Count == 0 ? removed : PdfTextWriter.AddText(removed, blocks, password);
     }
 }

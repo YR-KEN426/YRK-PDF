@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Xml;
+using Yrk.PdfStudio.Core.Pdf.Archive;
 
 namespace Yrk.PdfStudio.Core.Pdf.ETax;
 
@@ -30,7 +31,9 @@ public enum TaxIdKind
 }
 
 /// <param name="Branch">Five digits; "00000" is the head office. Only for <see cref="TaxIdKind.TaxId"/>.</param>
-/// <param name="Address">The address as written (one or two lines); it goes into the XML as an unstructured address.</param>
+/// <param name="Address">The address as written (one or two lines). With a province it is only the part besides the codes: street, soi, building.</param>
+/// <param name="BuildingNumber">The house number; the seller must have one.</param>
+/// <param name="Province">The province, district and subdistrict codes (<see cref="ThaiAreas"/>); the Revenue Department requires them of the seller.</param>
 public sealed record TaxParty(
     string Name,
     TaxIdKind IdKind,
@@ -39,8 +42,64 @@ public sealed record TaxParty(
     string Address,
     string Postcode,
     string? Email = null,
-    string? Phone = null)
+    string? Phone = null,
+    string? BuildingNumber = null,
+    string? Province = null,
+    string? District = null,
+    string? Subdistrict = null)
 {
+    /// <summary>The address gives its province, district and subdistrict as codes.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsStructured => !string.IsNullOrEmpty(Province);
+
+    /// <summary>The address as printed on the invoice, one or more lines, without the postcode.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string PrintedAddress
+    {
+        get
+        {
+            if (!IsStructured)
+            {
+                return Address;
+            }
+
+            // Bangkok has khwaeng and khet, and its code list names already start with "เขต".
+            var bangkok = Province == "10";
+            var parts = new[]
+            {
+                BuildingNumber?.Trim(),
+                Address.Replace('\n', ' ').Trim(),
+                (bangkok ? "แขวง" : "ตำบล") + ThaiAreas.Name(Subdistrict),
+                (bangkok ? string.Empty : "อำเภอ") + ThaiAreas.Name(District),
+                (bangkok ? string.Empty : "จังหวัด") + ThaiAreas.Name(Province),
+            };
+            return string.Join(" ", parts.Where(p => !string.IsNullOrEmpty(p)));
+        }
+    }
+
+    /// <summary>The phone number in the form the schema allows: +66-2-000-0000; null when it has no digits.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? XmlPhone
+    {
+        get
+        {
+            var text = Phone?.Trim() ?? string.Empty;
+            if (System.Text.RegularExpressions.Regex.IsMatch(text, @"^\+[0-9]{1,3}-[0-9()+\-]{1,30}$"))
+            {
+                return text;
+            }
+
+            var kept = new string(text.Where(c => char.IsAsciiDigit(c) || c == '-').ToArray()).Trim('-');
+            var digits = kept.Replace("-", string.Empty, StringComparison.Ordinal);
+            if (digits.Length == 0)
+            {
+                return null;
+            }
+
+            return "+66-" + (kept[0] == '0' ? kept[1..].TrimStart('-') : kept);
+        }
+    }
+
     /// <summary>The number as the XML carries it: tax ID followed by the branch, or the other identification.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string XmlId => IdKind switch
@@ -83,6 +142,20 @@ public sealed record TaxInvoice(
     bool PricesIncludeVat = false,
     string? Note = null)
 {
+    /// <summary>The name ETDA gives the XML inside the PDF.</summary>
+    public const string XmlFileName = "ETDA-invoice.xml";
+
+    /// <summary>The metadata ETDA asks of the PDF/A-3 file (its PdfAConverter template).</summary>
+    public static PdfAExtension XmpExtension { get; } = new(
+        "Electronic Tax Invoice PDFA Extension Schema",
+        "urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2#",
+        "rsm",
+        [
+            new PdfAExtensionProperty("DocumentFileName", XmlFileName, "Name of the embedded XML invoice file"),
+            new PdfAExtensionProperty("DocumentType", "Tax Invoice", "Type of the document"),
+            new PdfAExtensionProperty("Version", "2.0", "Version of the ETDA XML data"),
+        ]);
+
     public decimal LineTotal => Lines.Sum(l => l.Amount);
 
     /// <summary>The value before VAT.</summary>
@@ -130,14 +203,25 @@ public sealed record TaxInvoice(
             problems.Add("The branch number has 5 digits (00000 for the head office).");
         }
 
-        if (string.IsNullOrWhiteSpace(Seller.Address) || string.IsNullOrWhiteSpace(Seller.Postcode))
+        if (string.IsNullOrWhiteSpace(Seller.BuildingNumber) || string.IsNullOrEmpty(Seller.Province)
+            || string.IsNullOrEmpty(Seller.District) || string.IsNullOrEmpty(Seller.Subdistrict))
         {
-            problems.Add("Enter the seller's address and postcode.");
+            problems.Add("Enter the seller's house number, province, district and subdistrict.");
+        }
+
+        if (Seller.Postcode.Trim() is not { Length: 5 } postcode || !postcode.All(char.IsAsciiDigit))
+        {
+            problems.Add("The seller's postcode has 5 digits.");
         }
 
         if (string.IsNullOrWhiteSpace(Buyer.Name))
         {
             problems.Add("Enter the buyer's name.");
+        }
+
+        if (string.IsNullOrWhiteSpace(Buyer.Address))
+        {
+            problems.Add("Enter the buyer's address.");
         }
 
         if (Buyer.IdKind is TaxIdKind.TaxId or TaxIdKind.NationalId && !IsValidThaiId(Buyer.Id))
@@ -207,7 +291,7 @@ public sealed record TaxInvoice(
                 Start("SpecifiedTaxRegistration");
                 Element("ID", party.XmlId, ("schemeID", party.SchemeId));
                 End();
-                if (!string.IsNullOrWhiteSpace(party.Email) || !string.IsNullOrWhiteSpace(party.Phone))
+                if (!string.IsNullOrWhiteSpace(party.Email) || party.XmlPhone is not null)
                 {
                     Start("DefinedTradeContact");
                     if (!string.IsNullOrWhiteSpace(party.Email))
@@ -217,27 +301,47 @@ public sealed record TaxInvoice(
                         End();
                     }
 
-                    if (!string.IsNullOrWhiteSpace(party.Phone))
+                    if (party.XmlPhone is { } phone)
                     {
                         Start("TelephoneUniversalCommunication");
-                        Element("CompleteNumber", party.Phone.Trim());
+                        Element("CompleteNumber", phone);
                         End();
                     }
 
                     End();
                 }
 
-                // Unstructured address (§8.7): lines 1–2 with the postcode and country.
+                // Lines 1–2 hold what was written (§8.7); the seller also needs the codes (Revenue Department rules 009–012).
                 Start("PostalTradeAddress");
-                Element("PostcodeCode", party.Postcode.Trim());
+                if (party.Postcode.Trim().Length > 0)
+                {
+                    Element("PostcodeCode", party.Postcode.Trim());
+                }
+
                 var lines = AddressLines(party.Address);
-                Element("LineOne", lines.One);
+                if (lines.One.Length > 0)
+                {
+                    Element("LineOne", lines.One);
+                }
+
                 if (lines.Two.Length > 0)
                 {
                     Element("LineTwo", lines.Two);
                 }
 
+                if (party.IsStructured)
+                {
+                    Element("CityName", party.District!);
+                    Element("CitySubDivisionName", party.Subdistrict!);
+                }
+
                 Element("CountryID", "TH", ("schemeID", "3166-1 alpha-2"));
+                if (party.IsStructured)
+                {
+                    Element("CountrySubDivisionID", party.Province!);
+                    Element("BuildingNumber", party.BuildingNumber!.Trim());
+                }
+
                 End();
                 End();
             }
@@ -296,12 +400,11 @@ public sealed record TaxInvoice(
             End();
             End();
 
+            var lineVats = LineVats();
             for (var i = 0; i < Lines.Count; i++)
             {
                 var line = Lines[i];
-                var lineVat = PricesIncludeVat
-                    ? Math.Round(line.Amount * VatRate / (100 + VatRate), 2, MidpointRounding.AwayFromZero)
-                    : Math.Round(line.Amount * VatRate / 100, 2, MidpointRounding.AwayFromZero);
+                var lineVat = lineVats[i];
                 var lineBasis = PricesIncludeVat ? line.Amount - lineVat : line.Amount;
                 Start("IncludedSupplyChainTradeLineItem");
                 Start("AssociatedDocumentLineDocument");
@@ -316,7 +419,8 @@ public sealed record TaxInvoice(
                 End();
                 End();
                 Start("SpecifiedLineTradeDelivery");
-                Element("BilledQuantity", Amount(line.Quantity), ("unitCode", line.Unit.Trim().Length > 0 ? line.Unit.Trim() : "C62"));
+                // The schema always asks for the quantity; a service has no unit (§8.18).
+                Element("BilledQuantity", Amount(line.Quantity), line.Unit.Trim() is { Length: > 0 } unit ? [("unitCode", unit)] : []);
                 End();
                 Start("SpecifiedLineTradeSettlement");
                 Tax(lineBasis, lineVat);
@@ -335,6 +439,18 @@ public sealed record TaxInvoice(
         }
 
         return output.ToArray();
+    }
+
+    /// <summary>The VAT of each line. Rounded line by line they can miss the VAT of the whole by a satang or so, which the last line takes up.</summary>
+    internal IReadOnlyList<decimal> LineVats()
+    {
+        var vats = Lines.Select(line => Math.Round(PricesIncludeVat ? line.Amount * VatRate / (100 + VatRate) : line.Amount * VatRate / 100, 2, MidpointRounding.AwayFromZero)).ToList();
+        if (vats.Count > 0)
+        {
+            vats[^1] += Vat - vats.Sum();
+        }
+
+        return vats;
     }
 
     private static string Amount(decimal value) => value.ToString("0.00####", CultureInfo.InvariantCulture);

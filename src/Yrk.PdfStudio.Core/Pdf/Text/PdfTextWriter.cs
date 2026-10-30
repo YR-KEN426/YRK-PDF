@@ -19,10 +19,11 @@ public static class PdfTextWriter
     /// <summary>Vertical glyph offsets up to this share of the font size are dropped to keep real text.</summary>
     private const double MaxRealTextRise = 0.06;
 
-    public static byte[] AddText(byte[] pdf, IReadOnlyList<PdfTextBlock> blocks)
+    /// <param name="password">The password of a protected file; the text is encrypted like the rest of it.</param>
+    public static byte[] AddText(byte[] pdf, IReadOnlyList<PdfTextBlock> blocks, string? password = null)
     {
-        var document = CosDocument.Load(pdf);
-        if (document.IsEncrypted)
+        var document = CosDocument.Load(pdf, password);
+        if (document.IsLocked)
         {
             throw new PdfException("Password-protected PDFs cannot be edited yet. Save an unprotected copy first.");
         }

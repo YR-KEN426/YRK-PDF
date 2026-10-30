@@ -207,7 +207,7 @@ public sealed partial class MainViewModel
             e.Page.Index,
             e.Line.Bounds,
             replaced.IndexOf(e) is >= 0 and var i ? blocks[i] : null)).ToList();
-        return PdfTextEditor.Apply(pdf, edits);
+        return PdfTextEditor.Apply(pdf, edits, _document?.OpenPassword);
     }
 
     /// <summary>The new text shaped and placed on the old line's baseline.</summary>

@@ -7,6 +7,7 @@ using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Redaction;
 using Yrk.PdfStudio.Core.Pdf.Security;
 using Yrk.PdfStudio.Core.Pdf.Signatures;
+using Yrk.PdfStudio.Core.Pdf.Text;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
@@ -94,6 +95,27 @@ public sealed class ProtectedEditTests : IDisposable
         }
 
         Assert.DoesNotContain("invoice", Encoding.Latin1.GetString(result.Output));
+    }
+
+    [Fact]
+    public async Task Edits_the_text_of_a_protected_file_and_it_stays_protected()
+    {
+        var input = PdfSecurity.Protect(File.ReadAllBytes(SamplePath), new PdfProtection("abc", "own", PdfPermissions.All));
+        NormalizedRect area;
+        await using (var document = await _engine.OpenAsync(Write("in.pdf", input), "abc"))
+        {
+            area = (await document.FindTextAsync(0, "sample document", PdfSearchOptions.None))[0].Rects[0];
+        }
+
+        var edited = PdfTextEditor.Apply(input, [new PdfTextEdit(0, area, null)], "abc");
+
+        Assert.True(edited.AsSpan(0, input.Length).SequenceEqual(input)); // An incremental update.
+        var path = Write("edited.pdf", edited);
+        await Assert.ThrowsAsync<PdfPasswordRequiredException>(() => _engine.OpenAsync(path));
+        await using var opened = await _engine.OpenAsync(path, "abc");
+        var text = await opened.GetPageTextAsync(0);
+        Assert.DoesNotContain("sample document", text, StringComparison.Ordinal);
+        Assert.Contains("invoice", text, StringComparison.Ordinal);
     }
 
     [Theory]

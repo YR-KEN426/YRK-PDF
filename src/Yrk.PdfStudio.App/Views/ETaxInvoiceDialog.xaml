@@ -87,8 +87,38 @@
                                          ToolTip="00000 = head office" />
                             </StackPanel>
                         </Grid>
-                        <TextBlock Text="Address" Style="{StaticResource Label}" />
-                        <TextBox x:Name="SellerAddress" AcceptsReturn="True" TextWrapping="Wrap" MinLines="2" AutomationProperties.Name="Seller address" TextChanged="OnChanged" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="2.4*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="House number" Style="{StaticResource Label}" />
+                                <TextBox x:Name="SellerHouse" AutomationProperties.Name="Seller house number" TextChanged="OnChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Street, soi, building (optional)" Style="{StaticResource Label}" />
+                                <TextBox x:Name="SellerAddress" AutomationProperties.Name="Seller street" TextChanged="OnChanged" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="Province" Style="{StaticResource Label}" />
+                        <ComboBox x:Name="SellerProvince" DisplayMemberPath="Name" AutomationProperties.Name="Seller province" SelectionChanged="OnProvinceChanged" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="District" Style="{StaticResource Label}" />
+                                <ComboBox x:Name="SellerDistrict" DisplayMemberPath="Name" AutomationProperties.Name="Seller district" SelectionChanged="OnDistrictChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Subdistrict" Style="{StaticResource Label}" />
+                                <ComboBox x:Name="SellerSubdistrict" DisplayMemberPath="Name" AutomationProperties.Name="Seller subdistrict" SelectionChanged="OnChanged" />
+                            </StackPanel>
+                        </Grid>
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition />

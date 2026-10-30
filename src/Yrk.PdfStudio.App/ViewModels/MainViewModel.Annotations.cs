@@ -49,6 +49,13 @@ public sealed partial class MainViewModel
         get => _currentTool;
         set
         {
+            if (ChangesTheFile(value) && !ConfirmFirstEdit())
+            {
+                // Cancelled: the toolbar goes back to the tool in use once this change has finished.
+                App.Current?.Dispatcher.BeginInvoke(() => OnPropertyChanged(nameof(CurrentTool)));
+                return;
+            }
+
             if (value == AnnotationTool.Highlight && _yellowBeforeDrawing)
             {
                 _yellowBeforeDrawing = false; // The Insert menu chose black for drawing: the highlighter goes back to yellow.

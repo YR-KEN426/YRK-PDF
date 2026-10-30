@@ -7,30 +7,13 @@ namespace Yrk.PdfStudio.App.ViewModels;
 
 /// <summary>
 /// Text added with Fill &amp; Sign and the words of a สำเนาถูกต้อง stamp are written as real text (searchable,
-/// copyable, sharp), shaped like the on-screen preview and embedded as a font subset. Password-protected files keep
-/// the earlier image form.
+/// copyable, sharp), shaped like the on-screen preview and embedded as a font subset.
 /// </summary>
 public sealed partial class MainViewModel
 {
     private bool HasPlacedText => _placedItems.Any(i => (i.IsText && i.Text.Trim().Length > 0) || i.HasStampText);
 
-    /// <summary>Real text needs the file's own bytes, which an encrypted file does not allow us to change.</summary>
-    private bool CanWriteRealText(IPdfDocument document)
-    {
-        if (!HasPlacedText)
-        {
-            return false;
-        }
-
-        try
-        {
-            return !PdfFiles.IsEncrypted(File.ReadAllBytes(document.FilePath));
-        }
-        catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException or FormatException)
-        {
-            return false;
-        }
-    }
+    private bool CanWriteRealText => HasPlacedText;
 
     /// <summary>Writes every added text item into the PDF bytes, one shaped line at a time.</summary>
     private byte[] ApplyPlacedText(byte[] pdf)
@@ -75,7 +58,7 @@ public sealed partial class MainViewModel
             AddStampWords(lines, item.Stamp!, item.PageIndex, item.Bounds, item.PageWidth, item.PageHeight);
         }
 
-        return lines.Count == 0 ? pdf : PdfTextWriter.AddText(pdf, TextShaper.ToBlocks(lines));
+        return lines.Count == 0 ? pdf : PdfTextWriter.AddText(pdf, TextShaper.ToBlocks(lines), _document?.OpenPassword);
     }
 
     /// <summary>The words of a stamp placed at <paramref name="bounds"/>, as lines of real text.</summary>

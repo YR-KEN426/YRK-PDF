@@ -59,7 +59,7 @@ public sealed partial class MainViewModel
 
     private void PlacePicture(BitmapSource picture)
     {
-        if (_document is null || _currentPageIndex >= Pages.Count)
+        if (_document is null || _currentPageIndex >= Pages.Count || !ConfirmFirstEdit())
         {
             return;
         }

@@ -11,6 +11,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Pdf\ETax\thai-areas.txt" LogicalName="Yrk.PdfStudio.Core.Pdf.ETax.thai-areas.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Prebuilt PDFium binaries (BSD-3/Apache-2.0) for win-x64, win-x86 and win-arm64. -->
     <PackageReference Include="ACadSharp" Version="3.8.0" />
     <PackageReference Include="bblanchon.PDFium.Win32" Version="157.0.8100" />

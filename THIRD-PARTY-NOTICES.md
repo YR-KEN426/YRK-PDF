@@ -43,3 +43,7 @@ part of the portable package.
   their crates (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, MPL-2.0 and similar, see its `deny.toml`)
   but does not publish a per-crate notice file; one can be generated from its `Cargo.lock` with
   `cargo about` if needed.
+
+## Thai area codes
+
+`src/Yrk.PdfStudio.Core/Pdf/ETax/thai-areas.txt` is taken from the code lists in the Revenue Department's XMLSchemaV2 package (TIS 1099 and ISO 3166-2:TH, in UN/CEFACT code list modules, Copyright (C) UN/CEFACT, which allow copies and derivative works).

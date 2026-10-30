@@ -118,10 +118,10 @@ public static class PdfRedactor
 
     /// <summary>Step 1: content, annotations and fields under the areas are removed; black boxes are drawn.</summary>
     internal static (byte[] Output, HashSet<int> ImagePages) RemoveContent(
-        byte[] pdf, IReadOnlyDictionary<int, IReadOnlyList<NormalizedRect>> byPage, bool blackBoxes = true, bool removeAnnotations = true)
+        byte[] pdf, IReadOnlyDictionary<int, IReadOnlyList<NormalizedRect>> byPage, bool blackBoxes = true, bool removeAnnotations = true, string? password = null)
     {
-        var document = CosDocument.Load(pdf);
-        if (document.IsEncrypted)
+        var document = CosDocument.Load(pdf, password);
+        if (document.IsLocked)
         {
             throw new PdfException("Password-protected PDFs cannot be redacted yet. Save an unprotected copy first.");
         }
