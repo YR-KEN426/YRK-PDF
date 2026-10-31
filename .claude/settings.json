@@ -1,0 +1,20 @@
+{
+  "model": "opusplan",
+  "permissions": {
+    "deny": [
+      "Read(./docs/release-repo/site/**)",
+      "Read(./artifacts/**)",
+      "Read(./src/Yrk.PdfStudio.App/Assets/Guide/**)",
+      "Read(./**/bin/**)",
+      "Read(./**/obj/**)"
+    ],
+    "allow": [
+      "Bash(codex exec:*)",
+      "Bash(git diff:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
