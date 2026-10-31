@@ -1,5 +1,4 @@
 {
-  "model": "opusplan",
   "permissions": {
     "deny": [
       "Read(./docs/release-repo/site/**)",
