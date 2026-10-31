@@ -7,6 +7,7 @@ obj/
 artifacts/
 publish/
 TestResults/
+.claude/released-version.txt
 
 # Keys: only the update key's public half belongs in the repository.
 *.pem

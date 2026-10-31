@@ -68,6 +68,9 @@ function Complete-Draft([string]$Repo, [string]$Version, [string[]]$Signatures) 
 
     Invoke-RestMethod -Headers $headers -Method Patch -ContentType "application/json" -Body '{"draft":false,"make_latest":"true"}' `
         -Uri "https://api.github.com/repos/$Repo/releases/$id" | Out-Null
+
+    # Read by .claude\hooks\release-notes-check.ps1, which then has PROJECT_NOTES.md updated for this version.
+    Set-Content -Path (Join-Path $PSScriptRoot "..\.claude\released-version.txt") -Value $Version -Encoding Ascii
 }
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 Set-Location $root
@@ -224,4 +227,5 @@ if ($Publish) {
     Write-Host "  docs\release-repo\site\index.html    -> docs/"
     Write-Host "  docs\release-repo\site\en\index.html -> docs/en/"
     Write-Host "  docs\release-repo\site\guide\*.pdf   -> docs/guide/   (when the user guide changed)"
+    Write-Host "Then: open Claude Code here. It will update PROJECT_NOTES.md for $Version and ask you before committing." -ForegroundColor Cyan
 }
