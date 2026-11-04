@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -35,6 +36,7 @@ internal sealed class VerifiedUpdateSource : IUpdateSource
     private readonly string _packageId;
     private readonly string? _publicKey;
     private readonly Func<string, string, CancellationToken, Task<string>> _readSignature;
+    private readonly ConcurrentDictionary<(string PackageId, string Version, string FileName), string> _verifiedSignatures = new();
 
     internal VerifiedUpdateSource(IUpdateSource inner, string packageId, string? publicKey, string feedBase)
         : this(inner, packageId, publicKey, CreateSignatureReader(feedBase)) { }
@@ -85,16 +87,42 @@ internal sealed class VerifiedUpdateSource : IUpdateSource
             var signature = await _readSignature(name, version, cancellationToken).ConfigureAwait(false);
             if (Encoding.UTF8.GetByteCount(signature) > MaximumSignatureBytes)
                 throw new InvalidDataException(message: OversizedSignature);
-            var valid = await Task.Run(() => UpdateSignature.Verify(_publicKey, asset.PackageId, version,
-                asset.FileName, UpdateSignature.Sha256Hex(localFile), signature), cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!valid)
-                throw new InvalidDataException(message: SignatureMismatch);
+            await VerifySignatureAsync(asset, localFile, signature, cancellationToken).ConfigureAwait(false);
+            _verifiedSignatures[(asset.PackageId, version, asset.FileName)] = signature;
         }
         catch (Exception ex)
         {
             throw DeleteRejectedFile(localFile, ex);
         }
+    }
+
+    /// <summary>Rechecks local bytes using only a signature already authenticated by this source.</summary>
+    internal async Task VerifyCachedAsync(VelopackAsset asset, string localFile, CancellationToken cancellationToken)
+    {
+        try
+        {
+            RequireAllowedAsset(asset);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (string.IsNullOrWhiteSpace(_publicKey))
+                throw new InvalidDataException(message: NoUpdateKey);
+            if (!_verifiedSignatures.TryGetValue((asset.PackageId, asset.Version.ToString(), asset.FileName), out var signature))
+                throw new InvalidDataException(message: VerificationFailed);
+            await VerifySignatureAsync(asset, localFile, signature, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            throw DeleteRejectedFile(localFile, ex);
+        }
+    }
+
+    private async Task VerifySignatureAsync(VelopackAsset asset, string localFile, string signature,
+        CancellationToken cancellationToken)
+    {
+        var valid = await Task.Run(() => UpdateSignature.Verify(_publicKey!, asset.PackageId, asset.Version.ToString(),
+            asset.FileName, UpdateSignature.Sha256Hex(localFile), signature), cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!valid)
+            throw new InvalidDataException(message: SignatureMismatch);
     }
 
     internal static bool IsPlainFileName(string? name) =>

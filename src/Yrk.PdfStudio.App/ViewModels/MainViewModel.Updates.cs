@@ -156,7 +156,26 @@ public sealed partial class MainViewModel
             return;
         }
 
-        _updater.ApplyAndRestart();
+        try
+        {
+            await _updater.ApplyAndRestartAsync();
+        }
+        catch (UpdateVerificationException ex)
+        {
+            ReportUpdateApplyFailure(ex);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            ReportUpdateApplyFailure(ex);
+        }
+    }
+
+    private void ReportUpdateApplyFailure(Exception ex)
+    {
+        App.LogMessage(ex.ToString());
+        s_readyVersion = null;
+        UpdateReady?.Invoke(null, EventArgs.Empty);
+        StatusMessage = Loc.T("An update was found but it is not signed by YRK, so it was deleted and not installed.");
     }
 
     /// <summary>What the About dialog shows and can do.</summary>

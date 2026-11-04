@@ -8,8 +8,10 @@ using Velopack.Sources;
 namespace Yrk.PdfStudio.App.Services;
 
 /// <summary>
-/// Updates through Velopack using full packages authenticated before promotion or extraction.
-/// Updates only work in installed or portable copies built with a feed URL.
+/// Updates through Velopack. The feed is a web folder (or GitHub releases, or a local folder for testing)
+/// holding the files that build\release.ps1 produces. Updates only work in installed or portable copies,
+/// not when running from Visual Studio, and only when the build has a feed URL. Only full packages are
+/// downloaded, and their signatures are verified before promotion or extraction.
 /// </summary>
 public sealed class AppUpdater
 {
@@ -50,6 +52,7 @@ public sealed class AppUpdater
     }
 
     public string? FeedUrl { get; }
+    /// <summary>True for installed and portable copies built with a feed.</summary>
     public bool IsAvailable => _manager is { IsInstalled: true };
     public bool IsPortable => _manager is { IsPortable: true };
     public string CurrentVersion =>
@@ -77,14 +80,15 @@ public sealed class AppUpdater
     }
 
     /// <summary>Closes the app, installs the downloaded update and starts the new version.</summary>
-    public void ApplyAndRestart()
+    public async Task ApplyAndRestartAsync()
     {
         if (_manager is not null && Ready is not null)
         {
             var update = Ready;
             Ready = null;
             // Rechecking immediately before apply reduces, but does not eliminate, the TOCTOU window.
-            VerifyAsync(_manager, update.TargetFullRelease, CancellationToken.None).GetAwaiter().GetResult();
+            var package = VerifiedUpdateSource.GetPackagePath(_manager.PackagesDir, update.TargetFullRelease);
+            await _source!.VerifyCachedAsync(update.TargetFullRelease, package, CancellationToken.None).ConfigureAwait(false);
             _manager.ApplyUpdatesAndRestart(update.TargetFullRelease);
         }
     }

@@ -151,14 +151,65 @@ public sealed class VerifiedUpdateSourceTests
     public async Task Apply_rechecks_the_whole_package_and_clears_ready_on_failure()
     {
         using var fixture = new UpdateFixture();
-        var updater = fixture.CreateUpdater();
+        var reads = 0;
+        var source = new VerifiedUpdateSource(fixture.Inner, Id, fixture.PublicKey, (_, _, _) =>
+        {
+            reads++;
+            return Task.FromResult(File.ReadAllText(fixture.Signature));
+        });
+        var updater = fixture.CreateUpdater(source);
         await updater.CheckAndDownloadAsync();
+        Assert.NotNull(updater.Ready);
+        var readsBeforeApply = reads;
+        Assert.True(readsBeforeApply > 0);
+        File.Delete(fixture.Signature); // Applying must also work offline without rereading a signature.
         File.AppendAllText(fixture.Complete, "changed after Ready");
 
-        Assert.Throws<UpdateVerificationException>(() => updater.ApplyAndRestart());
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => updater.ApplyAndRestartAsync());
 
         Assert.Null(updater.Ready);
         Assert.False(File.Exists(fixture.Complete));
+        Assert.Equal(readsBeforeApply, reads);
+    }
+
+    [Fact]
+    public async Task Cached_verification_without_an_authenticated_signature_fails_closed()
+    {
+        using var fixture = new UpdateFixture();
+        var reads = 0;
+        var source = new VerifiedUpdateSource(fixture.Inner, Id, fixture.PublicKey, (_, _, _) =>
+        {
+            reads++;
+            return Task.FromResult(File.ReadAllText(fixture.Signature));
+        });
+        File.Copy(fixture.Package, fixture.Complete);
+
+        await Assert.ThrowsAsync<UpdateVerificationException>(() => source.VerifyCachedAsync(fixture.Asset, fixture.Complete, default));
+
+        Assert.False(File.Exists(fixture.Complete));
+        Assert.Equal(0, reads);
+    }
+
+    [Fact]
+    public async Task Cached_verification_accepts_unchanged_bytes_without_rereading_the_signature()
+    {
+        using var fixture = new UpdateFixture();
+        var reads = 0;
+        var source = new VerifiedUpdateSource(fixture.Inner, Id, fixture.PublicKey, (_, _, _) =>
+        {
+            reads++;
+            return Task.FromResult(File.ReadAllText(fixture.Signature));
+        });
+        var updater = fixture.CreateUpdater(source);
+        await updater.CheckAndDownloadAsync();
+        var readsBeforeRecheck = reads;
+        File.Delete(fixture.Signature);
+
+        await source.VerifyCachedAsync(fixture.Asset, fixture.Complete, default);
+
+        Assert.True(File.Exists(fixture.Complete));
+        Assert.NotNull(updater.Ready);
+        Assert.Equal(readsBeforeRecheck, reads);
     }
 
     [Theory]
