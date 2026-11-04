@@ -145,7 +145,9 @@ internal sealed partial class CosDocument
         }
 
         CosObject? value = null;
-        if (_xref.TryGetValue(id.Number, out var entry) && entry.Generation == id.Generation)
+        // A generation that doesn't match the xref is still read, as before: broken files often get it wrong, and
+        // returning null here would make a save drop the object.
+        if (_xref.TryGetValue(id.Number, out var entry))
         {
             value = entry.Kind switch
             {

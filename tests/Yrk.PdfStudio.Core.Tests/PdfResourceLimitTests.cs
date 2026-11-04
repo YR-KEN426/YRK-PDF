@@ -110,7 +110,6 @@ public sealed class PdfResourceLimitTests
         Assert.False(document.WasReconstructed);
         Assert.Contains(new CosObjectId(4, 7), document.ObjectIds);
         Assert.Equal(99, Assert.IsType<CosInteger>(document.GetObject(new CosObjectId(4, 7))).Value);
-        Assert.IsType<CosNull>(document.GetObject(new CosObjectId(4, 0)));
     }
 
     [Fact]
