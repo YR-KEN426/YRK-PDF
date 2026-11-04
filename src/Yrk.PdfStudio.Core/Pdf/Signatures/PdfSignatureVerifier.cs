@@ -47,49 +47,39 @@ public static class PdfSignatureVerifier
     }
 
     /// <summary>
-    /// Whether the revisions after <paramref name="signedLength"/> only added long-term validation data (/DSS: certificates
+    /// Whether the revisions after <paramref name="signed"/> only added long-term validation data (/DSS: certificates
     /// and revocation lists), which does not change the document. Every other object must be as it was when signed.
     /// </summary>
-    private static bool OnlyValidationDataAfter(CosDocument document, byte[] file, long signedLength)
+    private static bool OnlyValidationDataAfter(CosDocument document, CosDocument signed)
     {
         if (document.Catalog["DSS"] is null || document.Trailer["Root"] is not CosReference root)
         {
             return false;
         }
 
-        CosDocument signed;
-        try
-        {
-            signed = CosDocument.Load(file.AsSpan(0, (int)signedLength).ToArray());
-        }
-        catch (PdfException)
+        if (!Same(document.Trailer["Root"], signed.Trailer["Root"])
+            || !Same(document.Trailer["Info"], signed.Trailer["Info"])
+            || !Same(document.Trailer["Encrypt"], signed.Trailer["Encrypt"]))
         {
             return false;
         }
 
-        // The store and everything in it may be new.
-        var validationData = new HashSet<CosObjectId>();
-        var pending = new Stack<CosObject?>([document.Catalog["DSS"]]);
-        while (pending.Count > 0)
+        // An object used outside /DSS is document content, even if /DSS also references it.
+        var content = new HashSet<int>();
+        if (!CollectContent(document, content) || !CollectContent(signed, content))
         {
-            switch (pending.Pop())
-            {
-                case CosReference reference when validationData.Add(reference.Id):
-                    pending.Push(document.GetObject(reference.Id));
-                    break;
-                case CosDictionary dictionary:
-                    dictionary.Entries.Values.ToList().ForEach(pending.Push);
-                    break;
-                case CosArray array:
-                    array.Items.ForEach(pending.Push);
-                    break;
-                case CosStream stream:
-                    pending.Push(stream.Dictionary);
-                    break;
-            }
+            return false;
         }
 
-        foreach (var id in document.ObjectIds)
+        var validationData = new HashSet<CosObjectId>();
+        var budget = 10000;
+        if (!ValidationObject(document.Catalog["DSS"], "DSS", 0))
+        {
+            return false;
+        }
+
+        // Include deleted objects, too. Removing content is not a validation-data update.
+        foreach (var id in document.ObjectIds.Union(signed.ObjectIds))
         {
             if (validationData.Contains(id))
             {
@@ -98,7 +88,7 @@ public static class PdfSignatureVerifier
 
             var now = document.GetObject(id);
             var then = signed.GetObject(id);
-            if (now is CosStream { Dictionary: var header } && (header["Type"] as CosName)?.Value is "XRef" or "ObjStm")
+            if (!content.Contains(id.Number) && now is CosStream { Dictionary: var header } && (header["Type"] as CosName)?.Value is "XRef" or "ObjStm")
             {
                 continue; // File structure: the objects an object stream holds are compared one by one.
             }
@@ -120,6 +110,109 @@ public static class PdfSignatureVerifier
             if (!Same(now, then))
             {
                 return false;
+            }
+        }
+
+        return true;
+
+        bool ValidationObject(CosObject? value, string kind, int depth)
+        {
+            if (--budget < 0 || depth > 32)
+            {
+                return false;
+            }
+
+            if (value is CosReference reference)
+            {
+                if (content.Contains(reference.Id.Number))
+                {
+                    return false;
+                }
+
+                validationData.Add(reference.Id);
+                return ValidationObject(document.GetObject(reference.Id), kind, depth + 1);
+            }
+
+            return kind switch
+            {
+                "DSS" => value is CosDictionary dss && dss.Entries.All(e => e.Key switch
+                {
+                    "Type" => e.Value is CosName { Value: "DSS" },
+                    "Certs" or "CRLs" or "OCSPs" => ValidationObject(e.Value, "Array", depth + 1),
+                    "VRI" => ValidationObject(e.Value, "VRI", depth + 1),
+                    _ => false,
+                }),
+                "VRI" => value is CosDictionary vri && vri.Entries.All(e =>
+                    e.Key.Length == 40 && e.Key.All(Uri.IsHexDigit) && ValidationObject(e.Value, "Entry", depth + 1)),
+                "Entry" => value is CosDictionary entry && entry.Entries.All(e => e.Key switch
+                {
+                    "Type" => e.Value is CosName { Value: "VRI" },
+                    "Cert" or "CRL" or "OCSP" => ValidationObject(e.Value, "Array", depth + 1),
+                    "TU" => e.Value is CosString,
+                    "TS" => ValidationObject(e.Value, "Stream", depth + 1),
+                    _ => false,
+                }),
+                "Array" => value is CosArray array && array.Items.All(i => ValidationObject(i, "Stream", depth + 1)),
+                // Do not follow arbitrary stream dictionaries (page content, actions, external files, etc.).
+                "Stream" => value is CosStream stream && stream.Dictionary.Entries.All(e => e.Key switch
+                {
+                    "Length" => ValidationObject(e.Value, "Length", depth + 1),
+                    "Filter" => ValidationObject(e.Value, "Filter", depth + 1),
+                    "DecodeParms" => ValidationObject(e.Value, "DecodeParms", depth + 1),
+                    _ => false,
+                }),
+                "Length" => value is CosInteger { Value: >= 0 },
+                "Filter" => value is CosName || value is CosArray filters && filters.Items.All(i => ValidationObject(i, "FilterName", depth + 1)),
+                "FilterName" => value is CosName,
+                "DecodeParms" => value is CosNull || value is CosArray parameters && parameters.Items.All(i => ValidationObject(i, "DecodeParms", depth + 1))
+                    || value is CosDictionary parms && parms.Entries.All(e =>
+                        e.Key is "Predictor" or "Colors" or "BitsPerComponent" or "Columns" or "EarlyChange"
+                        && e.Value is CosInteger),
+                _ => false,
+            };
+        }
+    }
+
+    private static bool CollectContent(CosDocument document, HashSet<int> content)
+    {
+        var visited = new HashSet<CosObjectId>();
+        var catalog = document.Catalog.Clone();
+        catalog["DSS"] = null;
+        var pending = new Stack<(CosObject? Value, int Depth)>();
+        pending.Push((catalog, 0));
+        pending.Push((document.Trailer["Info"], 0));
+        pending.Push((document.Trailer["Encrypt"], 0));
+        var budget = 100000;
+        while (pending.TryPop(out var item))
+        {
+            if (--budget < 0 || item.Depth > 64)
+            {
+                return false;
+            }
+
+            switch (item.Value)
+            {
+                case CosReference reference when visited.Add(reference.Id):
+                    // CosDocument tolerates incorrect generations; aliases still identify content.
+                    content.Add(reference.Id.Number);
+                    // A back-reference to the catalog must not reintroduce /DSS.
+                    pending.Push((Same(reference, document.Trailer["Root"]) ? catalog : document.GetObject(reference.Id), item.Depth + 1));
+                    break;
+                case CosDictionary dictionary:
+                    foreach (var value in dictionary.Entries.Values)
+                    {
+                        pending.Push((value, item.Depth + 1));
+                    }
+                    break;
+                case CosArray array:
+                    foreach (var value in array.Items)
+                    {
+                        pending.Push((value, item.Depth + 1));
+                    }
+                    break;
+                case CosStream stream:
+                    pending.Push((stream.Dictionary, item.Depth + 1));
+                    break;
             }
         }
 
@@ -152,12 +245,13 @@ public static class PdfSignatureVerifier
         var claimedTime = (document.Resolve(signature["M"]) as CosString)?.ToDate();
         var claimedName = (document.Resolve(signature["Name"]) as CosString)?.ToText();
         var pageIndex = FindPage(document, field);
-        var isCertification = document.Resolve(signature["Reference"]) is CosArray references
-            && references.Items.Select(document.Resolve).OfType<CosDictionary>().Any(r => (document.Resolve(r["TransformMethod"]) as CosName)?.Value == "DocMDP");
+        var certification = PdfCertification.None;
+        var isCertification = false;
 
         PdfSignatureInfo Result(PdfSignatureStatus status, string? problem, long signedLength = 0, bool covers = false) => new(
             fieldName, pageIndex, claimedName ?? string.Empty, null, claimedTime, false, reason, location, subFilter,
-            status, false, PdfSignerIdentity.Unknown, false, covers, isCertification, signedLength, problem);
+            status, false, PdfSignerIdentity.Unknown, false, covers, isCertification, signedLength, problem)
+        { Certification = certification };
 
         // /ByteRange must cover the whole revision except exactly the /Contents hex string.
         var range = (document.Resolve(signature["ByteRange"]) as CosArray)?.Items.Select(i => (document.Resolve(i) as CosInteger)?.Value ?? -1).ToArray();
@@ -168,7 +262,40 @@ public static class PdfSignatureVerifier
         }
 
         var signedLength = range[2] + range[3];
-        var covers = file.AsSpan((int)signedLength).Trim("\r\n\0 \t"u8).IsEmpty || OnlyValidationDataAfter(document, file, signedLength);
+        CosDocument signed;
+        try
+        {
+            signed = CosDocument.Load(file.AsSpan(0, (int)signedLength).ToArray());
+        }
+        catch (PdfException)
+        {
+            return Result(PdfSignatureStatus.Invalid, "The signed revision could not be read.", signedLength);
+        }
+
+        var signedField = FindSignatureFields(signed).FirstOrDefault(f => f.Name == fieldName).Field;
+        if (signedField is null || signed.Resolve(signedField["V"]) is not CosDictionary signedSignature
+            || !Same(signedSignature["ByteRange"], signature["ByteRange"]))
+        {
+            return Result(PdfSignatureStatus.Invalid, "The signature is missing from the signed revision.", signedLength);
+        }
+
+        if (signed.Resolve(signedSignature["Reference"]) is CosArray references)
+        {
+            foreach (var reference in references.Items.Select(signed.Resolve).OfType<CosDictionary>())
+            {
+                if ((signed.Resolve(reference["TransformMethod"]) as CosName)?.Value == "DocMDP")
+                {
+                    isCertification = true;
+                    if (signed.Resolve(reference["TransformParams"]) is CosDictionary parameters
+                        && signed.Resolve(parameters["P"]) is CosInteger { Value: >= 1 and <= 3 } permission)
+                    {
+                        certification = (PdfCertification)permission.Value;
+                    }
+                }
+            }
+        }
+
+        var covers = file.AsSpan((int)signedLength).Trim("\r\n\0 \t"u8).IsEmpty || OnlyValidationDataAfter(document, signed);
         if (document.Resolve(signature["Contents"]) is not CosString { Bytes.Length: > 0 } contents)
         {
             return Result(PdfSignatureStatus.Invalid, "The signature has no contents.", signedLength, covers);
@@ -230,7 +357,7 @@ public static class PdfSignatureVerifier
         }
 
         // A valid timestamp gives a trusted signing time; otherwise the time is the signer's claim.
-        var (timestampTime, isTimestamped) = ReadTimestamp(signerInfo);
+        var (timestampTime, isTimestamped) = ReadTimestamp(signerInfo, options);
         var signingTime = timestampTime ?? ReadSigningTimeAttribute(signerInfo) ?? claimedTime;
 
         var identity = PdfSignerIdentity.Unknown;
@@ -240,17 +367,24 @@ public static class PdfSignatureVerifier
             (identity, revocationChecked) = CheckIdentity(certificate, cms.Certificates, timestampTime, options);
         }
 
-        var status = !intact || identity == PdfSignerIdentity.Revoked
+        var forbiddenChange = !covers && certification == PdfCertification.NoChanges;
+        var status = !intact || identity == PdfSignerIdentity.Revoked || forbiddenChange
             ? PdfSignatureStatus.Invalid
+            : !covers ? PdfSignatureStatus.Modified
             : identity == PdfSignerIdentity.Trusted ? PdfSignatureStatus.Valid : PdfSignatureStatus.IdentityUnknown;
         if (problem is null && identity == PdfSignerIdentity.Revoked)
         {
             problem = "The signer's certificate has been revoked.";
         }
+        if (problem is null && forbiddenChange)
+        {
+            problem = "The document was changed after certification, which allows no changes.";
+        }
 
         return new PdfSignatureInfo(
             fieldName, pageIndex, signerName, certificate, signingTime, isTimestamped, reason, location, subFilter,
-            status, intact, identity, revocationChecked, covers, isCertification, signedLength, problem);
+            status, intact, identity, revocationChecked, covers, isCertification, signedLength, problem)
+        { Certification = certification };
     }
 
     private static (PdfSignerIdentity Identity, bool RevocationChecked) CheckIdentity(
@@ -288,7 +422,7 @@ public static class PdfSignatureVerifier
         return (identity, revocationChecked);
     }
 
-    private static (DateTimeOffset? Time, bool IsTimestamped) ReadTimestamp(SignerInfo signerInfo)
+    private static (DateTimeOffset? Time, bool IsTimestamped) ReadTimestamp(SignerInfo signerInfo, PdfVerifyOptions options)
     {
         foreach (var attribute in signerInfo.UnsignedAttributes)
         {
@@ -299,10 +433,32 @@ public static class PdfSignatureVerifier
 
             foreach (var value in attribute.Values)
             {
-                if (Rfc3161TimestampToken.TryDecode(value.RawData, out var token, out _)
-                    && token.VerifySignatureForSignerInfo(signerInfo, out _))
+                try
                 {
-                    return (token.TokenInfo.Timestamp, true);
+                    if (!Rfc3161TimestampToken.TryDecode(value.RawData, out var token, out _)
+                        || !token.VerifySignatureForSignerInfo(signerInfo, out var tsa) || tsa is null
+                        || !tsa.Extensions.OfType<X509EnhancedKeyUsageExtension>().Any(e =>
+                            e.EnhancedKeyUsages.Cast<Oid>().Any(o => o.Value == "1.3.6.1.5.5.7.3.8")))
+                    {
+                        continue;
+                    }
+
+                    using var chain = new X509Chain();
+                    chain.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.5.5.7.3.8"));
+                    chain.ChainPolicy.ExtraStore.AddRange(token.AsSignedCms().Certificates);
+                    chain.ChainPolicy.VerificationTime = token.TokenInfo.Timestamp.UtcDateTime;
+                    chain.ChainPolicy.RevocationMode = options.CheckRevocation ? X509RevocationMode.Online : X509RevocationMode.NoCheck;
+                    chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
+                    chain.ChainPolicy.DisableCertificateDownloads = !options.CheckRevocation;
+                    chain.ChainPolicy.UrlRetrievalTimeout = options.NetworkTimeout ?? TimeSpan.FromSeconds(10);
+                    if (chain.Build(tsa))
+                    {
+                        return (token.TokenInfo.Timestamp, true);
+                    }
+                }
+                catch (Exception ex) when (ex is CryptographicException or AsnContentException)
+                {
+                    // An untrusted or malformed token supplies no trusted signing time.
                 }
             }
         }

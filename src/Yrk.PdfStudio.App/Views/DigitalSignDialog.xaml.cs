@@ -96,7 +96,7 @@ public partial class DigitalSignDialog : Window
 
     private void OnBackUpId(object sender, RoutedEventArgs e)
     {
-        if (SelectedFileId() is not { } id)
+        if (SelectedFileId() is not { FilePath: { } idPath } id)
         {
             return;
         }
@@ -104,7 +104,7 @@ public partial class DigitalSignDialog : Window
         var picker = new SaveFileDialog
         {
             Title = Loc.T("Back up this ID"),
-            FileName = Path.GetFileName(id.FilePath),
+            FileName = Path.GetFileName(idPath),
             Filter = Loc.T("Digital ID files (*.pfx;*.p12)|*.pfx;*.p12"),
             DefaultExt = ".pfx",
         };

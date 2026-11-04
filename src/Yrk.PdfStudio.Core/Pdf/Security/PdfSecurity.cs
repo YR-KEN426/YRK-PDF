@@ -237,10 +237,12 @@ internal class CosEncryption(byte[] fileKey, CosDictionary encryptDictionary)
 
     private CosDictionary EncryptEntries(CosDictionary dictionary, CosObjectId id)
     {
+        // Signature contents are excluded from encryption, as in CosCrypt.Transform.
+        var isSignature = (dictionary["Type"] as CosName)?.Value is "Sig" or "DocTimeStamp" || dictionary["ByteRange"] is not null;
         var copy = new CosDictionary();
         foreach (var (key, value) in dictionary.Entries)
         {
-            copy[key] = EncryptObject(value, id);
+            copy[key] = isSignature && key == "Contents" ? value : EncryptObject(value, id);
         }
 
         return copy;

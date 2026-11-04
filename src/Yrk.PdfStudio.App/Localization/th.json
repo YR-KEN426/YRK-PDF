@@ -1338,5 +1338,11 @@
   "Put English words on the page": "วางคำอ่านภาษาอังกฤษบนหน้า",
   "Thai words": "คำอ่านภาษาไทย",
   "English words": "คำอ่านภาษาอังกฤษ",
-  "Click where the words should go. Press Esc to cancel.": "คลิกตำแหน่งที่จะวางคำอ่าน กด Esc เพื่อยกเลิก"
+  "Click where the words should go. Press Esc to cancel.": "คลิกตำแหน่งที่จะวางคำอ่าน กด Esc เพื่อยกเลิก",
+  "Signed, but the document was changed after signing": "เซ็นแล้ว แต่เอกสารถูกแก้ไขหลังเซ็น",
+  "The document was changed after certification, which allows no changes.": "เอกสารถูกแก้ไขหลังรับรอง ทั้งที่การรับรองนี้ไม่อนุญาตให้แก้ไข",
+  "The document was changed after certification. Whether these changes are permitted has not been checked.": "เอกสารถูกแก้ไขหลังรับรอง ยังไม่ได้ตรวจว่าการแก้ไขเหล่านี้ได้รับอนุญาตหรือไม่",
+  "Adding password protection rewrites the document and removes its digital signatures. The result is saved as a new file. Continue?": "การตั้งรหัสผ่านจะเขียนเอกสารใหม่และลบลายเซ็นดิจิทัล ผลลัพธ์จะบันทึกเป็นไฟล์ใหม่ ต้องการดำเนินการต่อหรือไม่?",
+  "The signed revision could not be read.": "ไม่สามารถอ่านฉบับที่ถูกเซ็นได้",
+  "The signature is missing from the signed revision.": "ไม่พบลายเซ็นนี้ในฉบับที่ถูกเซ็น"
 }

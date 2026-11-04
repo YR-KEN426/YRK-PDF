@@ -31,8 +31,17 @@ public sealed partial class MainViewModel
     private async Task ProtectAsync()
     {
         if (_document is not { } document || IsBusy
-            || !await EnsureAllowedAsync(PdfPermissions.All, "change its security")
-            || _dialogs.AskProtection() is not { } protection)
+            || !await EnsureAllowedAsync(PdfPermissions.All, "change its security"))
+        {
+            return;
+        }
+
+        if (HasSignatures && !_dialogs.Confirm(Loc.T("Adding password protection rewrites the document and removes its digital signatures. The result is saved as a new file. Continue?")))
+        {
+            return;
+        }
+
+        if (_dialogs.AskProtection() is not { } protection)
         {
             return;
         }

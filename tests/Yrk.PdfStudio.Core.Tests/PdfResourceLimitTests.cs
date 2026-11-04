@@ -133,12 +133,12 @@ public sealed class PdfResourceLimitTests
         var saved = update.Build().Bytes;
         var method = typeof(PdfSignatureVerifier).GetMethod("OnlyValidationDataAfter", BindingFlags.Static | BindingFlags.NonPublic)!;
         var timer = Stopwatch.StartNew();
-        Assert.True((bool)method.Invoke(null, [CosDocument.Load(saved), saved, (long)bytes.Length])!);
+        Assert.True((bool)method.Invoke(null, [CosDocument.Load(saved), original])!);
         AssertFast(timer);
 
         update.Replace(new CosObjectId(4, 7), new CosInteger(100));
         saved = update.Build().Bytes;
-        Assert.False((bool)method.Invoke(null, [CosDocument.Load(saved), saved, (long)bytes.Length])!);
+        Assert.False((bool)method.Invoke(null, [CosDocument.Load(saved), original])!);
     }
 
     [Fact]

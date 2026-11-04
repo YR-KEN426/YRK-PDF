@@ -149,15 +149,31 @@ public sealed class SignatureTests : IDisposable
     }
 
     [Fact]
-    public async Task Adds_a_trusted_timestamp()
+    public async Task Does_not_trust_a_self_signed_timestamp_authority()
     {
         var time = new DateTimeOffset(2026, 10, 17, 7, 30, 0, TimeSpan.Zero);
-        var signed = await PdfSigner.SignAsync(File.ReadAllBytes(SamplePath), new PdfSignRequest(Signer.Value, TimestampAuthority: new FakeTimestampAuthority(time)));
+        var claimedTime = time.AddDays(1);
+        var signed = await PdfSigner.SignAsync(File.ReadAllBytes(SamplePath), new PdfSignRequest(Signer.Value, TimestampAuthority: new FakeTimestampAuthority(time), SigningTime: claimedTime));
+
+        // The imprint and token signature pass; the missing TSA trust is what rejects this time.
+        var document = CosDocument.Load(signed);
+        var form = (CosDictionary)document.Resolve(document.Catalog["AcroForm"])!;
+        var field = (CosDictionary)document.Resolve(((CosArray)document.Resolve(form["Fields"])!)[0])!;
+        var signature = (CosDictionary)document.Resolve(field["V"])!;
+        var range = ((CosArray)signature["ByteRange"]!).Items.Cast<CosInteger>().Select(i => (int)i.Value).ToArray();
+        var cms = new SignedCms(new ContentInfo(signed[..range[1]].Concat(signed[range[2]..(range[2] + range[3])]).ToArray()), detached: true);
+        cms.Decode(((CosString)signature["Contents"]!).Bytes);
+        var signerInfo = cms.SignerInfos[0];
+        var tokenBytes = signerInfo.UnsignedAttributes.Cast<CryptographicAttributeObject>()
+            .Single(a => a.Oid.Value == CadesSignature.SignatureTimeStampToken).Values[0].RawData;
+        Assert.True(Rfc3161TimestampToken.TryDecode(tokenBytes, out var token, out _));
+        Assert.True(token!.VerifySignatureForSignerInfo(signerInfo, out _));
 
         var result = Assert.Single(PdfSignatureVerifier.Verify(signed, Offline));
         Assert.True(result.IsIntact);
-        Assert.True(result.IsTimestamped);
-        Assert.Equal(time, result.SigningTime);
+        Assert.False(result.IsTimestamped);
+        Assert.Equal(claimedTime, result.SigningTime);
+        Assert.DoesNotContain(new App.ViewModels.SignatureInfoViewModel(result).Details, line => line.Contains("trusted timestamp", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -17,20 +17,21 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
 
     public string Glyph => Info.Status switch
     {
-        PdfSignatureStatus.Valid => "",          // Check mark
+        PdfSignatureStatus.Valid when !Info.ModifiedAfterSigning => "", // Check mark
         PdfSignatureStatus.Invalid => "",        // Cancel
         _ => "",                                 // Warning
     };
 
     public Brush StatusBrush => Info.Status switch
     {
-        PdfSignatureStatus.Valid => ValidBrush,
+        PdfSignatureStatus.Valid when !Info.ModifiedAfterSigning => ValidBrush,
         PdfSignatureStatus.Invalid => InvalidBrush,
         _ => WarningBrush,
     };
 
     public string StatusText => Loc.T(Info.Status switch
     {
+        _ when Info.ModifiedAfterSigning && Info.Status != PdfSignatureStatus.Invalid => "Signed, but the document was changed after signing",
         PdfSignatureStatus.Valid => "Signature is valid.",
         PdfSignatureStatus.Invalid => Info.Problem ?? "Signature is invalid.",
         PdfSignatureStatus.Unsupported => Info.Problem ?? "This signature format can't be checked.",
@@ -47,6 +48,12 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
         get
         {
             var lines = new List<string>();
+            if (Info.ModifiedAfterSigning && Info.IsCertification)
+            {
+                lines.Add(Loc.T(Info.Certification == PdfCertification.NoChanges
+                    ? "The document was changed after certification, which allows no changes."
+                    : "The document was changed after certification. Whether these changes are permitted has not been checked."));
+            }
             if (Info.SigningTime is { } time)
             {
                 var when = DigitalSignatureRenderer.FormatTime(time.ToLocalTime());

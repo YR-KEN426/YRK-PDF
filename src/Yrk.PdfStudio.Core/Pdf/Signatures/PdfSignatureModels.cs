@@ -60,6 +60,9 @@ public enum PdfSignatureStatus
 
     /// <summary>A signature format this version cannot check.</summary>
     Unsupported,
+
+    /// <summary>The signed bytes are intact, but later revisions changed the document.</summary>
+    Modified,
 }
 
 public enum PdfSignerIdentity
@@ -95,6 +98,9 @@ public sealed record PdfSignatureInfo(
 {
     /// <summary>True when later revisions were appended (form filling, comments, more signatures).</summary>
     public bool ModifiedAfterSigning => !CoversWholeDocument;
+
+    /// <summary>DocMDP permission from the signed revision, never from a later update.</summary>
+    public PdfCertification Certification { get; init; }
 }
 
 public sealed record PdfVerifyOptions(bool CheckRevocation = true, TimeSpan? NetworkTimeout = null);
