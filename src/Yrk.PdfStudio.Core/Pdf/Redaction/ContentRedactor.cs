@@ -11,7 +11,7 @@ namespace Yrk.PdfStudio.Core.Pdf.Redaction;
 /// replacement text is dropped. Images under an area, and text in fonts that cannot be measured, set
 /// <see cref="Result.NeedsRaster"/>: the caller then turns the page into an image.
 /// </summary>
-internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate update, IReadOnlyList<PdfRect> areas)
+internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate update, IReadOnlyList<PdfRect> areas, bool securePaths = true)
 {
     private const int MaxFormDepth = 12;
     private const double MinOverlap = 0.2;    // Share of a glyph's box inside an area that removes it.
@@ -90,8 +90,22 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
                     pathOperations.Add(op);
                     continue;
                 case "S" or "s" or "f" or "F" or "f*" or "B" or "B*" or "b" or "b*" or "n":
-                    var drop = op.Operator != "n" && !pathClips && pathPoints.Count > 0
-                        && areas.Any(a => a.Contains(PdfRect.Bounds(pathPoints)));
+                    var painted = op.Operator != "n" && pathPoints.Count > 0;
+                    var bounds = PdfRect.Bounds(pathPoints);
+                    if (securePaths && painted && op.Operator is "S" or "s" or "B" or "B*" or "b" or "b*")
+                    {
+                        // The Frobenius norm bounds any CTM scale. Include square/round caps and
+                        // the full miter extension; overestimation deliberately chooses raster.
+                        var m = state.Ctm;
+                        var scale = Math.Sqrt(m.A * m.A + m.B * m.B + m.C * m.C + m.D * m.D);
+                        var reach = Math.Abs(state.LineWidth) / 2 * scale
+                            * Math.Max(Math.Sqrt(2), state.LineJoin == 0 ? state.MiterLimit : 1);
+                        bounds = new PdfRect(bounds.X0 - reach, bounds.Y0 - reach, bounds.X1 + reach, bounds.Y1 + reach);
+                        needsRaster |= state.LineWidth == 0; // Device hairlines have no user-space width.
+                    }
+
+                    var drop = painted && !pathClips && areas.Any(a => a.Contains(bounds));
+                    needsRaster |= securePaths && painted && Hits(bounds) && !drop;
                     FlushPath(keep: !drop);
                     if (drop)
                     {
@@ -107,6 +121,7 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
 
             if (pathOperations.Count > 0)
             {
+                needsRaster |= securePaths; // Interleaved state changes are not measured by this path buffer.
                 FlushPath(keep: true); // A path left unpainted (invalid, but seen in the wild).
             }
 
@@ -126,6 +141,46 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
                     break;
                 case "cm" when o.Count >= 6:
                     state.Ctm = PdfMatrix.FromOperands(o).Then(state.Ctm);
+                    Keep(op);
+                    break;
+                case "w" when o.Count >= 1:
+                    state.LineWidth = Num(o[0]);
+                    Keep(op);
+                    break;
+                case "j" when o.Count >= 1:
+                    state.LineJoin = Num(o[0]);
+                    Keep(op);
+                    break;
+                case "M" when o.Count >= 1:
+                    state.MiterLimit = Math.Max(1, Num(o[0]));
+                    Keep(op);
+                    break;
+                case "gs":
+                    if (securePaths)
+                    {
+                        var states = document.Resolve(resources?["ExtGState"]) as CosDictionary;
+                        var external = o.FirstOrDefault() is CosName name ? document.Resolve(states?[name.Value]) as CosDictionary : null;
+                        if (external is null || external.Entries.Keys.Any(k => k is not ("Type" or "LW" or "LC" or "LJ" or "ML" or "D"
+                            or "RI" or "OP" or "op" or "OPM" or "CA" or "ca" or "BM" or "AIS" or "TK" or "SA")))
+                        {
+                            needsRaster = true;
+                        }
+
+                        if (external?["LW"] is { } width) state.LineWidth = Num(document.Resolve(width)!);
+                        if (external?["LJ"] is { } join) state.LineJoin = Num(document.Resolve(join)!);
+                        if (external?["ML"] is { } limit) state.MiterLimit = Math.Max(1, Num(document.Resolve(limit)!));
+                    }
+
+                    Keep(op);
+                    break;
+                case "SCN" or "scn":
+                    needsRaster |= securePaths && o.Any(v => v is CosName);
+                    Keep(op);
+                    break;
+                case "sh":
+                    // Shadings, patterns, soft masks and external graphics states can paint
+                    // beyond the measured path. Preserve their rendered result, then discard them.
+                    needsRaster |= securePaths;
                     Keep(op);
                     break;
 
@@ -252,6 +307,12 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
                     break;
 
                 default:
+                    // Operators whose painting semantics are not implemented must not silently
+                    // leave recoverable content behind. These remaining standard operators only
+                    // set state or mark content; the paint operators above do the actual work.
+                    needsRaster |= securePaths && op.Operator is not ("ET" or "Tr" or "J" or "d" or "ri" or "i"
+                        or "CS" or "cs" or "SC" or "sc" or "G" or "g" or "RG" or "rg" or "K" or "k"
+                        or "MP" or "DP" or "BMC" or "BDC" or "EMC" or "BX" or "EX");
                     Keep(op);
                     break;
             }
@@ -448,6 +509,12 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
     private sealed class GraphicsState
     {
         public PdfMatrix Ctm { get; set; } = PdfMatrix.Identity;
+
+        public double LineWidth { get; set; } = 1;
+
+        public double LineJoin { get; set; }
+
+        public double MiterLimit { get; set; } = 10;
 
         public double CharSpacing { get; set; }
 

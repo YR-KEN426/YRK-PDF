@@ -140,8 +140,8 @@ public sealed partial class MainViewModel
         }
 
         var warning = Loc.T(HasSignatures
-            ? "Redaction permanently removes the text, images and drawings in the marked areas and puts black boxes in their place.\n\nThe result is saved as a new file (the original stays as it is). Hidden earlier versions of the document are removed too, and so are its digital signatures."
-            : "Redaction permanently removes the text, images and drawings in the marked areas and puts black boxes in their place.\n\nThe result is saved as a new file (the original stays as it is). Hidden earlier versions of the document are removed too.");
+            ? "Redaction permanently removes the text, images and drawings in the marked areas and puts black boxes in their place.\n\nThe result is saved as a new file (the original stays as it is). Hidden earlier versions of the document are removed too, and so are its digital signatures.\n\nBookmarks, attachments, metadata, document Info, thumbnails, structure trees, XFA forms, annotation contents and appearances, scripts and actions are removed from the whole document. Values and defaults of shared parent fields affected by redaction are cleared."
+            : "Redaction permanently removes the text, images and drawings in the marked areas and puts black boxes in their place.\n\nThe result is saved as a new file (the original stays as it is). Hidden earlier versions of the document are removed too.\n\nBookmarks, attachments, metadata, document Info, thumbnails, structure trees, XFA forms, annotation contents and appearances, scripts and actions are removed from the whole document. Values and defaults of shared parent fields affected by redaction are cleared.");
         if (!_dialogs.Confirm(warning))
         {
             return;
