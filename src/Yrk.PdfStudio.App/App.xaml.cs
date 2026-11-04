@@ -18,6 +18,9 @@ public partial class App : Application
         base.OnStartup(e);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
 
+        try { CleanupOldLogs(LogFolder, DateTime.Now); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
+
         var language = AppSettings.Load().Language;
         Loc.Language = language is Loc.English or Loc.Thai ? language : Loc.SystemDefault;
         UiTranslator.Start();
@@ -99,19 +102,44 @@ public partial class App : Application
     private static void LogError(Exception exception) => LogMessage(exception.ToString());
 
     public static void LogMessage(string message)
+        => LogMessage(message, LogFolder, DateTime.Now);
+
+    internal static void LogMessage(string message, string logFolder, DateTime now)
     {
         try
         {
-            Directory.CreateDirectory(LogFolder);
+            Directory.CreateDirectory(logFolder);
+            if ((File.GetAttributes(logFolder) & FileAttributes.ReparsePoint) != 0) return;
             // Invariant culture: with Thai regional settings the year would otherwise be Buddhist (2569).
-            var now = DateTime.Now;
-            File.AppendAllText(
-                Path.Combine(LogFolder, $"errors-{now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.log"),
-                $"[{now.ToString("O", CultureInfo.InvariantCulture)}] {message}{Environment.NewLine}{Environment.NewLine}");
+            var path = Path.Combine(logFolder, $"errors-{now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.log");
+            var content = $"[{now.ToString("O", CultureInfo.InvariantCulture)}] {message}{Environment.NewLine}{Environment.NewLine}";
+            var length = new FileInfo(path).Exists ? new FileInfo(path).Length : 0;
+            if (length >= MaxLogBytes || System.Text.Encoding.UTF8.GetByteCount(content) > MaxLogBytes - length) return;
+            File.AppendAllText(path, content);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             // Logging must never make things worse.
+        }
+    }
+
+    private const long MaxLogBytes = 1_048_576;
+
+    internal static void CleanupOldLogs(string logFolder, DateTime now)
+    {
+        if (!Directory.Exists(logFolder) || (File.GetAttributes(logFolder) & FileAttributes.ReparsePoint) != 0) return;
+
+        foreach (var path in Directory.EnumerateFiles(logFolder, "*", SearchOption.TopDirectoryOnly))
+        {
+            var name = Path.GetFileName(path);
+            const string prefix = "errors-";
+            const string suffix = ".log";
+            if (!name.StartsWith(prefix, StringComparison.Ordinal) || !name.EndsWith(suffix, StringComparison.Ordinal)) continue;
+            var dateText = name.Substring(prefix.Length, name.Length - prefix.Length - suffix.Length);
+            if (!DateTime.TryParseExact(dateText, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date)
+                || date.Date >= now.Date.AddDays(-14)) continue;
+            if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) continue;
+            File.Delete(path);
         }
     }
 
