@@ -81,7 +81,7 @@ public sealed class PdfTemporaryFiles : IDisposable
             var old = Path.Combine(_temp, "YRK PDF");
             if (Safe(old) && Directory.Exists(old))
                 foreach (var file in Directory.EnumerateFiles(old)) DeleteTree(file);
-            if (Safe(_temp) && Directory.Exists(_temp))
+            if (Directory.Exists(_temp))
                 foreach (var entry in Directory.EnumerateFileSystemEntries(_temp, "yrk-redact-*")) DeleteTree(entry);
         }
         return true;
@@ -132,14 +132,15 @@ public sealed class PdfTemporaryFiles : IDisposable
     private static bool IsUnder(string path, string root) => path.StartsWith(
         Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
-    // Check every existing ancestor, including the approved root itself. Never recurse through a junction.
+    // Check every existing ancestor below the temp folder. Never recurse through a junction. The temp folder itself
+    // and what is above it are the user's choice (a moved or redirected profile), so they are not checked.
     private bool Safe(string path)
     {
         var full = Path.GetFullPath(path);
-        if (!string.Equals(full, _temp, StringComparison.OrdinalIgnoreCase) && !IsUnder(full, _temp)) return false;
+        if (!IsUnder(full, _temp)) return false;
         try
         {
-            for (var current = full; current is not null; current = Path.GetDirectoryName(current))
+            for (var current = full; current is not null && IsUnder(current, _temp); current = Path.GetDirectoryName(current))
                 if ((File.Exists(current) || Directory.Exists(current)) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return false;
             return true;
         }
