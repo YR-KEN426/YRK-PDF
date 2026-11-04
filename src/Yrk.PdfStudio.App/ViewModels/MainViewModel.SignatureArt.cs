@@ -2,6 +2,7 @@ using System.IO;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 
 namespace Yrk.PdfStudio.App.ViewModels;
 
@@ -17,7 +18,7 @@ public sealed partial class MainViewModel
     /// </summary>
     private async Task<SignatureArt?> PrepareSignaturePdfAsync(byte[] pdf)
     {
-        var folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "YRK PDF", "signatures"));
+        var folder = Directory.CreateDirectory(PdfTemporaryFiles.Shared.GetFolder("signatures"));
         var path = Path.Combine(folder.FullName, Guid.NewGuid().ToString("N") + ".pdf");
         await File.WriteAllBytesAsync(path, pdf);
         try

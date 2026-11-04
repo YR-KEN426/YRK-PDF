@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Signatures;
 
 namespace Yrk.PdfStudio.App.ViewModels;
@@ -305,7 +306,7 @@ public sealed partial class MainViewModel
         try
         {
             var revision = PdfSignatureVerifier.GetSignedRevision(File.ReadAllBytes(document.FilePath), signature.Info);
-            var folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "YRK PDF"));
+            var folder = Directory.CreateDirectory(PdfTemporaryFiles.Shared.GetFolder("revisions"));
             var path = Path.Combine(folder.FullName, $"{Path.GetFileNameWithoutExtension(document.FilePath)} (as signed by {Sanitize(signature.Info.SignerName)}).pdf");
             File.WriteAllBytes(path, revision);
             Process.Start(new ProcessStartInfo(Environment.ProcessPath!, $"\"{path}\"") { UseShellExecute = false });

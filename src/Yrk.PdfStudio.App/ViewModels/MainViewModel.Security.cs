@@ -1,6 +1,7 @@
 using System.IO;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Security;
 
 namespace Yrk.PdfStudio.App.ViewModels;
@@ -213,17 +214,23 @@ public sealed partial class MainViewModel
                 // Page changes made in memory (turned, moved or deleted pages) exist only in the open document:
                 // a copy carries them into the document reopened with the owner password.
                 var copy = _workingCopy;
+                byte[]? copyBytes = null;
                 if (_documentModified)
                 {
-                    Directory.CreateDirectory(WorkingFolder);
-                    copy = Path.Combine(WorkingFolder, $"unlocked-{Guid.NewGuid():N}.pdf");
-                    await document.SaveAsync(copy);
+                    copyBytes = await document.SaveToBytesAsync();
+                    copy = null;
                 }
 
-                if (!await OpenDocumentAsync(document.FilePath, password, CaptureViewState(), keepEdits: true, copyPath: copy) && copy != _workingCopy)
+                var keepVersions = _keepVersions;
+                _keepVersions = true;
+                try
                 {
-                    TryDelete(copy!);
+                    if (!await OpenDocumentAsync(document.FilePath, password, CaptureViewState(), keepEdits: true, copyPath: copy, copyBytes: copyBytes) && copy is not null && copy != _workingCopy)
+                    {
+                        TryDelete(copy);
+                    }
                 }
+                finally { _keepVersions = keepVersions; }
 
                 _passwordEnteredAt = DateTime.UtcNow;
                 return _document?.Permissions == PdfPermissions.All;

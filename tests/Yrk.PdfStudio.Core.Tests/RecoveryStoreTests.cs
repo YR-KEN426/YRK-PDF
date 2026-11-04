@@ -30,9 +30,9 @@ public sealed class RecoveryStoreTests : IDisposable
         var pdf = Path.Combine(RecoveryStore.Folder, "x.tmp");
         File.WriteAllText(pdf, "%PDF-1.7");
 
-        RecoveryStore.Keep("aaaa", pdf, Path.Combine(_root.FullName, "Quote.pdf"), "Quote.pdf");
+        RecoveryStore.Keep("aaaa0000000000000000000000000000", pdf, Path.Combine(_root.FullName, "Quote.pdf"), "Quote.pdf");
 
-        Assert.True(File.Exists(Path.Combine(RecoveryStore.Folder, "aaaa.pdf")));
+        Assert.True(File.Exists(Path.Combine(RecoveryStore.Folder, "aaaa0000000000000000000000000000.pdf")));
         Assert.Empty(RecoveryStore.List());
 
         RecoveryStore.DeleteWritten();
@@ -44,7 +44,7 @@ public sealed class RecoveryStoreTests : IDisposable
     {
         var original = Path.Combine(_root.FullName, "Quote.pdf");
         File.WriteAllText(original, "original");
-        LeftOver("bbbb", original, "%PDF recovered");
+        LeftOver("bbbb0000000000000000000000000000", original, "%PDF recovered");
 
         var entry = Assert.Single(RecoveryStore.List());
         var restored = RecoveryStore.Restore(entry);
@@ -59,12 +59,24 @@ public sealed class RecoveryStoreTests : IDisposable
     [Fact]
     public void Deletes_left_over_copies_that_are_not_wanted()
     {
-        LeftOver("cccc", Path.Combine(_root.FullName, "A.pdf"), "%PDF");
+        LeftOver("cccc0000000000000000000000000000", Path.Combine(_root.FullName, "A.pdf"), "%PDF");
 
         RecoveryStore.DeleteAllButWritten();
 
         Assert.Empty(RecoveryStore.List());
         Assert.Empty(Directory.GetFiles(RecoveryStore.Folder));
+    }
+
+    [Fact]
+    public void Ignores_a_recovery_note_with_a_non_GUID_id()
+    {
+        var outside = Path.Combine(_root.FullName, "outside.pdf");
+        File.WriteAllText(outside, "keep");
+        var entry = new RecoveryEntry("../outside", outside, "outside.pdf", DateTime.Now);
+        File.WriteAllText(Path.Combine(RecoveryStore.Folder, "note.json"), JsonSerializer.Serialize(entry));
+
+        Assert.Empty(RecoveryStore.List());
+        Assert.Equal("keep", File.ReadAllText(outside));
     }
 
     /// <summary>A copy written by an earlier run of the program.</summary>

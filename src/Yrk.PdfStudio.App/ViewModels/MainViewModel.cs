@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 
 namespace Yrk.PdfStudio.App.ViewModels;
 
@@ -322,13 +323,14 @@ public sealed partial class MainViewModel : ObservableObject
     /// the unsaved overlays and field values are re-attached (used when reloading the same file).
     /// </summary>
     /// <param name="copyPath">A working copy of <paramref name="path"/> to read instead (see <see cref="ApplyNewFieldsAsync"/>).</param>
-    private async Task<bool> OpenDocumentAsync(string path, string? password, ViewState? restore, bool keepEdits, string? copyPath = null)
+    private async Task<bool> OpenDocumentAsync(string path, string? password, ViewState? restore, bool keepEdits, string? copyPath = null, byte[]? copyBytes = null)
     {
         while (true)
         {
             try
             {
-                var document = copyPath is null ? await _engine.OpenAsync(path, password) : await _engine.OpenCopyAsync(path, copyPath, password);
+                var document = copyBytes is not null ? await _engine.OpenBytesAsync(copyBytes, path, password)
+                    : copyPath is null ? await _engine.OpenAsync(path, password) : await _engine.OpenCopyAsync(path, copyPath, password);
                 if (copyPath == _workingCopy)
                 {
                     _workingCopy = null; // Read again by the new document: releasing the old one must not delete it.
@@ -343,6 +345,11 @@ public sealed partial class MainViewModel : ObservableObject
 
                 _password = password;
                 LoadDocument(document, restore);
+                if (copyBytes is not null)
+                {
+                    _documentModified = true;
+                    OnEditsChanged();
+                }
                 return true;
             }
             catch (PdfPasswordRequiredException ex)

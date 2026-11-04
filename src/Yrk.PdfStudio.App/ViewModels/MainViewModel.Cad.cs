@@ -1,6 +1,7 @@
 using System.IO;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Cad;
 using Yrk.PdfStudio.Core.Pdf.Text;
 
@@ -32,7 +33,7 @@ public sealed partial class MainViewModel
         var blocks = CadText.Shape(result.Texts, result.Pages);
         var bytes = await Task.Run(() => PdfFiles.Compact(blocks.Count > 0 ? PdfTextWriter.AddText(result.Pdf, blocks) : result.Pdf));
 
-        var folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "YRK PDF", "drawings", Guid.NewGuid().ToString("N")));
+        var folder = Directory.CreateDirectory(Path.Combine(PdfTemporaryFiles.Shared.GetFolder("drawings"), Guid.NewGuid().ToString("N")));
         var pdfPath = Path.Combine(folder.FullName, Path.GetFileNameWithoutExtension(path) + ".pdf");
         await File.WriteAllBytesAsync(pdfPath, bytes);
         return (pdfPath, result);

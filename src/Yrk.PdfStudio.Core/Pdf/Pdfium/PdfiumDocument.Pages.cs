@@ -151,6 +151,37 @@ internal sealed partial class PdfiumDocument
             cancellationToken);
     }
 
+    public Task<byte[]> ExtractPagesToBytesAsync(IReadOnlyList<int> pageIndices, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(pageIndices);
+        var pages = pageIndices.ToArray();
+        if (pages.Length == 0) throw new ArgumentException("Choose at least one page.", nameof(pageIndices));
+        foreach (var index in pages) ValidatePageIndex(index);
+        return _engine.InvokeAsync(() =>
+        {
+            ThrowIfClosed();
+            if (_formHandle != IntPtr.Zero) PdfiumNative.FORM_ForceToKillFocus(_formHandle);
+            var target = PdfiumNative.FPDF_CreateNewDocument();
+            if (target == IntPtr.Zero) throw new PdfException("A new PDF could not be created.");
+            try
+            {
+                if (PdfiumNative.FPDF_ImportPagesByIndex(target, _handle, pages, (uint)pages.Length, 0) == 0)
+                    throw new PdfException("The pages could not be copied.");
+                return PdfiumIo.WriteToBytes(target, PdfiumNative.FPDF_NO_INCREMENTAL);
+            }
+            finally { PdfiumNative.FPDF_CloseDocument(target); }
+        }, PdfWorkPriority.Interactive, cancellationToken);
+    }
+
+    public Task<byte[]> SaveToBytesAsync(CancellationToken cancellationToken = default) =>
+        _engine.InvokeAsync(() =>
+        {
+            ThrowIfClosed();
+            _revision++;
+            if (_formHandle != IntPtr.Zero) PdfiumNative.FORM_ForceToKillFocus(_formHandle);
+            return PdfiumIo.WriteToBytes(_handle, PdfiumNative.FPDF_INCREMENTAL);
+        }, PdfWorkPriority.Interactive, cancellationToken);
+
     /// <summary>Creates a new document, lets <paramref name="fill"/> add pages, and saves it to <paramref name="outputPath"/>.</summary>
     internal static void WriteNewDocument(string outputPath, Func<IntPtr, bool> fill)
     {

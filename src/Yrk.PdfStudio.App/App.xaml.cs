@@ -22,6 +22,21 @@ public partial class App : Application
         Loc.Language = language is Loc.English or Loc.Thai ? language : Loc.SystemDefault;
         UiTranslator.Start();
 
+        // Claim preview leases before cleanup, and clean before opening command-line documents.
+        foreach (var path in e.Args.Where(File.Exists))
+        {
+            try { PdfTemporaryFiles.Shared.RetainForPath(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
+        try
+        {
+            using var current = System.Diagnostics.Process.GetCurrentProcess();
+            var siblings = System.Diagnostics.Process.GetProcessesByName(current.ProcessName);
+            try { PdfTemporaryFiles.Shared.Cleanup(includeLegacy: SingleInstance.IsFirst && siblings.Length == 1); }
+            finally { foreach (var process in siblings) process.Dispose(); }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+
         _engine = new PdfiumEngine();
         var viewModel = new MainViewModel(_engine, new DialogService(), new SignatureStore());
         var window = new MainWindow(viewModel, () => new MainViewModel(_engine, new DialogService(), new SignatureStore()));
@@ -32,7 +47,6 @@ public partial class App : Application
         // Files opened from Explorer while the app is running arrive here (see Program).
         if (SingleInstance.IsFirst)
         {
-            DeletePageSnapshots(); // Left over if the app was stopped before it could clean up.
             _ = window.OfferRecoveryAsync(); // Copies left by a run that was cut off before saving.
             SingleInstance.Listen(args => Dispatcher.InvokeAsync(() =>
             {
@@ -64,6 +78,8 @@ public partial class App : Application
 
         foreach (var path in args.Where(File.Exists))
         {
+            try { PdfTemporaryFiles.Shared.RetainForPath(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
             await window.OpenInTabAsync(path);
         }
     }
@@ -71,24 +87,9 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         _engine?.Dispose();
-        DeletePageSnapshots();
+        PdfTemporaryFiles.Shared.Dispose();
         RecoveryStore.DeleteWritten(); // Closing normally: every change was saved or discarded.
         base.OnExit(e);
-    }
-
-    /// <summary>Removes the temporary copies of deleted pages (kept for undo) so no document content stays behind.</summary>
-    private static void DeletePageSnapshots()
-    {
-        try
-        {
-            if (Directory.Exists(MainViewModel.PageSnapshotFolder))
-            {
-                Directory.Delete(MainViewModel.PageSnapshotFolder, recursive: true);
-            }
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-        }
     }
 
     /// <summary>%LOCALAPPDATA%\YRK\EasyPdf\logs, for diagnosing problems users report.</summary>

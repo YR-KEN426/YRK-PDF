@@ -24,7 +24,7 @@ public static class PdfSigner
         var temp = Path.Combine(directory, $".{Path.GetFileName(outputPath)}.{Guid.NewGuid():N}.tmp");
         try
         {
-            await File.WriteAllBytesAsync(temp, output, cancellationToken).ConfigureAwait(false);
+            await Pdfium.PdfTemporaryFiles.WriteDurableAsync(temp, output, cancellationToken).ConfigureAwait(false);
             File.Move(temp, outputPath, overwrite: true);
         }
         finally

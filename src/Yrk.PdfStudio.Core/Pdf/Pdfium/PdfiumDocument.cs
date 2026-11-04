@@ -59,30 +59,31 @@ internal sealed partial class PdfiumDocument : IPdfDocument
     /// <param name="readFrom">The file to read: <paramref name="filePath"/> itself, or a working copy of it.</param>
     internal static PdfiumDocument Open(PdfiumEngine engine, string filePath, string? password, string readFrom)
     {
-        // Streaming through a callback (instead of FPDF_LoadDocument) keeps memory low and avoids
-        // PDFium's narrow-string file paths, which break on Thai and other non-ASCII folder names.
-        Stream stream = new FileStream(readFrom, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess);
-        if (stream.Length > uint.MaxValue)
-        {
-            stream.Dispose();
-            throw new PdfException("Files larger than 4 GB are not supported yet.");
-        }
+        return Open(engine, filePath, password,
+            new FileStream(readFrom, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete, 64 * 1024, FileOptions.RandomAccess));
+    }
 
-        // Thai marks a font's /ToUnicode leaves out are put back by a revision PDFium reads after the file.
-        if (Text.ToUnicodeRepair.Build(stream) is { } repair)
-        {
-            stream = new AppendedStream(stream, repair);
-        }
-
-        var document = new PdfiumDocument(engine, filePath, stream);
+    // Takes ownership, including on failure. A MemoryStream retains its buffer until close.
+    internal static PdfiumDocument Open(PdfiumEngine engine, string filePath, string? password, Stream stream)
+    {
+        PdfiumDocument? document = null;
         try
         {
+            if (stream.Length > uint.MaxValue)
+                throw new PdfException("Files larger than 4 GB are not supported yet.");
+
+            // Thai marks a font's /ToUnicode leaves out are put back by a revision PDFium reads after the file.
+            if (Text.ToUnicodeRepair.Build(stream) is { } repair)
+                stream = new AppendedStream(stream, repair);
+
+            document = new PdfiumDocument(engine, filePath, stream);
             document.Load(password);
             return document;
         }
         catch
         {
-            document.ReleaseNative();
+            if (document is not null) document.ReleaseNative();
+            else stream.Dispose();
             throw;
         }
     }

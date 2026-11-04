@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Security.Cryptography;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 
 namespace Yrk.PdfStudio.App.ViewModels;
 
@@ -64,8 +65,14 @@ public sealed partial class MainViewModel
                     var realText = CanWriteRealText;
                     var fieldLooks = BuildFieldLooks(document); // Before the fields are committed and reloaded.
                     await CommitOverlaysAsync(document, keepText: realText);
-                    await document.SaveAsync(editsPath);
-                    var saved = ApplyFieldLooks(await TrimSaveAsync(document.FilePath, await File.ReadAllBytesAsync(editsPath)), fieldLooks);
+                    byte[] savedBytes;
+                    if (document.IsEncrypted) savedBytes = await document.SaveToBytesAsync();
+                    else
+                    {
+                        await document.SaveAsync(editsPath);
+                        savedBytes = await File.ReadAllBytesAsync(editsPath);
+                    }
+                    var saved = ApplyFieldLooks(await TrimSaveAsync(document.FilePath, savedBytes), fieldLooks);
                     input = ApplyNewFields(ApplyLayerDefaults(ApplyTextEdits(realText ? ApplyPlacedText(saved) : saved)));
                 }
                 else
@@ -79,7 +86,7 @@ public sealed partial class MainViewModel
                     return null;
                 }
 
-                await File.WriteAllBytesAsync(tempPath, output);
+                await PdfTemporaryFiles.WriteDurableAsync(tempPath, output);
             }
             catch (OperationCanceledException)
             {

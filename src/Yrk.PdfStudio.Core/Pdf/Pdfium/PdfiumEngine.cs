@@ -29,6 +29,29 @@ public sealed partial class PdfiumEngine : IPdfEngine
             cancellationToken);
     }
 
+    /// <summary>Retains an owned copy of the bytes until the document is disposed.</summary>
+    public Task<IPdfDocument> OpenBytesAsync(byte[] bytes, string filePath, string? password = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        ArgumentException.ThrowIfNullOrEmpty(filePath);
+        var buffer = bytes.ToArray();
+        return InvokeAsync<IPdfDocument>(() =>
+        {
+            var document = PdfiumDocument.Open(this, filePath, password, new MemoryStream(buffer, writable: false));
+            _openDocuments.Add(document);
+            return document;
+        }, PdfWorkPriority.Interactive, cancellationToken);
+    }
+
+    /// <summary>Reads from the current position. The caller retains ownership of the input stream.</summary>
+    public async Task<IPdfDocument> OpenStreamAsync(Stream stream, string filePath, string? password = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        using var buffer = new MemoryStream();
+        await stream.CopyToAsync(buffer, cancellationToken).ConfigureAwait(false);
+        return await OpenBytesAsync(buffer.ToArray(), filePath, password, cancellationToken).ConfigureAwait(false);
+    }
+
     public void Dispose()
     {
         if (_disposed)

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using Yrk.PdfStudio.Core.Pdf.Cos;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 
 namespace Yrk.PdfStudio.Core.Pdf.Redaction;
 
@@ -54,13 +55,14 @@ public static class PdfRedactor
         MaterializePageAttributes(source);
         pdf = CosCompactWriter.Write(source);
         var (removed, imagePages) = RemoveContent(pdf, byPage);
-        var folder = Directory.CreateTempSubdirectory("yrk-redact-");
+        var folder = locked ? null : Directory.CreateDirectory(Path.Combine(PdfTemporaryFiles.Shared.GetFolder("redact"), Guid.NewGuid().ToString("N")));
         try
         {
-            var firstPass = Path.Combine(folder.FullName, "1.pdf");
-            await File.WriteAllBytesAsync(firstPass, removed, cancellationToken).ConfigureAwait(false);
+            var firstPass = folder is null ? null : Path.Combine(folder.FullName, "1.pdf");
+            if (firstPass is not null) await PdfTemporaryFiles.WriteDurableAsync(firstPass, removed, cancellationToken).ConfigureAwait(false);
             var withImages = removed;
-            await using (var document = await engine.OpenAsync(firstPass, cancellationToken: cancellationToken).ConfigureAwait(false))
+            await using (var document = await (firstPass is null ? engine.OpenBytesAsync(removed, "redaction.pdf", cancellationToken: cancellationToken)
+                : engine.OpenAsync(firstPass, cancellationToken: cancellationToken)).ConfigureAwait(false))
             {
                 foreach (var (page, rects) in byPage)
                 {
@@ -90,9 +92,10 @@ public static class PdfRedactor
             VerifyImages(source, CosDocument.Load(output), imagePages, byPage.Keys.ToHashSet());
 
             // Never hand back a file in which a redacted area still has text.
-            var finalPass = Path.Combine(folder.FullName, "2.pdf");
-            await File.WriteAllBytesAsync(finalPass, output, cancellationToken).ConfigureAwait(false);
-            await using (var check = await engine.OpenAsync(finalPass, cancellationToken: cancellationToken).ConfigureAwait(false))
+            var finalPass = folder is null ? null : Path.Combine(folder.FullName, "2.pdf");
+            if (finalPass is not null) await PdfTemporaryFiles.WriteDurableAsync(finalPass, output, cancellationToken).ConfigureAwait(false);
+            await using (var check = await (finalPass is null ? engine.OpenBytesAsync(output, "redaction.pdf", cancellationToken: cancellationToken)
+                : engine.OpenAsync(finalPass, cancellationToken: cancellationToken)).ConfigureAwait(false))
             {
                 foreach (var (page, rects) in byPage)
                 {
@@ -109,7 +112,7 @@ public static class PdfRedactor
         }
         finally
         {
-            folder.Delete(recursive: true);
+            if (folder is not null) PdfTemporaryFiles.Shared.DeleteOwnedDirectory(folder.FullName);
         }
     }
 

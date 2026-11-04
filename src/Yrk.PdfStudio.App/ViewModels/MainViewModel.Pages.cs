@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Compression;
 
 namespace Yrk.PdfStudio.App.ViewModels;
@@ -397,15 +398,23 @@ public sealed partial class MainViewModel
     // --- Copies of removed pages, for undo -------------------------------------------------------
 
     /// <summary>Pages copied into a temporary PDF so a delete can be undone. Removed with the edits.</summary>
-    private sealed record PageSnapshot(IPdfDocument Document, string Path);
+    private sealed record PageSnapshot(IPdfDocument Document, string? Path);
 
     private readonly List<PageSnapshot> _pageSnapshots = [];
 
     /// <summary>Where page copies live while the app runs; left-overs from a crash are removed at the next start.</summary>
-    public static string PageSnapshotFolder { get; } = Path.Combine(Path.GetTempPath(), "YRK PDF", "undo");
+    public static string PageSnapshotFolder => PdfTemporaryFiles.Shared.GetFolder("undo");
 
     private async Task<PageSnapshot> SnapshotPagesAsync(IPdfDocument document, IReadOnlyList<int> sortedPages)
     {
+        if (document.IsEncrypted)
+        {
+            var bytes = await document.ExtractPagesToBytesAsync(sortedPages);
+            var memory = new PageSnapshot(await _engine.OpenBytesAsync(bytes, document.FilePath), null);
+            _pageSnapshots.Add(memory);
+            return memory;
+        }
+
         Directory.CreateDirectory(PageSnapshotFolder);
         var path = Path.Combine(PageSnapshotFolder, Guid.NewGuid().ToString("N") + ".pdf");
         await document.ExtractPagesAsync(sortedPages, path);
@@ -435,7 +444,7 @@ public sealed partial class MainViewModel
         static async Task ReleaseAsync(PageSnapshot snapshot)
         {
             await snapshot.Document.DisposeAsync();
-            TryDelete(snapshot.Path);
+            if (snapshot.Path is { } path) TryDelete(path);
         }
     }
 

@@ -8,7 +8,7 @@ namespace Yrk.PdfStudio.App.Services;
 public sealed record RecoveryEntry(string Id, string OriginalPath, string Name, DateTime SavedAt)
 {
     [System.Text.Json.Serialization.JsonIgnore]
-    public string PdfPath => Path.Combine(RecoveryStore.Folder, Id + ".pdf");
+    public string PdfPath => RecoveryStore.PathFor(Id, ".pdf");
 }
 
 /// <summary>
@@ -18,6 +18,18 @@ public sealed record RecoveryEntry(string Id, string OriginalPath, string Name, 
 /// </summary>
 public static class RecoveryStore
 {
+    internal static string PathFor(string id, string extension)
+    {
+        ValidateId(id);
+        return Path.Combine(Folder, id + extension);
+    }
+
+    private static void ValidateId(string id)
+    {
+        if (!Guid.TryParseExact(id, "N", out _) && !Guid.TryParseExact(id, "D", out _))
+            throw new ArgumentException("Recovery ID must be a GUID.", nameof(id));
+    }
+
     public static string Folder { get; set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "Recovery");
 
@@ -42,7 +54,7 @@ public static class RecoveryStore
                     entries.Add(entry);
                 }
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or ArgumentException)
             {
                 // A damaged note is skipped; DeleteAllButWritten removes it with the rest.
             }
@@ -54,6 +66,7 @@ public static class RecoveryStore
     /// <summary>Keeps <paramref name="pdf"/> (a finished file in the folder) as the recovery copy for <paramref name="id"/>.</summary>
     public static void Keep(string id, string pdf, string originalPath, string name)
     {
+        ValidateId(id);
         var entry = new RecoveryEntry(id, originalPath, name, DateTime.Now);
         File.Move(pdf, entry.PdfPath, overwrite: true);
         File.WriteAllText(Path.Combine(Folder, id + ".json"), JsonSerializer.Serialize(entry));
@@ -62,6 +75,7 @@ public static class RecoveryStore
 
     public static void Delete(string id)
     {
+        ValidateId(id);
         TryDelete(Path.Combine(Folder, id + ".json"));
         TryDelete(Path.Combine(Folder, id + ".pdf"));
         TryDelete(Path.Combine(Folder, id + ".tmp"));
@@ -101,6 +115,7 @@ public static class RecoveryStore
     /// <returns>Where the copy now is.</returns>
     public static string Restore(RecoveryEntry entry)
     {
+        ValidateId(entry.Id);
         var name = Path.GetFileNameWithoutExtension(entry.Name);
         foreach (var folder in new[] { Path.GetDirectoryName(entry.OriginalPath), Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) })
         {

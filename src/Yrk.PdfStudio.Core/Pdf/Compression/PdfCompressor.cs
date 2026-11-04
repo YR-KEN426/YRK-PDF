@@ -83,7 +83,11 @@ public static class PdfCompressor
             var temp = Path.Combine(Path.GetDirectoryName(fullOutput)!, $"~{Path.GetFileNameWithoutExtension(fullOutput)}.{Guid.NewGuid():N}.yrk-saving");
             try
             {
-                document.Save(temp);
+                using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None))
+                {
+                    document.Save(stream, closeStream: false);
+                    stream.Flush(flushToDisk: true);
+                }
                 File.Move(temp, fullOutput, overwrite: true);
             }
             catch

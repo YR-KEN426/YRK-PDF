@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Forms;
 
 namespace Yrk.PdfStudio.App.ViewModels;
@@ -758,7 +759,7 @@ public sealed partial class MainViewModel
             {
                 await WriteChangesAsync(document, tempPath);
             }
-            catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
+            catch (Exception ex)
             {
                 // Nothing was replaced. The changes stay in the open document, so saving can be retried.
                 TryDelete(tempPath);
@@ -803,6 +804,12 @@ public sealed partial class MainViewModel
     /// <summary>Writes the document with every change not saved yet to <paramref name="path"/>.</summary>
     private async Task WriteChangesAsync(IPdfDocument document, string path)
     {
+        if (document.IsEncrypted)
+        {
+            await PdfTemporaryFiles.WriteDurableAsync(path, await WriteChangesToBytesAsync(document));
+            return;
+        }
+
         var realText = CanWriteRealText;
         var fieldLooks = BuildFieldLooks(document); // Before the fields are committed and reloaded.
         await CommitOverlaysAsync(document, keepText: realText);
@@ -819,7 +826,20 @@ public sealed partial class MainViewModel
             saved = ApplyNewFields(ApplyLayerDefaults(ApplyTextEdits(ApplyPlacedText(ApplyFieldLooks(saved, fieldLooks)))));
         }
 
-        await File.WriteAllBytesAsync(path, saved);
+        await PdfTemporaryFiles.WriteDurableAsync(path, saved);
+    }
+
+    // The same pipeline as the file path, with no intermediate writes for protected documents.
+    private async Task<byte[]> WriteChangesToBytesAsync(IPdfDocument document)
+    {
+        var realText = CanWriteRealText;
+        var fieldLooks = BuildFieldLooks(document);
+        await CommitOverlaysAsync(document, keepText: realText);
+        fieldLooks = await PurgeDeletedCommentsAsync(document, fieldLooks);
+        var saved = await TrimSaveAsync(document.FilePath, await document.SaveToBytesAsync());
+        if (HasTextEdits || _layerDefaultsChanged || _newFields.Count > 0 || _fieldChanges.Count > 0 || (realText && HasPlacedText) || fieldLooks.Count > 0)
+            saved = ApplyNewFields(ApplyLayerDefaults(ApplyTextEdits(ApplyPlacedText(ApplyFieldLooks(saved, fieldLooks)))));
+        return saved;
     }
 
     /// <summary>Makes the new form fields real now, so they can be filled before saving (see <see cref="ApplyNowAsync"/>).</summary>
@@ -855,7 +875,7 @@ public sealed partial class MainViewModel
         {
             File.Delete(path);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception)
         {
         }
     }

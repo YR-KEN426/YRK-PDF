@@ -1,5 +1,6 @@
 using System.IO;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
 
 namespace Yrk.PdfStudio.App.ViewModels;
 
@@ -12,11 +13,12 @@ namespace Yrk.PdfStudio.App.ViewModels;
 public sealed partial class MainViewModel
 {
     /// <summary>The document after each step; [0] is before the first one (null: the file itself, unchanged).</summary>
-    private readonly List<string?> _versions = [];
+    private sealed record DocumentVersion(string? Path, byte[]? Bytes);
+    private readonly List<DocumentVersion?> _versions = [];
     private int _version;
     private bool _keepVersions;
 
-    private static string WorkingFolder => Path.Combine(Path.GetTempPath(), "YRK", "Working");
+    private static string WorkingFolder => PdfTemporaryFiles.Shared.GetFolder("Working");
 
     /// <summary>Writes every change not saved yet into a working copy and opens it.</summary>
     /// <param name="busy">Shown while it works.</param>
@@ -40,31 +42,36 @@ public sealed partial class MainViewModel
         IsBusy = true;
         StatusMessage = busy;
         var restore = CaptureViewState();
-        var copy = Path.Combine(WorkingFolder, $"{Guid.NewGuid():N}.pdf");
-        string? before = null;
-        string? after = null;
+        string? copy = null;
+        DocumentVersion? before = null;
+        DocumentVersion? after = null;
         try
         {
             try
             {
-                Directory.CreateDirectory(WorkingFolder);
-                if (_versions.Count == 0)
+                if (document.IsEncrypted)
                 {
-                    // The document as it is now, for Undo: the file itself, or its changes so far (pages, earlier steps).
-                    before = _workingCopy is null && !_documentModified ? null : NewVersionPath();
-                    if (before is not null)
-                    {
-                        await document.SaveAsync(before);
-                    }
+                    if (_versions.Count == 0 && _documentModified)
+                        before = new(null, await document.SaveToBytesAsync());
+                    after = new(null, await WriteChangesToBytesAsync(document));
                 }
-
-                await WriteChangesAsync(document, copy);
-                after = NewVersionPath();
-                File.Copy(copy, after);
+                else
+                {
+                    Directory.CreateDirectory(WorkingFolder);
+                    copy = Path.Combine(WorkingFolder, $"{Guid.NewGuid():N}.pdf");
+                    if (_versions.Count == 0 && (_workingCopy is not null || _documentModified))
+                    {
+                        before = new(NewVersionPath(), null);
+                        await document.SaveAsync(before.Path!);
+                    }
+                    await WriteChangesAsync(document, copy);
+                    after = new(NewVersionPath(), null);
+                    File.Copy(copy, after.Path!);
+                }
             }
             catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
             {
-                TryDelete(copy);
+                if (copy is not null) TryDelete(copy);
                 DeleteVersionFile(before);
                 DeleteVersionFile(after);
                 _dialogs.ShowError(Loc.F(failed, ex.Message));
@@ -84,7 +91,7 @@ public sealed partial class MainViewModel
             }
 
             _versions.Add(after);
-            if (await OpenVersionAsync(document.FilePath, copy, restore))
+            if (await OpenVersionAsync(document.FilePath, copy, restore, after?.Bytes))
             {
                 _version = _versions.Count - 1;
                 RebuildVersionSteps();
@@ -115,10 +122,10 @@ public sealed partial class MainViewModel
             string? copy = null;
             if (_versions[index] is { } version)
             {
-                copy = Path.Combine(WorkingFolder, $"{Guid.NewGuid():N}.pdf");
+                if (version.Path is not null) copy = Path.Combine(WorkingFolder, $"{Guid.NewGuid():N}.pdf");
                 try
                 {
-                    File.Copy(version, copy);
+                    if (copy is not null) File.Copy(version.Path!, copy);
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
@@ -128,7 +135,7 @@ public sealed partial class MainViewModel
                 }
             }
 
-            if (await OpenVersionAsync(document.FilePath, copy, CaptureViewState()))
+            if (await OpenVersionAsync(document.FilePath, copy, CaptureViewState(), _versions[index]?.Bytes))
             {
                 _version = index;
                 StatusMessage = string.Empty; // The message of the step no longer fits.
@@ -143,12 +150,12 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>Opens a working copy (or the file itself, for null) without forgetting the versions.</summary>
-    private async Task<bool> OpenVersionAsync(string path, string? copy, ViewState restore)
+    private async Task<bool> OpenVersionAsync(string path, string? copy, ViewState restore, byte[]? bytes = null)
     {
         _keepVersions = true;
         try
         {
-            if (!await OpenDocumentAsync(path, _password, restore, keepEdits: false, copyPath: copy))
+            if (!await OpenDocumentAsync(path, _password, restore, keepEdits: false, copyPath: copy, copyBytes: bytes))
             {
                 if (copy is not null)
                 {
@@ -163,7 +170,7 @@ public sealed partial class MainViewModel
             _keepVersions = false;
         }
 
-        _documentModified = copy is not null; // The file on disk does not have these changes yet.
+        _documentModified = copy is not null || bytes is not null; // The file on disk does not have these changes yet.
         OnEditsChanged();
         return true;
     }
@@ -204,9 +211,9 @@ public sealed partial class MainViewModel
 
     private static string NewVersionPath() => Path.Combine(WorkingFolder, $"version-{Guid.NewGuid():N}.pdf");
 
-    private static void DeleteVersionFile(string? path)
+    private static void DeleteVersionFile(DocumentVersion? version)
     {
-        if (path is not null)
+        if (version?.Path is { } path)
         {
             TryDelete(path);
         }
