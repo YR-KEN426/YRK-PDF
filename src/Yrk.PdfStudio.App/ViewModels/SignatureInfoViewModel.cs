@@ -73,7 +73,8 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
             if (Info.IsIntact)
             {
                 lines.Add(Loc.T(Info.ModifiedAfterSigning
-                    ? "The document was changed after this signature (for example filled in, commented or signed again). Use \"View signed version\" to see what was signed."
+                    ? "The document was changed after this signature (for example filled in or commented). Use \"View signed version\" to see what was signed."
+                    : !Info.CoversWholeDocument ? "Only signatures or validation data were added after this signature."
                     : "The document hasn't been changed since it was signed."));
             }
 
@@ -93,7 +94,7 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
 
     public bool HasCertificate => Info.Certificate is not null;
 
-    public bool CanViewSignedVersion => Info.IsIntact && Info.ModifiedAfterSigning;
+    public bool CanViewSignedVersion => Info.IsIntact && !Info.CoversWholeDocument;
 
     private static Brush Frozen(Color color)
     {

@@ -235,12 +235,13 @@ public sealed class SignatureSecurityTests
     {
         using var signer = NewSigner();
         var signed = await PdfSigner.SignAsync(Source, new PdfSignRequest(signer));
-        var info = Assert.Single(PdfSignatureVerifier.Verify(signed, Offline)) with { Status = status, CoversWholeDocument = false };
+        var info = Assert.Single(PdfSignatureVerifier.Verify(signed, Offline)) with { Status = status, CoversWholeDocument = false, ModifiedAfterSigning = true };
         var signature = new SignatureInfoViewModel(info);
         // Skip constructors so tests cannot read real app settings or Digital IDs.
         var model = (MainViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainViewModel));
         typeof(MainViewModel).GetField("_signatures", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(model, new[] { signature });
-        Assert.Equal(Loc.T("Signed, but the document was changed after signing"), model.SignatureBannerText);
+        Assert.Equal(Loc.T(status == PdfSignatureStatus.Invalid ? "At least one signature is invalid."
+            : "Signed, but the document was changed after signing"), model.SignatureBannerText);
         Assert.Equal(signature, model.BannerSample);
         Assert.NotEqual(Color.FromRgb(0x10, 0x7C, 0x10), ((SolidColorBrush)signature.StatusBrush).Color);
         if (status != PdfSignatureStatus.Invalid)

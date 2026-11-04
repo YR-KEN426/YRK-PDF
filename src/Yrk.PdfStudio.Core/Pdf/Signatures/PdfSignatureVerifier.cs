@@ -50,9 +50,13 @@ public static class PdfSignatureVerifier
     /// Whether the revisions after <paramref name="signed"/> only added long-term validation data (/DSS: certificates
     /// and revocation lists), which does not change the document. Every other object must be as it was when signed.
     /// </summary>
-    private static bool OnlyValidationDataAfter(CosDocument document, CosDocument signed)
+    private static bool OnlyValidationDataAfter(CosDocument document, CosDocument signed) =>
+        OnlySignatureAndValidationDataAfter(document, signed, null, null);
+
+    private static bool OnlySignatureAndValidationDataAfter(CosDocument document, CosDocument signed,
+        HashSet<CosObjectId>? signingData, HashSet<int>? signingContent)
     {
-        if (document.Catalog["DSS"] is null || document.Trailer["Root"] is not CosReference root)
+        if ((document.Catalog["DSS"] is null && signingData is null) || document.Trailer["Root"] is not CosReference root)
         {
             return false;
         }
@@ -65,15 +69,15 @@ public static class PdfSignatureVerifier
         }
 
         // An object used outside /DSS is document content, even if /DSS also references it.
-        var content = new HashSet<int>();
-        if (!CollectContent(document, content) || !CollectContent(signed, content))
+        var content = signingContent ?? new HashSet<int>();
+        if (signingContent is null && (!CollectContent(document, content) || !CollectContent(signed, content)))
         {
             return false;
         }
 
         var validationData = new HashSet<CosObjectId>();
         var budget = 10000;
-        if (!ValidationObject(document.Catalog["DSS"], "DSS", 0))
+        if (document.Catalog["DSS"] is { } dssValue && !ValidationObject(dssValue, "DSS", 0))
         {
             return false;
         }
@@ -88,6 +92,10 @@ public static class PdfSignatureVerifier
 
             var now = document.GetObject(id);
             var then = signed.GetObject(id);
+            if (signingData?.Contains(id) == true && !content.Contains(id.Number))
+            {
+                continue;
+            }
             if (!content.Contains(id.Number) && now is CosStream { Dictionary: var header } && (header["Type"] as CosName)?.Value is "XRef" or "ObjStm")
             {
                 continue; // File structure: the objects an object stream holds are compared one by one.
@@ -105,6 +113,11 @@ public static class PdfSignatureVerifier
                 ((CosDictionary)now)["DSS"] = null;
                 then = signedCatalog.Clone();
                 ((CosDictionary)then)["DSS"] = null;
+                if (signingData is not null && !content.Contains(id.Number))
+                {
+                    ((CosDictionary)now)["AcroForm"] = null;
+                    ((CosDictionary)then)["AcroForm"] = null;
+                }
             }
 
             if (!Same(now, then))
@@ -171,6 +184,441 @@ public static class PdfSignatureVerifier
                 _ => false,
             };
         }
+    }
+
+    /// <summary>
+    /// Recognizes the containers a signing operation may change. Every other object is still
+    /// compared by OnlyValidationDataAfter, including objects shared with document content.
+    /// </summary>
+    private static bool OnlySigningDataAfter(CosDocument document, CosDocument signed)
+    {
+        var allowed = new HashSet<CosObjectId>();
+        var widgets = new HashSet<int>();
+        var signedFields = new HashSet<int>();
+        var budget = 10000;
+        var seenFields = new HashSet<int>();
+        var graphSeen = new HashSet<CosObjectId>();
+        var graphActive = new HashSet<CosObjectId>();
+        var pages = document.GetPages().Select(p => p.Id).ToHashSet();
+
+        if (!Form() || signedFields.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var page in document.GetPages())
+        {
+            if (signed.GetObject(page.Id) is not CosDictionary oldPage
+                || !SameExcept(page.Dictionary, oldPage, "Annots")
+                || !AppendOnly(page.Dictionary["Annots"], oldPage["Annots"], value =>
+                    value is CosReference r && widgets.Contains(r.Id.Number)))
+            {
+                return false;
+            }
+            allowed.Add(page.Id);
+        }
+
+        var content = new HashSet<int>();
+        if (!ProtectedContent(document) || !ProtectedContent(signed))
+        {
+            return false;
+        }
+        return OnlySignatureAndValidationDataAfter(document, signed, allowed, content);
+
+        bool Step(int depth) => --budget >= 0 && depth <= 32;
+
+        void Allow(CosObject? value)
+        {
+            if (value is CosReference r)
+            {
+                allowed.Add(r.Id);
+            }
+        }
+
+        bool Form()
+        {
+            if (document.Resolve(document.Catalog["AcroForm"]) is not CosDictionary form)
+            {
+                return false;
+            }
+            var oldForm = signed.Resolve(signed.Catalog["AcroForm"]) as CosDictionary ?? new CosDictionary();
+            if (!SameExcept(form, oldForm, "Fields", "SigFlags")
+                || document.Resolve(form["SigFlags"]) is not (null or CosInteger { Value: >= 0 and <= 3 }))
+            {
+                return false;
+            }
+            // Only the value of /SigFlags may change; its indirect object has no other role.
+            Allow(document.Catalog["AcroForm"]);
+            if (!Graph(form["SigFlags"], 0, streams: false))
+            {
+                return false;
+            }
+            return Fields(form["Fields"], oldForm["Fields"], null, 0);
+        }
+
+        bool Fields(CosObject? value, CosObject? oldValue, string? inheritedType, int depth)
+        {
+            if (!Step(depth) || document.Resolve(value) is not CosArray fields)
+            {
+                return false;
+            }
+            var old = signed.Resolve(oldValue) as CosArray ?? new CosArray();
+            if (fields.Items.Count < old.Items.Count)
+            {
+                return false;
+            }
+            Allow(value);
+            for (var i = 0; i < fields.Items.Count; i++)
+            {
+                var previous = i < old.Items.Count ? old[i] : null;
+                if (previous is not null && !Same(fields[i], previous)
+                    || !Field(fields[i], previous, inheritedType, depth + 1))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        bool Field(CosObject value, CosObject? oldValue, string? inheritedType, int depth)
+        {
+            if (!Step(depth) || value is not CosReference reference || !seenFields.Add(reference.Id.Number)
+                || document.Resolve(value) is not CosDictionary field)
+            {
+                return false;
+            }
+            var old = oldValue is null ? null : signed.Resolve(oldValue) as CosDictionary;
+            var type = (document.Resolve(field["FT"]) as CosName)?.Value ?? inheritedType;
+            if (type == "Sig" && field["V"] is CosReference signatureRef
+                && (old is null || signed.Resolve(old["V"]) is null or CosNull))
+            {
+                if (signed.GetObject(signatureRef.Id) is not CosNull
+                    || document.Resolve(signatureRef) is not CosDictionary signature
+                    || signature["Type"] is not CosName { Value: "Sig" or "DocTimeStamp" }
+                    || document.Resolve(signature["Contents"]) is not CosString { Bytes.Length: > 0 }
+                    || document.Resolve(signature["ByteRange"]) is not CosArray { Items.Count: 4 }
+                    || !Graph(signatureRef, depth + 1, streams: false, signatureRoot: true)
+                    || old is not null && !SameExcept(field, old, "V", "AP", "Kids")
+                    || old is null && !FieldShape(field))
+                {
+                    return false;
+                }
+                signedFields.Add(reference.Id.Number);
+                Allow(value);
+                if (!Appearance(field["AP"], depth + 1))
+                {
+                    return false;
+                }
+                if ((field["Subtype"] as CosName)?.Value == "Widget")
+                {
+                    if (!Widget(value, oldValue, merged: true, depth + 1))
+                    {
+                        return false;
+                    }
+                }
+                if (document.Resolve(field["Kids"]) is CosArray kids)
+                {
+                    Allow(field["Kids"]);
+                    var oldKids = old is null ? null : signed.Resolve(old["Kids"]) as CosArray;
+                    if (kids.Items.Count < (oldKids?.Items.Count ?? 0))
+                    {
+                        return false;
+                    }
+                    for (var i = 0; i < kids.Items.Count; i++)
+                    {
+                        var previous = oldKids is not null && i < oldKids.Items.Count ? oldKids[i] : null;
+                        if (previous is not null && !Same(kids[i], previous)
+                            || !Widget(kids[i], previous, false, depth + 1))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else if (field["Kids"] is not null || old?["Kids"] is not null)
+                {
+                    return false;
+                }
+                return true;
+            }
+
+            // Existing fields retain their values and every other property. A field-tree parent
+            // may only append signature fields to /Kids, following the same rule as /Fields.
+            if (old is null || !SameExcept(field, old, "Kids"))
+            {
+                return false;
+            }
+            Allow(value);
+            return field["Kids"] is null && old["Kids"] is null
+                || Fields(field["Kids"], old["Kids"], type, depth + 1);
+        }
+
+        bool FieldShape(CosDictionary field) => field.Entries.All(e => e.Key switch
+        {
+            "V" or "AP" or "Kids" => true,
+            "P" => e.Value is CosReference r && pages.Contains(r.Id),
+            "Parent" => e.Value is CosReference,
+            "Type" => e.Value is CosName { Value: "Annot" },
+            "Subtype" => e.Value is CosName { Value: "Widget" },
+            "FT" => e.Value is CosName { Value: "Sig" },
+            "T" or "TU" or "TM" or "M" => e.Value is CosString,
+            "F" or "Ff" => e.Value is CosInteger,
+            "Rect" => e.Value is CosArray a && a.Items.Count == 4 && a.Items.All(n => n is CosInteger or CosReal),
+            _ => false,
+        });
+
+        bool Widget(CosObject value, CosObject? oldValue, bool merged, int depth)
+        {
+            if (!Step(depth) || value is not CosReference r || document.Resolve(value) is not CosDictionary widget
+                || widget["Subtype"] is not CosName { Value: "Widget" }
+                || widget["P"] is CosReference p && !pages.Contains(p.Id))
+            {
+                return false;
+            }
+            var old = oldValue is null ? null : signed.Resolve(oldValue) as CosDictionary;
+            if (!merged && (old is null ? !FieldShape(widget) || widget["V"] is not null || widget["Kids"] is not null
+                : !Same(value, oldValue) || !SameExcept(widget, old, "AP")))
+            {
+                return false;
+            }
+            widgets.Add(r.Id.Number);
+            Allow(value);
+            return Appearance(widget["AP"], depth + 1);
+        }
+
+        bool Appearance(CosObject? value, int depth)
+        {
+            if (value is null)
+            {
+                return true;
+            }
+            if (!Step(depth) || document.Resolve(value) is not CosDictionary ap
+                || ap.Entries.Any(e => e.Key is not ("N" or "R" or "D")))
+            {
+                return false;
+            }
+            Allow(value);
+            return ap.Entries.Values.All(v => AppearanceState(v, depth + 1));
+        }
+
+        bool AppearanceState(CosObject value, int depth)
+        {
+            if (!Step(depth))
+            {
+                return false;
+            }
+            return document.Resolve(value) switch
+            {
+                CosStream stream => stream.Dictionary["Subtype"] is CosName { Value: "Form" }
+                    && Graph(value, depth + 1, streams: true),
+                CosDictionary states => Graph(value, depth + 1, streams: true)
+                    && states.Entries.Values.All(v => document.Resolve(v) is CosStream s
+                        && s.Dictionary["Subtype"] is CosName { Value: "Form" }),
+                _ => false,
+            };
+        }
+
+        bool Graph(CosObject? value, int depth, bool streams, bool signatureRoot = false)
+        {
+            if (!Step(depth))
+            {
+                return false;
+            }
+            if (value is CosReference r)
+            {
+                Allow(value);
+                if (graphActive.Contains(r.Id))
+                {
+                    return false;
+                }
+                if (!graphSeen.Add(r.Id))
+                {
+                    return true;
+                }
+                graphActive.Add(r.Id);
+                var valid = Graph(document.GetObject(r.Id), depth + 1, streams, signatureRoot);
+                graphActive.Remove(r.Id);
+                return valid;
+            }
+            return value switch
+            {
+                CosDictionary d => (signatureRoot || (d["Type"] as CosName)?.Value is not
+                    ("Catalog" or "Pages" or "Page" or "Annot" or "Sig" or "DocTimeStamp"))
+                    && d.Entries.All(e => e.Key == "Data" && d["Type"] is CosName { Value: "SigRef" }
+                        && Same(e.Value, document.Trailer["Root"]) || Graph(e.Value, depth + 1, streams)),
+                CosArray a => a.Items.All(v => Graph(v, depth + 1, streams)),
+                CosStream s => streams && AppearanceStreamShape(s.Dictionary) && Graph(s.Dictionary, depth + 1, streams),
+                null or CosNull or CosBoolean or CosName or CosString or CosInteger or CosReal => true,
+                _ => false,
+            };
+        }
+
+        bool AppearanceStreamShape(CosDictionary header) => header.Entries.All(e => e.Key is
+            "Type" or "Subtype" or "Length" or "Filter" or "DecodeParms" or "DL"
+            or "FormType" or "BBox" or "Matrix" or "Resources" or "Group"
+            or "Width" or "Height" or "BitsPerComponent" or "ColorSpace" or "Intent"
+            or "ImageMask" or "Mask" or "Decode" or "Interpolate" or "SMask" or "Matte"
+            or "Length1" or "Length2" or "Length3")
+            && (header["Resources"] is null || document.Resolve(header["Resources"]) is CosDictionary resources
+                && resources.Entries.Keys.All(k => k is "ExtGState" or "ColorSpace" or "Pattern" or "Shading"
+                    or "XObject" or "Font" or "ProcSet" or "Properties"));
+
+        bool AppendOnly(CosObject? value, CosObject? oldValue, Func<CosObject, bool> added)
+        {
+            var resolved = document.Resolve(value);
+            var previous = signed.Resolve(oldValue);
+            if (resolved is not (null or CosNull or CosArray) || previous is not (null or CosNull or CosArray))
+            {
+                return false;
+            }
+            var array = resolved as CosArray ?? new CosArray();
+            var old = previous as CosArray ?? new CosArray();
+            Allow(value);
+            return array.Items.Count >= old.Items.Count
+                && old.Items.Select((v, i) => Same(v, array[i])).All(b => b)
+                && array.Items.Skip(old.Items.Count).All(added);
+        }
+
+        bool ProtectedContent(CosDocument doc)
+        {
+            var pending = new Stack<(CosObject? Value, string Role, int Depth)>();
+            var visited = new HashSet<(CosObjectId, string)>();
+            var remaining = 100000;
+            pending.Push((doc.Trailer["Root"], "Catalog", 0));
+            pending.Push((doc.Trailer["Info"], "Content", 0));
+            pending.Push((doc.Trailer["Encrypt"], "Content", 0));
+            while (pending.TryPop(out var item))
+            {
+                if (--remaining < 0 || item.Depth > 64)
+                {
+                    return false;
+                }
+                void Push(CosObject? v, string role) => pending.Push((v, role, item.Depth + 1));
+                if (item.Value is CosReference r)
+                {
+                    // Destinations and link annotations also refer to pages. A page retains all
+                    // properties except the checked /Annots append, regardless of that route.
+                    var effectiveRole = item.Role == "Content" && Same(r, doc.Trailer["Root"]) ? "Catalog"
+                        : item.Role == "Content" && pages.Contains(r.Id) ? "Pages" : item.Role;
+                    if (effectiveRole == "Content")
+                    {
+                        content.Add(r.Id.Number); // Generational aliases cannot hide shared content.
+                    }
+                    if (visited.Add((r.Id, effectiveRole)))
+                    {
+                        var role = effectiveRole == "Field" && (signedFields.Contains(r.Id.Number) || widgets.Contains(r.Id.Number)) ? "SignedField"
+                            : effectiveRole == "Annotation" && widgets.Contains(r.Id.Number) ? "SignedField" : effectiveRole;
+                        Push(doc.GetObject(r.Id), role);
+                    }
+                }
+                else if (item.Value is CosArray a)
+                {
+                    foreach (var v in a.Items)
+                    {
+                        Push(v, item.Role == "Fields" ? "Field" : item.Role == "Annots" ? "Annotation"
+                            : item.Role == "Pages" ? "Pages" : "Content");
+                    }
+                }
+                else if (item.Value is CosDictionary d)
+                {
+                    foreach (var (key, v) in d.Entries)
+                    {
+                        var role = (item.Role, key) switch
+                        {
+                            ("Catalog", "DSS") or ("Form", "SigFlags") => "Skip",
+                            ("Catalog", "AcroForm") => "Form",
+                            ("Catalog", "Pages") or ("Pages", "Kids") => "Pages",
+                            ("Pages", "Parent") => "Skip",
+                            ("Pages", "Annots") => "Annots",
+                            ("Form", "Fields") => "Fields",
+                            ("SignedField", "V" or "AP") => "Skip",
+                            ("SignedField" or "Field" or "Annotation", "P" or "Parent") => "Skip",
+                            ("SignedField" or "Field", "Kids") => "Fields",
+                            _ => "Content",
+                        };
+                        if (role != "Skip")
+                        {
+                            Push(v, role);
+                        }
+                    }
+                }
+                else if (item.Value is CosStream stream)
+                {
+                    Push(stream.Dictionary, "Content");
+                }
+            }
+            return true;
+        }
+    }
+
+    private static bool SameExcept(CosDictionary a, CosDictionary b, params string[] keys)
+    {
+        var x = a.Clone();
+        var y = b.Clone();
+        foreach (var key in keys)
+        {
+            x[key] = null;
+            y[key] = null;
+        }
+        return Same(x, y);
+    }
+
+    // Check each xref revision, so changing content and restoring it in a later signing revision
+    // cannot erase the warning. Select older xrefs explicitly without scanning arbitrary streams.
+    private static (bool ValidationOnly, bool Allowed) LaterChanges(CosDocument document, CosDocument signed)
+    {
+        var current = document;
+        var validationOnly = true;
+        var remainingBytes = 256L * 1024 * 1024;
+        for (var revision = 0; revision < 128; revision++)
+        {
+            if (current.WasReconstructed || signed.WasReconstructed
+                || current.Trailer["Prev"] is not CosInteger previous
+                || previous.Value < signed.StartXref || previous.Value >= current.StartXref)
+            {
+                return (false, false);
+            }
+            CosDocument before;
+            if (previous.Value == signed.StartXref)
+            {
+                before = signed;
+            }
+            else
+            {
+                remainingBytes -= current.StartXref;
+                if (remainingBytes < 0)
+                {
+                    return (false, false);
+                }
+                using var buffer = new MemoryStream();
+                buffer.Write(document.Data.AsSpan(0, checked((int)current.StartXref)));
+                buffer.Write(System.Text.Encoding.ASCII.GetBytes($"\nstartxref\n{previous.Value}\n%%EOF\n"));
+                try
+                {
+                    before = CosDocument.Load(buffer.ToArray());
+                }
+                catch (PdfException)
+                {
+                    return (false, false);
+                }
+                if (before.WasReconstructed || before.StartXref != previous.Value)
+                {
+                    return (false, false);
+                }
+            }
+
+            var validation = OnlyValidationDataAfter(current, before);
+            validationOnly &= validation;
+            if (!validation && !OnlySigningDataAfter(current, before))
+            {
+                return (false, false);
+            }
+            if (before == signed)
+            {
+                return (validationOnly, true);
+            }
+            current = before;
+        }
+        return (false, false);
     }
 
     private static bool CollectContent(CosDocument document, HashSet<int> content)
@@ -247,11 +695,12 @@ public static class PdfSignatureVerifier
         var pageIndex = FindPage(document, field);
         var certification = PdfCertification.None;
         var isCertification = false;
+        var modifiedAfterSigning = true;
 
         PdfSignatureInfo Result(PdfSignatureStatus status, string? problem, long signedLength = 0, bool covers = false) => new(
             fieldName, pageIndex, claimedName ?? string.Empty, null, claimedTime, false, reason, location, subFilter,
             status, false, PdfSignerIdentity.Unknown, false, covers, isCertification, signedLength, problem)
-        { Certification = certification };
+        { Certification = certification, ModifiedAfterSigning = modifiedAfterSigning };
 
         // /ByteRange must cover the whole revision except exactly the /Contents hex string.
         var range = (document.Resolve(signature["ByteRange"]) as CosArray)?.Items.Select(i => (document.Resolve(i) as CosInteger)?.Value ?? -1).ToArray();
@@ -295,7 +744,11 @@ public static class PdfSignatureVerifier
             }
         }
 
-        var covers = file.AsSpan((int)signedLength).Trim("\r\n\0 \t"u8).IsEmpty || OnlyValidationDataAfter(document, signed);
+        var noLaterRevision = file.AsSpan((int)signedLength).Trim("\r\n\0 \t"u8).IsEmpty;
+        var changes = noLaterRevision ? (ValidationOnly: true, Allowed: true) : LaterChanges(document, signed);
+        var covers = changes.ValidationOnly;
+        var forbiddenChange = !covers && certification == PdfCertification.NoChanges;
+        modifiedAfterSigning = !changes.Allowed || forbiddenChange;
         if (document.Resolve(signature["Contents"]) is not CosString { Bytes.Length: > 0 } contents)
         {
             return Result(PdfSignatureStatus.Invalid, "The signature has no contents.", signedLength, covers);
@@ -367,10 +820,9 @@ public static class PdfSignatureVerifier
             (identity, revocationChecked) = CheckIdentity(certificate, cms.Certificates, timestampTime, options);
         }
 
-        var forbiddenChange = !covers && certification == PdfCertification.NoChanges;
         var status = !intact || identity == PdfSignerIdentity.Revoked || forbiddenChange
             ? PdfSignatureStatus.Invalid
-            : !covers ? PdfSignatureStatus.Modified
+            : modifiedAfterSigning ? PdfSignatureStatus.Modified
             : identity == PdfSignerIdentity.Trusted ? PdfSignatureStatus.Valid : PdfSignatureStatus.IdentityUnknown;
         if (problem is null && identity == PdfSignerIdentity.Revoked)
         {
@@ -384,7 +836,7 @@ public static class PdfSignatureVerifier
         return new PdfSignatureInfo(
             fieldName, pageIndex, signerName, certificate, signingTime, isTimestamped, reason, location, subFilter,
             status, intact, identity, revocationChecked, covers, isCertification, signedLength, problem)
-        { Certification = certification };
+        { Certification = certification, ModifiedAfterSigning = modifiedAfterSigning };
     }
 
     private static (PdfSignerIdentity Identity, bool RevocationChecked) CheckIdentity(
@@ -394,6 +846,11 @@ public static class PdfSignatureVerifier
         PdfVerifyOptions options)
     {
         using var chain = new X509Chain();
+        if (options.CustomTrustRoots is { } roots)
+        {
+            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            chain.ChainPolicy.CustomTrustStore.AddRange(roots);
+        }
         chain.ChainPolicy.ExtraStore.AddRange(extra);
         chain.ChainPolicy.RevocationMode = options.CheckRevocation ? X509RevocationMode.Online : X509RevocationMode.NoCheck;
         chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;

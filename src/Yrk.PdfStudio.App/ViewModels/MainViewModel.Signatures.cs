@@ -75,8 +75,8 @@ public sealed partial class MainViewModel
 
     public string SignatureBannerText => Loc.T(
         _isCheckingSignatures ? "Checking signatures…"
-        : _signatures.Any(s => s.Info.ModifiedAfterSigning) ? "Signed, but the document was changed after signing"
         : _signatures.Any(s => s.Info.Status == PdfSignatureStatus.Invalid) ? "At least one signature is invalid."
+        : _signatures.Any(s => s.Info.ModifiedAfterSigning) ? "Signed, but the document was changed after signing"
         : _signatures.Any(s => s.Info.Status == PdfSignatureStatus.Unsupported) ? "Signed, but at least one signature can't be checked."
         : _signatures.Any(s => s.Info.Status != PdfSignatureStatus.Valid) ? (_signatures.Count == 1 ? "Signed, but the signer's identity couldn't be verified." : "Signed, but at least one signer's identity couldn't be verified.")
         : _signatures.Count == 1 ? "Signed and the signature is valid."

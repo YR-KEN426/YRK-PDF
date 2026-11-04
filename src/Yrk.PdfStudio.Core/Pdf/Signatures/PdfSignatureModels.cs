@@ -96,11 +96,15 @@ public sealed record PdfSignatureInfo(
     long SignedLength,
     string? Problem)
 {
-    /// <summary>True when later revisions were appended (form filling, comments, more signatures).</summary>
-    public bool ModifiedAfterSigning => !CoversWholeDocument;
+    /// <summary>Later revisions changed more than signatures and bounded validation data.</summary>
+    public bool ModifiedAfterSigning { get; init; }
 
     /// <summary>DocMDP permission from the signed revision, never from a later update.</summary>
     public PdfCertification Certification { get; init; }
 }
 
-public sealed record PdfVerifyOptions(bool CheckRevocation = true, TimeSpan? NetworkTimeout = null);
+public sealed record PdfVerifyOptions(bool CheckRevocation = true, TimeSpan? NetworkTimeout = null)
+{
+    // Explicit, per-verification trust for isolated callers/tests; never changes the Windows store.
+    internal X509Certificate2Collection? CustomTrustRoots { get; init; }
+}
