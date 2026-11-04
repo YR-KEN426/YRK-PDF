@@ -89,9 +89,8 @@ public static class PdfSignatureVerifier
             }
         }
 
-        for (var number = 1; number < document.Size; number++)
+        foreach (var id in document.ObjectIds)
         {
-            var id = new CosObjectId(number, 0);
             if (validationData.Contains(id))
             {
                 continue;

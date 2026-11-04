@@ -17,6 +17,7 @@ internal static partial class ToUnicodeRepair
 {
     /// <summary>Larger files are left as they are: the check reads the whole file.</summary>
     private const long MaxFileLength = 40L * 1024 * 1024;
+    internal const int MaxRepairDecodedLength = 32 * 1024 * 1024;
 
     /// <summary>The bytes to read after <paramref name="file"/> (an incremental update), or null when nothing needs repair.</summary>
     public static byte[]? Build(Stream file)
@@ -39,7 +40,7 @@ internal static partial class ToUnicodeRepair
         }
     }
 
-    internal static byte[]? Build(byte[] bytes)
+    internal static byte[]? Build(byte[] bytes, int decodedBudget = MaxRepairDecodedLength)
     {
         var document = CosDocument.Load(bytes);
         if (document.IsEncrypted || IsSigned(document))
@@ -49,18 +50,30 @@ internal static partial class ToUnicodeRepair
 
         var update = new CosIncrementalUpdate(document);
         var repaired = false;
-        for (var number = 1; number < document.Size; number++)
+        foreach (var id in document.ObjectIds)
         {
-            if (document.GetObject(new CosObjectId(number, 0)) is not CosDictionary font
+            if (document.GetObject(id) is not CosDictionary font
                 || (font["Subtype"] as CosName)?.Value != "Type0"
                 || font["ToUnicode"] is not CosReference toUnicodeRef
-                || document.Resolve(toUnicodeRef) is not CosStream toUnicode
-                || FontProgram(document, font) is not { } program)
+                || document.Resolve(toUnicodeRef) is not CosStream toUnicode)
             {
                 continue;
             }
 
-            var cmap = Encoding.Latin1.GetString(CosFilters.Decode(toUnicode, document.Resolve));
+            if (decodedBudget <= 0)
+            {
+                return null;
+            }
+
+            // One budget per open, including embedded programs used to interpret the CMaps.
+            var cmapBytes = CosFilters.Decode(toUnicode, document.Resolve, decodedBudget);
+            decodedBudget -= cmapBytes.Length;
+            if (FontProgram(document, font, ref decodedBudget) is not { } program)
+            {
+                continue;
+            }
+
+            var cmap = Encoding.Latin1.GetString(cmapBytes);
             if (Repair(cmap, program) is { } fixedCmap)
             {
                 update.Replace(toUnicodeRef.Id, new CosStream(
@@ -267,7 +280,7 @@ internal static partial class ToUnicodeRepair
     }
 
     /// <summary>The embedded TrueType program of a Type0 font whose codes are glyph ids (Identity-H, identity CIDToGIDMap).</summary>
-    private static TrueTypeOutlines? FontProgram(CosDocument document, CosDictionary font)
+    private static TrueTypeOutlines? FontProgram(CosDocument document, CosDictionary font, ref int decodedBudget)
     {
         if ((document.Resolve(font["Encoding"]) as CosName)?.Value != "Identity-H"
             || document.Resolve(font["DescendantFonts"]) is not CosArray { Count: 1 } descendants
@@ -280,7 +293,9 @@ internal static partial class ToUnicodeRepair
             return null;
         }
 
-        return TrueTypeOutlines.Load(CosFilters.Decode(file, document.Resolve));
+        var bytes = CosFilters.Decode(file, document.Resolve, decodedBudget);
+        decodedBudget -= bytes.Length;
+        return TrueTypeOutlines.Load(bytes);
     }
 }
 

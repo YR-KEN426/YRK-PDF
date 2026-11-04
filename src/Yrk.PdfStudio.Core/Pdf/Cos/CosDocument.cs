@@ -39,6 +39,11 @@ internal sealed partial class CosDocument
     /// <summary>True when every object in use has generation 0 (as almost every file has).</summary>
     public bool AllGenerationsZero => _xref.Values.All(e => e.Kind == XrefKind.Free || e.Generation == 0);
 
+    /// <summary>Objects in use in the effective xref, with their actual generations.</summary>
+    public IEnumerable<CosObjectId> ObjectIds => _xref
+        .Where(e => e.Key > 0 && e.Value.Kind != XrefKind.Free)
+        .Select(e => new CosObjectId(e.Key, e.Value.Generation));
+
     public bool IsEncrypted => Trailer["Encrypt"] is not null;
 
     /// <summary>Encrypted and not unlocked: objects are read as stored and cannot be changed.</summary>
@@ -140,7 +145,7 @@ internal sealed partial class CosDocument
         }
 
         CosObject? value = null;
-        if (_xref.TryGetValue(id.Number, out var entry))
+        if (_xref.TryGetValue(id.Number, out var entry) && entry.Generation == id.Generation)
         {
             value = entry.Kind switch
             {
@@ -149,7 +154,7 @@ internal sealed partial class CosDocument
                 _ => null,
             };
         }
-        else if (WasReconstructed && _scannedOffsets!.TryGetValue(id.Number, out var offset))
+        else if (WasReconstructed && !_xref.ContainsKey(id.Number) && _scannedOffsets!.TryGetValue(id.Number, out var offset))
         {
             value = Decrypt(ReadAt(offset, id.Number), id);
         }
@@ -438,7 +443,8 @@ internal sealed partial class CosDocument
         {
             objects = [];
             _objectStreams[streamNumber] = objects; // Set first, so a stream that refers to itself cannot loop.
-            if (GetObject(new CosObjectId(streamNumber, 0)) is CosStream stream)
+            var generation = _xref.TryGetValue(streamNumber, out var entry) ? entry.Generation : 0;
+            if (GetObject(new CosObjectId(streamNumber, generation)) is CosStream stream)
             {
                 objects = ParseObjectStream(stream);
                 _objectStreams[streamNumber] = objects;
@@ -450,9 +456,16 @@ internal sealed partial class CosDocument
 
     private List<(int Number, CosObject Value)> ParseObjectStream(CosStream stream)
     {
-        var count = (int)((Resolve(stream.Dictionary["N"]) as CosInteger)?.Value ?? 0);
-        var first = (int)((Resolve(stream.Dictionary["First"]) as CosInteger)?.Value ?? 0);
+        var count = (Resolve(stream.Dictionary["N"]) as CosInteger)?.Value ?? -1;
+        var first = (Resolve(stream.Dictionary["First"]) as CosInteger)?.Value ?? -1;
         var data = CosFilters.Decode(stream, Resolve);
+        // Header pairs need at least "1 0 "; the final separator may be the object's delimiter.
+        // Check before narrowing to int or adding offsets.
+        if (count < 0 || first < 0 || first > data.Length || count > (first + 1) / 4)
+        {
+            throw new PdfException("Invalid object stream header.");
+        }
+
         var parser = new CosParser(data, GetObject);
         var header = new List<(int Number, int Offset)>();
         for (var i = 0; i < count; i++)
@@ -460,13 +473,20 @@ internal sealed partial class CosDocument
             parser.SkipWhitespace();
             var number = parser.ReadInteger();
             parser.SkipWhitespace();
-            header.Add(((int)number, (int)parser.ReadInteger()));
+            var offset = parser.ReadInteger();
+            if (number <= 0 || number > int.MaxValue || offset < 0 || offset >= data.Length - first
+                || parser.Position > first)
+            {
+                throw new PdfException("Invalid object stream entry.");
+            }
+
+            header.Add(((int)number, (int)offset));
         }
 
         var objects = new List<(int Number, CosObject Value)>();
         foreach (var (number, offset) in header)
         {
-            parser.Position = first + offset;
+            parser.Position = (int)first + offset; // Validated above, without overflowing.
             try
             {
                 objects.Add((number, parser.ParseObject()));
@@ -507,14 +527,17 @@ internal sealed partial class CosDocument
         _scannedOffsets = ScanObjects();
         foreach (var (number, offset) in _scannedOffsets)
         {
-            _xref[number] = new XrefEntry(XrefKind.InFile, offset, 0);
+            var parser = new CosParser(Data) { Position = offset };
+            _ = parser.ReadInteger();
+            parser.SkipWhitespace();
+            _xref[number] = new XrefEntry(XrefKind.InFile, offset, (int)parser.ReadInteger());
         }
 
         // Objects inside object streams, and the catalog from the newest trailer or xref stream.
         CosDictionary? trailer = null;
         foreach (var number in _scannedOffsets.Keys.Order().ToList())
         {
-            if (GetObject(new CosObjectId(number, 0)) is CosStream { Dictionary: var dictionary } stream)
+            if (GetObject(new CosObjectId(number, _xref[number].Generation)) is CosStream { Dictionary: var dictionary } stream)
             {
                 var type = (dictionary["Type"] as CosName)?.Value;
                 if (type == "ObjStm")
@@ -549,13 +572,13 @@ internal sealed partial class CosDocument
 
         if (trailer is null)
         {
-            var catalog = _scannedOffsets.Keys.FirstOrDefault(n => GetObject(new CosObjectId(n, 0)) is CosDictionary { } d && (d["Type"] as CosName)?.Value == "Catalog");
+            var catalog = _scannedOffsets.Keys.FirstOrDefault(n => GetObject(new CosObjectId(n, _xref[n].Generation)) is CosDictionary { } d && (d["Type"] as CosName)?.Value == "Catalog");
             if (catalog == 0)
             {
                 throw new PdfException("The file is damaged and its structure could not be recovered.");
             }
 
-            trailer = new CosDictionary().Set("Root", new CosReference(catalog, 0));
+            trailer = new CosDictionary().Set("Root", new CosReference(catalog, _xref[catalog].Generation));
         }
 
         Trailer = trailer;

@@ -26,18 +26,16 @@ internal static class CosUpdateTrimmer
             return saved;
         }
 
-        if (before.IsEncrypted || after.IsEncrypted || before.WasReconstructed || after.WasReconstructed || !after.AllGenerationsZero)
+        if (before.IsEncrypted || after.IsEncrypted || before.WasReconstructed || after.WasReconstructed)
         {
-            // Encrypted objects cannot be compared as written, and objects are rewritten here as generation 0:
-            // leave such files as PDFium made them.
+            // Encrypted objects cannot be compared as written; leave recovered files as PDFium made them.
             return saved;
         }
 
         var update = new CosIncrementalUpdate(before);
         var changed = 0;
-        for (var number = 1; number < after.Size; number++)
+        foreach (var id in after.ObjectIds)
         {
-            var id = new CosObjectId(number, 0);
             var value = after.GetObject(id);
             if (value is null or CosNull || IsFileStructure(value))
             {
