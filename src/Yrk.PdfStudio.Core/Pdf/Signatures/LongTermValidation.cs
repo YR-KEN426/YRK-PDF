@@ -15,13 +15,37 @@ public interface IPdfRevocationSource
 /// <summary>Gets revocation lists over HTTP.</summary>
 public sealed class HttpRevocationSource : IPdfRevocationSource
 {
-    private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private static readonly HttpClient DefaultClient = new() { Timeout = TimeSpan.FromSeconds(30) };
+    private readonly HttpClient _client;
+
+    public HttpRevocationSource() : this(DefaultClient) { }
+
+    internal HttpRevocationSource(HttpClient client) => _client = client;
 
     public async Task<byte[]> GetAsync(Uri url, CancellationToken cancellationToken)
     {
-        using var response = await Client.GetAsync(url, cancellationToken).ConfigureAwait(false);
+        using var response = await _client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        if (response.Content.Headers.ContentLength > CrlValidation.MaxCrlBytes)
+        {
+            throw new HttpRequestException("The revocation list is too large.");
+        }
+        // ResponseHeadersRead does not apply HttpClient.Timeout to the response body.
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        using var input = await response.Content.ReadAsStreamAsync(timeout.Token).ConfigureAwait(false);
+        using var output = new MemoryStream();
+        var buffer = new byte[8192];
+        int read;
+        while ((read = await input.ReadAsync(buffer, timeout.Token).ConfigureAwait(false)) != 0)
+        {
+            if (output.Length + read > CrlValidation.MaxCrlBytes)
+            {
+                throw new HttpRequestException("The revocation list is too large.");
+            }
+            output.Write(buffer, 0, read);
+        }
+        return output.ToArray();
     }
 }
 
@@ -36,8 +60,9 @@ internal static class LongTermValidation
 
     public static async Task<byte[]> AddAsync(byte[] pdf, byte[] cms, IPdfRevocationSource source, string? password, CancellationToken cancellationToken)
     {
-        var (certificates, crls) = await CollectAsync(cms, source, cancellationToken).ConfigureAwait(false);
         var document = CosDocument.Load(pdf, password ?? string.Empty);
+        using var existing = DssValidationData.Read(document);
+        var (certificates, crls) = await CollectAsync(cms, source, cancellationToken, existing.Certificates).ConfigureAwait(false);
         var update = new CosIncrementalUpdate(document);
         var rootId = (document.Trailer["Root"] as CosReference)?.Id ?? throw new PdfException("The document has no catalog.");
 
@@ -50,11 +75,16 @@ internal static class LongTermValidation
     }
 
     /// <summary>Every certificate the signature and its timestamp depend on, and a revocation list for each one that has one.</summary>
-    internal static async Task<(List<byte[]> Certificates, List<byte[]> Crls)> CollectAsync(byte[] cms, IPdfRevocationSource source, CancellationToken cancellationToken)
+    internal static async Task<(List<byte[]> Certificates, List<byte[]> Crls)> CollectAsync(byte[] cms, IPdfRevocationSource source, CancellationToken cancellationToken,
+        X509Certificate2Collection? extra = null)
     {
         var signed = new SignedCms();
         signed.Decode(cms);
         var pool = new X509Certificate2Collection(signed.Certificates);
+        if (extra is not null)
+        {
+            pool.AddRange(extra);
+        }
         var leaves = new List<X509Certificate2>();
         foreach (var signer in signed.SignerInfos)
         {
@@ -90,9 +120,9 @@ internal static class LongTermValidation
             chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllFlags;
             chain.ChainPolicy.ExtraStore.AddRange(pool);
             chain.Build(leaf);
-            foreach (var element in chain.ChainElements)
+            for (var i = 0; i < chain.ChainElements.Count; i++)
             {
-                var certificate = element.Certificate;
+                var certificate = chain.ChainElements[i].Certificate;
                 certificates.TryAdd(certificate.Thumbprint, certificate.RawData);
                 if (certificate.SubjectName.RawData.AsSpan().SequenceEqual(certificate.IssuerName.RawData) || !checkedCertificates.Add(certificate.Thumbprint))
                 {
@@ -105,23 +135,30 @@ internal static class LongTermValidation
                     continue;
                 }
 
-                crls.Add(await DownloadAsync(urls, source, cancellationToken).ConfigureAwait(false));
+                var issuer = i + 1 < chain.ChainElements.Count ? chain.ChainElements[i + 1].Certificate : null;
+                crls.Add(await DownloadAsync(urls, source, certificate, issuer, cancellationToken).ConfigureAwait(false));
             }
         }
 
         return (certificates.Values.ToList(), crls);
     }
 
-    private static async Task<byte[]> DownloadAsync(IReadOnlyList<Uri> urls, IPdfRevocationSource source, CancellationToken cancellationToken)
+    private static async Task<byte[]> DownloadAsync(IReadOnlyList<Uri> urls, IPdfRevocationSource source,
+        X509Certificate2 certificate, X509Certificate2? issuer, CancellationToken cancellationToken)
     {
         Exception? last = null;
         foreach (var url in urls)
         {
             try
             {
-                return await source.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                var crl = await source.GetAsync(url, cancellationToken).ConfigureAwait(false);
+                if (issuer is null || !CrlValidation.TryCheck(crl, certificate, issuer, DateTimeOffset.UtcNow, out _))
+                {
+                    throw new HttpRequestException("The revocation list has an invalid signature, validity period, size or format, or its issuer is unavailable.");
+                }
+                return crl;
             }
-            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException { CancellationToken.IsCancellationRequested: false })
+            catch (Exception ex) when (ex is HttpRequestException || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
             {
                 last = ex; // Try the next place the certificate names.
             }

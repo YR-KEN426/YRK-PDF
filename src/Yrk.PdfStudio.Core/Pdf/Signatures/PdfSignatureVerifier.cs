@@ -33,13 +33,14 @@ public static class PdfSignatureVerifier
             return [];
         }
 
+        using var validationData = DssValidationData.Read(document);
         var results = new List<PdfSignatureInfo>();
         foreach (var (name, field) in FindSignatureFields(document))
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (document.Resolve(field["V"]) is CosDictionary signature)
             {
-                results.Add(Check(document, file, name, field, signature, options));
+                results.Add(Check(document, file, name, field, signature, options, validationData));
             }
         }
 
@@ -685,7 +686,8 @@ public static class PdfSignatureVerifier
         _ => false,
     };
 
-    private static PdfSignatureInfo Check(CosDocument document, byte[] file, string fieldName, CosDictionary field, CosDictionary signature, PdfVerifyOptions options)
+    private static PdfSignatureInfo Check(CosDocument document, byte[] file, string fieldName, CosDictionary field, CosDictionary signature, PdfVerifyOptions options,
+        DssValidationData validationData)
     {
         var subFilter = (document.Resolve(signature["SubFilter"]) as CosName)?.Value ?? string.Empty;
         var reason = (document.Resolve(signature["Reason"]) as CosString)?.ToText();
@@ -817,7 +819,7 @@ public static class PdfSignatureVerifier
         var revocationChecked = false;
         if (certificate is not null)
         {
-            (identity, revocationChecked) = CheckIdentity(certificate, cms.Certificates, timestampTime, options);
+            (identity, revocationChecked) = CheckIdentity(certificate, cms.Certificates, timestampTime, options, validationData);
         }
 
         var status = !intact || identity == PdfSignerIdentity.Revoked || forbiddenChange
@@ -843,7 +845,8 @@ public static class PdfSignatureVerifier
         X509Certificate2 certificate,
         X509Certificate2Collection extra,
         DateTimeOffset? trustedTime,
-        PdfVerifyOptions options)
+        PdfVerifyOptions options,
+        DssValidationData validationData)
     {
         using var chain = new X509Chain();
         if (options.CustomTrustRoots is { } roots)
@@ -852,22 +855,63 @@ public static class PdfSignatureVerifier
             chain.ChainPolicy.CustomTrustStore.AddRange(roots);
         }
         chain.ChainPolicy.ExtraStore.AddRange(extra);
-        chain.ChainPolicy.RevocationMode = options.CheckRevocation ? X509RevocationMode.Online : X509RevocationMode.NoCheck;
+        chain.ChainPolicy.ExtraStore.AddRange(validationData.Certificates);
+        // Build locally first: a complete DSS must not require network access, even when
+        // online fallback is enabled. Embedded certificates supply issuers, never trust.
+        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        chain.ChainPolicy.DisableCertificateDownloads = true;
         chain.ChainPolicy.RevocationFlag = X509RevocationFlag.ExcludeRoot;
         chain.ChainPolicy.UrlRetrievalTimeout = options.NetworkTimeout ?? TimeSpan.FromSeconds(10);
-        if (trustedTime is not null)
-        {
-            // With a timestamp the certificate only had to be valid when the document was signed.
-            chain.ChainPolicy.VerificationTime = trustedTime.Value.UtcDateTime;
-        }
+        var verificationTime = trustedTime ?? DateTimeOffset.UtcNow;
+        chain.ChainPolicy.VerificationTime = verificationTime.UtcDateTime;
 
         chain.Build(certificate);
+        var covered = new HashSet<string>(StringComparer.Ordinal);
+        var dssRevoked = false;
+        for (var i = 0; i + 1 < chain.ChainElements.Count; i++)
+        {
+            var subject = chain.ChainElements[i].Certificate;
+            var issuer = chain.ChainElements[i + 1].Certificate;
+            foreach (var crl in validationData.Crls)
+            {
+                if (CrlValidation.TryCheck(crl, subject, issuer, verificationTime, out var revoked))
+                {
+                    covered.Add(subject.Thumbprint);
+                    dssRevoked |= revoked;
+                }
+            }
+        }
+        var complete = chain.ChainElements.Count > 1 && covered.Count == chain.ChainElements.Count - 1;
+        if (options.CheckRevocation && !complete && !dssRevoked)
+        {
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+            chain.ChainPolicy.DisableCertificateDownloads = false;
+            chain.Build(certificate);
+        }
         var flags = chain.ChainElements.SelectMany(e => e.ChainElementStatus).Select(s => s.Status)
             .Concat(chain.ChainStatus.Select(s => s.Status))
             .Aggregate(X509ChainStatusFlags.NoError, (all, s) => all | s);
 
         const X509ChainStatusFlags revocationUnknown = X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation;
-        var revocationChecked = options.CheckRevocation && (flags & revocationUnknown) == 0;
+        // Ignore offline errors only for certificates whose status DSS actually established.
+        var revocationChecked = true;
+        for (var i = 0; i < chain.ChainElements.Count; i++)
+        {
+            var element = chain.ChainElements[i];
+            var isRoot = i == chain.ChainElements.Count - 1
+                && element.Certificate.SubjectName.RawData.AsSpan().SequenceEqual(element.Certificate.IssuerName.RawData);
+            if (!isRoot && !covered.Contains(element.Certificate.Thumbprint))
+            {
+                revocationChecked &= options.CheckRevocation && !element.ChainElementStatus.Any(s => (s.Status & revocationUnknown) != 0);
+            }
+        }
+        revocationChecked &= complete || options.CheckRevocation;
+        revocationChecked &= (flags & X509ChainStatusFlags.PartialChain) == 0;
+        if (dssRevoked)
+        {
+            flags |= X509ChainStatusFlags.Revoked;
+            revocationChecked = true;
+        }
         var identity = flags switch
         {
             _ when flags.HasFlag(X509ChainStatusFlags.Revoked) => PdfSignerIdentity.Revoked,

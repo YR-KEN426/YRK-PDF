@@ -260,15 +260,16 @@ public sealed class SignatureTests : IDisposable
     [Fact]
     public async Task Adds_long_term_validation_data()
     {
-        var (signer, crl) = IssuedId("http://crl.example.test/ca.crl");
+        var (signer, crl, ca) = IssuedId("http://crl.example.test/ca.crl");
+        using var issuer = ca;
         var source = new FakeRevocationSource(crl);
-        var signed = await PdfSigner.SignAsync(File.ReadAllBytes(SamplePath), new PdfSignRequest(signer, RevocationSource: source));
+        var signed = await PdfSigner.SignAsync(WithIssuer(File.ReadAllBytes(SamplePath), issuer), new PdfSignRequest(signer, RevocationSource: source));
 
         Assert.Equal(["http://crl.example.test/ca.crl"], source.Requested.Select(u => u.ToString()));
         var document = CosDocument.Load(signed);
         var dss = Assert.IsType<CosDictionary>(document.Resolve(document.Catalog["DSS"]));
         var certificates = ((CosArray)document.Resolve(dss["Certs"])!).Items.Select(i => CosFilters.Decode((CosStream)document.Resolve(i)!, document.Resolve)).ToList();
-        Assert.Contains(certificates, c => c.AsSpan().SequenceEqual(signer.RawData)); // The test CA is in no store, so the signer is all there is.
+        Assert.Contains(certificates, c => c.AsSpan().SequenceEqual(signer.RawData));
         var storedCrl = Assert.Single(((CosArray)document.Resolve(dss["CRLs"])!).Items);
         Assert.Equal(crl, CosFilters.Decode((CosStream)document.Resolve(storedCrl)!, document.Resolve));
 
@@ -290,9 +291,10 @@ public sealed class SignatureTests : IDisposable
     [Fact]
     public async Task Adds_long_term_validation_data_to_files_with_xref_streams()
     {
-        var (signer, crl) = IssuedId("http://crl.example.test/ca.crl");
+        var (signer, crl, ca) = IssuedId("http://crl.example.test/ca.crl");
+        using var issuer = ca;
         var source = File.ReadAllBytes(TestPdfFactory.CreateXrefStreamPdf(PathFor("xrefstream-ltv-source.pdf")));
-        var signed = await PdfSigner.SignAsync(source, new PdfSignRequest(signer, RevocationSource: new FakeRevocationSource(crl)));
+        var signed = await PdfSigner.SignAsync(WithIssuer(source, issuer), new PdfSignRequest(signer, RevocationSource: new FakeRevocationSource(crl)));
 
         var path = PathFor("xrefstream-ltv.pdf");
         File.WriteAllBytes(path, signed);
@@ -304,9 +306,10 @@ public sealed class SignatureTests : IDisposable
     [Fact]
     public async Task Says_when_a_revocation_list_cannot_be_downloaded()
     {
-        var (signer, _) = IssuedId("http://crl.example.test/missing.crl");
+        var (signer, _, ca) = IssuedId("http://crl.example.test/missing.crl");
+        using var issuer = ca;
         var error = await Assert.ThrowsAsync<PdfException>(() =>
-            PdfSigner.SignAsync(File.ReadAllBytes(SamplePath), new PdfSignRequest(signer, RevocationSource: new FakeRevocationSource(null))));
+            PdfSigner.SignAsync(WithIssuer(File.ReadAllBytes(SamplePath), issuer), new PdfSignRequest(signer, RevocationSource: new FakeRevocationSource(null))));
         Assert.Contains("missing.crl", error.Message, StringComparison.Ordinal);
     }
 
@@ -355,8 +358,17 @@ public sealed class SignatureTests : IDisposable
         return new PdfImage(width, height, pixels);
     }
 
-    /// <summary>A signing ID issued by a test CA whose certificate names <paramref name="crlUrl"/>, and that CA's (empty) CRL.</summary>
-    private static (X509Certificate2 Signer, byte[] Crl) IssuedId(string crlUrl)
+    private static byte[] WithIssuer(byte[] pdf, X509Certificate2 issuer)
+    {
+        var document = CosDocument.Load(pdf);
+        var update = new CosIncrementalUpdate(document);
+        update.Replace(((CosReference)document.Trailer["Root"]!).Id, document.Catalog.Clone().Set("DSS",
+            update.Add(new CosDictionary().Set("Certs", new CosArray([update.Add(new CosStream(new CosDictionary(), issuer.RawData))])))));
+        return update.Build().Bytes;
+    }
+
+    /// <summary>A test signing ID, its issuer and that issuer's empty CRL. No certificate-store changes.</summary>
+    private static (X509Certificate2 Signer, byte[] Crl, X509Certificate2 Ca) IssuedId(string crlUrl)
     {
         using var caKey = RSA.Create(2048);
         var caRequest = new CertificateRequest("CN=Test CA", caKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -373,7 +385,7 @@ public sealed class SignatureTests : IDisposable
         var signer = X509CertificateLoader.LoadPkcs12(withKey.Export(X509ContentType.Pfx), null, X509KeyStorageFlags.EphemeralKeySet);
 
         var crl = new CertificateRevocationListBuilder().Build(ca, 1, DateTimeOffset.UtcNow.AddDays(7), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        return (signer, crl);
+        return (signer, crl, X509CertificateLoader.LoadCertificate(ca.RawData));
     }
 
     /// <summary>Hands out one CRL (or fails, for null) and remembers what was asked for.</summary>
