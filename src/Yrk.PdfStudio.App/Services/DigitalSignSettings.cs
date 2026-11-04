@@ -6,6 +6,11 @@ namespace Yrk.PdfStudio.App.Services;
 /// <summary>The choices of the last digital signature, offered again next time.</summary>
 public sealed class DigitalSignSettings
 {
+    // The default is plain http on purpose: DigiCert does not answer timestamp requests over https.
+    // That is acceptable because the timestamp token is signed by the time-stamping authority (TSA)
+    // itself, and the verifier checks the TSA certificate chain, so an attacker on the network
+    // cannot forge or alter a token without it being rejected. Only the request (a hash of the
+    // signature) travels in the clear, and it contains no document content.
     public const string DefaultTimestampUrl = "http://timestamp.digicert.com";
 
     private static readonly string FilePath = Path.Combine(

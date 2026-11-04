@@ -72,6 +72,21 @@ public partial class DigitalSignDialog : Window
         }
     }
 
+    private void OnTimestampUrlChanged(object sender, RoutedEventArgs e)
+    {
+        if (TimestampHttpWarning is null || TimestampBox is null || TimestampUrlInput is null)
+        {
+            return; // Raised while the window is still being built.
+        }
+
+        var text = TimestampUrlInput.Text.Trim();
+        var warn = TimestampBox.IsChecked == true
+            && Uri.TryCreate(text, UriKind.Absolute, out var url)
+            && url.Scheme == Uri.UriSchemeHttp
+            && !string.Equals(text, DigitalSignSettings.DefaultTimestampUrl, StringComparison.OrdinalIgnoreCase);
+        TimestampHttpWarning.Visibility = warn ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     private void OnRefresh(object sender, RoutedEventArgs e) => LoadIds((IdList.SelectedItem as DigitalId) is { } id ? Key(id) : null);
 
     private void OnCreateId(object sender, RoutedEventArgs e)

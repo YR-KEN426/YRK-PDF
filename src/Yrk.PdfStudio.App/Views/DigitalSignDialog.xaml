@@ -103,9 +103,12 @@
         <TextBlock Text="Only the first signature of a document can certify it. Viewers such as Adobe Acrobat then show which later changes break the certification."
                    FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
 
-        <CheckBox x:Name="TimestampBox" Content="Add a trusted timestamp (needs internet; proves when you signed)" Margin="0,14,0,4" />
+        <CheckBox x:Name="TimestampBox" Content="Add a trusted timestamp (needs internet; proves when you signed)" Margin="0,14,0,4"
+                  Checked="OnTimestampUrlChanged" Unchecked="OnTimestampUrlChanged" />
         <TextBox x:Name="TimestampUrlInput" Padding="6,4" Margin="20,0,0,0" AutomationProperties.Name="Timestamp server"
-                 IsEnabled="{Binding IsChecked, ElementName=TimestampBox}" />
+                 IsEnabled="{Binding IsChecked, ElementName=TimestampBox}" TextChanged="OnTimestampUrlChanged" />
+        <TextBlock x:Name="TimestampHttpWarning" Text="This timestamp server uses http, not https. The timestamp is still signed by the server and checked when the file is verified, but the request is not encrypted."
+                   FontSize="11" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="20,2,0,0" Visibility="Collapsed" />
         <CheckBox x:Name="LongTermBox" Content="Add long-term validation data (needs internet; the signature can still be checked after the certificate expires)"
                   Margin="0,10,0,0" />
         <TextBlock Text="Stores your certificates and their revocation lists in the file (PAdES B-LT). Best together with a trusted timestamp."

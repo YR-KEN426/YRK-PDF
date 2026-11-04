@@ -1345,5 +1345,6 @@
   "The document was changed after certification. Whether these changes are permitted has not been checked.": "เอกสารถูกแก้ไขหลังรับรอง ยังไม่ได้ตรวจว่าการแก้ไขเหล่านี้ได้รับอนุญาตหรือไม่",
   "Adding password protection rewrites the document and removes its digital signatures. The result is saved as a new file. Continue?": "การตั้งรหัสผ่านจะเขียนเอกสารใหม่และลบลายเซ็นดิจิทัล ผลลัพธ์จะบันทึกเป็นไฟล์ใหม่ ต้องการดำเนินการต่อหรือไม่?",
   "The signed revision could not be read.": "ไม่สามารถอ่านฉบับที่ถูกเซ็นได้",
-  "The signature is missing from the signed revision.": "ไม่พบลายเซ็นนี้ในฉบับที่ถูกเซ็น"
+  "The signature is missing from the signed revision.": "ไม่พบลายเซ็นนี้ในฉบับที่ถูกเซ็น",
+  "This timestamp server uses http, not https. The timestamp is still signed by the server and checked when the file is verified, but the request is not encrypted.": "เซิร์ฟเวอร์เวลาประทับนี้ใช้ http ไม่ใช่ https เวลาประทับยังมีลายเซ็นของเซิร์ฟเวอร์และถูกตรวจตอนตรวจไฟล์ แต่คำขอไม่ได้ถูกเข้ารหัส"
 }
