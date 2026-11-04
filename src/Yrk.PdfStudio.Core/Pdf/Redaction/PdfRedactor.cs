@@ -485,6 +485,20 @@ public static class PdfRedactor
             form["XFA"] = null;
         }
 
+        bool RemoveAction(CosObject? value)
+        {
+            if (document.Resolve(value) is not CosDictionary action
+                || (document.Resolve(action["S"]) as CosName)?.Value is not
+                    ("JavaScript" or "Launch" or "ImportData" or "SubmitForm" or "GoToE" or "GoToR"
+                    or "Rendition" or "Sound" or "Movie" or "RichMedia"))
+            {
+                return false;
+            }
+
+            action["JS"] = null;
+            return true;
+        }
+
         var visited = new HashSet<CosObject>(ReferenceEqualityComparer.Instance);
         void Clean(CosObject? value)
         {
@@ -496,6 +510,7 @@ public static class PdfRedactor
 
             if (value is CosArray array)
             {
+                array.Items.RemoveAll(RemoveAction);
                 foreach (var item in array.Items)
                 {
                     Clean(item);
@@ -508,30 +523,15 @@ public static class PdfRedactor
                 return;
             }
 
-            // Actions can be shared or reached through a second reference, not just /A or /AA.
             var type = (document.Resolve(dictionary["Type"]) as CosName)?.Value;
             var subtype = (document.Resolve(dictionary["Subtype"]) as CosName)?.Value;
-            var action = (document.Resolve(dictionary["S"]) as CosName)?.Value;
-            if (type is "Action" or "Filespec" || subtype == "FileAttachment"
-                || action is "JavaScript" or "GoTo" or "GoToR" or "GoToE" or "Launch"
-                or "Thread" or "URI" or "Sound" or "Movie" or "Hide" or "Named" or "SubmitForm"
-                or "ResetForm" or "ImportData" or "SetOCGState" or "Rendition" or "Trans" or "GoTo3DView")
+            if (type == "Filespec" || subtype == "FileAttachment")
             {
                 dictionary.Entries.Clear();
                 return;
             }
 
-            if (type == "Annot" || subtype is "Text" or "Link" or "FreeText" or "Line" or "Square" or "Circle"
-                or "Polygon" or "PolyLine" or "Highlight" or "Underline" or "Squiggly" or "StrikeOut"
-                or "Stamp" or "Caret" or "Ink" or "Popup" or "Sound" or "Movie" or "Widget"
-                or "Screen" or "PrinterMark" or "TrapNet" or "Watermark" or "3D" or "Redact" or "RichMedia")
-            {
-                dictionary["Contents"] = null;
-                dictionary["AP"] = null;
-                dictionary["RC"] = null;
-            }
-
-            foreach (var key in new[] { "AF", "Metadata", "PieceInfo", "Thumb", "A", "AA", "OpenAction", "PA" })
+            foreach (var key in new[] { "AF", "Metadata", "PieceInfo", "Thumb", "AA" })
             {
                 dictionary[key] = null;
             }
@@ -551,18 +551,24 @@ public static class PdfRedactor
                         continue;
                     }
 
-                    annotation["Contents"] = null;
-                    annotation["AP"] = null;
-                    annotation["RC"] = null; // Rich-text copy of Contents.
                     kept.Items.Add(item);
                 }
 
                 dictionary["Annots"] = kept;
             }
 
-            foreach (var child in dictionary.Entries.Values.ToList())
+            // Remove every reference to a forbidden action, including aliases and /Next chains.
+            // Keep allowed action dictionaries and their other entries intact.
+            foreach (var (key, child) in dictionary.Entries.ToList())
             {
-                Clean(child);
+                if (RemoveAction(child))
+                {
+                    dictionary[key] = null;
+                }
+                else
+                {
+                    Clean(child);
+                }
             }
         }
 

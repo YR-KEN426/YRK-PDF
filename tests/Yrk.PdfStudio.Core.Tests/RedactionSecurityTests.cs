@@ -234,15 +234,15 @@ public sealed class RedactionSecurityTests : IDisposable
                 break;
             case "XFA": fixture.Catalog["AcroForm"] = new CosDictionary().Set("XFA", secretStream); break;
             case "Annotation":
-                fixture.Pages[1]["Annots"] = new CosArray([fixture.Document.Add(new CosDictionary().Set("Subtype", new CosName("Text"))
-                    .Set("Rect", CosArray.FromNumbers(0, 0, 10, 10)).Set("Contents", CosString.FromText(Secret))
+                fixture.Pages[0]["Annots"] = new CosArray([fixture.Document.Add(new CosDictionary().Set("Subtype", new CosName("Text"))
+                    .Set("Rect", CosArray.FromNumbers(50, 45, 65, 55)).Set("Contents", CosString.FromText(Secret))
                     .Set("RC", CosString.FromText(Secret)).Set("AP", new CosDictionary().Set("N", secretStream)))]);
                 break;
             case "LinkedAnnotation":
                 var popup = fixture.Document.Add(new CosDictionary().Set("Subtype", new CosName("Popup"))
                     .Set("Contents", CosString.FromText(Secret)).Set("AP", new CosDictionary().Set("N", secretStream)));
-                fixture.Pages[1]["Annots"] = new CosArray([fixture.Document.Add(new CosDictionary().Set("Subtype", new CosName("Text"))
-                    .Set("Popup", popup).Set("Rect", CosArray.FromNumbers(0, 0, 10, 10)))]);
+                fixture.Pages[0]["Annots"] = new CosArray([fixture.Document.Add(new CosDictionary().Set("Subtype", new CosName("Text"))
+                    .Set("Popup", popup).Set("Rect", CosArray.FromNumbers(50, 45, 65, 55)))]);
                 break;
             case "AliasedAttachment":
                 var filespec = fixture.Document.Add(new CosDictionary().Set("Type", new CosName("Filespec"))
@@ -272,6 +272,165 @@ public sealed class RedactionSecurityTests : IDisposable
         Assert.Null(CosDocument.Load(result.Output).Trailer["Prev"]);
         Assert.Equal(1, Encoding.Latin1.GetString(result.Output).Split("%%EOF").Length - 1);
         await AssertBlack(result.Output);
+    }
+
+    [Fact]
+    public async Task Annotations_outside_the_areas_keep_appearances_values_comments_and_links()
+    {
+        var fixture = new Fixture("q Q", "q Q");
+        var appearance = fixture.Document.Add(CosPageEdit.Stream(Encoding.ASCII.GetBytes("0 0 10 10 re S"),
+            new CosDictionary().Set("Type", new CosName("XObject")).Set("Subtype", new CosName("Form"))
+                .Set("BBox", CosArray.FromNumbers(0, 0, 10, 10))));
+        var widget = fixture.Document.Add(new CosDictionary().Set("Type", new CosName("Annot"))
+            .Set("Subtype", new CosName("Widget")).Set("FT", new CosName("Tx")).Set("T", CosString.FromText("field"))
+            .Set("Rect", CosArray.FromNumbers(5, 5, 20, 15)).Set("P", fixture.PageRefs[1])
+            .Set("AP", new CosDictionary().Set("N", appearance))
+            .Set("V", CosString.FromText("filled value")).Set("DV", CosString.FromText("default value")));
+        var comment = fixture.Document.Add(new CosDictionary().Set("Subtype", new CosName("Text"))
+            .Set("Rect", CosArray.FromNumbers(5, 5, 20, 15)).Set("Contents", CosString.FromText("keep comment"))
+            .Set("RC", CosString.FromText("<p>keep comment</p>")).Set("AP", new CosDictionary().Set("N", appearance)));
+        var link = fixture.Document.Add(new CosDictionary().Set("Type", new CosName("Annot"))
+            .Set("Subtype", new CosName("Link")).Set("Rect", CosArray.FromNumbers(25, 5, 45, 15))
+            .Set("A", new CosDictionary().Set("Type", new CosName("Action")).Set("S", new CosName("URI"))
+                .Set("URI", CosString.FromText("https://example.com/keep"))));
+        var removed = fixture.Document.Add(new CosDictionary().Set("Subtype", new CosName("Text"))
+            .Set("Rect", CosArray.FromNumbers(50, 45, 65, 55)).Set("Contents", CosString.FromText(Secret))
+            .Set("RC", CosString.FromText(Secret)));
+        fixture.Pages[0]["Annots"] = new CosArray([comment, link, removed]);
+        fixture.Pages[1]["Annots"] = new CosArray([widget, comment, link]);
+        fixture.Catalog["AcroForm"] = new CosDictionary().Set("Fields", new CosArray([widget]));
+
+        var result = await Redact(fixture.Build());
+        var output = CosDocument.Load(result.Output);
+        var marked = Assert.IsType<CosArray>(output.Resolve(output.GetPages()[0].Dictionary["Annots"]));
+        Assert.Equal(2, marked.Count);
+        var unmarked = Assert.IsType<CosArray>(output.Resolve(output.GetPages()[1].Dictionary["Annots"]));
+        Assert.Equal(3, unmarked.Count);
+        var keptWidget = Assert.IsType<CosDictionary>(output.Resolve(unmarked[0]));
+        var ap = Assert.IsType<CosDictionary>(output.Resolve(keptWidget["AP"]));
+        Assert.Equal("0 0 10 10 re S", Encoding.ASCII.GetString(CosFilters.Decode(Assert.IsType<CosStream>(output.Resolve(ap["N"])), output.Resolve)));
+        Assert.Equal("filled value", Assert.IsType<CosString>(keptWidget["V"]).ToText());
+        Assert.Equal("default value", Assert.IsType<CosString>(keptWidget["DV"]).ToText());
+        var keptComment = Assert.IsType<CosDictionary>(output.Resolve(marked[0]));
+        Assert.Equal("keep comment", Assert.IsType<CosString>(keptComment["Contents"]).ToText());
+        Assert.Equal("<p>keep comment</p>", Assert.IsType<CosString>(keptComment["RC"]).ToText());
+        Assert.NotNull(keptComment["AP"]);
+        var keptLink = Assert.IsType<CosDictionary>(output.Resolve(marked[1]));
+        var action = Assert.IsType<CosDictionary>(output.Resolve(keptLink["A"]));
+        Assert.Equal("URI", Assert.IsType<CosName>(action["S"]).Value);
+        Assert.Equal("https://example.com/keep", Assert.IsType<CosString>(action["URI"]).ToText());
+        Assert.DoesNotContain(Secret, DecodedObjects(result.Output), StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, Encoding.Latin1.GetString(result.Output), StringComparison.Ordinal);
+        await AssertBlack(result.Output);
+    }
+
+    [Theory]
+    [InlineData("JavaScript")]
+    [InlineData("Launch")]
+    [InlineData("ImportData")]
+    [InlineData("SubmitForm")]
+    [InlineData("GoToE")]
+    [InlineData("GoToR")]
+    [InlineData("Rendition")]
+    [InlineData("Sound")]
+    [InlineData("Movie")]
+    [InlineData("RichMedia")]
+    public async Task Forbidden_actions_are_removed_from_entries_aliases_and_next_chains(string kind)
+    {
+        var fixture = new Fixture("q Q", "q Q");
+        var script = fixture.Document.Add(CosPageEdit.Stream(Encoding.ASCII.GetBytes(Secret)));
+        // Both /S and the action itself are indirect, and the action has no optional /Type.
+        var forbidden = fixture.Document.Add(new CosDictionary().Set("S", fixture.Document.Add(new CosName(kind)))
+            .Set("JS", script).Set("Payload", CosString.FromText(Secret)));
+        var direct = new CosDictionary().Set("Type", new CosName("Action")).Set("S", new CosName(kind))
+            .Set("JS", script).Set("Payload", CosString.FromText(Secret));
+        CosDictionary Allowed(string name) => new CosDictionary().Set("Type", new CosName("Action"))
+            .Set("S", new CosName(name)).Set("D", new CosArray([fixture.PageRefs[1], new CosName("Fit")]));
+        var uri = Allowed("URI").Set("URI", CosString.FromText("https://example.com/keep"));
+        var goTo = fixture.Document.Add(Allowed("GoTo").Set("Next", forbidden));
+        var chain = fixture.Document.Add(uri.Set("Next", fixture.Document.Add(new CosArray([forbidden, goTo, direct]))));
+        uri["Cycle"] = chain; // Shared and cyclic graphs must still be cleaned.
+        fixture.Catalog["OpenAction"] = forbidden;
+        fixture.Catalog["AA"] = new CosDictionary().Set("WC", forbidden);
+        fixture.Pages[0]["AA"] = new CosDictionary().Set("O", forbidden);
+        fixture.Pages[1]["AA"] = new CosDictionary().Set("O", direct);
+        fixture.Pages[1]["A"] = chain;
+        fixture.Pages[1]["PA"] = forbidden;
+        fixture.Pages[1]["AlternateActionReference"] = forbidden;
+        var widget = fixture.Document.Add(new CosDictionary().Set("Subtype", new CosName("Widget"))
+            .Set("Rect", CosArray.FromNumbers(5, 5, 20, 15)).Set("AA", new CosDictionary().Set("U", forbidden))
+            .Set("A", direct));
+        fixture.Pages[1]["Annots"] = new CosArray([widget]);
+        fixture.Catalog["AcroForm"] = new CosDictionary().Set("Fields", new CosArray([widget]));
+
+        var result = await Redact(fixture.Build());
+        var output = CosDocument.Load(result.Output);
+        Assert.Null(output.Catalog["OpenAction"]);
+        Assert.Null(output.Catalog["AA"]);
+        Assert.Null(output.GetPages()[0].Dictionary["AA"]);
+        var page = output.GetPages()[1].Dictionary;
+        Assert.Null(page["AA"]);
+        Assert.Null(page["PA"]);
+        Assert.Null(page["AlternateActionReference"]);
+        var kept = Assert.IsType<CosDictionary>(output.Resolve(page["A"]));
+        Assert.Equal("URI", Assert.IsType<CosName>(kept["S"]).Value);
+        Assert.Equal("https://example.com/keep", Assert.IsType<CosString>(kept["URI"]).ToText());
+        var next = Assert.IsType<CosArray>(output.Resolve(kept["Next"]));
+        Assert.Single(next.Items);
+        var keptGoTo = Assert.IsType<CosDictionary>(output.Resolve(next[0]));
+        Assert.Equal("GoTo", Assert.IsType<CosName>(keptGoTo["S"]).Value);
+        Assert.NotNull(keptGoTo["D"]);
+        Assert.Null(keptGoTo["Next"]);
+        var annotations = Assert.IsType<CosArray>(output.Resolve(page["Annots"]));
+        var keptWidget = Assert.IsType<CosDictionary>(output.Resolve(Assert.Single(annotations.Items)));
+        Assert.Null(keptWidget["AA"]);
+        Assert.Null(keptWidget["A"]);
+        Assert.DoesNotContain(Secret, DecodedObjects(result.Output), StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, Encoding.Latin1.GetString(result.Output), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("URI")]
+    [InlineData("GoTo")]
+    [InlineData("Named")]
+    [InlineData("Hide")]
+    [InlineData("ResetForm")]
+    [InlineData("SetOCGState")]
+    [InlineData("Thread")]
+    [InlineData("Trans")]
+    public async Task Allowed_actions_keep_their_entries_and_open_action_but_not_aa(string kind)
+    {
+        var fixture = new Fixture("q Q", "q Q");
+        var action = fixture.Document.Add(new CosDictionary().Set("Type", new CosName("Action"))
+            .Set("S", fixture.Document.Add(new CosName(kind))).Set("Keep", CosString.FromText("allowed payload")));
+        fixture.Catalog["OpenAction"] = action;
+        fixture.Catalog["AA"] = new CosDictionary().Set("WC", action);
+        fixture.Pages[1]["A"] = action;
+        fixture.Pages[1]["PA"] = action;
+        fixture.Pages[1]["AA"] = new CosDictionary().Set("O", action);
+        var result = await Redact(fixture.Build());
+        var output = CosDocument.Load(result.Output);
+        foreach (var value in new[] { output.Catalog["OpenAction"], output.GetPages()[1].Dictionary["A"], output.GetPages()[1].Dictionary["PA"] })
+        {
+            var kept = Assert.IsType<CosDictionary>(output.Resolve(value));
+            Assert.Equal("Action", Assert.IsType<CosName>(kept["Type"]).Value);
+            Assert.Equal(kind, Assert.IsType<CosName>(output.Resolve(kept["S"])).Value);
+            Assert.Equal("allowed payload", Assert.IsType<CosString>(kept["Keep"]).ToText());
+        }
+        Assert.Null(output.Catalog["AA"]);
+        Assert.Null(output.GetPages()[1].Dictionary["AA"]);
+    }
+
+    [Fact]
+    public async Task Open_action_destination_array_is_preserved()
+    {
+        var fixture = new Fixture("q Q", "q Q");
+        fixture.Catalog["OpenAction"] = new CosArray([fixture.PageRefs[1], new CosName("Fit")]);
+        var output = CosDocument.Load((await Redact(fixture.Build())).Output);
+        var destination = Assert.IsType<CosArray>(output.Catalog["OpenAction"]);
+        Assert.Equal(2, destination.Count);
+        Assert.Same(output.GetPages()[1].Dictionary, output.Resolve(destination[0]));
+        Assert.Equal("Fit", Assert.IsType<CosName>(destination[1]).Value);
     }
 
     [Fact]
