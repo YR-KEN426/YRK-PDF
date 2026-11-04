@@ -116,7 +116,9 @@ try {
         if (-not (Test-Path $UpdateKey)) { throw "The private update key was not found at $UpdateKey (set -UpdateKey)." }
         if (-not $env:YRK_UPDATE_KEY_PASSWORD) {
             $secure = Read-Host -AsSecureString "Update key password"
-            $env:YRK_UPDATE_KEY_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure))
+            $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+            try { $env:YRK_UPDATE_KEY_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
+            finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) }
             $askedForPassword = $true
         }
 
@@ -131,7 +133,14 @@ try {
 
     if (-not $SkipTests) {
         Write-Host "== Tests" -ForegroundColor Cyan
-        dotnet test --configuration Release --nologo
+        # The tests don't need the key password or the GitHub token, so they don't get to see them.
+        $hidden = @{}
+        foreach ($name in "YRK_UPDATE_KEY_PASSWORD", "YRK_SIGN_PFX_PASSWORD", "GITHUB_TOKEN") {
+            $hidden[$name] = [Environment]::GetEnvironmentVariable($name)
+            [Environment]::SetEnvironmentVariable($name, $null)
+        }
+        try { dotnet test --configuration Release --nologo }
+        finally { foreach ($name in $hidden.Keys) { [Environment]::SetEnvironmentVariable($name, $hidden[$name]) } }
         if ($LASTEXITCODE) { throw "Tests failed." }
     }
 
