@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <None Include="..\Assets\sample.pdf" Link="Assets\sample.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TestData\DigiCertTsa2025\*.crl;TestData\DigiCertTsa2025\*.cer" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

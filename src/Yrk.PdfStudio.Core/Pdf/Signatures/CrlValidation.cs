@@ -71,7 +71,7 @@ internal static class CrlValidation
                         return false;
                     }
                     var date = ReadTime(entry);
-                    if (entry.HasData && (!v2 || !ReadExtensions(entry.ReadSequence(), entryExtensions: true)))
+                    if (entry.HasData && (!v2 || !ReadExtensions(entry.ReadSequence(), certificate, entryExtensions: true)))
                     {
                         return false;
                     }
@@ -82,7 +82,7 @@ internal static class CrlValidation
             if (tbs.HasData)
             {
                 var extensions = tbs.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 0, true));
-                if (!v2 || !ReadExtensions(extensions.ReadSequence(), entryExtensions: false))
+                if (!v2 || !ReadExtensions(extensions.ReadSequence(), certificate, entryExtensions: false))
                 {
                     return false;
                 }
@@ -101,25 +101,166 @@ internal static class CrlValidation
     private static DateTimeOffset ReadTime(AsnReader reader) =>
         reader.PeekTag().HasSameClassAndValue(Asn1Tag.UtcTime) ? reader.ReadUtcTime() : reader.ReadGeneralizedTime();
 
-    private static bool ReadExtensions(AsnReader extensions, bool entryExtensions)
+    private static bool ReadExtensions(AsnReader extensions, X509Certificate2 certificate, bool entryExtensions)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         while (extensions.HasData)
         {
             var extension = extensions.ReadSequence();
             var oid = extension.ReadObjectIdentifier();
-            var critical = extension.HasData && extension.PeekTag().HasSameClassAndValue(Asn1Tag.Boolean) && extension.ReadBoolean();
-            extension.ReadOctetString();
+            var critical = false;
+            if (extension.HasData && extension.PeekTag().HasSameClassAndValue(Asn1Tag.Boolean))
+            {
+                critical = extension.ReadBoolean();
+                if (!critical) // DEFAULT FALSE must be omitted in DER.
+                {
+                    return false;
+                }
+            }
+            var value = extension.ReadOctetString();
             extension.ThrowIfNotEmpty();
-            // Delta, scoped/indirect CRLs and certificateIssuer entries need additional processing.
-            // Never interpret them as a complete list proving that a certificate is good (RFC 5280).
-            if (!seen.Add(oid) || critical || oid is "2.5.29.27" or "2.5.29.28"
+            // Delta and indirect CRLs cannot prove complete, direct revocation coverage.
+            if (!seen.Add(oid) || oid == "2.5.29.27"
                 || (entryExtensions && oid == "2.5.29.29"))
+            {
+                return false;
+            }
+            if (oid == "2.5.29.28")
+            {
+                // Scope applies equally to critical and non-critical IDP extensions.
+                if (entryExtensions || !CheckIssuingDistributionPoint(value, certificate))
+                {
+                    return false;
+                }
+            }
+            else if (critical)
             {
                 return false;
             }
         }
         return true;
+    }
+
+    private static bool CheckIssuingDistributionPoint(byte[] value, X509Certificate2 certificate)
+    {
+        var reader = new AsnReader(value, AsnEncodingRules.DER);
+        var point = reader.ReadSequence();
+        reader.ThrowIfNotEmpty();
+        var urls = new List<Uri>();
+        var usersOnly = false;
+        var casOnly = false;
+        var unsupportedScope = false;
+        var previous = -1;
+        while (point.HasData)
+        {
+            var tag = point.PeekTag();
+            // SEQUENCE fields must occur once, in schema order, with no unknown fields.
+            if (tag.TagClass != TagClass.ContextSpecific || tag.TagValue <= previous || tag.TagValue > 5)
+            {
+                return false;
+            }
+            previous = tag.TagValue;
+            if (tag.TagValue == 0)
+            {
+                urls.AddRange(ReadDistributionPointName(point));
+            }
+            else if (tag.TagValue == 3)
+            {
+                point.ReadBitString(out _, tag);
+                unsupportedScope = true; // Even an empty reasons mask cannot establish full coverage.
+            }
+            else
+            {
+                if (!point.ReadBoolean(tag))
+                {
+                    return false; // All four BOOLEAN fields are DEFAULT FALSE in DER.
+                }
+                switch (tag.TagValue)
+                {
+                    case 1: usersOnly = true; break;
+                    case 2: casOnly = true; break;
+                    case 4:
+                    case 5: unsupportedScope = true; break;
+                }
+            }
+        }
+        if (urls.Count == 0 || unsupportedScope)
+        {
+            return false;
+        }
+        var constraints = certificate.Extensions["2.5.29.19"];
+        var isCa = constraints is not null
+            && new X509BasicConstraintsExtension(constraints, constraints.Critical).CertificateAuthority;
+        if ((usersOnly && isCa) || (casOnly && !isCa))
+        {
+            return false;
+        }
+        var certificateUrls = ReadCertificateDistributionPoints(certificate);
+        return urls.Any(certificateUrls.Contains);
+    }
+
+    private static List<Uri> ReadCertificateDistributionPoints(X509Certificate2 certificate)
+    {
+        var urls = new List<Uri>();
+        var extensions = certificate.Extensions.Cast<X509Extension>().Where(e => e.Oid?.Value == "2.5.29.31").ToArray();
+        if (extensions.Length != 1)
+        {
+            return urls;
+        }
+        var reader = new AsnReader(extensions[0].RawData, AsnEncodingRules.DER);
+        var points = reader.ReadSequence();
+        reader.ThrowIfNotEmpty();
+        while (points.HasData)
+        {
+            var point = points.ReadSequence();
+            var previous = -1;
+            while (point.HasData)
+            {
+                var tag = point.PeekTag();
+                if (tag.TagClass != TagClass.ContextSpecific || tag.TagValue <= previous || tag.TagValue > 2)
+                {
+                    throw new AsnContentException();
+                }
+                previous = tag.TagValue;
+                switch (tag.TagValue)
+                {
+                    case 0: urls.AddRange(ReadDistributionPointName(point)); break;
+                    case 1: point.ReadBitString(out _, tag); break;
+                    case 2: ReadGeneralNameUris(point.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 2, true))); break;
+                }
+            }
+        }
+        return urls;
+    }
+
+    private static List<Uri> ReadDistributionPointName(AsnReader reader)
+    {
+        var context0 = new Asn1Tag(TagClass.ContextSpecific, 0, true);
+        var name = reader.ReadSequence(context0); // distributionPoint [0] EXPLICIT
+        var urls = ReadGeneralNameUris(name.ReadSequence(context0)); // fullName [0] IMPLICIT GeneralNames
+        name.ThrowIfNotEmpty();
+        return urls;
+    }
+
+    private static List<Uri> ReadGeneralNameUris(AsnReader names)
+    {
+        var urls = new List<Uri>();
+        if (!names.HasData)
+        {
+            throw new AsnContentException(); // GeneralNames SIZE (1..MAX).
+        }
+        while (names.HasData)
+        {
+            // Only URI names are supported for direct CRL distribution points.
+            // Do not skip unrecognised or unsupported GeneralName encodings.
+            var text = names.ReadCharacterString(UniversalTagNumber.IA5String, new Asn1Tag(TagClass.ContextSpecific, 6));
+            if (!Uri.TryCreate(text, UriKind.Absolute, out var url))
+            {
+                throw new AsnContentException();
+            }
+            urls.Add(url);
+        }
+        return urls;
     }
 
     private static bool VerifySignature(ReadOnlySpan<byte> data, ReadOnlyMemory<byte> encodedAlgorithm,

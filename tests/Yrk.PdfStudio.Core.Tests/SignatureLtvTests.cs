@@ -44,6 +44,24 @@ public sealed class SignatureLtvTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DSS_CRLs_with_IDP_cover_leaf_and_intermediate_offline(bool critical)
+    {
+        using var pki = new TestPki();
+        var signed = await PdfSigner.SignAsync(Source, new(pki.Signer));
+        X509Extension[] extensions = [new("2.5.29.28", CrlValidationTests.Idp("ltv"), critical)];
+        var pdf = Store(signed, [pki.Ca, pki.Root],
+            CrlValidationTests.CreateCrl(pki.Ca, extensions), CrlValidationTests.CreateCrl(pki.Root, extensions));
+        var result = Assert.Single(PdfSignatureVerifier.Verify(pdf, pki.Options(online: false)));
+        Assert.True(result.IsIntact);
+        Assert.True(result.CoversWholeDocument);
+        Assert.True(result.RevocationChecked);
+        Assert.Equal(PdfSignerIdentity.Trusted, result.Identity);
+        Assert.Equal(PdfSignatureStatus.Valid, result.Status);
+    }
+
+    [Theory]
     [InlineData("tampered")]
     [InlineData("expired")]
     [InlineData("future")]
