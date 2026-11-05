@@ -45,7 +45,7 @@ public partial class PrivacyDialog : Window
     }
 
     private void OnReadPrivacyPolicy(object sender, RoutedEventArgs e) =>
-        Feedback.TryOpen(this, Feedback.PrivacyPolicyUrl);
+        new PrivacyPolicyDialog { Owner = this }.ShowDialog();
 
     private void OnOpenFolder(object sender, RoutedEventArgs e)
     {

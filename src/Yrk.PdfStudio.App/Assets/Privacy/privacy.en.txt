@@ -1,0 +1,75 @@
+# YRK PDF Privacy Policy
+
+Last updated: [1.1.5 release date]
+
+YRK PDF is a free Windows program that runs on your computer. We wrote this policy to be clear about what the program does with your data.
+
+## At a glance
+
+- Your documents stay on your computer. The program does not upload your files anywhere.
+- No account or login is required.
+- No AI, usage tracking, ads, or error reports sent from your computer.
+- YRK LAB receives no data from the program unless you contact us.
+
+## When the program uses the internet
+
+The program connects to the internet only in these 5 cases. In every case, your document contents are not sent.
+
+- Check for a new version: The program asks the download page on GitHub whether a new version is available. If so, it downloads it and installs it only when you click Restart. Every update file must pass YRK signature verification first.
+  - The first time you open the program, it asks whether to check automatically. You can change this later at Settings → Privacy and safety.
+- Download OCR language data: Downloads from the Tesseract project on GitHub once per language, after you confirm.
+  - All text recognition happens on your computer.
+- Sign with a timestamp: The program sends the signature hash to the timestamp authority (DigiCert by default), without sending the document.
+  - Used only when you select this option.
+- Sign for long-term validation (LTV): The program downloads the certificate revocation list (CRL) from the certificate authority named in the certificate.
+  - Used only when you select this option.
+- Open a PDF signed with a certificate from an authority trusted by Windows: Windows may ask the certificate authority whether the certificate has been revoked, without sending the document.
+
+In all the cases above, the destination provider (GitHub, the timestamp authority, or the certificate authority) sees your IP address as is normal for an internet connection. Each has its own privacy policy.
+
+Links in the Help menu (manual, FAQ, feedback) open in your browser, not in the program. This privacy policy and the support the developer window open inside the program and use no internet. The GitHub Sponsors button in the support window opens your browser only when you click it.
+
+- The email feedback button fills in the program version, Windows version, and language in the email. You can edit or delete them before sending.
+
+## Data stored on your computer
+
+The program stores data at %LOCALAPPDATA%\YRK\EasyPdf. No data is sent from your computer.
+
+| Data | What is stored | Protection |
+| Settings | Language, update checks, units | Not encrypted |
+| Recent files | Names and locations of up to 12 recently opened files; no contents | Not encrypted · Can be cleared with the "Clear recent files list" button |
+| Stamps | Text and appearance of stamps you create | Not encrypted |
+| Seller details for e-Tax | Name, tax ID, branch, address, phone, email, and latest document number | Not encrypted |
+| Digital signing settings | Most recently used Digital ID, reason, location, and timestamp server | Not encrypted; passwords are not stored |
+| Saved signature images | Images of signatures | Encrypted using Windows protection tied to your user account |
+| Digital IDs | Certificates and keys for digital signing | Protected by the Digital ID password |
+| Recovery copies | Copies of unsaved documents, written every 1 minute while editing | Password-protected files retain their original password · Deleted when you save, discard, or close the program normally |
+| OCR language data | Downloaded language files | Files are checked for integrity before use |
+| Error logs | Program error details, which may include file or folder names | Not sent from your computer · Up to 1 MB per day · Automatically deleted after 14 days |
+
+Temporary files: While running, the program may store temporary copies in the Windows Temp folder, for example for undo or to convert DWG files.
+
+- Password-protected files are not written to unencrypted temporary files.
+- Temporary copies are deleted when you close the program, or the next time you open it if it was not closed normally.
+
+Deleting data: Open the data folder from Settings → Privacy and safety → "Open data folder", then delete any files you do not want.
+
+- Uninstalling the program does not delete this folder. To delete everything, delete %LOCALAPPDATA%\YRK\EasyPdf yourself.
+
+## This website
+
+- This website is hosted on GitHub Pages, which may collect visit data under GitHub’s policy.
+- The website does not use cookies, trackers, or load resources from other websites.
+- The feedback form uses Google Forms. Information you enter is sent to Google under Google’s policy, and YRK LAB uses it only to reply and improve the program.
+- The support the developer button takes you to GitHub Sponsors or displays a PromptPay QR code. Payments are subject to the provider’s terms.
+
+## Contact
+
+- Email: yrken.official@gmail.com
+- Report a security issue: through the project’s GitHub Security Advisory or by emailing us with “Security” in the subject line.
+
+## Policy changes
+
+If a new version of the program changes how data is handled, we will update this page and note it in the release notes.
+
+This policy is provided for transparency and is not a legal guarantee.

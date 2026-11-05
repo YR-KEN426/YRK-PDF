@@ -55,6 +55,8 @@
     <None Include="Assets\Guide\*.pdf" CopyToOutputDirectory="PreserveNewest" />
     <!-- Thai UI texts (English text → Thai). -->
     <EmbeddedResource Include="Localization\th.json" LogicalName="Yrk.PdfStudio.App.Localization.th.json" />
+    <EmbeddedResource Include="Assets\Privacy\privacy.th.txt" LogicalName="Yrk.PdfStudio.App.Privacy.privacy.th.txt" />
+    <EmbeddedResource Include="Assets\Privacy\privacy.en.txt" LogicalName="Yrk.PdfStudio.App.Privacy.privacy.en.txt" />
     <!-- YRK's update key (public half): updates must be signed with the matching private key (build\UpdateSigner). -->
     <EmbeddedResource Include="Assets\update-public-key.pem" LogicalName="Yrk.PdfStudio.App.update-public-key.pem" Condition="Exists('Assets\update-public-key.pem')" />
     <!-- License texts must ship with the app (shown in About). -->

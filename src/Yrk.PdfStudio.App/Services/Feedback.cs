@@ -32,12 +32,6 @@ public static class Feedback
     /// <summary>The download page: newest version, features and answers to common questions.</summary>
     public const string WebsiteUrl = "https://yr-ken426.github.io/yrk-easy-pdf-release/";
 
-    private const string ThaiPrivacyPolicyUrl = WebsiteUrl + "#privacy";
-    private const string EnglishPrivacyPolicyUrl = WebsiteUrl + "en/#privacy";
-
-    /// <summary>The full privacy policy in the current UI language.</summary>
-    public static string PrivacyPolicyUrl => Loc.IsThai ? ThaiPrivacyPolicyUrl : EnglishPrivacyPolicyUrl;
-
     /// <summary>GitHub Sponsors for supporters outside Thailand.</summary>
     public const string GitHubSponsorsUrl = "https://github.com/sponsors/YR-KEN426";
 

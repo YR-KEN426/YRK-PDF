@@ -9,6 +9,8 @@
 #
 #   powershell -ExecutionPolicy Bypass -File build\build-site.ps1
 $ErrorActionPreference = "Stop"
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'export-privacy.ps1') -Check
+if ($LASTEXITCODE -ne 0) { throw 'Privacy policy check failed. Run build\export-privacy.ps1 before building the site.' }
 $root = Split-Path $PSScriptRoot -Parent
 $source = Join-Path $root "docs\release-repo\site-src"
 $site = Join-Path $root "docs\release-repo\site"

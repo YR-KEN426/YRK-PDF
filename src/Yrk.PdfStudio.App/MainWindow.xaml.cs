@@ -1477,7 +1477,9 @@ public partial class MainWindow : Window
         support.Click += (_, _) => new Views.SupportDialog { Owner = this }.ShowDialog();
         menu.Items.Add(support);
 
-        menu.Items.Add(LinkItem("Privacy policy", Services.Feedback.PrivacyPolicyUrl));
+        var privacy = new MenuItem { Header = Loc.T("Privacy policy") };
+        privacy.Click += (_, _) => new Views.PrivacyPolicyDialog { Owner = this }.ShowDialog();
+        menu.Items.Add(privacy);
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "About YRK PDF…", Command = _viewModel.ShowAboutCommand });
         menu.IsOpen = true;
