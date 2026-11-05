@@ -174,6 +174,221 @@ public sealed class ETaxTests : IDisposable
         Assert.Equal("1605.54", xml.Descendants(Ram + "GrandTotalAmount").Single().Value);
     }
 
+    [Fact]
+    public void Writes_the_structured_buyer_address_in_schema_order()
+    {
+        var invoice = WithStructuredBuyer();
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+        var address = xml.Descendants(Ram + "BuyerTradeParty").Single().Element(Ram + "PostalTradeAddress")!;
+
+        Assert.Equal(
+            ["PostcodeCode", "LineOne", "LineTwo", "CityName", "CitySubDivisionName", "CountryID", "CountrySubDivisionID", "BuildingNumber"],
+            address.Elements().Select(e => e.Name.LocalName));
+        Assert.Equal(["10270", "ถนนสุขุมวิท", "ชั้น 2", "1101", "110101", "TH", "11", "12/3"],
+            address.Elements().Select(e => e.Value));
+        Assert.Empty(invoice.Problems());
+        Assert.Equal("12/3 ถนนสุขุมวิท ชั้น 2 ตำบลปากน้ำ อำเภอเมืองสมุทรปราการ จังหวัดสมุทรปราการ", invoice.Buyer.PrintedAddress);
+    }
+
+    [Fact]
+    public void Keeps_the_free_text_buyer_xml_bytes()
+    {
+        var invoice = Sample() with { Buyer = Sample().Buyer with { Address = "1 Main Street\nFloor 2", Postcode = "SW1A 1AA" } };
+        var bytes = invoice.ToXml(new DateTimeOffset(2026, 10, 30, 9, 0, 0, TimeSpan.FromHours(7)));
+        var text = Encoding.UTF8.GetString(bytes);
+        var start = text.IndexOf("      <ram:BuyerTradeParty>", StringComparison.Ordinal);
+        var end = text.IndexOf("</ram:BuyerTradeParty>", start, StringComparison.Ordinal) + "</ram:BuyerTradeParty>".Length;
+        var expected = string.Join(Environment.NewLine,
+            "      <ram:BuyerTradeParty>",
+            "        <ram:Name>นายสมชาย ใจดี</ram:Name>",
+            "        <ram:SpecifiedTaxRegistration>",
+            "          <ram:ID schemeID=\"NIDN\">1104599001276</ram:ID>",
+            "        </ram:SpecifiedTaxRegistration>",
+            "        <ram:PostalTradeAddress>",
+            "          <ram:PostcodeCode>SW1A 1AA</ram:PostcodeCode>",
+            "          <ram:LineOne>1 Main Street</ram:LineOne>",
+            "          <ram:LineTwo>Floor 2</ram:LineTwo>",
+            "          <ram:CountryID schemeID=\"3166-1 alpha-2\">TH</ram:CountryID>",
+            "        </ram:PostalTradeAddress>",
+            "      </ram:BuyerTradeParty>");
+        Assert.Equal(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(text[start..end]));
+        Assert.Empty(invoice.Problems());
+        Assert.Equal(invoice.Buyer.Address, invoice.Buyer.PrintedAddress);
+    }
+
+    [Theory]
+    [InlineData("house")]
+    [InlineData("district")]
+    [InlineData("subdistrict")]
+    public void Says_which_structured_buyer_address_fields_are_required(string missing)
+    {
+        var invoice = WithStructuredBuyer();
+        var buyer = missing switch
+        {
+            "house" => invoice.Buyer with { BuildingNumber = " " },
+            "district" => invoice.Buyer with { District = null },
+            _ => invoice.Buyer with { Subdistrict = null },
+        };
+        Assert.Contains("Enter the buyer's house number, province, district and subdistrict.", (invoice with { Buyer = buyer }).Problems());
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("1234")]
+    [InlineData("123456")]
+    [InlineData("ABCDE")]
+    [InlineData("๑๐๒๗๐")]
+    public void Requires_five_ascii_digits_for_a_structured_buyer_postcode(string postcode)
+    {
+        var invoice = WithStructuredBuyer();
+        Assert.Contains("The buyer's postcode has 5 digits.", (invoice with { Buyer = invoice.Buyer with { Postcode = postcode } }).Problems());
+    }
+
+    [Fact]
+    public void A_structured_buyer_does_not_need_an_optional_street()
+    {
+        var invoice = WithStructuredBuyer();
+        Assert.Empty((invoice with { Buyer = invoice.Buyer with { Address = string.Empty } }).Problems());
+        Assert.Contains("Enter the buyer's address.", (Sample() with { Buyer = Sample().Buyer with { Address = " " } }).Problems());
+    }
+
+    [Fact]
+    public async Task Makes_a_pdf_a3_with_a_structured_buyer()
+    {
+        var invoice = WithStructuredBuyer();
+        var created = DateTimeOffset.Now;
+        var pdf = Sta.Run(() => App.Imaging.TaxInvoiceRenderer.Render(invoice, created));
+        var path = Path.Combine(_folder.FullName, "structured-buyer.pdf");
+        await File.WriteAllBytesAsync(path, pdf);
+        await using (var document = await _engine.OpenAsync(path))
+        {
+            var text = await document.GetPageTextAsync(0);
+            Assert.Contains("12/3", text, StringComparison.Ordinal);
+            Assert.Contains("ปากน้ำ", text, StringComparison.Ordinal);
+            Assert.Contains("สมุทรปราการ", text, StringComparison.Ordinal);
+        }
+        var cos = CosDocument.Load(pdf);
+        var metadata = (CosStream)cos.Resolve(cos.Catalog["Metadata"])!;
+        Assert.Contains("<pdfaid:part>3</pdfaid:part>", Encoding.UTF8.GetString(CosFilters.Decode(metadata, cos.Resolve)), StringComparison.Ordinal);
+        var spec = (CosDictionary)cos.Resolve(((CosArray)cos.Catalog["AF"]!)[0])!;
+        var file = (CosStream)cos.Resolve(((CosDictionary)spec["EF"]!)["F"])!;
+        Assert.Equal(invoice.ToXml(created), CosFilters.Decode(file, cos.Resolve));
+    }
+
+    private static TaxInvoice WithStructuredBuyer() => Sample() with
+    {
+        Buyer = Sample().Buyer with
+        {
+            BuildingNumber = "12/3", Address = "ถนนสุขุมวิท\nชั้น 2", Postcode = "10270",
+            Province = "11", District = "1101", Subdistrict = "110101",
+        },
+    };
+
+    [Fact]
+    public void Address_fields_preserve_saved_and_typed_postcodes_and_restore_full_lists()
+    {
+        Sta.Run(() =>
+        {
+            // Only in-memory controls: no application startup or window is shown.
+            var application = new System.Windows.Application();
+            application.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
+            {
+                Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative),
+            });
+            try
+            {
+                var fields = new App.Views.ThaiAddressFields();
+                var province = (System.Windows.Controls.ComboBox)fields.FindName("ProvinceInput");
+                var district = (System.Windows.Controls.ComboBox)fields.FindName("DistrictInput");
+                var subdistrict = (System.Windows.Controls.ComboBox)fields.FindName("SubdistrictInput");
+                var postcode = (System.Windows.Controls.ComboBox)fields.FindName("PostcodeInput");
+                fields.Measure(new System.Windows.Size(400, 800));
+                fields.Arrange(new System.Windows.Rect(0, 0, 400, 800));
+                postcode.ApplyTemplate();
+                var editor = (System.Windows.Controls.TextBox)postcode.Template.FindName("PART_EditableTextBox", postcode);
+
+                void Choose(System.Windows.Controls.ComboBox combo, string code) =>
+                    combo.SelectedItem = combo.Items.OfType<ThaiArea>().Single(a => a.Code == code);
+
+                var saved = Sample().Seller with { Postcode = "99999" };
+                fields.Restore(saved);
+                Assert.Equal(saved.Postcode, fields.Postcode);
+                Assert.Equal(saved.Subdistrict, fields.Subdistrict);
+                Choose(province, "11");
+                Assert.Equal("99999", fields.Postcode);
+
+                editor.Text = string.Empty;
+                Choose(province, "10");
+                Choose(district, "1017");
+                Choose(subdistrict, "101701");
+                Assert.Equal("10310", fields.Postcode);
+                Choose(district, "1018");
+                Assert.Equal(string.Empty, fields.Postcode);
+
+                editor.Text = "54321";
+                Choose(province, "11");
+                Assert.Equal("54321", fields.Postcode);
+                Choose(district, "1101");
+                Choose(subdistrict, "110101");
+                Assert.Equal("54321", fields.Postcode);
+                Assert.Equal("110101", fields.Subdistrict);
+
+                fields.Restore(saved with { Province = null, District = null, Subdistrict = null, Postcode = string.Empty });
+                editor.Text = "10310";
+                var narrowed = ThaiAddressAssist.Narrow("10310");
+                Assert.Equal(narrowed.Provinces, province.Items.OfType<ThaiArea>());
+                Assert.Equal(narrowed.UniqueProvince?.Code, fields.Province);
+                Assert.Equal(narrowed.UniqueDistrict?.Code, fields.District);
+                Assert.Equal("10310", fields.Postcode);
+                var selectedProvince = fields.Province;
+                var selectedDistrict = fields.District;
+                editor.Text = "1031";
+                Assert.Equal(77, province.Items.Count);
+                Assert.Equal(selectedProvince, fields.Province);
+                Assert.Equal(selectedDistrict, fields.District);
+
+                fields.Restore(saved with { Postcode = string.Empty, District = "1005", Subdistrict = "100508" });
+                // Restoring even an empty postcode does not auto-fill it.
+                Assert.Equal(string.Empty, fields.Postcode);
+                Assert.Equal(2, postcode.Items.Count);
+                postcode.SelectedIndex = 1;
+                Assert.Equal("10230", fields.Postcode);
+
+                // The dialog is constructed but never shown. Build must preserve the saved seller exactly.
+                var settingsPath = Path.Combine(_folder.FullName, "etax.json");
+                new App.Services.ETaxSettings { Seller = saved }.Save(settingsPath);
+                var dialog = new App.Views.ETaxInvoiceDialog(App.Services.ETaxSettings.Load(settingsPath));
+                TaxInvoice Build() => (TaxInvoice)typeof(App.Views.ETaxInvoiceDialog)
+                    .GetMethod("Build", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, null)!;
+                Assert.Equal(saved, Build().Seller);
+                var buyerFields = (App.Views.ThaiAddressFields)dialog.FindName("BuyerFields");
+                var structured = (System.Windows.Controls.RadioButton)dialog.FindName("BuyerStructured");
+                Assert.True(structured.IsChecked);
+                buyerFields.Restore(WithStructuredBuyer().Buyer);
+                Assert.Equal("12/3", Build().Buyer.BuildingNumber);
+                Assert.Equal("11", Build().Buyer.Province);
+                Assert.Equal("1101", Build().Buyer.District);
+                Assert.Equal("110101", Build().Buyer.Subdistrict);
+                ((System.Windows.Controls.TextBox)dialog.FindName("BuyerAddress")).Text = "Foreign address";
+                ((System.Windows.Controls.TextBox)dialog.FindName("BuyerPostcode")).Text = "SW1A 1AA";
+                ((System.Windows.Controls.RadioButton)dialog.FindName("BuyerManual")).IsChecked = true;
+                Assert.Equal(System.Windows.Visibility.Collapsed, buyerFields.Visibility);
+                Assert.Equal(System.Windows.Visibility.Visible, ((System.Windows.FrameworkElement)dialog.FindName("BuyerFreeAddress")).Visibility);
+                Assert.Equal("Foreign address", Build().Buyer.Address);
+                Assert.Equal("SW1A 1AA", Build().Buyer.Postcode);
+                Assert.Null(Build().Buyer.BuildingNumber);
+                Assert.False(Build().Buyer.IsStructured);
+                structured.IsChecked = true;
+                Assert.Equal("110101", Build().Buyer.Subdistrict);
+                return true;
+            }
+            finally
+            {
+                application.Shutdown();
+            }
+        });
+    }
+
     private static TaxInvoice Sample() => new(
         TaxDocumentType.ReceiptTaxInvoice,
         "INV202610-0001",

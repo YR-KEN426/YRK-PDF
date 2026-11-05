@@ -1,6 +1,7 @@
 <Window x:Class="Yrk.PdfStudio.App.Views.ETaxInvoiceDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:Yrk.PdfStudio.App.Views"
         Title="e-Tax Invoice"
         Width="780"
         Height="760"
@@ -93,53 +94,9 @@
                                          ToolTip="00000 = head office" />
                             </StackPanel>
                         </Grid>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="2.4*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="House number" Style="{StaticResource Label}" />
-                                <TextBox x:Name="SellerHouse" AutomationProperties.Name="Seller house number" TextChanged="OnChanged" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="Street, soi, building (optional)" Style="{StaticResource Label}" />
-                                <TextBox x:Name="SellerAddress" AutomationProperties.Name="Seller street" TextChanged="OnChanged" />
-                            </StackPanel>
-                        </Grid>
-                        <TextBlock Text="Province" Style="{StaticResource Label}" />
-                        <ComboBox x:Name="SellerProvince" DisplayMemberPath="Name" AutomationProperties.Name="Seller province" SelectionChanged="OnProvinceChanged" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="District" Style="{StaticResource Label}" />
-                                <ComboBox x:Name="SellerDistrict" DisplayMemberPath="Name" AutomationProperties.Name="Seller district" SelectionChanged="OnDistrictChanged" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="Subdistrict" Style="{StaticResource Label}" />
-                                <ComboBox x:Name="SellerSubdistrict" DisplayMemberPath="Name" AutomationProperties.Name="Seller subdistrict" SelectionChanged="OnChanged" />
-                            </StackPanel>
-                        </Grid>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="1.4*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Postcode" Style="{StaticResource Label}" />
-                                <TextBox x:Name="SellerPostcode" AutomationProperties.Name="Seller postcode" TextChanged="OnChanged" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="Phone" Style="{StaticResource Label}" />
-                                <TextBox x:Name="SellerPhone" AutomationProperties.Name="Seller phone" />
-                            </StackPanel>
-                        </Grid>
+                        <views:ThaiAddressFields x:Name="SellerFields" Changed="OnAddressChanged" />
+                        <TextBlock Text="Phone" Style="{StaticResource Label}" />
+                        <TextBox x:Name="SellerPhone" AutomationProperties.Name="Seller phone" />
                         <TextBlock Text="Email" Style="{StaticResource Label}" />
                         <TextBox x:Name="SellerEmail" AutomationProperties.Name="Seller email" />
                     </StackPanel>
@@ -169,23 +126,19 @@
                                 <TextBox x:Name="BuyerBranch" Text="00000" AutomationProperties.Name="Buyer branch" TextChanged="OnChanged" />
                             </StackPanel>
                         </Grid>
-                        <TextBlock Text="Address" Style="{StaticResource Label}" />
-                        <TextBox x:Name="BuyerAddress" AcceptsReturn="True" TextWrapping="Wrap" MinLines="2" AutomationProperties.Name="Buyer address" TextChanged="OnChanged" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition />
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="1.4*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                                <TextBlock Text="Postcode" Style="{StaticResource Label}" />
-                                <TextBox x:Name="BuyerPostcode" AutomationProperties.Name="Buyer postcode" TextChanged="OnChanged" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="Email" Style="{StaticResource Label}" />
-                                <TextBox x:Name="BuyerEmail" AutomationProperties.Name="Buyer email" />
-                            </StackPanel>
-                        </Grid>
+                        <RadioButton x:Name="BuyerStructured" Content="Thai address (separate fields)" IsChecked="True"
+                                     GroupName="BuyerAddressMode" Margin="0,10,0,3" Checked="OnBuyerAddressModeChanged" />
+                        <RadioButton x:Name="BuyerManual" Content="Type the address yourself" GroupName="BuyerAddressMode" Margin="0,0,0,3"
+                                     Checked="OnBuyerAddressModeChanged" />
+                        <views:ThaiAddressFields x:Name="BuyerFields" Changed="OnAddressChanged" />
+                        <StackPanel x:Name="BuyerFreeAddress" Visibility="Collapsed">
+                            <TextBlock Text="Address" Style="{StaticResource Label}" />
+                            <TextBox x:Name="BuyerAddress" AcceptsReturn="True" TextWrapping="Wrap" MinLines="2" AutomationProperties.Name="Buyer address" TextChanged="OnChanged" />
+                            <TextBlock Text="Postcode" Style="{StaticResource Label}" />
+                            <TextBox x:Name="BuyerPostcode" AutomationProperties.Name="Buyer postcode" TextChanged="OnChanged" />
+                        </StackPanel>
+                        <TextBlock Text="Email" Style="{StaticResource Label}" />
+                        <TextBox x:Name="BuyerEmail" AutomationProperties.Name="Buyer email" />
                     </StackPanel>
                 </Grid>
 

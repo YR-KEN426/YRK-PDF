@@ -43,18 +43,12 @@ public partial class ETaxInvoiceDialog : Window
         DateInput.SelectedDate = DateTime.Today;
         VatInput.Text = settings.VatRate.ToString("0.##", CultureInfo.InvariantCulture);
         IncludesVatInput.IsChecked = settings.PricesIncludeVat;
-        SellerProvince.ItemsSource = ThaiAreas.Provinces;
         if (settings.Seller is { } seller)
         {
             SellerName.Text = seller.Name;
             SellerId.Text = seller.Id;
             SellerBranch.Text = seller.Branch;
-            SellerHouse.Text = seller.BuildingNumber ?? string.Empty;
-            SellerProvince.SelectedItem = ThaiAreas.Provinces.FirstOrDefault(a => a.Code == seller.Province);
-            SellerDistrict.SelectedItem = (SellerDistrict.ItemsSource as IEnumerable<ThaiArea>)?.FirstOrDefault(a => a.Code == seller.District);
-            SellerSubdistrict.SelectedItem = (SellerSubdistrict.ItemsSource as IEnumerable<ThaiArea>)?.FirstOrDefault(a => a.Code == seller.Subdistrict);
-            SellerAddress.Text = seller.Address;
-            SellerPostcode.Text = seller.Postcode;
+            SellerFields.Restore(seller);
             SellerPhone.Text = seller.Phone ?? string.Empty;
             SellerEmail.Text = seller.Email ?? string.Empty;
         }
@@ -97,15 +91,13 @@ public partial class ETaxInvoiceDialog : Window
 
     private void OnChanged(object sender, RoutedEventArgs e) => Update();
 
-    private void OnProvinceChanged(object sender, RoutedEventArgs e)
-    {
-        SellerDistrict.ItemsSource = SellerProvince.SelectedItem is ThaiArea province ? ThaiAreas.DistrictsOf(province.Code) : null;
-        Update();
-    }
+    private void OnAddressChanged(object? sender, EventArgs e) => Update();
 
-    private void OnDistrictChanged(object sender, RoutedEventArgs e)
+    private void OnBuyerAddressModeChanged(object sender, RoutedEventArgs e)
     {
-        SellerSubdistrict.ItemsSource = SellerDistrict.SelectedItem is ThaiArea district ? ThaiAreas.SubdistrictsOf(district.Code) : null;
+        if (BuyerFields is null || BuyerFreeAddress is null) return;
+        BuyerFields.Visibility = BuyerStructured.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+        BuyerFreeAddress.Visibility = BuyerStructured.IsChecked == true ? Visibility.Collapsed : Visibility.Visible;
         Update();
     }
 
@@ -150,9 +142,14 @@ public partial class ETaxInvoiceDialog : Window
             Types[Math.Max(0, TypeInput.SelectedIndex)].Type,
             NumberInput.Text.Trim(),
             DateInput.SelectedDate ?? DateTime.Today,
-            new TaxParty(SellerName.Text.Trim(), TaxIdKind.TaxId, SellerId.Text.Trim(), SellerBranch.Text.Trim(), SellerAddress.Text.Trim(), SellerPostcode.Text.Trim(), Blank(SellerEmail.Text), Blank(SellerPhone.Text),
-                Blank(SellerHouse.Text), (SellerProvince.SelectedItem as ThaiArea)?.Code, (SellerDistrict.SelectedItem as ThaiArea)?.Code, (SellerSubdistrict.SelectedItem as ThaiArea)?.Code),
-            new TaxParty(BuyerName.Text.Trim(), kind, kind == TaxIdKind.None ? string.Empty : BuyerId.Text.Trim(), kind == TaxIdKind.TaxId ? BuyerBranch.Text.Trim() : string.Empty, BuyerAddress.Text.Trim(), BuyerPostcode.Text.Trim(), Blank(BuyerEmail.Text)),
+            new TaxParty(SellerName.Text.Trim(), TaxIdKind.TaxId, SellerId.Text.Trim(), SellerBranch.Text.Trim(), SellerFields.Address, SellerFields.Postcode, Blank(SellerEmail.Text), Blank(SellerPhone.Text),
+                Blank(SellerFields.BuildingNumber), SellerFields.Province, SellerFields.District, SellerFields.Subdistrict),
+            new TaxParty(BuyerName.Text.Trim(), kind, kind == TaxIdKind.None ? string.Empty : BuyerId.Text.Trim(), kind == TaxIdKind.TaxId ? BuyerBranch.Text.Trim() : string.Empty, BuyerStructured.IsChecked == true ? BuyerFields.Address : BuyerAddress.Text.Trim(),
+                BuyerStructured.IsChecked == true ? BuyerFields.Postcode : BuyerPostcode.Text.Trim(), Blank(BuyerEmail.Text),
+                BuildingNumber: BuyerStructured.IsChecked == true ? Blank(BuyerFields.BuildingNumber) : null,
+                Province: BuyerStructured.IsChecked == true ? BuyerFields.Province : null,
+                District: BuyerStructured.IsChecked == true ? BuyerFields.District : null,
+                Subdistrict: BuyerStructured.IsChecked == true ? BuyerFields.Subdistrict : null),
             _items.Where(i => i.IsValid).Select(i => i.ToLine()).ToList(),
             vat,
             IncludesVatInput.IsChecked == true,

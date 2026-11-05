@@ -1,0 +1,57 @@
+<UserControl x:Class="Yrk.PdfStudio.App.Views.ThaiAddressFields"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="AddressLabel" TargetType="TextBlock">
+            <Setter Property="Margin" Value="0,8,0,3" />
+            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+        </Style>
+    </UserControl.Resources>
+    <StackPanel>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="2.4*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="House number" Style="{StaticResource AddressLabel}" />
+                <TextBox x:Name="HouseInput" AutomationProperties.Name="House number" TextChanged="OnChanged" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Street, soi, building (optional)" Style="{StaticResource AddressLabel}" />
+                <TextBox x:Name="StreetInput" AutomationProperties.Name="Street, soi, building (optional)" TextChanged="OnChanged" />
+            </StackPanel>
+        </Grid>
+        <TextBlock Text="Province" Style="{StaticResource AddressLabel}" />
+        <ComboBox x:Name="ProvinceInput" DisplayMemberPath="Name" AutomationProperties.Name="Province" SelectionChanged="OnProvinceChanged" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="District" Style="{StaticResource AddressLabel}" />
+                <ComboBox x:Name="DistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="District" SelectionChanged="OnDistrictChanged" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="Subdistrict" Style="{StaticResource AddressLabel}" />
+                <ComboBox x:Name="SubdistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="Subdistrict" SelectionChanged="OnSubdistrictChanged" />
+            </StackPanel>
+        </Grid>
+        <TextBlock Text="Postcode" Style="{StaticResource AddressLabel}" />
+        <ComboBox x:Name="PostcodeInput" IsEditable="True" IsTextSearchEnabled="False"
+                  TextSearch.TextPath="Postcode" AutomationProperties.Name="Postcode">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding Postcode}" />
+                        <TextBlock Text="{Binding Detail}" Margin="8,0,0,0" />
+                    </StackPanel>
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
+        <TextBlock x:Name="NoticeText" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0" />
+    </StackPanel>
+</UserControl>

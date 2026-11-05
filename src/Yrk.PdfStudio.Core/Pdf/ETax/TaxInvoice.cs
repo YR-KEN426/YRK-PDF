@@ -219,7 +219,20 @@ public sealed record TaxInvoice(
             problems.Add("Enter the buyer's name.");
         }
 
-        if (string.IsNullOrWhiteSpace(Buyer.Address))
+        if (Buyer.IsStructured)
+        {
+            if (string.IsNullOrWhiteSpace(Buyer.BuildingNumber) || string.IsNullOrEmpty(Buyer.District)
+                || string.IsNullOrEmpty(Buyer.Subdistrict))
+            {
+                problems.Add("Enter the buyer's house number, province, district and subdistrict.");
+            }
+
+            if (Buyer.Postcode.Trim() is not { Length: 5 } buyerPostcode || !buyerPostcode.All(char.IsAsciiDigit))
+            {
+                problems.Add("The buyer's postcode has 5 digits.");
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(Buyer.Address))
         {
             problems.Add("Enter the buyer's address.");
         }

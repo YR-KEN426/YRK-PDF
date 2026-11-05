@@ -1,4 +1,11 @@
 {
+  "Thai address (separate fields)": "ที่อยู่ในไทย (แยกช่อง)",
+  "Type the address yourself": "พิมพ์ที่อยู่เอง",
+  "This subdistrict has several postcodes. Check which one fits the address.": "ตำบลนี้มีหลายรหัส ตรวจให้ตรงที่อยู่",
+  "This postcode does not match the selected subdistrict in the app's data. You can still use it.": "รหัสนี้ไม่ตรงกับตำบลที่เลือกตามข้อมูลของโปรแกรม ยังใช้รหัสนี้ได้",
+  "This postcode or subdistrict is not in the app's postal data. You can still use this postcode.": "ไม่พบรหัสหรือตำบลนี้ในข้อมูลรหัสไปรษณีย์ของโปรแกรม ยังใช้รหัสนี้ได้",
+  "Enter the buyer's house number, province, district and subdistrict.": "กรอกบ้านเลขที่ จังหวัด อำเภอ และตำบลของผู้ซื้อ",
+  "The buyer's postcode has 5 digits.": "รหัสไปรษณีย์ของผู้ซื้อต้องเป็นตัวเลข 5 หลัก",
   "Signed and unchanged, but form fields were filled in after signing: {0}": "ลายเซ็นถูกต้อง แต่มีการกรอกฟอร์มหลังเซ็น: {0}",
   "Signed, but form fields were filled in after signing": "เซ็นแล้ว แต่มีการกรอกฟอร์มหลังเซ็น",
   "Form fields filled in after signing: {0}": "ฟิลด์ที่กรอกหลังเซ็น: {0}",
