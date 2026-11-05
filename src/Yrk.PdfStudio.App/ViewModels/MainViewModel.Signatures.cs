@@ -25,6 +25,7 @@ public sealed partial class MainViewModel
     private IReadOnlyList<SignatureInfoViewModel> _signatures = [];
     private bool _isCheckingSignatures;
     private int _signaturesGeneration;
+    private Task _signatureLoadTask = Task.CompletedTask;
     private IAsyncRelayCommand? _digitalSignCommand;
     private IRelayCommand<SignatureInfoViewModel>? _showCertificateCommand;
     private IRelayCommand<SignatureInfoViewModel>? _viewSignedVersionCommand;
@@ -98,7 +99,24 @@ public sealed partial class MainViewModel
     /// <param name="lockOnly">Right after placing a handwritten signature (see <see cref="SignatureDialogResult.LockWithDigitalId"/>).</param>
     private async Task StartDigitalSignAsync(bool lockOnly = false)
     {
-        if (_document is null || IsBusy || !await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.FillForms, "sign it"))
+        if (_document is null || IsBusy
+            || !await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.FillForms, "sign it")
+            || _document is not { } document)
+        {
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            await _signatureLoadTask;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+
+        if (!ReferenceEquals(_document, document))
         {
             return;
         }
@@ -248,12 +266,13 @@ public sealed partial class MainViewModel
     private async Task LoadSignaturesAsync(IPdfDocument document)
     {
         var generation = ++_signaturesGeneration;
+        var password = _password;
         Signatures = [];
         IReadOnlyList<PdfSignatureInfo> results;
         try
         {
             // A quick pass without network access; it already tells most users what they need.
-            results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: false));
+            results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: false), password: password);
             if (generation != _signaturesGeneration || results.Count == 0)
             {
                 return;
@@ -265,7 +284,7 @@ public sealed partial class MainViewModel
             if (results.Any(r => r.Identity == PdfSignerIdentity.Trusted))
             {
                 SetChecking(true);
-                results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: true));
+                results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: true), password: password);
                 if (generation == _signaturesGeneration)
                 {
                     Signatures = results.Select(r => new SignatureInfoViewModel(r)).ToList();
@@ -288,6 +307,7 @@ public sealed partial class MainViewModel
     private void ClearSignatures()
     {
         _signaturesGeneration++;
+        _signatureLoadTask = Task.CompletedTask;
         _isCheckingSignatures = false;
         Signatures = [];
     }
@@ -336,11 +356,13 @@ public sealed partial class MainViewModel
 
         string? tempPath = null;
         string? savedPath = null;
+        var password = _password;
         IsBusy = true;
+        StatusMessage = "Saving…";
         try
         {
-            var source = File.ReadAllBytes(document.FilePath);
-            var result = PdfSignatureVerifier.GetRevisionBeforeSignature(source, signature.Info, _password);
+            var source = await File.ReadAllBytesAsync(document.FilePath);
+            var result = await Task.Run(() => PdfSignatureVerifier.GetRevisionBeforeSignature(source, signature.Info, password));
             if (result.FailureReason == PdfRevisionFailureReason.NoEarlierRevision)
             {
                 _dialogs.ShowError(Loc.T("This file was rewritten as a whole when it was signed or afterwards, so no version from before signing is stored in the file."));
@@ -401,6 +423,12 @@ public sealed partial class MainViewModel
 
             tempPath = Path.Combine(Path.GetDirectoryName(targetPath)!, $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-writing");
             await PdfTemporaryFiles.WriteDurableAsync(tempPath, bytes);
+            if (File.Exists(targetPath) && FileIdentity.AreSameFile(sourcePath, targetPath))
+            {
+                _dialogs.ShowError(Loc.T("Choose a different name: the version before signing cannot overwrite the document you have open."));
+                return;
+            }
+
             File.Move(tempPath, targetPath, overwrite: true);
             savedPath = targetPath;
         }
@@ -417,6 +445,10 @@ public sealed partial class MainViewModel
             }
 
             IsBusy = false;
+            if (StatusMessage == Loc.T("Saving…"))
+            {
+                StatusMessage = string.Empty;
+            }
         }
 
         if (savedPath is not null && _dialogs.AskYesNo(Loc.F("Saved {0}. Open it now?", Path.GetFileName(savedPath))))

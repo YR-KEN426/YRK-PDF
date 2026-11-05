@@ -493,7 +493,7 @@ public sealed partial class MainViewModel : ObservableObject
         RaiseDocumentPropertiesChanged();
         _ = LoadBookmarksAsync(document);
         _ = LoadCommentsAsync(document);
-        _ = LoadSignaturesAsync(document);
+        _signatureLoadTask = LoadSignaturesAsync(document);
         _ = LoadLayersAsync(document);
     }
 

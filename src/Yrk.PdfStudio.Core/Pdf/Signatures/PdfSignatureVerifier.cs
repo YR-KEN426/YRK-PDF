@@ -13,10 +13,10 @@ public static class PdfSignatureVerifier
 
     private enum LaterChangeKind { SigningOnly, FormFillOnly, Other }
 
-    public static async Task<IReadOnlyList<PdfSignatureInfo>> VerifyFileAsync(string path, PdfVerifyOptions? options = null, CancellationToken cancellationToken = default)
+    public static async Task<IReadOnlyList<PdfSignatureInfo>> VerifyFileAsync(string path, PdfVerifyOptions? options = null, CancellationToken cancellationToken = default, string? password = null)
     {
         var bytes = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
-        return await Task.Run(() => Verify(bytes, options ?? new PdfVerifyOptions(), cancellationToken), cancellationToken).ConfigureAwait(false);
+        return await Task.Run(() => Verify(bytes, options ?? new PdfVerifyOptions(), cancellationToken, password), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The file as it was when the signature was applied (the signed revision).</summary>
@@ -43,7 +43,6 @@ public static class PdfSignatureVerifier
         }
 
         var options = new PdfVerifyOptions(CheckRevocation: false);
-        var signatures = Verify(file, options, password: password);
         CosDocument signed;
         try
         {
@@ -88,12 +87,13 @@ public static class PdfSignatureVerifier
                     continue;
                 }
 
+                var signatures = Verify(file, options, password: password);
                 var lost = signatures.Where(s => s.SignedLength > cut && !(s.FieldName == info.FieldName
                         && s.ContentsOffset == info.ContentsOffset && s.SignedLength == info.SignedLength))
                     .Append(info).OrderBy(s => s.SignedLength).ToArray();
                 return new(prefix, null, lost, losesEdits);
             }
-            catch (Exception ex) when (ex is PdfException or OverflowException or ArgumentOutOfRangeException)
+            catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
             {
                 // A marker in an unfinished string/stream, or a linearized first part, is not a revision.
             }

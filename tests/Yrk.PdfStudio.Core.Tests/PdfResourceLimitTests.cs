@@ -201,6 +201,49 @@ public sealed class PdfResourceLimitTests
     private static void AssertFast(Stopwatch timer) =>
         Assert.True(timer.Elapsed < TimeSpan.FromSeconds(5), $"Operation took {timer.Elapsed}.");
 
+    [Theory]
+    [InlineData("Prev", 4294967295L)]
+    [InlineData("Prev", -1L)]
+    [InlineData("XRefStm", 4294967295L)]
+    [InlineData("XRefStm", -1L)]
+    [InlineData("startxref", 4294967295L)]
+    [InlineData("startxref", -1L)]
+    public void Out_of_bounds_xref_offsets_repair_without_crashing(string key, long offset)
+    {
+        var bytes = Pdf();
+        var text = Encoding.ASCII.GetString(bytes);
+        text = key == "startxref"
+            ? text[..text.LastIndexOf("startxref", StringComparison.Ordinal)] + $"startxref\n{offset}\n%%EOF\n"
+            : text.Replace("/Root 1 0 R >>", $"/Root 1 0 R /{key} {offset} >>", StringComparison.Ordinal);
+        var timer = Stopwatch.StartNew();
+        var document = CosDocument.Load(Encoding.ASCII.GetBytes(text));
+        Assert.True(document.WasReconstructed);
+        Assert.Single(document.GetPages());
+        AssertFast(timer);
+    }
+
+    [Theory]
+    [InlineData("0 0 0", "")]
+    [InlineData("1 9 0", "")]
+    [InlineData("1 +4294967297 0", "")]
+    [InlineData("1 0 0", "")]
+    [InlineData("1 0 0", "/Index [0 1000000000]")]
+    [InlineData("1 0 0", "/Index [0 1 1 1000000000]")]
+    public void Invalid_xref_stream_widths_and_counts_repair_quickly(string widths, string index)
+    {
+        var source = Pdf();
+        var xref = (int)CosDocument.Load(source).StartXref;
+        var bytes = source[..xref].Concat(Encoding.ASCII.GetBytes(
+            $"5 0 obj\n<< /Type /XRef /Root 1 0 R /W [{widths}] /Size 1000000000 {index} /Length 1 >>\nstream\n\0\nendstream\nendobj\nstartxref\n{xref}\n%%EOF\n")).ToArray();
+        var allocated = GC.GetAllocatedBytesForCurrentThread();
+        var timer = Stopwatch.StartNew();
+        var document = CosDocument.Load(bytes);
+        Assert.True(document.WasReconstructed);
+        Assert.Single(document.GetPages());
+        AssertFast(timer);
+        Assert.True(GC.GetAllocatedBytesForCurrentThread() - allocated < 1024 * 1024);
+    }
+
     private static CosStream LzwStream(byte[] data, int earlyChange) => new(
         new CosDictionary().Set("Filter", new CosName("LZWDecode"))
             .Set("DecodeParms", new CosDictionary().Set("EarlyChange", new CosInteger(earlyChange))), data);

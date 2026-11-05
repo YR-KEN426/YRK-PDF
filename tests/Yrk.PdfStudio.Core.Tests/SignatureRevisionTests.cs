@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using Yrk.PdfStudio.App.ViewModels;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Cos;
 using Yrk.PdfStudio.Core.Pdf.Security;
@@ -79,6 +81,22 @@ public sealed class SignatureRevisionTests
         Assert.False(result.LosesLaterEdits);
     }
 
+    [Fact]
+    public async Task Panel_allows_recovery_with_valid_byte_range_even_when_signature_is_not_intact()
+    {
+        using var signer = NewSigner();
+        var original = Source;
+        var file = await PdfSigner.SignAsync(original, new(signer));
+        var info = Assert.Single(Verify(file, signer));
+        file[(int)info.ContentsOffset + 1] ^= 1;
+        info = Assert.Single(Verify(file, signer));
+        Assert.False(info.IsIntact);
+        Assert.True(new SignatureInfoViewModel(info).CanSaveVersionBeforeSigning);
+        Assert.False(new SignatureInfoViewModel(info with { ContentsOffset = 0 }).CanSaveVersionBeforeSigning);
+        Assert.False(new SignatureInfoViewModel(info with { SignedLength = 0 }).CanSaveVersionBeforeSigning);
+        IsPrefix(file, original, PdfSignatureVerifier.GetRevisionBeforeSignature(file, info));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -139,6 +157,27 @@ public sealed class SignatureRevisionTests
         IsPrefix(file, original, result);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Malformed_xref_in_reason_is_rejected_quickly(bool zeroWidths)
+    {
+        using var signer = NewSigner();
+        var original = Source;
+        var marker = zeroWidths
+            ? "\n999 0 obj\n<< /Type /XRef /W [0 0 0] /Size 1000000000 /Root 1 0 R /Length 0 >>\nstream\n\nendstream\nendobj\n"
+            : "\nxref\n0 1\n0000000000 65535 f\ntrailer\n<< /Size 1 /Root 1 0 R /Prev 4294967295 >>\n";
+        marker += "startxref\n0000000000\n%%EOF\n";
+        var file = await TestSignature(original, signer, "reason", marker, fakeXref: true);
+        var info = Assert.Single(Verify(file, signer));
+        var allocated = GC.GetAllocatedBytesForCurrentThread();
+        var timer = Stopwatch.StartNew();
+        var result = PdfSignatureVerifier.GetRevisionBeforeSignature(file, info);
+        Assert.True(timer.Elapsed < TimeSpan.FromSeconds(5), $"Operation took {timer.Elapsed}.");
+        Assert.True(GC.GetAllocatedBytesForCurrentThread() - allocated < 16 * 1024 * 1024);
+        IsPrefix(file, original, result);
+    }
+
     [Fact]
     public async Task Signature_in_first_revision_has_no_earlier_revision()
     {
@@ -157,8 +196,8 @@ public sealed class SignatureRevisionTests
         using var signer = NewSigner();
         var firstRevision = await TestSignature(Source, signer, rewrite: true, linearized: true);
         var firstEof = firstRevision.AsSpan().IndexOf("%%EOF"u8) + 6;
-        // The first-part xref has a forward /Prev, as in linearized files. It cannot open normally.
-        Assert.ThrowsAny<Exception>(() => CosDocument.Load(firstRevision[..firstEof]));
+        // The first-part xref has a forward /Prev beyond this prefix; opening must repair it.
+        Assert.True(CosDocument.Load(firstRevision[..firstEof]).WasReconstructed);
         Assert.False(CosDocument.Load(firstRevision).WasReconstructed);
         var info = Assert.Single(Verify(firstRevision, signer));
         Assert.Equal(PdfSignatureStatus.Valid, info.Status);
@@ -192,6 +231,27 @@ public sealed class SignatureRevisionTests
         result = PdfSignatureVerifier.GetRevisionBeforeSignature(second, infos[0], password);
         IsPrefix(second, original, result);
         Assert.False(CosDocument.Load(result.Bytes!, password).IsLocked);
+    }
+
+    [Fact]
+    public async Task File_verification_passes_password_for_encrypted_signature_names()
+    {
+        using var signer = NewSigner();
+        const string password = "synthetic-password";
+        var original = PdfSecurity.Protect(Source, new(password, "synthetic-owner", PdfPermissions.All));
+        var first = await PdfSigner.SignAsync(original, new(signer, Password: password));
+        var second = await PdfSigner.SignAsync(first, new(signer, Password: password));
+        var folder = Directory.CreateTempSubdirectory("yrk-revision-tests-");
+        try
+        {
+            var path = Path.Combine(folder.FullName, "encrypted.pdf");
+            await File.WriteAllBytesAsync(path, second);
+            var infos = await PdfSignatureVerifier.VerifyFileAsync(path, Trust(signer), password: password);
+            Assert.Equal(2, infos.Count);
+            Assert.All(infos, info => Assert.Equal(PdfSignatureStatus.Valid, info.Status));
+            IsPrefix(second, first, PdfSignatureVerifier.GetRevisionBeforeSignature(second, infos[1], password));
+        }
+        finally { folder.Delete(true); }
     }
 
     [Theory]
@@ -299,7 +359,7 @@ public sealed class SignatureRevisionTests
     // /Contents so the backward search actually encounters them. CMS is generated by the real signer.
     private static async Task<byte[]> TestSignature(byte[] input, X509Certificate2 signer,
         string? placement = null, string marker = "", bool rewrite = false, bool timestamp = false, bool linearized = false,
-        bool extraPage = false)
+        bool extraPage = false, bool fakeXref = false)
     {
         var doc = CosDocument.Load(input);
         var update = new CosIncrementalUpdate(doc);
@@ -334,6 +394,14 @@ public sealed class SignatureRevisionTests
         catalog["AcroForm"] = update.Add(form.Set("Fields", fields).Set("SigFlags", new CosInteger(3)));
         update.Replace(((CosReference)doc.Trailer["Root"]!).Id, catalog);
         var bytes = update.Build().Bytes;
+        if (fakeXref)
+        {
+            var markerOffset = bytes.AsSpan().IndexOf(Encoding.ASCII.GetBytes(marker));
+            Assert.True(markerOffset > 0);
+            var footerOffset = markerOffset + marker.IndexOf("startxref\n", StringComparison.Ordinal) + 10;
+            Encoding.ASCII.GetBytes((markerOffset + 1).ToString("D10", CultureInfo.InvariantCulture)).CopyTo(bytes, footerOffset);
+        }
+
         if (rewrite)
         {
             doc = CosDocument.Load(bytes);

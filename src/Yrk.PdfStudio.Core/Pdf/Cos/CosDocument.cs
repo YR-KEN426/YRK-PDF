@@ -248,6 +248,10 @@ internal sealed partial class CosDocument
             }
 
             offset = (trailer["Prev"] as CosInteger)?.Value ?? 0;
+            if (offset < 0 || offset >= Data.Length)
+            {
+                throw new PdfException("Invalid /Prev offset.");
+            }
         }
 
         if (first)
@@ -273,6 +277,11 @@ internal sealed partial class CosDocument
 
     private (CosDictionary Trailer, bool IsStream) ReadXrefSection(long offset)
     {
+        if (offset <= 0 || offset >= Data.Length)
+        {
+            throw new PdfException("Invalid cross-reference offset.");
+        }
+
         var parser = new CosParser(Data) { Position = (int)offset };
         parser.SkipWhitespace();
         if (!parser.PeekKeyword("xref"))
@@ -325,8 +334,13 @@ internal sealed partial class CosDocument
         }
 
         // Hybrid file: objects hidden from old readers are listed in an extra stream (§7.5.8.4).
-        if (trailer["XRefStm"] is CosInteger hidden && hidden.Value > 0 && hidden.Value < Data.Length)
+        if (trailer["XRefStm"] is CosInteger hidden)
         {
+            if (hidden.Value <= 0 || hidden.Value >= Data.Length)
+            {
+                throw new PdfException("Invalid /XRefStm offset.");
+            }
+
             var streamParser = new CosParser(Data) { Position = (int)hidden.Value };
             if (streamParser.ParseIndirectObject().Value is CosStream xrefStream)
             {
@@ -345,23 +359,36 @@ internal sealed partial class CosDocument
             throw new PdfException("Cross-reference stream without /W.");
         }
 
-        var widths = widthArray.Items.Select(i => (int)((i as CosInteger)?.Value ?? 0)).ToArray();
-        if (widths.Any(w => w is < 0 or > 8))
+        var wideWidths = widthArray.Items.Select(i => (i as CosInteger)?.Value ?? -1).ToArray();
+        if (wideWidths.Any(w => w is < 0 or > 8) || wideWidths.Sum() == 0)
         {
             throw new PdfException("Invalid cross-reference stream widths.");
         }
 
-        var size = (int)((dictionary["Size"] as CosInteger)?.Value ?? 0);
+        var widths = wideWidths.Select(w => (int)w).ToArray();
+        var size = (dictionary["Size"] as CosInteger)?.Value ?? 0;
         var index = dictionary["Index"] is CosArray indexArray
-            ? indexArray.Items.Select(i => (i as CosInteger)?.Value ?? 0).ToArray()
+            ? indexArray.Items.Select(i => (i as CosInteger)?.Value ?? -1).ToArray()
             : [0, size];
+
+        if (index.Length % 2 != 0 || index.Any(n => n < 0))
+        {
+            throw new PdfException("Invalid cross-reference stream index.");
+        }
 
         var data = CosFilters.Decode(stream, Resolve);
         var entryLength = widths.Sum();
         var position = 0;
         for (var pair = 0; pair + 1 < index.Length; pair += 2)
         {
-            for (var i = 0; i < index[pair + 1] && position + entryLength <= data.Length; i++)
+            var count = index[pair + 1];
+            if (count > (data.Length - position) / entryLength
+                || index[pair] > int.MaxValue || count > (long)int.MaxValue - index[pair] + 1)
+            {
+                throw new PdfException("Invalid cross-reference stream entry count.");
+            }
+
+            for (long i = 0; i < count; i++)
             {
                 var type = widths[0] == 0 ? 1 : Field(widths[0]);
                 var field2 = Field(widths[1]);
