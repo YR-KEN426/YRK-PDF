@@ -1359,5 +1359,11 @@
   "PromptPay QR code (Paotang Pay) for supporting the developer": "QR พร้อมเพย์ (เป๋าตังเปย์) สำหรับสนับสนุนผู้พัฒนา",
   "GitHub Sponsors": "GitHub Sponsors",
   "For supporters outside Thailand. This opens GitHub in your web browser.": "สำหรับผู้สนับสนุนนอกประเทศไทย ปุ่มนี้จะเปิดเว็บไซต์ GitHub ในเว็บเบราว์เซอร์ของคุณ",
-  "Missing embedded privacy policy.": "ไม่พบไฟล์นโยบายความเป็นส่วนตัวที่ฝังในโปรแกรม"
+  "Missing embedded privacy policy.": "ไม่พบไฟล์นโยบายความเป็นส่วนตัวที่ฝังในโปรแกรม",
+  "YRK PDF e-Tax status": "สถานะของ e-Tax ใน YRK PDF",
+  "• Follows ETDA standard ขมธอ. 3-2560, version 2.0": "• ทำตามมาตรฐาน ETDA ขมธอ. 3-2560 เวอร์ชัน 2.0",
+  "• A sample XML file passed the structure check on the Revenue Department's validation page": "• ไฟล์ XML ตัวอย่างผ่านการตรวจโครงสร้างที่หน้าตรวจสอบของกรมสรรพากร",
+  "• It has never been tested by actually submitting to the e-Tax Invoice system": "• ยังไม่เคยทดสอบส่งจริงในระบบ e-Tax Invoice",
+  "• It is not certified by the Revenue Department": "• ไม่ได้รับการรับรองจากกรมสรรพากร",
+  "• YRK PDF is not an e-Tax Invoice service provider. You must check the file and are responsible for submitting it yourself": "• YRK PDF ไม่ใช่ผู้ให้บริการ e-Tax Invoice ผู้ใช้ต้องตรวจไฟล์และรับผิดชอบการส่งเอง"
 }

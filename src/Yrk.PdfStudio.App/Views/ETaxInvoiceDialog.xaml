@@ -25,6 +25,12 @@
             <TextBlock Text="Make an e-Tax Invoice" FontSize="16" FontWeight="SemiBold" />
             <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,6"
                        Text="The PDF is made as PDF/A-3 with the Revenue Department's XML (ETDA standard) inside. Sign it with your digital ID afterwards, then email it to the buyer." />
+            <TextBlock Text="YRK PDF e-Tax status" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,2" />
+            <TextBlock Text="• Follows ETDA standard ขมธอ. 3-2560, version 2.0" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
+            <TextBlock Text="• A sample XML file passed the structure check on the Revenue Department's validation page" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
+            <TextBlock Text="• It has never been tested by actually submitting to the e-Tax Invoice system" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
+            <TextBlock Text="• It is not certified by the Revenue Department" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
+            <TextBlock Text="• YRK PDF is not an e-Tax Invoice service provider. You must check the file and are responsible for submitting it yourself" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Bottom">
