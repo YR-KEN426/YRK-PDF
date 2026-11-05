@@ -17,6 +17,7 @@ shown in **? Help ▸ About YRK PDF**. YRK PDF's own code is under the Apache Li
 | [Tesseract for .NET](https://github.com/charlesw/tesseract) 5.2.0 (`Tesseract.dll`) with [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 5.0.0 (`x64/tesseract50.dll`) | Text recognition (OCR) | Apache-2.0 | `licenses/tesseract-apache-2.0.txt` |
 | [Leptonica](http://www.leptonica.org/) 1.82.0 (`x64/leptonica-1.82.0.dll`), with libpng 1.6.37, zlib 1.2.13, libjpeg-turbo 2.1.4 and libtiff 4.4.0 built in | Image input for Tesseract | Leptonica (BSD-2-Clause style), libpng, zlib, IJG/BSD-3-Clause, libtiff | `licenses/leptonica/*.txt` |
 | [tessdata_fast](https://github.com/tesseract-ocr/tessdata_fast) language files | OCR language data, downloaded when first needed (not shipped) | Apache-2.0 | `licenses/tesseract-apache-2.0.txt` |
+| [thailand-geography-json](https://github.com/thailand-geography-data/thailand-geography-json) 1.3.0, commit `021d18e9a481bc141ea87de4ddeebe843cff2f12` | Offline Thai postal code suggestions | MIT | `licenses/thailand-geography-json-MIT.txt` |
 | [Sarabun](https://github.com/cadsondemak/Sarabun) Regular, Light and Bold (`Assets/Fonts/Sarabun-*.ttf`, from [google/fonts](https://github.com/google/fonts/tree/main/ofl/sarabun)) | Thai font put in forms with Thai fields, for viewers that redraw them; used for edited Sarabun text and to name Thai marks in Sarabun PDFs | SIL Open Font License 1.1 | `licenses/sarabun/OFL.txt` |
 
 The installer also asks Windows to install the **Microsoft Visual C++ Redistributable** (needed by the
@@ -47,3 +48,15 @@ part of the portable package.
 ## Thai area codes
 
 `src/Yrk.PdfStudio.Core/Pdf/ETax/thai-areas.txt` is taken from the code lists in the Revenue Department's XMLSchemaV2 package (TIS 1099 and ISO 3166-2:TH, in UN/CEFACT code list modules, Copyright (C) UN/CEFACT, which allow copies and derivative works).
+
+## Thai postal codes
+
+`src/Yrk.PdfStudio.Core/Pdf/ETax/thai-postcodes.txt` is derived from `src/subdistricts.json` in
+[thailand-geography-data/thailand-geography-json](https://github.com/thailand-geography-data/thailand-geography-json/tree/021d18e9a481bc141ea87de4ddeebe843cff2f12),
+commit `021d18e9a481bc141ea87de4ddeebe843cff2f12` (1.3.0), under the MIT License,
+Copyright (c) 2023-Present Joe Takara. The full license is in `licenses/thailand-geography-json-MIT.txt`.
+The dataset attributes its postal codes to Thailand Post's nationwide postal code poster, May 2018
+(B.E. 2561). We include subdistrict/postcode pairs and short Thai and English area details for areas
+in our Thai area list. These are form-filling suggestions, may be outdated, and can be overridden
+by typing a postcode. This data and YRK PDF are not endorsed or certified by Thailand Post or the
+Revenue Department. The program uses embedded data offline and does not download postal code updates.

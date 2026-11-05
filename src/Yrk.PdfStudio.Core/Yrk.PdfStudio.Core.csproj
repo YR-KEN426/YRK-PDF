@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Pdf\ETax\thai-areas.txt" LogicalName="Yrk.PdfStudio.Core.Pdf.ETax.thai-areas.txt" />
+    <EmbeddedResource Include="Pdf\ETax\thai-postcodes.txt" LogicalName="Yrk.PdfStudio.Core.Pdf.ETax.thai-postcodes.txt" WithCulture="false" />
   </ItemGroup>
 
   <ItemGroup>
