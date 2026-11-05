@@ -63,7 +63,11 @@ public static class PdfSignatureVerifier
         }
 
         if (!Same(document.Trailer["Root"], signed.Trailer["Root"])
-            || !Same(document.Trailer["Info"], signed.Trailer["Info"])
+            || signingData is null && !Same(document.Trailer["Info"], signed.Trailer["Info"])
+            || !Same(document.Trailer["ID"], signed.Trailer["ID"]) && (signingData is null
+                || document.Resolve(document.Trailer["ID"]) is not CosArray { Items.Count: 2 } ids
+                || signed.Resolve(signed.Trailer["ID"]) is not CosArray { Items.Count: 2 } oldIds
+                || !Same(ids[0], oldIds[0]) || ids.Items.Any(v => v is not CosString))
             || !Same(document.Trailer["Encrypt"], signed.Trailer["Encrypt"]))
         {
             return false;
@@ -118,6 +122,8 @@ public static class PdfSignatureVerifier
                 {
                     ((CosDictionary)now)["AcroForm"] = null;
                     ((CosDictionary)then)["AcroForm"] = null;
+                    ((CosDictionary)now)["Metadata"] = null;
+                    ((CosDictionary)then)["Metadata"] = null;
                 }
             }
 
@@ -202,7 +208,7 @@ public static class PdfSignatureVerifier
         var graphActive = new HashSet<CosObjectId>();
         var pages = document.GetPages().Select(p => p.Id).ToHashSet();
 
-        if (!Form() || signedFields.Count == 0)
+        if (!Form() || signedFields.Count == 0 || !SigningMetadata())
         {
             return false;
         }
@@ -243,7 +249,9 @@ public static class PdfSignatureVerifier
                 return false;
             }
             var oldForm = signed.Resolve(signed.Catalog["AcroForm"]) as CosDictionary ?? new CosDictionary();
-            if (!SameExcept(form, oldForm, "Fields", "SigFlags")
+            if (!SameExcept(form, oldForm, "Fields", "SigFlags", "DR", "DA")
+                || !GrowingResources(form["DR"], oldForm["DR"], 0)
+                || !DefaultAppearance(form["DA"], oldForm["DA"])
                 || document.Resolve(form["SigFlags"]) is not (null or CosInteger { Value: >= 0 and <= 3 }))
             {
                 return false;
@@ -255,6 +263,55 @@ public static class PdfSignatureVerifier
                 return false;
             }
             return Fields(form["Fields"], oldForm["Fields"], null, 0);
+        }
+
+        bool DefaultAppearance(CosObject? value, CosObject? oldValue) =>
+            (oldValue is null || Same(document.Resolve(value), signed.Resolve(oldValue)))
+            && document.Resolve(value) is null or CosString && Graph(value, 0, streams: false);
+
+        bool GrowingResources(CosObject? value, CosObject? oldValue, int depth)
+        {
+            if (!Step(depth)) return false;
+            if (value is null) return oldValue is null;
+            if (document.Resolve(value) is not CosDictionary current) return false;
+            var old = signed.Resolve(oldValue) as CosDictionary;
+            if (oldValue is not null && old is null) return false;
+            Allow(value);
+            if (old is not null && old.Entries.Any(e => current[e.Key] is null)) return false;
+            foreach (var (key, child) in current.Entries)
+            {
+                var previous = old?[key];
+                if (depth == 0)
+                {
+                    if (key == "ProcSet")
+                    {
+                        if (previous is not null && !Same(child, previous) || !Graph(child, depth + 1, false)) return false;
+                    }
+                    else if (key is not ("Font" or "XObject" or "ColorSpace" or "ExtGState" or "Pattern" or "Shading" or "Properties")
+                        || !GrowingResources(child, previous, depth + 1)) return false;
+                }
+                else if (previous is not null ? !Same(child, previous) : !Graph(child, depth + 1, streams: true)) return false;
+            }
+            return true;
+        }
+
+        bool SigningMetadata()
+        {
+            var info = document.Resolve(document.Trailer["Info"]) as CosDictionary;
+            var oldInfo = signed.Resolve(signed.Trailer["Info"]) as CosDictionary;
+            if (info is null ? oldInfo is not null : !SameExcept(info, oldInfo ?? new CosDictionary(), "ModDate", "Producer")) return false;
+            if (info is not null)
+            {
+                Allow(document.Trailer["Info"]);
+                foreach (var key in new[] { "ModDate", "Producer" })
+                    if (document.Resolve(info[key]) is not (null or CosString) || !Graph(info[key], 0, false)) return false;
+            }
+            if (document.Catalog["Metadata"] is not { } metadata) return signed.Catalog["Metadata"] is null;
+            return document.Resolve(metadata) is CosStream stream
+                && stream.Dictionary["Type"] is CosName { Value: "Metadata" }
+                && stream.Dictionary["Subtype"] is CosName { Value: "XML" }
+                && stream.Dictionary.Entries.Keys.All(k => k is "Type" or "Subtype" or "Length" or "Filter" or "DecodeParms" or "DL")
+                && Graph(metadata, 0, streams: true);
         }
 
         bool Fields(CosObject? value, CosObject? oldValue, string? inheritedType, int depth)
@@ -299,7 +356,7 @@ public static class PdfSignatureVerifier
                     || document.Resolve(signature["Contents"]) is not CosString { Bytes.Length: > 0 }
                     || document.Resolve(signature["ByteRange"]) is not CosArray { Items.Count: 4 }
                     || !Graph(signatureRef, depth + 1, streams: false, signatureRoot: true)
-                    || old is not null && !SameExcept(field, old, "V", "AP", "Kids")
+                    || old is not null && !ExistingFieldShape(field, old, "V", "AP", "Kids")
                     || old is null && !FieldShape(field))
                 {
                     return false;
@@ -353,7 +410,7 @@ public static class PdfSignatureVerifier
                 || Fields(field["Kids"], old["Kids"], type, depth + 1);
         }
 
-        bool FieldShape(CosDictionary field) => field.Entries.All(e => e.Key switch
+        bool FieldShape(CosDictionary field) => Step(0) && field.Entries.All(e => e.Key switch
         {
             "V" or "AP" or "Kids" => true,
             "P" => e.Value is CosReference r && pages.Contains(r.Id),
@@ -361,11 +418,84 @@ public static class PdfSignatureVerifier
             "Type" => e.Value is CosName { Value: "Annot" },
             "Subtype" => e.Value is CosName { Value: "Widget" },
             "FT" => e.Value is CosName { Value: "Sig" },
-            "T" or "TU" or "TM" or "M" => e.Value is CosString,
-            "F" or "Ff" => e.Value is CosInteger,
+            "T" or "TU" or "TM" or "M" or "NM" or "DA" => document.Resolve(e.Value) is CosString && Graph(e.Value, 0, false),
+            "F" or "Ff" or "StructParent" => document.Resolve(e.Value) is CosInteger { Value: >= 0 } && Graph(e.Value, 0, false),
+            "Q" => document.Resolve(e.Value) is CosInteger { Value: >= 0 and <= 2 } && Graph(e.Value, 0, false),
+            "MK" => WidgetDictionary(e.Value, "MK", 0),
+            "BS" => WidgetDictionary(e.Value, "BS", 0),
+            "Lock" => WidgetDictionary(e.Value, "Lock", 0),
+            "SV" => WidgetDictionary(e.Value, "SV", 0),
+            "Border" => Border(e.Value),
+            "DR" => GrowingResources(e.Value, null, 0),
             "Rect" => e.Value is CosArray a && a.Items.Count == 4 && a.Items.All(n => n is CosInteger or CosReal),
             _ => false,
         });
+
+        bool ExistingFieldShape(CosDictionary field, CosDictionary old, params string[] changing)
+        {
+            if (old.Entries.Any(e => !changing.Contains(e.Key) && !Same(e.Value, field[e.Key]))) return false;
+            var additions = new CosDictionary();
+            foreach (var (key, value) in field.Entries)
+                if (old[key] is null) additions[key] = value;
+            return FieldShape(additions);
+        }
+
+        bool Numbers(CosObject? value, int min, int max) => document.Resolve(value) is CosArray a
+            && a.Count >= min && a.Count <= max && a.Items.All(v => document.Resolve(v) is CosInteger or CosReal)
+            && Graph(value, 0, false);
+
+        bool Border(CosObject value) => document.Resolve(value) is CosArray a && a.Count is 3 or 4
+            && a.Items.Take(3).All(v => document.Resolve(v) is CosInteger or CosReal)
+            && (a.Count == 3 || Numbers(a[3], 0, 64)) && Graph(value, 0, false);
+
+        bool WidgetDictionary(CosObject value, string kind, int depth)
+        {
+            if (!Step(depth) || document.Resolve(value) is not CosDictionary d) return false;
+            Allow(value);
+            return d.Entries.All(e => (kind, e.Key) switch
+            {
+                ("MK", "R") => document.Resolve(e.Value) is CosInteger rotation && rotation.Value % 90 == 0 && Graph(e.Value, depth + 1, false),
+                ("MK", "BC" or "BG") => Numbers(e.Value, 0, 4) && document.Resolve(e.Value) is CosArray { Count: 0 or 1 or 3 or 4 },
+                ("MK", "CA" or "RC" or "AC") => document.Resolve(e.Value) is CosString && Graph(e.Value, depth + 1, false),
+                ("MK", "I" or "RI" or "IX") => document.Resolve(e.Value) is CosStream s
+                    && s.Dictionary["Subtype"] is CosName { Value: "Form" } && Graph(e.Value, depth + 1, true),
+                ("MK", "IF") => WidgetDictionary(e.Value, "IF", depth + 1),
+                ("MK", "TP") => document.Resolve(e.Value) is CosInteger { Value: >= 0 and <= 6 } && Graph(e.Value, depth + 1, false),
+                ("IF", "SW" or "S") => document.Resolve(e.Value) is CosName && Graph(e.Value, depth + 1, false),
+                ("IF", "A") => Numbers(e.Value, 2, 2),
+                ("IF", "FB") => document.Resolve(e.Value) is CosBoolean && Graph(e.Value, depth + 1, false),
+                ("BS", "Type") => document.Resolve(e.Value) is CosName { Value: "Border" } && Graph(e.Value, depth + 1, false),
+                ("BS", "W") => document.Resolve(e.Value) is CosInteger or CosReal && Graph(e.Value, depth + 1, false),
+                ("BS", "S") => document.Resolve(e.Value) is CosName { Value: "S" or "D" or "B" or "I" or "U" } && Graph(e.Value, depth + 1, false),
+                ("BS", "D") => Numbers(e.Value, 0, 64),
+                ("Lock", "Type") => document.Resolve(e.Value) is CosName { Value: "SigFieldLock" } && Graph(e.Value, depth + 1, false),
+                ("Lock", "Action") => document.Resolve(e.Value) is CosName { Value: "All" or "Include" or "Exclude" } && Graph(e.Value, depth + 1, false),
+                ("Lock", "P") => document.Resolve(e.Value) is CosInteger { Value: >= 1 and <= 3 } && Graph(e.Value, depth + 1, false),
+                ("Lock", "Fields") => document.Resolve(e.Value) is CosArray a && a.Items.All(v => document.Resolve(v) is CosString) && Graph(e.Value, depth + 1, false),
+                ("SV", "Type") => document.Resolve(e.Value) is CosName { Value: "SV" } && Graph(e.Value, depth + 1, false),
+                ("SV", "Ff") => document.Resolve(e.Value) is CosInteger && Graph(e.Value, depth + 1, false),
+                ("SV", "Filter") => document.Resolve(e.Value) is CosName && Graph(e.Value, depth + 1, false),
+                ("SV", "SubFilter" or "DigestMethod") => document.Resolve(e.Value) is CosArray a && a.Items.All(v => document.Resolve(v) is CosName) && Graph(e.Value, depth + 1, false),
+                ("SV", "Reasons" or "LegalAttestation") => document.Resolve(e.Value) is CosArray a && a.Items.All(v => document.Resolve(v) is CosString) && Graph(e.Value, depth + 1, false),
+                ("SV", "V") => document.Resolve(e.Value) is CosInteger or CosReal && Graph(e.Value, depth + 1, false),
+                ("SV", "MDP") => WidgetDictionary(e.Value, "SVMDP", depth + 1),
+                ("SVMDP", "P") => document.Resolve(e.Value) is CosInteger { Value: >= 0 and <= 3 } && Graph(e.Value, depth + 1, false),
+                ("SV", "Cert") => WidgetDictionary(e.Value, "SVCert", depth + 1),
+                ("SVCert", "Type") => document.Resolve(e.Value) is CosName { Value: "SVCert" } && Graph(e.Value, depth + 1, false),
+                ("SVCert", "Subject" or "Issuer" or "OID" or "KeyUsage") => document.Resolve(e.Value) is CosArray a
+                    && a.Items.All(v => document.Resolve(v) is CosString) && Graph(e.Value, depth + 1, false),
+                ("SVCert", "SubjectDN") => document.Resolve(e.Value) is CosArray a
+                    && a.Items.All(v => document.Resolve(v) is CosDictionary dn && dn.Entries.Values.All(s => document.Resolve(s) is CosString))
+                    && Graph(e.Value, depth + 1, false),
+                ("SVCert", "Ff") or ("SVTimeStamp", "Ff") => document.Resolve(e.Value) is CosInteger { Value: >= 0 } && Graph(e.Value, depth + 1, false),
+                ("SVCert", "URL") or ("SVTimeStamp", "URL") or ("SV", "AppearanceFilter") => document.Resolve(e.Value) is CosString && Graph(e.Value, depth + 1, false),
+                ("SVCert", "URLType") => document.Resolve(e.Value) is CosName && Graph(e.Value, depth + 1, false),
+                ("SV", "TimeStamp") => WidgetDictionary(e.Value, "SVTimeStamp", depth + 1),
+                ("SV", "LockDocument") => document.Resolve(e.Value) is CosName { Value: "true" or "false" or "auto" } && Graph(e.Value, depth + 1, false),
+                ("SV", "AddRevInfo") => document.Resolve(e.Value) is CosBoolean && Graph(e.Value, depth + 1, false),
+                _ => false,
+            });
+        }
 
         bool Widget(CosObject value, CosObject? oldValue, bool merged, int depth)
         {
@@ -377,7 +507,7 @@ public static class PdfSignatureVerifier
             }
             var old = oldValue is null ? null : signed.Resolve(oldValue) as CosDictionary;
             if (!merged && (old is null ? !FieldShape(widget) || widget["V"] is not null || widget["Kids"] is not null
-                : !Same(value, oldValue) || !SameExcept(widget, old, "AP")))
+                : !Same(value, oldValue) || !ExistingFieldShape(widget, old, "AP")))
             {
                 return false;
             }
@@ -485,7 +615,7 @@ public static class PdfSignatureVerifier
             var visited = new HashSet<(CosObjectId, string)>();
             var remaining = 100000;
             pending.Push((doc.Trailer["Root"], "Catalog", 0));
-            pending.Push((doc.Trailer["Info"], "Content", 0));
+            pending.Push((doc.Trailer["Info"], "Info", 0));
             pending.Push((doc.Trailer["Encrypt"], "Content", 0));
             while (pending.TryPop(out var item))
             {
@@ -525,13 +655,17 @@ public static class PdfSignatureVerifier
                     {
                         var role = (item.Role, key) switch
                         {
-                            ("Catalog", "DSS") or ("Form", "SigFlags") => "Skip",
+                            ("Catalog", "DSS" or "Metadata") or ("Form", "SigFlags" or "DA") => "Skip",
+                            ("Info", "ModDate" or "Producer") => "Skip",
+                            ("Form", "DR") => doc == signed ? "DefaultResources" : "Skip",
+                            ("DefaultResources", _) => "ResourceCategory",
                             ("Catalog", "AcroForm") => "Form",
                             ("Catalog", "Pages") or ("Pages", "Kids") => "Pages",
                             ("Pages", "Parent") => "Skip",
                             ("Pages", "Annots") => "Annots",
                             ("Form", "Fields") => "Fields",
-                            ("SignedField", "V" or "AP") => "Skip",
+                            ("SignedField", "V" or "AP" or "MK" or "BS" or "Border" or "Lock" or "SV" or "DR" or "DA"
+                                or "F" or "Q" or "TU" or "TM" or "T" or "FT" or "Ff" or "StructParent" or "Rect" or "NM" or "M") => "Skip",
                             ("SignedField" or "Field" or "Annotation", "P" or "Parent") => "Skip",
                             ("SignedField" or "Field", "Kids") => "Fields",
                             _ => "Content",

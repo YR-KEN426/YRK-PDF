@@ -194,7 +194,12 @@ public sealed class SignatureCoSigningTests
         using var signer = NewSigner();
         var source = PrepareField(Source, signature: true, split);
         var first = await PdfSigner.SignAsync(source, new PdfSignRequest(signer));
-        var second = await AppendSignature(first, signer);
+        var second = await AppendSignature(first, signer, (_, _, widget) =>
+        {
+            widget["MK"] = new CosDictionary().Set("BC", CosArray.FromNumbers(0));
+            widget["BS"] = new CosDictionary().Set("W", new CosInteger(1));
+            widget["Lock"] = new CosDictionary().Set("Type", new CosName("SigFieldLock")).Set("Action", new CosName("All"));
+        });
         var results = PdfSignatureVerifier.Verify(second, Trust(signer));
         Assert.Equal(2, results.Count);
         Assert.All(results, r => Assert.Equal(PdfSignatureStatus.Valid, r.Status));
@@ -367,6 +372,97 @@ public sealed class SignatureCoSigningTests
             r => Assert.True(r.ModifiedAfterSigning));
     }
 
+    [Theory]
+    [InlineData("allowed")]
+    [InlineData("da-add")]
+    [InlineData("da-change")]
+    [InlineData("content")]
+    [InlineData("font-change")]
+    [InlineData("font-remove")]
+    [InlineData("first-id")]
+    [InlineData("shared-icon")]
+    [InlineData("bad-MK")]
+    public async Task External_cosigner_widget_fonts_and_metadata_are_bounded(string change)
+    {
+        using var signer = NewSigner();
+        var source = CosDocument.Load(Source);
+        var prepare = new CosIncrementalUpdate(source);
+        var originalFont = prepare.Add(new CosDictionary().Set("Type", new CosName("Font"))
+            .Set("Subtype", new CosName("Type1")).Set("BaseFont", new CosName("Helvetica")));
+        var originalResources = new CosDictionary().Set("Font", new CosDictionary().Set("Original", originalFont));
+        var initialForm = new CosDictionary().Set("Fields", new CosArray()).Set("DR", prepare.Add(originalResources));
+        if (change != "da-add") initialForm["DA"] = CosString.FromText("/Original 10 Tf 0 g");
+        prepare.Replace(((CosReference)source.Trailer["Root"]!).Id, source.Catalog.Clone()
+            .Set("AcroForm", prepare.Add(initialForm))
+            .Set("Metadata", prepare.Add(new CosStream(new CosDictionary().Set("Type", new CosName("Metadata"))
+                .Set("Subtype", new CosName("XML")), "<x:xmpmeta>original</x:xmpmeta>"u8.ToArray()))));
+        source.Trailer["Info"] = prepare.Add(new CosDictionary().Set("Title", CosString.FromText("preserved title"))
+            .Set("ModDate", CosString.FromText("D:20260101000000Z")).Set("Producer", CosString.FromText("original producer")));
+        source.Trailer["ID"] = new CosArray([CosString.FromText("first-id"), CosString.FromText("old-second-id")]);
+        var first = await PdfSigner.SignAsync(prepare.Build().Bytes, new PdfSignRequest(signer));
+        var second = await AppendSignature(first, signer, (doc, update, widget) =>
+        {
+            var icon = update.Add(new CosStream(new CosDictionary().Set("Type", new CosName("XObject"))
+                .Set("Subtype", new CosName("Form")).Set("BBox", CosArray.FromNumbers(0, 0, 10, 10)), "q Q"u8.ToArray()));
+            widget["MK"] = new CosDictionary().Set("R", new CosInteger(0)).Set("BC", CosArray.FromNumbers(0, 0, 0))
+                .Set("BG", CosArray.FromNumbers(1)).Set("CA", CosString.FromText("Sign"))
+                .Set("I", icon).Set("IF", new CosDictionary().Set("SW", new CosName("A")).Set("S", new CosName("P"))
+                    .Set("A", CosArray.FromNumbers(.5, .5)).Set("FB", new CosBoolean(false)));
+            widget["BS"] = new CosDictionary().Set("Type", new CosName("Border")).Set("W", new CosInteger(1))
+                .Set("S", new CosName("D")).Set("D", CosArray.FromNumbers(3));
+            widget["Border"] = new CosArray([new CosInteger(0), new CosInteger(0), new CosInteger(1), CosArray.FromNumbers(3)]);
+            widget["Lock"] = new CosDictionary().Set("Type", new CosName("SigFieldLock")).Set("Action", new CosName("Include"))
+                .Set("Fields", new CosArray([CosString.FromText("Second")]));
+            widget["SV"] = new CosDictionary().Set("Type", new CosName("SV")).Set("Ff", new CosInteger(0))
+                .Set("Filter", new CosName("Adobe.PPKLite")).Set("SubFilter", new CosArray([new CosName("ETSI.CAdES.detached")]))
+                .Set("MDP", new CosDictionary().Set("P", new CosInteger(2)))
+                .Set("Cert", new CosDictionary().Set("Type", new CosName("SVCert")).Set("Subject", new CosArray([new CosString(signer.RawData)])))
+                .Set("TimeStamp", new CosDictionary().Set("URL", CosString.FromText("https://timestamp.example.invalid")).Set("Ff", new CosInteger(0)));
+            widget["F"] = new CosInteger(4);
+            widget["Q"] = new CosInteger(1);
+            widget["DA"] = CosString.FromText("/External 10 Tf 0 g");
+            widget["DR"] = new CosDictionary().Set("Font", new CosDictionary().Set("Original", originalFont));
+            widget["TU"] = CosString.FromText("Signature tooltip");
+            widget["TM"] = CosString.FromText("mapping");
+            widget["Ff"] = new CosInteger(0);
+            widget["StructParent"] = new CosInteger(1);
+            widget["NM"] = CosString.FromText("external signature widget");
+            widget["M"] = CosString.FromText("D:20261105000000Z");
+            var infoRef = (CosReference)doc.Trailer["Info"]!;
+            update.Replace(infoRef.Id, ((CosDictionary)doc.Resolve(infoRef)!).Clone()
+                .Set("ModDate", CosString.FromText("D:20261105000000Z")).Set("Producer", CosString.FromText("External co-signer")));
+            var metadata = (CosReference)doc.Catalog["Metadata"]!;
+            update.Replace(metadata.Id, new CosStream(new CosDictionary().Set("Type", new CosName("Metadata"))
+                .Set("Subtype", new CosName("XML")), "<x:xmpmeta>co-signed</x:xmpmeta>"u8.ToArray()));
+            doc.Trailer["ID"] = new CosArray([CosString.FromText(change == "first-id" ? "changed" : "first-id"), CosString.FromText("new-second-id")]);
+            if (change == "content") ChangeContent(doc, update);
+            if (change == "shared-icon")
+                ((CosDictionary)widget["MK"]!)["I"] = update.Add(new CosStream(new CosDictionary()
+                    .Set("Subtype", new CosName("Form")).Set("BBox", CosArray.FromNumbers(0, 0, 10, 10))
+                    .Set("Resources", new CosDictionary().Set("XObject", new CosDictionary().Set("Hidden", ChangeContent(doc, update)))), "q Q"u8.ToArray()));
+            if (change == "bad-MK") ((CosDictionary)widget["MK"]!)["CA"] = new CosDictionary();
+            if (change == "font-change") update.Replace(originalFont.Id, new CosDictionary().Set("Type", new CosName("Font"))
+                .Set("Subtype", new CosName("Type1")).Set("BaseFont", new CosName("Courier")));
+        }, editForm: (doc, update, form) =>
+        {
+            var dr = ((CosDictionary)doc.Resolve(form["DR"])!).Clone();
+            var fonts = ((CosDictionary)doc.Resolve(dr["Font"])!).Clone();
+            fonts["External"] = update.Add(new CosDictionary().Set("Type", new CosName("Font"))
+                .Set("Subtype", new CosName("Type1")).Set("BaseFont", new CosName("Courier")));
+            if (change == "font-remove") fonts["Original"] = null;
+            dr["Font"] = fonts;
+            form["DR"] = update.Add(dr);
+            if (change is "da-add" or "da-change") form["DA"] = CosString.FromText("/External 10 Tf 0 g");
+        });
+        var results = PdfSignatureVerifier.Verify(second, Trust(signer));
+        Assert.Equal(2, results.Count);
+        Assert.True(results[0].IsIntact);
+        var permitted = change is "allowed" or "da-add";
+        Assert.Equal(!permitted, results[0].ModifiedAfterSigning);
+        Assert.Equal(permitted ? PdfSignatureStatus.Valid : PdfSignatureStatus.Modified, results[0].Status);
+        Assert.Equal(PdfSignatureStatus.Valid, results[1].Status);
+    }
+
     private static byte[] PrepareField(byte[] bytes, bool signature, bool split)
     {
         var doc = CosDocument.Load(bytes);
@@ -415,7 +511,8 @@ public sealed class SignatureCoSigningTests
 
     // Test writer for malformed/prohibited signing updates. CMS is still generated by the app.
     private static async Task<byte[]> AppendSignature(byte[] input, X509Certificate2 signer,
-        Action<CosDocument, CosIncrementalUpdate, CosDictionary>? edit = null, string signatureType = "Sig", bool catalogReference = false)
+        Action<CosDocument, CosIncrementalUpdate, CosDictionary>? edit = null, string signatureType = "Sig", bool catalogReference = false,
+        Action<CosDocument, CosIncrementalUpdate, CosDictionary>? editForm = null)
     {
         var doc = CosDocument.Load(input);
         var update = new CosIncrementalUpdate(doc);
@@ -467,6 +564,7 @@ public sealed class SignatureCoSigningTests
             update.Replace(formRef.Id, form.Set("Fields", fields).Set("SigFlags", new CosInteger(3)));
         }
         edit?.Invoke(doc, update, widget);
+        editForm?.Invoke(doc, update, form);
         var (bytes, offsets) = update.Build();
         var begin = (int)offsets[contents];
         var end = begin + reserve * 2 + 2;
