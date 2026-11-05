@@ -20,38 +20,44 @@
             <Setter Property="Margin" Value="0,2,0,0" />
         </Style>
     </Window.Resources>
-    <StackPanel Margin="20">
-        <StackPanel Orientation="Horizontal">
-            <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" FontSize="22" Foreground="{StaticResource AccentBrush}" />
-            <TextBlock Text="Privacy and safety" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
-        </StackPanel>
-
-        <TextBlock Style="{StaticResource Heading}" Text="Your documents stay on this computer" />
-        <TextBlock Style="{StaticResource Body}" Text="YRK PDF works offline. Files are never uploaded: there is no cloud, no account and no sign-in." />
-        <TextBlock Style="{StaticResource Body}" Text="No AI services: your documents are never sent to an AI or cloud service. Text recognition (OCR) runs on this computer with the open-source Tesseract engine and its built-in recognition model." />
-        <TextBlock Style="{StaticResource Body}" Text="No tracking: no usage statistics, no advertising, no crash reports sent anywhere. Errors are written only to a log file on this computer." />
-
-        <TextBlock Style="{StaticResource Heading}" Text="The only times it uses the internet" />
-        <TextBlock Style="{StaticResource Body}" x:Name="UpdatesText" />
-        <CheckBox x:Name="AutoUpdateBox" Content="Check for updates automatically" Margin="16,6,0,4" FontWeight="SemiBold"
-                  Checked="OnAutoUpdateChanged" Unchecked="OnAutoUpdateChanged" AutomationProperties.Name="Automatic updates" />
-        <TextBlock Style="{StaticResource Body}" Text="2. Text recognition languages: when you choose a language that is not on this computer yet, its data file is downloaded once from the Tesseract project on GitHub." />
-        <TextBlock Style="{StaticResource Body}" Text="3. Digital signatures, only if you tick &quot;Add a trusted timestamp&quot; or &quot;Add long-term validation data&quot; when signing: a fingerprint (hash) of the signature is sent to the timestamp server, and the revocation lists named in the certificates are downloaded from their issuers. The document itself is not sent." />
-        <TextBlock Style="{StaticResource Body}" Text="4. Opening a digitally signed PDF whose certificate comes from a trusted authority: Windows asks that authority whether the certificate has been revoked. The document is not sent." />
-
-        <TextBlock Style="{StaticResource Heading}" Text="What is kept on this computer" />
-        <TextBlock Style="{StaticResource Body}" Text="Settings, the list of recent files (names and folders only), and saved signatures, which are encrypted with Windows so only your Windows account can read them. Digital IDs you create or import are kept as password-protected files in the app's folder." />
-
-        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-            <Button x:Name="ClearRecentButton" Content="Clear recent files" Style="{StaticResource SecondaryButton}" Click="OnClearRecent" />
-            <Button Content="Open the data folder" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnOpenFolder" />
-        </StackPanel>
-
-        <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,14,0,0"
-                   Text="Built only from open-source components with permissive licences (listed in About). Removing the app with Windows Settings ▸ Apps removes the program; the data folder can be deleted by hand." />
-
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Read the full privacy policy" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" Click="OnReadPrivacyPolicy" />
             <Button Content="Close" IsCancel="True" IsDefault="True" Style="{StaticResource PrimaryButton}" />
         </StackPanel>
-    </StackPanel>
+        <ScrollViewer MaxHeight="620" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" FontSize="22" Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock Text="Privacy and safety" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource Heading}" Text="Your documents stay on this computer" />
+                <TextBlock Style="{StaticResource Body}" Text="YRK PDF works offline. Files are never uploaded: there is no cloud, no account and no sign-in." />
+                <TextBlock Style="{StaticResource Body}" Text="No AI services: your documents are never sent to an AI or cloud service. Text recognition (OCR) runs entirely on this computer." />
+                <TextBlock Style="{StaticResource Body}" Text="No tracking: no usage statistics, no advertising, no crash reports sent anywhere. Errors are written only to a log file on this computer." />
+
+                <TextBlock Style="{StaticResource Heading}" Text="The only times it uses the internet" />
+                <TextBlock Style="{StaticResource Body}" x:Name="UpdatesText" />
+                <CheckBox x:Name="AutoUpdateBox" Content="Check for updates automatically" Margin="16,6,0,4" FontWeight="SemiBold"
+                          Checked="OnAutoUpdateChanged" Unchecked="OnAutoUpdateChanged" AutomationProperties.Name="Automatic updates" />
+                <TextBlock Style="{StaticResource Body}" Text="2. Text recognition (OCR): every language, including English, is downloaded once from the Tesseract project on GitHub after you confirm." />
+                <TextBlock Style="{StaticResource Body}" Text="3. Digital signatures, only if you tick &quot;Add a trusted timestamp&quot; or &quot;Add long-term validation data&quot; when signing: a fingerprint (hash) of the signature is sent to the timestamp server, and the revocation lists named in the certificates are downloaded from their issuers. The document itself is not sent." />
+                <TextBlock Style="{StaticResource Body}" Text="4. Opening a PDF signed with a certificate from an authority trusted by Windows: Windows may ask that authority whether the certificate has been revoked. The document is not sent." />
+
+                <TextBlock Style="{StaticResource Heading}" Text="What is kept on this computer" />
+                <TextBlock Style="{StaticResource Body}" Text="Settings, recent file names and folders, stamps, e-Tax seller data and OCR language files stay here. Saved signature images are encrypted with Windows for your account; Digital IDs are password-protected." />
+                <TextBlock Style="{StaticResource Body}" Text="Recovery copies of unsaved documents are deleted on save, cancel or normal close. Temporary files in the Windows Temp folder are deleted on close, or at the next start after an abnormal close." />
+                <TextBlock Style="{StaticResource Body}" Text="The local error log may contain file or folder names. It is never sent anywhere, is limited to 1 MB per day and is deleted after 14 days." />
+
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button x:Name="ClearRecentButton" Content="Clear recent files" Style="{StaticResource SecondaryButton}" Click="OnClearRecent" />
+                    <Button Content="Open the data folder" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnOpenFolder" />
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource Body}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,14,0,0"
+                           Text="Uninstalling the app does not delete its data folder. Open the data folder to delete files you no longer need." />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
 </Window>

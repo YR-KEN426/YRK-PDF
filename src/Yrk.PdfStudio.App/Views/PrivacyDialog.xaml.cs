@@ -44,6 +44,9 @@ public partial class PrivacyDialog : Window
         ClearRecentButton.IsEnabled = false;
     }
 
+    private void OnReadPrivacyPolicy(object sender, RoutedEventArgs e) =>
+        Feedback.TryOpen(this, Feedback.PrivacyPolicyUrl);
+
     private void OnOpenFolder(object sender, RoutedEventArgs e)
     {
         Directory.CreateDirectory(DataFolder);

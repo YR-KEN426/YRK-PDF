@@ -1478,6 +1478,7 @@ public partial class MainWindow : Window
             menu.Items.Add(LinkItem("Support the developer…", Services.Feedback.SupportUrl));
         }
 
+        menu.Items.Add(LinkItem("Privacy policy", Services.Feedback.PrivacyPolicyUrl));
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "About YRK PDF…", Command = _viewModel.ShowAboutCommand });
         menu.IsOpen = true;

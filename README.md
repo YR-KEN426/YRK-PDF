@@ -282,14 +282,15 @@ the private channel in [SECURITY.md](SECURITY.md).
 - **Automatic updates, by choice:** on first start the app asks whether it may check for updates; nothing
   goes out before the answer. When allowed, about 20 seconds after start it checks the update feed,
   downloads a newer version in the background (small delta packages, SHA-256 checked) and shows "Restart
-  to update"; nothing is installed until that is clicked. The switch is in Tools › Privacy and safety and
+  to update"; nothing is installed until that is clicked. The switch is in Settings (gear) → Privacy and safety and
   in About, which also checks on demand
 - **Open with:** installing registers YRK PDF for PDF files under "Open with" and in Settings ›
   Default apps, without taking over the current default viewer. Uninstalling removes all of it
 - **About** shows the version, update settings and the open-source licenses
-- **Privacy and safety** (Tools menu) says plainly what the app does with data: offline, no AI, no tracking,
-  the three cases where it uses the internet (update check, OCR language download, optional signature
-  timestamp), what it keeps on the computer; with Clear recent files and Open the data folder
+- **Privacy and safety** (Settings (gear) menu → Privacy and safety) says plainly what the app does with data:
+  offline, no AI, no tracking, when it uses the internet (updates, OCR language downloads, optional signature
+  timestamps and validation data, certificate revocation checks), and what it keeps on the computer;
+  with Clear recent files, Open the data folder and a link to the full privacy policy
 - **Recent files:** the start screen lists the last 12 files (click to open, in a new tab when one is
   open), and the arrow next to Open shows the same list. Files that are gone are taken off when clicked.
   Kept in `%LOCALAPPDATA%\YRK\EasyPdf\recent.json` (paths only); converted drawings' temporary PDFs are
