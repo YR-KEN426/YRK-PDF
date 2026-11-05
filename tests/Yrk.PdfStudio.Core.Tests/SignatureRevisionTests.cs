@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
@@ -109,6 +110,31 @@ public sealed class SignatureRevisionTests
         if (restore) file = Rotate(file, null);
         var result = PdfSignatureVerifier.GetRevisionBeforeSignature(file, Assert.Single(Verify(file, signer)));
         IsPrefix(file, original, result);
+        Assert.True(result.LosesLaterEdits);
+    }
+
+    [Fact]
+    public async Task Unreadable_later_changes_do_not_throw_during_revision_recovery()
+    {
+        using var signer = NewSigner();
+        var signed = await PdfSigner.SignAsync(Source, new(signer));
+        var info = Assert.Single(Verify(signed, signer));
+        var document = CosDocument.Load(signed);
+        var update = new CosIncrementalUpdate(document);
+        // Resolving this object overflows the parser's reference-generation lookahead.
+        var broken = update.Add(new CosPlaceholder("[0 2147483648 R]"));
+        update.Replace(((CosReference)document.Trailer["Root"]!).Id, document.Catalog.Clone()
+            .Set("DSS", new CosDictionary()).Set("Broken", broken));
+        var file = update.Build().Bytes;
+        var current = CosDocument.Load(file);
+        Assert.False(current.WasReconstructed);
+        var laterChanges = typeof(PdfSignatureVerifier).GetMethod("LaterChanges", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var error = Assert.Throws<TargetInvocationException>(() => laterChanges.Invoke(null, [current, document, null]));
+        Assert.IsType<OverflowException>(error.InnerException);
+
+        var result = PdfSignatureVerifier.GetRevisionBeforeSignature(file, info);
+        Assert.Null(result.Bytes);
+        Assert.Equal(PdfRevisionFailureReason.NoEarlierRevision, result.FailureReason);
         Assert.True(result.LosesLaterEdits);
     }
 
@@ -228,6 +254,7 @@ public sealed class SignatureRevisionTests
         Assert.Equal(PdfSignatureStatus.Valid, Assert.Single(Verify(result.Bytes!, signer, password)).Status);
         Assert.False(result.LosesLaterEdits);
         Assert.Throws<PdfPasswordRequiredException>(() => CosDocument.Load(result.Bytes!, "wrong"));
+        Assert.Throws<PdfPasswordRequiredException>(() => PdfSignatureVerifier.GetRevisionBeforeSignature(second, infos[1], "wrong"));
         result = PdfSignatureVerifier.GetRevisionBeforeSignature(second, infos[0], password);
         IsPrefix(second, original, result);
         Assert.False(CosDocument.Load(result.Bytes!, password).IsLocked);

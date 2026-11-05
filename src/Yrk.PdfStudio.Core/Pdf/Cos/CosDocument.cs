@@ -382,12 +382,12 @@ internal sealed partial class CosDocument
         for (var pair = 0; pair + 1 < index.Length; pair += 2)
         {
             var count = index[pair + 1];
-            if (count > (data.Length - position) / entryLength
-                || index[pair] > int.MaxValue || count > (long)int.MaxValue - index[pair] + 1)
+            if (index[pair] > int.MaxValue || count > (long)int.MaxValue - index[pair] + 1)
             {
                 throw new PdfException("Invalid cross-reference stream entry count.");
             }
 
+            count = Math.Min(count, (data.Length - position) / entryLength);
             for (long i = 0; i < count; i++)
             {
                 var type = widths[0] == 0 ? 1 : Field(widths[0]);

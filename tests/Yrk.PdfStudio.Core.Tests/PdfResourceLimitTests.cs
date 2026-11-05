@@ -244,6 +244,43 @@ public sealed class PdfResourceLimitTests
         Assert.True(GC.GetAllocatedBytesForCurrentThread() - allocated < 1024 * 1024);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Short_xref_stream_keeps_its_real_xref_without_reconstruction(bool useIndex)
+    {
+        var source = Pdf();
+        var original = CosDocument.Load(source);
+        using var output = new MemoryStream();
+        output.Write(source.AsSpan(0, (int)original.StartXref));
+        var writer = new CosWriter(output);
+        var xref = writer.Position;
+        var entries = new List<byte>();
+        for (var number = 0; number <= 5; number++)
+        {
+            var generation = number == 4 ? 7 : 0;
+            var offset = number == 0 ? 0 : number == 5 ? (int)xref
+                : source.AsSpan().IndexOf(Encoding.ASCII.GetBytes($"{number} {generation} obj\n"));
+            entries.Add(number == 0 ? (byte)0 : (byte)1);
+            entries.AddRange([(byte)(offset >> 24), (byte)(offset >> 16), (byte)(offset >> 8), (byte)offset]);
+            entries.AddRange(number == 0 ? new byte[] { 255, 255 } : new byte[] { 0, (byte)generation });
+        }
+        var header = new CosDictionary().Set("Type", new CosName("XRef"))
+            .Set("Root", original.Trailer["Root"]!).Set("W", CosArray.FromNumbers(1, 4, 2))
+            .Set("Size", new CosInteger(1000000000));
+        if (useIndex) header.Set("Index", CosArray.FromNumbers(0, 3, 3, 999999997));
+        writer.WriteIndirectObject(new CosObjectId(5, 0), new CosStream(header, entries.ToArray()));
+        writer.WriteRaw($"\nstartxref\n{xref}\n%%EOF\n");
+
+        var timer = Stopwatch.StartNew();
+        var document = CosDocument.Load(output.ToArray());
+        Assert.False(document.WasReconstructed);
+        Assert.True(document.UsesXrefStream);
+        Assert.Single(document.GetPages());
+        Assert.Equal(42, Assert.IsType<CosInteger>(document.GetObject(new CosObjectId(4, 7))).Value);
+        AssertFast(timer);
+    }
+
     private static CosStream LzwStream(byte[] data, int earlyChange) => new(
         new CosDictionary().Set("Filter", new CosName("LZWDecode"))
             .Set("DecodeParms", new CosDictionary().Set("EarlyChange", new CosInteger(earlyChange))), data);

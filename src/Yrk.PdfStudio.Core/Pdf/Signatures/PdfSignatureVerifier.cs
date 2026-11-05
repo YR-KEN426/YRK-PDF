@@ -26,7 +26,15 @@ public static class PdfSignatureVerifier
     /// <summary>Recovers the last readable revision before this signature, without rewriting any bytes.</summary>
     public static PdfRevisionBeforeSignatureResult GetRevisionBeforeSignature(byte[] file, PdfSignatureInfo info, string? password = null)
     {
-        var document = CosDocument.Load(file, password);
+        CosDocument document;
+        try
+        {
+            document = CosDocument.Load(file, password);
+        }
+        catch (Exception ex) when (ex is not PdfException and not OutOfMemoryException and not OperationCanceledException)
+        {
+            return new(null, PdfRevisionFailureReason.InvalidByteRange, [], false);
+        }
         try
         {
             var field = FindSignatureFields(document).FirstOrDefault(f => f.Name == info.FieldName).Field;
@@ -37,7 +45,7 @@ public static class PdfSignatureVerifier
                 return new(null, PdfRevisionFailureReason.InvalidByteRange, [], false);
             }
         }
-        catch (Exception ex) when (ex is PdfException or OverflowException or ArgumentOutOfRangeException)
+        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
         {
             return new(null, PdfRevisionFailureReason.InvalidByteRange, [], false);
         }
@@ -48,7 +56,7 @@ public static class PdfSignatureVerifier
         {
             signed = CosDocument.Load(GetSignedRevision(file, info), password);
         }
-        catch (Exception ex) when (ex is PdfException or OverflowException or ArgumentOutOfRangeException)
+        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
         {
             // A rewrite may retain a numeric ByteRange but destroy the signed revision's structure.
             return new(null, PdfRevisionFailureReason.NoEarlierRevision, [], true);
@@ -56,8 +64,27 @@ public static class PdfSignatureVerifier
         // Form values are edits too. Reuse the per-revision comparison so signing, DSS/LTV and
         // DocTimeStamp additions do not warn, but even an edit later restored still does.
         // Unreadable/unrecognized later changes are conservatively treated as lost edits.
-        var losesEdits = !file.AsSpan((int)info.SignedLength).Trim("\r\n\0 \t"u8).IsEmpty
-            && LaterChanges(document, signed, password).Kind != LaterChangeKind.SigningOnly;
+        bool losesEdits;
+        try
+        {
+            losesEdits = !file.AsSpan((int)info.SignedLength).Trim("\r\n\0 \t"u8).IsEmpty
+                && LaterChanges(document, signed, password).Kind != LaterChangeKind.SigningOnly;
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
+        {
+            losesEdits = true;
+        }
+
+        IReadOnlyList<PdfSignatureInfo> signatures;
+        try
+        {
+            // Verify once: failure to enumerate lost signatures makes recovery unsafe, not a bad candidate.
+            signatures = Verify(file, options, password: password);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException and not OperationCanceledException)
+        {
+            return new(null, PdfRevisionFailureReason.NoEarlierRevision, [], losesEdits);
+        }
         var searchEnd = (int)info.ContentsOffset;
         for (var attempt = 0; attempt < 64; attempt++)
         {
@@ -87,7 +114,6 @@ public static class PdfSignatureVerifier
                     continue;
                 }
 
-                var signatures = Verify(file, options, password: password);
                 var lost = signatures.Where(s => s.SignedLength > cut && !(s.FieldName == info.FieldName
                         && s.ContentsOffset == info.ContentsOffset && s.SignedLength == info.SignedLength))
                     .Append(info).OrderBy(s => s.SignedLength).ToArray();

@@ -26,6 +26,7 @@ public sealed partial class MainViewModel
     private bool _isCheckingSignatures;
     private int _signaturesGeneration;
     private Task _signatureLoadTask = Task.CompletedTask;
+    private Task _signatureFirstPassTask = Task.CompletedTask;
     private IAsyncRelayCommand? _digitalSignCommand;
     private IRelayCommand<SignatureInfoViewModel>? _showCertificateCommand;
     private IRelayCommand<SignatureInfoViewModel>? _viewSignedVersionCommand;
@@ -109,7 +110,7 @@ public sealed partial class MainViewModel
         IsBusy = true;
         try
         {
-            await _signatureLoadTask;
+            await _signatureFirstPassTask;
         }
         finally
         {
@@ -265,20 +266,30 @@ public sealed partial class MainViewModel
 
     private async Task LoadSignaturesAsync(IPdfDocument document)
     {
+        var firstPass = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _signatureFirstPassTask = firstPass.Task;
         var generation = ++_signaturesGeneration;
         var password = _password;
-        Signatures = [];
         IReadOnlyList<PdfSignatureInfo> results;
         try
         {
-            // A quick pass without network access; it already tells most users what they need.
-            results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: false), password: password);
-            if (generation != _signaturesGeneration || results.Count == 0)
+            try
             {
-                return;
-            }
+                Signatures = [];
+                // A quick pass without network access; it already tells most users what they need.
+                results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: false), password: password);
+                if (generation != _signaturesGeneration || results.Count == 0)
+                {
+                    return;
+                }
 
-            Signatures = results.Select(r => new SignatureInfoViewModel(r)).ToList();
+                Signatures = results.Select(r => new SignatureInfoViewModel(r)).ToList();
+            }
+            finally
+            {
+                // Signing waits only for the offline result, and can continue even if loading failed.
+                firstPass.TrySetResult();
+            }
 
             // Then ask the certificate authorities whether any certificate was revoked.
             if (results.Any(r => r.Identity == PdfSignerIdentity.Trusted))
@@ -308,6 +319,7 @@ public sealed partial class MainViewModel
     {
         _signaturesGeneration++;
         _signatureLoadTask = Task.CompletedTask;
+        _signatureFirstPassTask = Task.CompletedTask;
         _isCheckingSignatures = false;
         Signatures = [];
     }
