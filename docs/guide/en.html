@@ -167,6 +167,8 @@
   <p>A digital signature (PAdES) proves who signed and shows whether the document changed afterwards. Press <span class="path">Digital ID</span> and choose an ID on a USB token, add a .pfx file from your certificate authority, or create your own. Choose whether the signature shows on the page and whether to add a trusted timestamp (needs internet). Signatures in a file are listed in the sidebar's <span class="path">Signatures</span> tab.</p>
   <ul>
     <li><b>Signature type:</b> <span class="path">Approval</span> for an ordinary signature, or <span class="path">Certify as the author</span> to decide what may still happen afterwards (form filling and signing, comments as well, or no changes at all). Only the first signature of a document can certify it.</li>
+    <li><b>Before signing version:</b> in the sidebar&rsquo;s <span class="path">Signatures</span> tab, press <span class="path">Save version before signing…</span> to save a new file without changing the original. Before saving, the program explains which signatures and post-signing edits will be lost. This is unavailable for files rewritten in full during or after signing; copies already sent to others still have their signatures.</li>
+    <li><b>Signing an already signed file:</b> the program warns before appending another signature. Existing signatures remain, and if there are unsaved changes, the earlier signature will show as changed after signing. Already signed files can only receive approval signatures; certification is not offered.</li>
     <li><b>Long-term validation data:</b> stores your certificates and their revocation lists in the file (PAdES B-LT), so the signature can be checked years later, even after the certificate expires. Best together with a trusted timestamp.</li>
   </ul>
   <p><b>What the statuses mean:</b></p>
@@ -316,7 +318,7 @@
   <div class="tip"><b>Leaving your desk:</b> asking again stops changes, not reading. Press <kbd>Win</kbd>+<kbd>L</kbd> to lock the computer.</div>
   <h3>Privacy</h3>
   <p>Everything happens on your computer: no file uploads, no usage statistics, and no AI. The program uses the internet only for the update check, downloading OCR languages, and optional digital-signature timestamps, validation data, and certificate revocation checks. It never sends document contents. The update check can be turned off in <span class="path">Settings → Privacy and safety…</span></p>
-  <p>Read the full privacy policy on the <a href="https://yr-ken426.github.io/yrk-easy-pdf-release/en/#privacy">YRK PDF website</a>.</p>
+  <p>Read the full privacy policy in the program at <span class="path">Help → Privacy policy</span> (no internet needed), and on the <a href="https://yr-ken426.github.io/yrk-easy-pdf-release/en/#privacy">YRK PDF website</a>.</p>
 </section>
 
 <section id="save">
@@ -328,6 +330,7 @@
     <li><b>Print</b> <kbd>Ctrl</kbd>+<kbd>P</kbd>. <span class="path">Pages per sheet</span> fits 2, 4, 6 or 9 pages on one side of paper; <span class="path">Booklet</span> orders the pages so that, printed on both sides (flipped on the short edge) and folded in half, they read as a book.</li>
     <li>A dot • before the file name means there are unsaved changes. Closing always asks first.</li>
     <li>If the program closes before you save (a power cut, say), the next start offers your changes back as "name (recovered).pdf" next to the original: a copy is kept every minute while there are unsaved changes.</li>
+    <li>When you save a signed file, the suggested file name does not repeat " (signed)" if the name already ends with it.</li>
   </ul>
   <figure><img src="img/en/print-2up.jpg" alt=""><figcaption>Two pages per sheet, with a preview before printing</figcaption></figure>
   <h3>Updates</h3>
@@ -379,6 +382,8 @@
     <li><span class="path">Help → Common questions (website)</span></li>
     <li>Website: yr-ken426.github.io/yrk-easy-pdf-release</li>
   </ul>
+  <h3>Support the developer</h3>
+  <p><span class="path">Help → Support the developer…</span> opens an in-program window with the PromptPay QR code. Opening it needs no internet. For supporters outside Thailand, the GitHub Sponsors button opens a web browser only when pressed. The program is fully usable for free without supporting it.</p>
   <p style="margin-top:24px;color:var(--muted)">YRK PDF is made by YRK LAB — Your Reliable Kit · Free software under the Apache-2.0 license</p>
 </section>
 
