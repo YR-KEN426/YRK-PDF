@@ -18,3 +18,6 @@ TestResults/
 # Personal documents and Office lock files
 *.docx
 ~$*
+
+# Downloaded source data (see plan.md, step 1)
+third-party-data/

@@ -102,10 +102,20 @@ Ken ต้องการให้หน้าต่าง e-Tax เติมร
 **นอกแผนนี้:** ที่อยู่ต่างประเทศแบบมี `CountryID` อื่น, อัปเดตข้อมูลรหัสอัตโนมัติผ่านเน็ต (ไม่ทำ เพราะต้องออฟไลน์), บั๊ก 1.1.6 สองเรื่องที่แก้แล้วใน `fb0b7c8`
 
 ## บันทึกขั้นที่ 1
-(ยังไม่ได้ทำ)
+ทำเมื่อ 2026-11-05 (Ken อนุญาตให้ดาวน์โหลด)
+- ต้นทาง: `thailand-geography-data/thailand-geography-json` commit `021d18e9a481bc141ea87de4ddeebe843cff2f12` (release 1.3.0, 2026-10-28)
+  - `https://raw.githubusercontent.com/thailand-geography-data/thailand-geography-json/021d18e9a481bc141ea87de4ddeebe843cff2f12/src/subdistricts.json`
+  - `https://raw.githubusercontent.com/thailand-geography-data/thailand-geography-json/021d18e9a481bc141ea87de4ddeebe843cff2f12/LICENSE`
+- ไฟล์ในเครื่อง `third-party-data/thailand-geography-json/` (ไม่ commit ใส่ `.gitignore` ไว้ เพราะใหญ่ 3 MB และดาวน์โหลดซ้ำจาก URL ตรึงได้)
+  - `subdistricts.json` 3,053,256 byte, SHA-256 `280886da9c551e2222edcfa734fbb15f9613ed1346033b7b282a3fca18399e9b`
+  - `LICENSE` 1,075 byte, SHA-256 `ee6c55a83db42303b8131d3b16cc492f9df191883dd91cb345aa583e4b0b0bc1` เป็น MIT, "Copyright (c) 2023-Present Joe Takara"
+- โครงสร้าง: JSON array 7,436 รายการ `subdistrictCode` และ `postalCode` เป็น **ตัวเลข** (สคริปต์ต้องแปลงเป็นข้อความ 6 และ 5 หลัก) `postalCodes[]` มี `postalCode`, `isPrimary`, `detailTh`, `detailEn` (ตำบลรหัสเดียวมี `detailTh` = "ทั้งตำบล")
+- ตำบลที่มีหลายรหัส: 86 ตำบล เช่น `100508` ท่าแร้ง: 10220 (หลัก) และ 10230 ("ม.8 - 10")
+- ตรงกับ `thai-areas.txt`: 7,423 จาก 7,425 ตำบล ขาด `104701`, `105001` ส่วนรหัสในข้อมูลที่ไม่มีในรายการของเรา 13 รหัส (ข้ามไป)
+- ขั้นที่ 2: สคริปต์ต้องตรวจ SHA-256 ของไฟล์ต้นทางก่อนแปลง และเก็บทั้ง `detailTh` กับ `detailEn` (หน้าต่างภาษาอังกฤษใช้ `detailEn`) จึงใช้รูปแบบ `รหัสตำบล<TAB>รหัสไปรษณีย์<TAB>detailTh<TAB>detailEn` แทนที่เขียนไว้ในขั้นที่ 2 เทสต์ความครอบคลุมใช้เกณฑ์ ≥ 7,420 ตำบล
 
 ## สถานะ
-- [ ] ขั้นที่ 1: ดึงข้อมูลและตรวจสัญญา
+- [x] ขั้นที่ 1: ดึงข้อมูลและตรวจสัญญา
 - [ ] ขั้นที่ 2: ไฟล์รหัสไปรษณีย์ในโปรแกรม
 - [ ] ขั้นที่ 3: ตรรกะเติมและกรอง
 - [ ] ขั้นที่ 4: ช่องที่อยู่ใช้ร่วมกัน และผู้ขาย
