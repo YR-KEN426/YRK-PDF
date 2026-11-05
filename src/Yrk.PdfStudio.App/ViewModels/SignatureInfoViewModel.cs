@@ -17,19 +17,22 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
 
     public string Glyph => Info.Status switch
     {
-        PdfSignatureStatus.Valid when !Info.ModifiedAfterSigning => "", // Check mark
+        PdfSignatureStatus.Valid when !Info.ModifiedAfterSigning && !Info.FormFilledAfterSigning => "", // Check mark
         PdfSignatureStatus.Invalid => "",        // Cancel
         _ => "",                                 // Warning
     };
 
     public Brush StatusBrush => Info.Status switch
     {
-        PdfSignatureStatus.Valid when !Info.ModifiedAfterSigning => ValidBrush,
+        PdfSignatureStatus.Valid when !Info.ModifiedAfterSigning && !Info.FormFilledAfterSigning => ValidBrush,
         PdfSignatureStatus.Invalid => InvalidBrush,
         _ => WarningBrush,
     };
 
-    public string StatusText => Loc.T(Info.Status switch
+    private string FormFilledText => Loc.F("Signed and unchanged, but form fields were filled in after signing: {0}", string.Join(", ", Info.FilledFieldNames));
+
+    public string StatusText => Info.FormFilledAfterSigning && !Info.ModifiedAfterSigning
+        && Info.Status is PdfSignatureStatus.Valid or PdfSignatureStatus.IdentityUnknown ? FormFilledText : Loc.T(Info.Status switch
     {
         _ when Info.ModifiedAfterSigning && Info.Status != PdfSignatureStatus.Invalid => "Signed, but the document was changed after signing",
         PdfSignatureStatus.Valid => "Signature is valid.",
@@ -72,7 +75,7 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
 
             if (Info.IsIntact)
             {
-                lines.Add(Loc.T(Info.ModifiedAfterSigning
+                lines.Add(Info.FormFilledAfterSigning ? Loc.F("Form fields filled in after signing: {0}", string.Join(", ", Info.FilledFieldNames)) : Loc.T(Info.ModifiedAfterSigning
                     ? "The document was changed after this signature (for example filled in or commented). Use \"View signed version\" to see what was signed."
                     : !Info.CoversWholeDocument ? "Only signatures or validation data were added after this signature."
                     : "The document hasn't been changed since it was signed."));

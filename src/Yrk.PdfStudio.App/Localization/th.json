@@ -1,4 +1,7 @@
 {
+  "Signed and unchanged, but form fields were filled in after signing: {0}": "ลายเซ็นถูกต้อง แต่มีการกรอกฟอร์มหลังเซ็น: {0}",
+  "Signed, but form fields were filled in after signing": "เซ็นแล้ว แต่มีการกรอกฟอร์มหลังเซ็น",
+  "Form fields filled in after signing: {0}": "ฟิลด์ที่กรอกหลังเซ็น: {0}",
   // Thai UI texts. Key = the English text exactly as written in XAML or code; value = Thai.
   // Missing keys show English. Check with: powershell -File build\check-translations.ps1
 

@@ -16,7 +16,7 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class SignatureCoSigningTests
 {
-    private static byte[] Source => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf"));
+    private static byte[] Source => SignatureFormFillTests.BlankDocument();
 
     private static X509Certificate2 NewSigner()
     {
@@ -151,8 +151,9 @@ public sealed class SignatureCoSigningTests
         var results = PdfSignatureVerifier.Verify(second, Trust(signer));
         Assert.Equal(2, results.Count);
         Assert.True(results[0].IsIntact);
-        Assert.True(results[0].ModifiedAfterSigning);
-        Assert.Equal(PdfSignatureStatus.Modified, results[0].Status);
+        Assert.Equal(change != "field-value", results[0].ModifiedAfterSigning);
+        Assert.Equal(change == "field-value", results[0].FormFilledAfterSigning);
+        Assert.Equal(change == "field-value" ? PdfSignatureStatus.Valid : PdfSignatureStatus.Modified, results[0].Status);
         Assert.Equal(PdfSignatureStatus.Valid, results[1].Status);
     }
 
@@ -165,7 +166,7 @@ public sealed class SignatureCoSigningTests
         var second = await AppendSignature(first, signer);
         var results = PdfSignatureVerifier.Verify(second, Trust(signer));
         Assert.Equal(PdfSignatureStatus.Invalid, results[0].Status);
-        Assert.True(results[0].ModifiedAfterSigning);
+        Assert.False(results[0].ModifiedAfterSigning);
         Assert.Contains("allows no changes", results[0].Problem);
         Assert.Equal(PdfSignatureStatus.Valid, results[1].Status);
         var banner = Banner(results.ToArray());

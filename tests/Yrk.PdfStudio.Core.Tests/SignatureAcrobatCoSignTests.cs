@@ -82,8 +82,9 @@ public sealed class SignatureAcrobatCoSignTests
         var results = PdfSignatureVerifier.Verify(second, Offline);
         Assert.Equal(2, results.Count);
         Assert.True(results[0].IsIntact);
-        Assert.True(results[0].ModifiedAfterSigning);
-        Assert.Equal(PdfSignatureStatus.Modified, results[0].Status);
+        Assert.Equal(change != "field-value", results[0].ModifiedAfterSigning);
+        Assert.Equal(change == "field-value", results[0].FormFilledAfterSigning);
+        Assert.Equal(change == "field-value" ? PdfSignatureStatus.IdentityUnknown : PdfSignatureStatus.Modified, results[0].Status);
         Assert.False(results[1].ModifiedAfterSigning);
         Assert.Equal(PdfSignatureStatus.IdentityUnknown, results[1].Status);
     }

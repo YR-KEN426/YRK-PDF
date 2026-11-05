@@ -96,8 +96,14 @@ public sealed record PdfSignatureInfo(
     long SignedLength,
     string? Problem)
 {
-    /// <summary>Later revisions changed more than signatures and bounded validation data.</summary>
+    /// <summary>Later revisions changed more than signing data, validation data and form values.</summary>
     public bool ModifiedAfterSigning { get; init; }
+
+    /// <summary>Later revisions contain only permitted form filling and signing/validation updates.</summary>
+    public bool FormFilledAfterSigning { get; init; }
+
+    /// <summary>Distinct qualified names of the pre-existing fields filled in later revisions.</summary>
+    public IReadOnlyList<string> FilledFieldNames { get; init; } = [];
 
     /// <summary>DocMDP permission from the signed revision, never from a later update.</summary>
     public PdfCertification Certification { get; init; }
