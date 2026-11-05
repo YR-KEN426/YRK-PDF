@@ -1353,5 +1353,10 @@
   "Adding password protection rewrites the document and removes its digital signatures. The result is saved as a new file. Continue?": "การตั้งรหัสผ่านจะเขียนเอกสารใหม่และลบลายเซ็นดิจิทัล ผลลัพธ์จะบันทึกเป็นไฟล์ใหม่ ต้องการดำเนินการต่อหรือไม่?",
   "The signed revision could not be read.": "ไม่สามารถอ่านฉบับที่ถูกเซ็นได้",
   "The signature is missing from the signed revision.": "ไม่พบลายเซ็นนี้ในฉบับที่ถูกเซ็น",
-  "This timestamp server uses http, not https. The timestamp is still signed by the server and checked when the file is verified, but the request is not encrypted.": "เซิร์ฟเวอร์เวลาประทับนี้ใช้ http ไม่ใช่ https เวลาประทับยังมีลายเซ็นของเซิร์ฟเวอร์และถูกตรวจตอนตรวจไฟล์ แต่คำขอไม่ได้ถูกเข้ารหัส"
+  "This timestamp server uses http, not https. The timestamp is still signed by the server and checked when the file is verified, but the request is not encrypted.": "เซิร์ฟเวอร์เวลาประทับนี้ใช้ http ไม่ใช่ https เวลาประทับยังมีลายเซ็นของเซิร์ฟเวอร์และถูกตรวจตอนตรวจไฟล์ แต่คำขอไม่ได้ถูกเข้ารหัส",
+  "Support the developer": "สนับสนุนผู้พัฒนา",
+  "Thank you for using YRK PDF. The program is free, with no ads and no tracking. Your support helps development continue.": "ขอบคุณที่ใช้ YRK PDF โปรแกรมนี้ใช้งานได้ฟรี ไม่มีโฆษณา และไม่ติดตามผู้ใช้ การสนับสนุนของคุณช่วยให้พัฒนาโปรแกรมต่อไปได้",
+  "PromptPay QR code (Paotang Pay) for supporting the developer": "QR พร้อมเพย์ (เป๋าตังเปย์) สำหรับสนับสนุนผู้พัฒนา",
+  "GitHub Sponsors": "GitHub Sponsors",
+  "For supporters outside Thailand. This opens GitHub in your web browser.": "สำหรับผู้สนับสนุนนอกประเทศไทย ปุ่มนี้จะเปิดเว็บไซต์ GitHub ในเว็บเบราว์เซอร์ของคุณ"
 }

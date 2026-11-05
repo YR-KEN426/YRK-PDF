@@ -1473,10 +1473,9 @@ public partial class MainWindow : Window
         menu.Items.Add(shortcuts);
         menu.Items.Add(LinkItem("Common questions (website)", Services.Feedback.WebsiteUrl + "#faq"));
         menu.Items.Add(new MenuItem { Header = "Suggestions and problems…", Command = _viewModel.ShowFeedbackCommand });
-        if (Services.Feedback.SupportUrl.Length > 0)
-        {
-            menu.Items.Add(LinkItem("Support the developer…", Services.Feedback.SupportUrl));
-        }
+        var support = new MenuItem { Header = Loc.T("Support the developer…") };
+        support.Click += (_, _) => new Views.SupportDialog { Owner = this }.ShowDialog();
+        menu.Items.Add(support);
 
         menu.Items.Add(LinkItem("Privacy policy", Services.Feedback.PrivacyPolicyUrl));
         menu.Items.Add(new Separator());

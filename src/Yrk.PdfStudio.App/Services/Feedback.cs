@@ -38,10 +38,8 @@ public static class Feedback
     /// <summary>The full privacy policy in the current UI language.</summary>
     public static string PrivacyPolicyUrl => Loc.IsThai ? ThaiPrivacyPolicyUrl : EnglishPrivacyPolicyUrl;
 
-    /// <summary>
-    /// The website's "support the developer" answer (GitHub Sponsors). An empty link hides the menu item.
-    /// </summary>
-    public const string SupportUrl = WebsiteUrl + "#support";
+    /// <summary>GitHub Sponsors for supporters outside Thailand.</summary>
+    public const string GitHubSponsorsUrl = "https://github.com/sponsors/YR-KEN426";
 
     public static void Open(string target) =>
         Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });

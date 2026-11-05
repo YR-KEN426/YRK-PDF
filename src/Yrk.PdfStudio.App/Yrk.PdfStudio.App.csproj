@@ -44,6 +44,7 @@
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\yrk-lab-slogan.png" />
+    <Resource Include="Assets\promptpay.jpg" />
     <!-- Sarabun (SIL OFL), embedded whole in forms with Thai fields for viewers that redraw them (Imaging\FormFonts). -->
     <None Include="Assets\Fonts\Sarabun-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
     <!-- Light and Bold too: full fonts that name the Thai marks Word stores only in shifted forms (Core ToUnicodeRepair),
