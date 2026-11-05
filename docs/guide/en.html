@@ -169,6 +169,14 @@
     <li><b>Signature type:</b> <span class="path">Approval</span> for an ordinary signature, or <span class="path">Certify as the author</span> to decide what may still happen afterwards (form filling and signing, comments as well, or no changes at all). Only the first signature of a document can certify it.</li>
     <li><b>Long-term validation data:</b> stores your certificates and their revocation lists in the file (PAdES B-LT), so the signature can be checked years later, even after the certificate expires. Best together with a trusted timestamp.</li>
   </ul>
+  <p><b>What the statuses mean:</b></p>
+  <ul>
+    <li><span class="path">Signed, but the document was changed after signing</span> means the content changed after that signature. <span class="path">View signed version</span> shows the version that was signed.</li>
+    <li>Adding more signatures one after another is normal and still shows valid.</li>
+    <li>Files co-signed in other programs may show &ldquo;changed after signing&rdquo; when that program changed other parts of the file while signing.</li>
+    <li>Timestamps are trusted only when the timestamp authority is trusted by Windows.</li>
+    <li>LTV files can be checked offline.</li>
+  </ul>
   <p><b>Backing up or deleting an ID:</b> select an ID file in the digital signature window, enter its password, and press <span class="path">Back up this ID…</span> or <span class="path">Delete this ID…</span>. Documents already signed stay valid, but a deleted ID can sign nothing more; its file goes to the Recycle Bin. Certificates in Windows and USB tokens are managed with Windows or their issuer's tools.</p>
 </section>
 
@@ -274,12 +282,22 @@
     <li><span class="path">File → Protect with password…</span> locks the whole file, or only printing and copying.</li>
     <li><span class="path">File → Remove password protection…</span> saves a copy without the password (you need the password to open it).</li>
   </ul>
+  <p>Protecting an already signed file removes its signatures, and the app warns before doing it.</p>
   <h3>Redact (black out for good)</h3>
   <ol>
     <li>On the <span class="path">Redact</span> tab, drag over what must go, or press <span class="path">Mark search results</span> to mark every place with the word in the search box.</li>
     <li>Check the marks, then press <span class="path">Apply redactions</span>.</li>
     <li>The text, pictures and lines under the marks are removed, not just covered, and the result is saved as a new file.</li>
   </ol>
+  <p><b>Redaction also removes from the whole file:</b></p>
+  <ul>
+    <li>Page thumbnails; document information and metadata (XMP); bookmarks; attachments; structure tags; XFA</li>
+    <li>Actions that run programs or send data (JavaScript, launching programs, submitting forms)</li>
+  </ul>
+  <ul>
+    <li>Pages where graphics cross a marked area are converted to an image, so their text can no longer be selected.</li>
+    <li>Annotations and links outside the marked areas are kept.</li>
+  </ul>
   <h3>Editing, signing and redacting files with a password</h3>
   <ul>
     <li>In password-protected files you can edit and add text, sign digitally and redact. The result keeps the same passwords and restrictions.</li>
@@ -304,7 +322,7 @@
   </ul>
   <figure><img src="img/en/print-2up.jpg" alt=""><figcaption>Two pages per sheet, with a preview before printing</figcaption></figure>
   <h3>Updates</h3>
-  <p>If update checks are allowed, a new version is downloaded for you and a button offers to restart into it. Every version is signed by the developer; a file whose signature does not check out is never installed. Check now in <span class="path">Settings → Updates…</span></p>
+  <p>If update checks are allowed, a new version is downloaded for you and a button offers to restart into it. Every version is signed by the developer; a file whose signature does not check out is never installed. Updates are downloaded as full files, so they may be a bit larger. Check now in <span class="path">Settings → Updates…</span></p>
 </section>
 
 <section id="keys">
