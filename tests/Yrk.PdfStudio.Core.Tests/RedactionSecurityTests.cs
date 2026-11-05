@@ -4,6 +4,7 @@ using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Cos;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Redaction;
+using Yrk.PdfStudio.Core.Pdf.Text;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
@@ -113,7 +114,7 @@ public sealed class RedactionSecurityTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Inherited_image_is_removed_unless_an_unmarked_page_paints_it(bool shared)
+    public async Task Inherited_image_is_removed_from_redacted_page_but_unmarked_resources_are_preserved(bool shared)
     {
         var pixels = Encoding.ASCII.GetBytes("PRIVATE-IMAGE-12345"); // 3 x 2 RGB
         var fixture = new Fixture("q 120 0 0 100 0 0 cm /Im Do Q", shared ? "q 120 0 0 100 0 0 cm /Im Do Q" : "q Q");
@@ -123,8 +124,12 @@ public sealed class RedactionSecurityTests : IDisposable
         var result = await Redact(input);
         Assert.Equal([0], result.ImagePages);
         var decoded = DecodedObjects(result.Output);
-        Assert.Equal(shared, decoded.Contains(Encoding.ASCII.GetString(pixels), StringComparison.Ordinal));
+        // Untouched page resources are retained even if this simple page does not execute Do.
+        Assert.Contains(Encoding.ASCII.GetString(pixels), decoded, StringComparison.Ordinal);
         var output = CosDocument.Load(result.Output);
+        var redactedResources = (CosDictionary)output.Resolve(output.GetPages()[0].Resources)!;
+        var redactedXobjects = (CosDictionary)output.Resolve(redactedResources["XObject"])!;
+        Assert.Null(redactedXobjects["Im"]);
         AssertNoInheritedAttributes(output);
         await AssertBlack(result.Output);
         await using var before = await Open(input);
@@ -459,6 +464,147 @@ public sealed class RedactionSecurityTests : IDisposable
         Assert.Single(((CosArray)output.Resolve(output.GetPages()[1].Dictionary["Annots"])!).Items);
         var form = (CosDictionary)output.Resolve(output.Catalog["AcroForm"])!;
         Assert.Single(((CosArray)output.Resolve(form["Fields"])!).Items);
+    }
+
+    [Fact]
+    public async Task Removed_annotations_detach_replies_and_separately_listed_popups()
+    {
+        var fixture = new Fixture("q Q", "q Q");
+        CosDictionary Comment(string text, bool inside = false) => new CosDictionary()
+            .Set("Type", new CosName("Annot")).Set("Subtype", new CosName("Text"))
+            .Set("Rect", inside ? CosArray.FromNumbers(50, 45, 65, 55) : CosArray.FromNumbers(5, 5, 20, 15))
+            .Set("Contents", CosString.FromText(text));
+        var removedDictionary = Comment(Secret, true).Set("RC", CosString.FromText(Secret))
+            .Set("AP", new CosDictionary().Set("N", fixture.Document.Add(CosPageEdit.Stream(Encoding.ASCII.GetBytes(Secret)))));
+        var removed = fixture.Document.Add(removedDictionary);
+        var popup = fixture.Document.Add(Comment(Secret).Set("Subtype", new CosName("Popup"))
+            .Set("Parent", removed).Set("Popup", removed));
+        removedDictionary["Popup"] = popup;
+        var reply = fixture.Document.Add(Comment("surviving reply").Set("IRT", removed).Set("Popup", popup));
+        var unrelated = fixture.Document.Add(Comment("unrelated comment"));
+        var unrelatedReply = fixture.Document.Add(Comment("unrelated reply").Set("IRT", unrelated));
+        fixture.Pages[0]["Annots"] = new CosArray([removed, popup, unrelated]);
+        fixture.Pages[1]["Annots"] = new CosArray([reply, unrelatedReply]);
+        // A nonstandard alias must not retain the removed annotation's payload either.
+        fixture.Catalog["AnnotationAlias"] = removed;
+        var result = await Redact(fixture.Build());
+        Assert.DoesNotContain(Secret, DecodedObjects(result.Output), StringComparison.Ordinal);
+        Assert.DoesNotContain(Secret, Encoding.Latin1.GetString(result.Output), StringComparison.Ordinal);
+        var output = CosDocument.Load(result.Output);
+        Assert.Single(((CosArray)output.Resolve(output.GetPages()[0].Dictionary["Annots"])!).Items);
+        var replies = ((CosArray)output.Resolve(output.GetPages()[1].Dictionary["Annots"])!).Items
+            .Select(v => (CosDictionary)output.Resolve(v)!).ToList();
+        var kept = Assert.Single(replies, d => ((CosString)d["Contents"]!).ToText() == "surviving reply");
+        Assert.Null(kept["IRT"]);
+        Assert.Null(kept["Popup"]);
+        Assert.NotNull(Assert.Single(replies, d => ((CosString)d["Contents"]!).ToText() == "unrelated reply")["IRT"]);
+        Assert.Empty(((CosDictionary)output.Resolve(output.Catalog["AnnotationAlias"])!).Entries);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Nested_named_properties_are_cleaned_in_isolated_form_resources(bool shared, bool inherited)
+    {
+        var fixture = shared ? new Fixture("/Outer Do", "/Outer Do") : new Fixture("/Outer Do");
+        var properties = fixture.Document.Add(new CosDictionary()
+            .Set("Secret", fixture.Document.Add(new CosDictionary().Set("Alt", CosString.FromText(Secret))
+                .Set("ActualText", CosString.FromText(Secret)).Set("E", CosString.FromText(Secret))))
+            .Set("Keep", new CosDictionary().Set("ActualText", CosString.FromText("unrelated replacement"))));
+        CosDictionary Header(CosDictionary resources) => new CosDictionary().Set("Type", new CosName("XObject"))
+            .Set("Subtype", new CosName("Form")).Set("BBox", CosArray.FromNumbers(0, 0, 120, 100)).Set("Resources", resources);
+        var innerHeader = Header(new CosDictionary().Set("Properties", properties));
+        if (inherited) innerHeader["Resources"] = null;
+        var inner = fixture.Document.Add(CosPageEdit.Stream(Encoding.ASCII.GetBytes(
+            "/Span /Secret BDC 50 45 10 10 re f EMC /Span /Keep BDC 5 5 10 10 re f EMC"),
+            innerHeader));
+        var outer = fixture.Document.Add(CosPageEdit.Stream("/Inner Do"u8.ToArray(),
+            Header(new CosDictionary().Set("XObject", new CosDictionary().Set("Inner", inner))
+                .Set("Properties", inherited ? properties : new CosDictionary()))));
+        fixture.Resources["XObject"] = new CosDictionary().Set("Outer", outer);
+        var input = fixture.Build();
+        var result = await Redact(input);
+        Assert.Empty(result.ImagePages);
+        var output = CosDocument.Load(result.Output);
+        CosDictionary InnerProperties(int page)
+        {
+            var res = (CosDictionary)output.Resolve(output.GetPages()[page].Resources)!;
+            foreach (var name in new[] { "Outer", "Inner" })
+            {
+                var xs = (CosDictionary)output.Resolve(res["XObject"])!;
+                res = output.Resolve(((CosStream)output.Resolve(xs[name])!).Dictionary["Resources"]) as CosDictionary ?? res;
+            }
+            return (CosDictionary)output.Resolve(res["Properties"])!;
+        }
+        var cleaned = InnerProperties(0);
+        var secret = (CosDictionary)output.Resolve(cleaned["Secret"])!;
+        foreach (var key in new[] { "ActualText", "Alt", "E" }) Assert.Null(secret[key]);
+        Assert.Equal("unrelated replacement", ((CosString)((CosDictionary)output.Resolve(cleaned["Keep"])!)["ActualText"]!).ToText());
+        if (shared)
+        {
+            Assert.Equal(Secret, ((CosString)((CosDictionary)output.Resolve(InnerProperties(1)["Secret"])!)["Alt"]!).ToText());
+            await using var before = await Open(input);
+            await using var after = await Open(result.Output);
+            Assert.Equal((await before.RenderPageAsync(1, 240, 200)).Pixels, (await after.RenderPageAsync(1, 240, 200)).Pixels);
+        }
+        else Assert.DoesNotContain(Secret, DecodedObjects(result.Output), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Ordinary_text_edit_keeps_named_and_inline_replacement_text()
+    {
+        var fixture = new Fixture("/Span /Keep BDC BT /F1 10 Tf 5 10 Td (hello) Tj ET EMC "
+            + "/Span << /ActualText (inline replacement) >> BDC BT /F1 10 Tf 50 50 Td (edit) Tj ET EMC");
+        fixture.Resources["Font"] = new CosDictionary().Set("F1", fixture.Document.Add(new CosDictionary()
+            .Set("Type", new CosName("Font")).Set("Subtype", new CosName("Type1")).Set("BaseFont", new CosName("Helvetica"))
+            .Set("FirstChar", new CosInteger(32)).Set("LastChar", new CosInteger(126))
+            .Set("Widths", new CosArray(Enumerable.Range(32, 95).Select(_ => new CosInteger(600))))));
+        fixture.Resources["Properties"] = new CosDictionary().Set("Keep", new CosDictionary()
+            .Set("ActualText", CosString.FromText("unrelated actual text")).Set("Alt", CosString.FromText("unrelated alt"))
+            .Set("E", CosString.FromText("unrelated expansion")));
+        var output = CosDocument.Load(PdfTextEditor.Apply(fixture.Build(), [new PdfTextEdit(0, Area, null)]));
+        var resources = (CosDictionary)output.Resolve(output.GetPages()[0].Resources)!;
+        var property = (CosDictionary)((CosDictionary)output.Resolve(resources["Properties"])!)["Keep"]!;
+        Assert.Equal("unrelated actual text", ((CosString)property["ActualText"]!).ToText());
+        Assert.Equal("unrelated alt", ((CosString)property["Alt"]!).ToText());
+        Assert.Equal("unrelated expansion", ((CosString)property["E"]!).ToText());
+        Assert.Contains("inline replacement", Encoding.Latin1.GetString(new CosPageEdit(output, output.GetPages()[0]).ReadContent()));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Type3_glyph_using_page_image_resources_keeps_its_render(bool rasterOtherPage, bool glyphOnMarkedPage)
+    {
+        var fixture = new Fixture(glyphOnMarkedPage ? "BT /Glyph 10 Tf 5 5 Td (A) Tj ET" : rasterOtherPage ? "q 120 0 0 100 0 0 cm /Im Do Q" : "q Q",
+            "BT /Glyph 30 Tf 5 5 Td (A) Tj ET");
+        fixture.Resources["XObject"] = new CosDictionary().Set("Im", fixture.AddImage(Encoding.ASCII.GetBytes("PRIVATE-IMAGE-12345")));
+        var glyph = fixture.Document.Add(CosPageEdit.Stream("1000 0 d0 q 1000 0 0 1000 0 0 cm /Im Do Q"u8.ToArray()));
+        fixture.Resources["Font"] = new CosDictionary().Set("Glyph", fixture.Document.Add(new CosDictionary()
+            .Set("Type", new CosName("Font")).Set("Subtype", new CosName("Type3"))
+            .Set("FontBBox", CosArray.FromNumbers(0, 0, 1000, 1000)).Set("FontMatrix", CosArray.FromNumbers(.001, 0, 0, .001, 0, 0))
+            .Set("CharProcs", new CosDictionary().Set("A", glyph)).Set("FirstChar", new CosInteger(65)).Set("LastChar", new CosInteger(65))
+            .Set("Widths", CosArray.FromNumbers(1000)).Set("Encoding", new CosDictionary().Set("Differences", new CosArray([new CosInteger(65), new CosName("A")])))));
+        var input = fixture.Build();
+        var result = await Redact(input);
+        await using var before = await Open(input);
+        await using var after = await Open(result.Output);
+        var bitmap = await before.RenderPageAsync(1, 240, 200);
+        Assert.Contains(bitmap.Pixels, p => p < 200);
+        Assert.Equal(bitmap.Pixels, (await after.RenderPageAsync(1, 240, 200)).Pixels);
+        if (glyphOnMarkedPage)
+        {
+            Assert.Empty(result.ImagePages);
+            var original = await before.RenderPageAsync(0, 240, 200);
+            var redacted = await after.RenderPageAsync(0, 240, 200);
+            // The glyph at the bottom-left is outside the redaction area.
+            for (var y = 160; y < 195; y++)
+                Assert.Equal(original.Pixels.AsSpan(y * original.Stride, 80 * 4).ToArray(),
+                    redacted.Pixels.AsSpan(y * redacted.Stride, 80 * 4).ToArray());
+        }
     }
 
     private Task<PdfRedactionResult> Redact(byte[] pdf) => PdfRedactor.RedactAsync(pdf, [new PdfRedactionArea(0, Area)], _engine);

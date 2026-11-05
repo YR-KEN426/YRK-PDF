@@ -86,7 +86,7 @@ public static class PdfRedactor
 
             var cleaned = CosDocument.Load(withImages);
             StripHiddenData(cleaned);
-            PruneUnusedXObjects(cleaned);
+            PruneUnusedXObjects(cleaned, byPage.Keys.ToHashSet());
             // A fresh compact file, never an incremental save: detached objects and old revisions go too.
             var output = CosCompactWriter.Write(cleaned);
             VerifyImages(source, CosDocument.Load(output), imagePages, byPage.Keys.ToHashSet());
@@ -155,8 +155,8 @@ public static class PdfRedactor
             var userRects = rects.Select(r => ToUserSpace(page, r)).ToList();
             var edit = new CosPageEdit(document, page);
             // Text editing calls this helper with both options off; keep its established behavior.
-            var result = new ContentRedactor(document, update, userRects, securePaths: blackBoxes || removeAnnotations)
-                .Redact(edit.ReadContent(), edit.Resources, PdfMatrix.Identity);
+            var redactor = new ContentRedactor(document, update, userRects, securePaths: blackBoxes || removeAnnotations);
+            var result = redactor.Redact(edit.ReadContent(), edit.Resources, PdfMatrix.Identity);
             if (result.NeedsRaster)
             {
                 imagePages.Add(index);
@@ -171,7 +171,10 @@ public static class PdfRedactor
                 }
             }
 
-            StripReplacementText(document, edit);
+            foreach (var (name, value) in result.PropertyReplacements)
+                edit.SetResource("Properties", name, value);
+            if (blackBoxes || removeAnnotations)
+                edit.SetEntry("Resources", redactor.PruneNamedProperties(result.Content, edit.Resources));
             if (removeAnnotations)
             {
                 RemoveAnnotations(document, page, edit, userRects, removedAnnotations);
@@ -196,7 +199,14 @@ public static class PdfRedactor
             RemoveFields(document, update, removedAnnotations);
         }
 
-        return (update.Build().Bytes, imagePages);
+        var output = update.Build().Bytes;
+        if (removedAnnotations.Count > 0)
+        {
+            var cleaned = CosDocument.Load(output);
+            DetachRemovedAnnotations(cleaned, removedAnnotations);
+            output = CosCompactWriter.Write(cleaned);
+        }
+        return (output, imagePages);
     }
 
     /// <summary>Step 2: whole pages replaced by an image of themselves.</summary>
@@ -288,26 +298,54 @@ public static class PdfRedactor
         page.ToUserSpace(r.X, r.Y + r.Height), page.ToUserSpace(r.X + r.Width, r.Y + r.Height),
     ]);
 
-    /// <summary>Named marked-content properties can carry /ActualText or /Alt copies of the text.</summary>
-    private static void StripReplacementText(CosDocument document, CosPageEdit edit)
+    private static void DetachRemovedAnnotations(CosDocument document, HashSet<CosObjectId> removed)
     {
-        if (document.Resolve(edit.Resources["Properties"]) is not CosDictionary properties)
+        var removedNumbers = removed.Select(id => id.Number).ToHashSet();
+        bool IsRemoved(CosObject? value) => value is CosReference r && removedNumbers.Contains(r.Id.Number);
+        bool IsRemovedAnnotation(CosObject? value) => IsRemoved(value)
+            || document.Resolve(value) is CosDictionary d && (document.Resolve(d["Subtype"]) as CosName)?.Value == "Popup" && IsRemoved(d["Parent"]);
+        // Include popups not listed in /Annots, and propagate through popup-parent chains.
+        var annotations = document.ObjectIds.Select(id => (Id: id, Value: document.GetObject(id)))
+            .Where(p => p.Value is CosDictionary).Select(p => (p.Id, Dictionary: (CosDictionary)p.Value!)).ToList();
+        bool changed;
+        do
         {
-            return;
+            changed = false;
+            foreach (var (id, annotation) in annotations)
+                if ((document.Resolve(annotation["Subtype"]) as CosName)?.Value == "Popup" && IsRemoved(annotation["Parent"]))
+                {
+                    changed |= removed.Add(id);
+                    removedNumbers.Add(id.Number);
+                }
+        }
+        while (changed);
+
+        var seen = new HashSet<CosObject>(ReferenceEqualityComparer.Instance);
+        void Clean(CosObject? value)
+        {
+            value = document.Resolve(value);
+            if (value is null || !seen.Add(value)) return;
+            if (value is CosArray array)
+            {
+                array.Items.RemoveAll(IsRemovedAnnotation);
+                foreach (var child in array.Items) Clean(child);
+            }
+            var dictionary = value is CosStream stream ? stream.Dictionary : value as CosDictionary;
+            if (dictionary is null) return;
+            if ((document.Resolve(dictionary["Subtype"]) as CosName)?.Value == "Popup" && IsRemoved(dictionary["Parent"]))
+            {
+                dictionary.Entries.Clear();
+                return;
+            }
+            foreach (var key in new[] { "IRT", "Parent", "Popup" })
+                if (IsRemovedAnnotation(dictionary[key])) dictionary[key] = null;
+            foreach (var child in dictionary.Entries.Values.ToList()) Clean(child);
         }
 
-        foreach (var (name, value) in properties.Entries.ToList())
-        {
-            if (document.Resolve(value) is CosDictionary dictionary
-                && (dictionary["ActualText"] is not null || dictionary["Alt"] is not null || dictionary["E"] is not null))
-            {
-                var cleaned = dictionary.Clone();
-                cleaned["ActualText"] = null;
-                cleaned["Alt"] = null;
-                cleaned["E"] = null;
-                edit.SetResource("Properties", name, cleaned);
-            }
-        }
+        Clean(document.Catalog);
+        // Other links may still reach the removed objects. Erase their payload and appearance.
+        foreach (var id in removed)
+            if (document.GetObject(id) is CosDictionary dictionary) dictionary.Entries.Clear();
     }
 
     private static void RemoveAnnotations(CosDocument document, CosPage page, CosPageEdit edit, List<PdfRect> areas, HashSet<CosObjectId> removed)
@@ -328,6 +366,7 @@ public static class PdfRedactor
                 {
                     removed.Add(reference.Id);
                 }
+                else annotation.Entries.Clear();
 
                 continue;
             }
@@ -578,54 +617,81 @@ public static class PdfRedactor
         Clean(document.Catalog);
     }
 
-    private static void PruneUnusedXObjects(CosDocument document)
+    internal static CosDictionary PruneResources(CosDocument document, byte[] content, CosDictionary resources)
     {
-        CosDictionary Prune(byte[] content, CosDictionary resources)
+        var copy = resources.Clone();
+        if (document.Resolve(resources["XObject"]) is not CosDictionary xobjects) return copy;
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        var seen = new HashSet<CosStream>(ReferenceEqualityComparer.Instance);
+        var uncertain = false;
+        var budget = 100000;
+        // These consumers can use the enclosing scope. If their use cannot be proven,
+        // retaining resources is safer than changing the rendered result.
+        foreach (var category in new[] { "Pattern", "Shading", "ExtGState" })
+            if (document.Resolve(resources[category]) is CosDictionary { Entries.Count: > 0 }) return copy;
+        if (document.Resolve(resources["Font"]) is CosDictionary fonts)
         {
-            var copy = resources.Clone();
-            if (document.Resolve(resources["XObject"]) is not CosDictionary xobjects) return copy;
-            var used = new HashSet<string>(StringComparer.Ordinal);
-            var seen = new HashSet<CosStream>(ReferenceEqualityComparer.Instance);
-            void Read(byte[] bytes)
+            foreach (var fontValue in fonts.Entries.Values)
             {
-                foreach (var op in ContentTokenizer.Parse(bytes))
+                if (document.Resolve(fontValue) is not CosDictionary font) return copy;
+                if ((document.Resolve(font["Subtype"]) as CosName)?.Value != "Type3") continue;
+                if (font["Resources"] is not null) continue;
+                if (document.Resolve(font["CharProcs"]) is not CosDictionary procs) return copy;
+                foreach (var proc in procs.Entries.Values)
                 {
-                    if (op.Operator != "Do" || op.Operands.FirstOrDefault() is not CosName name) continue;
-                    used.Add(name.Value);
-                    // A form without its own resources uses this same resource scope.
-                    if (document.Resolve(xobjects[name.Value]) is CosStream form
-                        && (form.Dictionary["Subtype"] as CosName)?.Value == "Form"
-                        && form.Dictionary["Resources"] is null && seen.Add(form))
-                    {
-                        Read(CosFilters.Decode(form, document.Resolve));
-                    }
+                    if (document.Resolve(proc) is not CosStream glyph) return copy;
+                    Read(CosFilters.Decode(glyph, document.Resolve));
                 }
             }
-
-            Read(content);
-            var kept = new CosDictionary();
-            foreach (var (key, value) in xobjects.Entries)
+        }
+        void Read(byte[] bytes, int depth = 0)
+        {
+            if (depth > 32) { uncertain = true; return; }
+            foreach (var op in ContentTokenizer.Parse(bytes))
             {
-                if (used.Contains(key)) kept[key] = value;
+                if (--budget < 0) { uncertain = true; return; }
+                if (op.Operator != "Do") continue;
+                if (op.Operands.FirstOrDefault() is not CosName name) { uncertain = true; continue; }
+                used.Add(name.Value);
+                var target = document.Resolve(xobjects[name.Value]) as CosStream;
+                if (target is null || (document.Resolve(target.Dictionary["Subtype"]) as CosName)?.Value is not ("Image" or "Form"))
+                    uncertain = true;
+                // A form without its own resources uses this same resource scope.
+                if (target is CosStream form
+                    && (form.Dictionary["Subtype"] as CosName)?.Value == "Form"
+                    && form.Dictionary["Resources"] is null && seen.Add(form))
+                {
+                    Read(CosFilters.Decode(form, document.Resolve), depth + 1);
+                }
             }
-
-            copy["XObject"] = kept;
-            return copy;
         }
 
-        foreach (var page in document.GetPages())
+        Read(content);
+        if (uncertain) return copy;
+        var kept = new CosDictionary();
+        foreach (var (key, value) in xobjects.Entries)
         {
+            if (used.Contains(key)) kept[key] = value;
+        }
+
+        copy["XObject"] = kept;
+        return copy;
+    }
+
+    private static void PruneUnusedXObjects(CosDocument document, HashSet<int> markedPages)
+    {
+        var pages = document.GetPages();
+        foreach (var index in markedPages.Where(i => i >= 0 && i < pages.Count))
+        {
+            var page = pages[index];
             var edit = new CosPageEdit(document, page);
-            page.Dictionary["Resources"] = Prune(edit.ReadContent(), edit.Resources);
-        }
-
-        foreach (var id in document.ObjectIds)
-        {
-            if (document.GetObject(id) is CosStream stream
-                && ((stream.Dictionary["Subtype"] as CosName)?.Value == "Form" || stream.Dictionary["PatternType"] is CosInteger)
-                && document.Resolve(stream.Dictionary["Resources"]) is CosDictionary resources)
+            try
             {
-                stream.Dictionary["Resources"] = Prune(CosFilters.Decode(stream, document.Resolve), resources);
+                page.Dictionary["Resources"] = PruneResources(document, edit.ReadContent(), edit.Resources);
+            }
+            catch (PdfException)
+            {
+                // A consumer that cannot be decoded does not prove a resource is unused.
             }
         }
     }
@@ -671,21 +737,6 @@ public static class PdfRedactor
             }
         }
 
-        // Only executed image Do operators on unmarked pages justify keeping a shared image.
-        void UsedImages(byte[] content, CosDictionary? resources, HashSet<CosStream> seen)
-        {
-            var xobjects = output.Resolve(resources?["XObject"]) as CosDictionary;
-            foreach (var op in ContentTokenizer.Parse(content))
-            {
-                if (op.Operator != "Do" || op.Operands.FirstOrDefault() is not CosName name
-                    || output.Resolve(xobjects?[name.Value]) is not CosStream stream || !seen.Add(stream)) continue;
-                var subtype = (output.Resolve(stream.Dictionary["Subtype"]) as CosName)?.Value;
-                if (subtype == "Image") Images(output, stream, allowed, new(ReferenceEqualityComparer.Instance));
-                if (subtype == "Form") UsedImages(CosFilters.Decode(stream, output.Resolve),
-                    output.Resolve(stream.Dictionary["Resources"]) as CosDictionary ?? resources, seen);
-            }
-        }
-
         var pages = source.GetPages();
         foreach (var index in rasterPages)
         {
@@ -697,8 +748,9 @@ public static class PdfRedactor
         {
             if (!markedPages.Contains(i))
             {
-                var edit = new CosPageEdit(output, resultPages[i]);
-                UsedImages(edit.ReadContent(), edit.Resources, new(ReferenceEqualityComparer.Instance));
+                // Include Type 3 glyphs, patterns, shading and unknown resource consumers.
+                // Untouched pages keep their complete resources, including shared images.
+                Images(output, resultPages[i].Resources, allowed, new(ReferenceEqualityComparer.Instance));
             }
         }
 

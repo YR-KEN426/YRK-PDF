@@ -18,14 +18,18 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
     private const double MinGlyphWidth = 0.3; // Zero-width glyphs (Thai marks) are tested with this width.
 
     private readonly Dictionary<CosObject, ContentFont> _fonts = new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<CosObjectId, CosStream> _newForms = [];
 
-    public sealed record Result(byte[] Content, bool Changed, bool NeedsRaster, Dictionary<string, CosObject> XObjectReplacements);
+    public sealed record Result(byte[] Content, bool Changed, bool NeedsRaster, Dictionary<string, CosObject> XObjectReplacements,
+        Dictionary<string, CosObject> PropertyReplacements);
 
     public Result Redact(byte[] content, CosDictionary? resources, PdfMatrix ctm, int depth = 0)
     {
         var operations = ContentTokenizer.Parse(content);
         var output = new List<byte[]>(operations.Count);
         var replacements = new Dictionary<string, CosObject>(StringComparer.Ordinal);
+        var propertyReplacements = new Dictionary<string, CosObject>(StringComparer.Ordinal);
+        var marked = new Stack<MarkedSpan>();
         var changed = false;
         var needsRaster = false;
 
@@ -40,6 +44,25 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
         (double X, double Y) current = (0, 0);
 
         void Keep(ContentOperation operation) => output.Add(content[operation.Start..operation.End]);
+
+        void Touch(PdfRect bounds)
+        {
+            if (securePaths && Hits(bounds))
+                foreach (var span in marked) span.Affected = true;
+        }
+
+        void EndSpan()
+        {
+            if (!marked.TryPop(out var span) || !span.Affected || span.Properties is not { } properties
+                || !new[] { "ActualText", "Alt", "E" }.Any(k => properties[k] is not null)) return;
+            var cleaned = properties.Clone();
+            cleaned["ActualText"] = null;
+            cleaned["Alt"] = null;
+            cleaned["E"] = null;
+            if (span.Name is { } name) propertyReplacements[name] = cleaned;
+            else output[span.OutputIndex] = Encoding.Latin1.GetBytes(Serialize([span.Tag!, cleaned]) + " BDC");
+            changed = true;
+        }
 
         void FlushPath(bool keep)
         {
@@ -105,6 +128,7 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
                     }
 
                     var drop = painted && !pathClips && areas.Any(a => a.Contains(bounds));
+                    if (painted) Touch(bounds);
                     needsRaster |= securePaths && painted && Hits(bounds) && !drop;
                     FlushPath(keep: !drop);
                     if (drop)
@@ -254,7 +278,7 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
                     var items = op.Operator == "TJ" && o.Count >= 1 && o[0] is CosArray array
                         ? array.Items
                         : o.Count >= 1 ? [o[^1]] : [];
-                    var (rewritten, removed, unmeasurable) = ShowText(items, state, ref tm);
+                    var (rewritten, removed, unmeasurable) = ShowText(items, state, ref tm, Touch);
                     needsRaster |= unmeasurable;
                     if (removed)
                     {
@@ -275,11 +299,14 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
                     var subtype = (document.Resolve(xobject?.Dictionary["Subtype"]) as CosName)?.Value;
                     if (subtype == "Image")
                     {
+                        Touch(PdfRect.Of(state.Ctm, new PdfRect(0, 0, 1, 1)));
                         needsRaster |= Hits(PdfRect.Of(state.Ctm, new PdfRect(0, 0, 1, 1)));
                     }
                     else if (subtype == "Form" && xobject is not null)
                     {
                         var form = RedactForm(xobject, resources, state.Ctm, depth);
+                        if (form.Replacement is not null || form.NeedsRaster)
+                            foreach (var span in marked) span.Affected = securePaths;
                         needsRaster |= form.NeedsRaster;
                         if (form.Replacement is not null)
                         {
@@ -291,19 +318,26 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
                     Keep(op);
                     break;
                 case "BI":
+                    Touch(PdfRect.Of(state.Ctm, new PdfRect(0, 0, 1, 1)));
                     needsRaster |= Hits(PdfRect.Of(state.Ctm, new PdfRect(0, 0, 1, 1)));
                     Keep(op);
                     break;
 
                 // --- Marked content: replacement and alternate text could repeat what was removed. ---
-                case "BDC" when o.Count >= 2 && o[1] is CosDictionary properties
-                                && (properties["ActualText"] is not null || properties["Alt"] is not null || properties["E"] is not null):
-                    var cleaned = properties.Clone();
-                    cleaned["ActualText"] = null;
-                    cleaned["Alt"] = null;
-                    cleaned["E"] = null;
-                    output.Add(Encoding.Latin1.GetBytes(Serialize([o[0], cleaned]) + " BDC"));
-                    changed = true;
+                case "BDC":
+                    var propertyName = o.Count >= 2 ? o[1] as CosName : null;
+                    var named = document.Resolve(resources?["Properties"]) as CosDictionary;
+                    var properties = o.Count >= 2 ? document.Resolve(propertyName is null ? o[1] : named?[propertyName.Value]) as CosDictionary : null;
+                    marked.Push(new MarkedSpan(output.Count, o.FirstOrDefault(), properties, propertyName?.Value));
+                    Keep(op);
+                    break;
+                case "BMC":
+                    marked.Push(new MarkedSpan(output.Count, null, null, null));
+                    Keep(op);
+                    break;
+                case "EMC":
+                    EndSpan();
+                    Keep(op);
                     break;
 
                 default:
@@ -323,6 +357,7 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
             FlushPath(keep: true);
         }
 
+        while (marked.Count > 0) EndSpan();
         var joined = new List<byte>(content.Length);
         foreach (var piece in output)
         {
@@ -330,7 +365,7 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
             joined.Add((byte)'\n');
         }
 
-        return new Result(joined.ToArray(), changed, needsRaster, replacements);
+        return new Result(joined.ToArray(), changed, needsRaster, replacements, propertyReplacements);
     }
 
     /// <summary>
@@ -338,7 +373,7 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
     /// characters become position adjustments of the same width), whether anything was removed, and
     /// whether the text could not be measured (and might lie in an area).
     /// </summary>
-    private (List<CosObject> Items, bool Removed, bool Unmeasurable) ShowText(IReadOnlyList<CosObject> items, GraphicsState state, ref PdfMatrix tm)
+    private (List<CosObject> Items, bool Removed, bool Unmeasurable) ShowText(IReadOnlyList<CosObject> items, GraphicsState state, ref PdfMatrix tm, Action<PdfRect> touch)
     {
         var font = state.Font;
         var result = new List<CosObject>();
@@ -348,6 +383,7 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
             // Without metrics the characters' positions are unknown: test a generous box around the run.
             var length = items.OfType<CosString>().Sum(s => s.Bytes.Length);
             var box = PdfRect.Of(tm.Then(state.Ctm), new PdfRect(-1, -2 * Math.Abs(state.FontSize), (length + 2) * Math.Max(1, Math.Abs(state.FontSize)), 2 * Math.Abs(state.FontSize)));
+            touch(box);
             return (result, false, Hits(box) || state.FontSize == 0);
         }
 
@@ -403,6 +439,7 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
                 // The glyph's box: its advance (at least a minimum, for zero-width marks) by ascent and descent.
                 var trm = new PdfMatrix(size * scale, 0, 0, size, 0, state.Rise).Then(tm).Then(state.Ctm);
                 var glyph = PdfRect.Of(trm, new PdfRect(0, font.Descent, Math.Max(width, MinGlyphWidth), font.Ascent));
+                touch(glyph);
                 if (areas.Any(a => a.OverlapArea(glyph) >= MinOverlap * glyph.Area && glyph.Area > 0))
                 {
                     removed = true;
@@ -448,9 +485,14 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
         dictionary["Filter"] = null;
         dictionary["DecodeParms"] = null;
         dictionary["Length"] = null;
-        if (result.XObjectReplacements.Count > 0)
+        if (securePaths || result.XObjectReplacements.Count > 0 || result.PropertyReplacements.Count > 0)
         {
             var resources = (ownResources ?? parentResources)?.Clone() ?? new CosDictionary();
+            if (securePaths)
+            {
+                try { resources = PdfRedactor.PruneResources(document, result.Content, resources); }
+                catch (PdfException) { /* Unknown consumers keep their resources. */ }
+            }
             var xobjects = (document.Resolve(resources["XObject"]) as CosDictionary)?.Clone() ?? new CosDictionary();
             foreach (var (name, value) in result.XObjectReplacements)
             {
@@ -458,10 +500,61 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
             }
 
             resources["XObject"] = xobjects;
-            dictionary["Resources"] = resources;
+            if (result.PropertyReplacements.Count > 0)
+            {
+                var properties = (document.Resolve(resources["Properties"]) as CosDictionary)?.Clone() ?? new CosDictionary();
+                foreach (var (name, value) in result.PropertyReplacements) properties[name] = value;
+                resources["Properties"] = properties;
+            }
+            dictionary["Resources"] = securePaths ? PruneNamedProperties(result.Content, resources) : resources;
         }
 
-        return (result.NeedsRaster, update.Add(CosPageEdit.Stream(result.Content, dictionary)));
+        var replacement = CosPageEdit.Stream(result.Content, dictionary);
+        var reference = update.Add(replacement);
+        _newForms[reference.Id] = replacement;
+        return (result.NeedsRaster, reference);
+    }
+
+    // A form that gained an isolated resource scope no longer consumes its parent's
+    // property dictionary. Do not leave those unused copies of replacement text reachable.
+    internal CosDictionary PruneNamedProperties(byte[] content, CosDictionary resources)
+    {
+        if (document.Resolve(resources["Properties"]) is not CosDictionary properties) return resources;
+        if (new[] { "Pattern", "Shading", "ExtGState" }.Any(k => document.Resolve(resources[k]) is CosDictionary { Entries.Count: > 0 }))
+            return resources; // Other resource consumers may use named properties too.
+        if (document.Resolve(resources["Font"]) is CosDictionary fonts && fonts.Entries.Values.Any(v =>
+            document.Resolve(v) is not CosDictionary font || (document.Resolve(font["Subtype"]) as CosName)?.Value == "Type3" && font["Resources"] is null))
+            return resources;
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        var seen = new HashSet<CosStream>(ReferenceEqualityComparer.Instance);
+        var xobjects = document.Resolve(resources["XObject"]) as CosDictionary;
+        var uncertain = false;
+        var budget = 100000;
+        void Read(byte[] bytes, int depth)
+        {
+            if (depth > MaxFormDepth) { uncertain = true; return; }
+            foreach (var op in ContentTokenizer.Parse(bytes))
+            {
+                if (--budget < 0) { uncertain = true; return; }
+                if (op.Operator is "BDC" or "DP" && op.Operands.Count >= 2 && op.Operands[1] is CosName name) used.Add(name.Value);
+                if (op.Operator != "Do") continue;
+                if (op.Operands.FirstOrDefault() is not CosName xname) { uncertain = true; continue; }
+                var value = xobjects?[xname.Value];
+                var stream = value is CosReference r && _newForms.TryGetValue(r.Id, out var added) ? added : document.Resolve(value) as CosStream;
+                if (stream is null) { uncertain = true; continue; }
+                if ((document.Resolve(stream.Dictionary["Subtype"]) as CosName)?.Value == "Form"
+                    && stream.Dictionary["Resources"] is null && seen.Add(stream)) Read(CosFilters.Decode(stream, document.Resolve), depth + 1);
+            }
+        }
+        try { Read(content, 0); }
+        catch (PdfException) { return resources; }
+        if (uncertain) return resources;
+        var copy = resources.Clone();
+        var kept = new CosDictionary();
+        foreach (var (name, value) in properties.Entries)
+            if (used.Contains(name)) kept[name] = value;
+        copy["Properties"] = kept;
+        return copy;
     }
 
     private ContentFont Font(CosDictionary? resources, string name)
@@ -504,6 +597,15 @@ internal sealed class ContentRedactor(CosDocument document, CosIncrementalUpdate
         writer.Write(new CosArray(items));
         var text = Encoding.Latin1.GetString(stream.ToArray());
         return asArray ? text : text[1..^1];
+    }
+
+    private sealed class MarkedSpan(int outputIndex, CosObject? tag, CosDictionary? properties, string? name)
+    {
+        public int OutputIndex { get; } = outputIndex;
+        public CosObject? Tag { get; } = tag;
+        public CosDictionary? Properties { get; } = properties;
+        public string? Name { get; } = name;
+        public bool Affected { get; set; }
     }
 
     private sealed class GraphicsState
