@@ -194,7 +194,8 @@ internal static class CrlValidation
             return false;
         }
         var certificateUrls = ReadCertificateDistributionPoints(certificate);
-        return urls.Any(certificateUrls.Contains);
+        // Compare whole URIs: Uri.Equals ignores user info and fragment, which can name a different list.
+        return urls.Any(u => certificateUrls.Any(c => string.Equals(u.AbsoluteUri, c.AbsoluteUri, StringComparison.Ordinal)));
     }
 
     private static List<Uri> ReadCertificateDistributionPoints(X509Certificate2 certificate)
@@ -212,6 +213,8 @@ internal static class CrlValidation
         {
             var point = points.ReadSequence();
             var previous = -1;
+            var pointUrls = new List<Uri>();
+            var restricted = false;
             while (point.HasData)
             {
                 var tag = point.PeekTag();
@@ -222,10 +225,16 @@ internal static class CrlValidation
                 previous = tag.TagValue;
                 switch (tag.TagValue)
                 {
-                    case 0: urls.AddRange(ReadDistributionPointName(point)); break;
-                    case 1: point.ReadBitString(out _, tag); break;
-                    case 2: ReadGeneralNameUris(point.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 2, true))); break;
+                    case 0: pointUrls.AddRange(ReadDistributionPointName(point)); break;
+                    case 1: point.ReadBitString(out _, tag); restricted = true; break;
+                    case 2: ReadGeneralNameUris(point.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 2, true))); restricted = true; break;
                 }
+            }
+            // A point limited to some reasons, or served by another CRL issuer, never proves full coverage
+            // (RFC 5280 §6.3.3 (b)(2)(i), (d)): its URIs cannot match an IDP.
+            if (!restricted)
+            {
+                urls.AddRange(pointUrls);
             }
         }
         return urls;

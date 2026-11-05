@@ -25,7 +25,7 @@ public sealed class CrlValidationTests
     public static IEnumerable<object[]> IdpCases()
     {
         string[] accepted = ["matching", "scheme-host-case", "one-of-many"];
-        string[] rejected = ["mismatch", "path-case", "reasons", "empty-reasons", "indirect", "attribute", "no-point", "no-point-users",
+        string[] rejected = ["mismatch", "path-case", "userinfo", "fragment", "reasons", "empty-reasons", "indirect", "attribute", "no-point", "no-point-users",
             "unknown-field", "unknown-name", "unknown-after-uri", "non-uri-after-uri", "invalid-uri-after-uri",
             "empty-name", "relative-name", "duplicate-field", "field-order",
             "trailing-data", "trailing-name", "noncanonical-true", "constructed-boolean", "invalid-boolean-length",
@@ -91,6 +91,35 @@ public sealed class CrlValidationTests
             _ => cdp,
         };
         using var pki = new TestPki(includeCdp: kind != "absent", cdp: cdp);
+        var crl = CreateCrl(pki.Issuer, [new("2.5.29.28", Idp(), true)], VerificationTime);
+        Assert.False(CrlValidation.TryCheck(crl, pki.Certificate, pki.Issuer, VerificationTime, out _));
+    }
+
+    // A certificate distribution point limited to some reasons, or naming another CRL issuer,
+    // must not let a matching IDP count as full coverage (RFC 5280 §6.3.3).
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void IDP_does_not_match_a_restricted_certificate_distribution_point(int restriction)
+    {
+        var writer = new AsnWriter(AsnEncodingRules.DER);
+        using (writer.PushSequence())
+        using (writer.PushSequence())
+        {
+            using (writer.PushSequence(Context0))
+            using (writer.PushSequence(Context0))
+                writer.WriteCharacterString(UniversalTagNumber.IA5String, CdpUri, new Asn1Tag(TagClass.ContextSpecific, 6));
+            if (restriction == 1)
+            {
+                writer.WriteBitString([0x40], 6, new Asn1Tag(TagClass.ContextSpecific, 1)); // keyCompromise only
+            }
+            else
+            {
+                using (writer.PushSequence(new Asn1Tag(TagClass.ContextSpecific, 2, true)))
+                    writer.WriteCharacterString(UniversalTagNumber.IA5String, "https://other-issuer.example.test/", new Asn1Tag(TagClass.ContextSpecific, 6));
+            }
+        }
+        using var pki = new TestPki(cdp: writer.Encode());
         var crl = CreateCrl(pki.Issuer, [new("2.5.29.28", Idp(), true)], VerificationTime);
         Assert.False(CrlValidation.TryCheck(crl, pki.Certificate, pki.Issuer, VerificationTime, out _));
     }
@@ -170,6 +199,8 @@ public sealed class CrlValidationTests
                             {
                                 "mismatch" => "https://crl.example.test/other.crl",
                                 "path-case" => "https://crl.example.test/test.crl",
+                                "userinfo" => "https://user@crl.example.test/Test.crl",
+                                "fragment" => "https://crl.example.test/Test.crl#other",
                                 "scheme-host-case" => "HTTPS://CRL.EXAMPLE.TEST/Test.crl",
                                 "ltv" => "https://crl.example.test/test",
                                 "invalid-uri" => "not an absolute URI",
