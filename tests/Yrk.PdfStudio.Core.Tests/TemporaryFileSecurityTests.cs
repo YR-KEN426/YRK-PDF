@@ -27,6 +27,27 @@ public sealed class TemporaryFileSecurityTests : IDisposable
         _folder.Delete(true);
     }
 
+    [Fact]
+    public void Shared_and_process_temp_paths_are_inside_the_private_directory()
+    {
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(PrivateTempDirectory.Path)) + Path.DirectorySeparatorChar;
+        Assert.StartsWith(root, Path.GetFullPath(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith(root, Path.GetFullPath(PdfTemporaryFiles.Shared.GetFolder("revisions")), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Temp_watcher_detects_writes_in_the_shared_temporary_folder()
+    {
+        var file = Path.Combine(PdfTemporaryFiles.Shared.GetFolder("revisions"), Guid.NewGuid().ToString("N") + ".pdf");
+        using var writes = new TempWrites();
+        try
+        {
+            File.WriteAllText(file, "watcher guard");
+            await Assert.ThrowsAnyAsync<Exception>(() => writes.AssertEmptyAsync());
+        }
+        finally { File.Delete(file); }
+    }
+
     [Theory]
     [InlineData("user")]
     [InlineData(null)] // Owner-only protection opens without an open password, but is still encrypted.
@@ -373,7 +394,9 @@ public sealed class TemporaryFileSecurityTests : IDisposable
         typeof(MainViewModel).GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(model, args);
 
     // Observe every temp write, including transient files deleted before the operation returns.
-    // These tests run without other test collections in parallel; no temp path is filtered out.
+    // The module initializer redirects managed and native temp writes to a private directory, so other
+    // programs cannot interfere. Watch its whole tree to catch PDFium and Shared writes without filtering;
+    // this collection also runs without other test collections in parallel.
     private sealed class TempWrites : IDisposable
     {
         private readonly ConcurrentQueue<string> _writes = new();
