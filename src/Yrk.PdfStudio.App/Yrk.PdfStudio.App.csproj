@@ -55,8 +55,10 @@
     <None Include="Assets\Guide\*.pdf" CopyToOutputDirectory="PreserveNewest" />
     <!-- Thai UI texts (English text → Thai). -->
     <EmbeddedResource Include="Localization\th.json" LogicalName="Yrk.PdfStudio.App.Localization.th.json" />
-    <EmbeddedResource Include="Assets\Privacy\privacy.th.txt" LogicalName="Yrk.PdfStudio.App.Privacy.privacy.th.txt" />
-    <EmbeddedResource Include="Assets\Privacy\privacy.en.txt" LogicalName="Yrk.PdfStudio.App.Privacy.privacy.en.txt" />
+    <!-- WithCulture="false": otherwise MSBuild reads ".th." / ".en." as a culture and moves the file into a
+         satellite assembly (th\YrkEasyPdf.resources.dll), so the main assembly cannot find it (bug in 1.1.5). -->
+    <EmbeddedResource Include="Assets\Privacy\privacy.th.txt" LogicalName="Yrk.PdfStudio.App.Privacy.privacy.th.txt" WithCulture="false" />
+    <EmbeddedResource Include="Assets\Privacy\privacy.en.txt" LogicalName="Yrk.PdfStudio.App.Privacy.privacy.en.txt" WithCulture="false" />
     <!-- YRK's update key (public half): updates must be signed with the matching private key (build\UpdateSigner). -->
     <EmbeddedResource Include="Assets\update-public-key.pem" LogicalName="Yrk.PdfStudio.App.update-public-key.pem" Condition="Exists('Assets\update-public-key.pem')" />
     <!-- License texts must ship with the app (shown in About). -->

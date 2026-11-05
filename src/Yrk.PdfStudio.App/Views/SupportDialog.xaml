@@ -10,6 +10,41 @@
         Background="{StaticResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
+    <Window.Resources>
+        <!-- GitHub Sponsors pink; white text is about 7:1 contrast. -->
+        <SolidColorBrush x:Key="SponsorBrush" Color="#BF3989" />
+        <SolidColorBrush x:Key="SponsorHoverBrush" Color="#A72F78" />
+        <SolidColorBrush x:Key="SponsorPressedBrush" Color="#8E2866" />
+        <Style x:Key="SponsorButton" TargetType="Button">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="{StaticResource SponsorBrush}" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="28,11" />
+            <Setter Property="MinWidth" Value="240" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                <TextBlock Text="♥" FontFamily="Segoe UI Symbol" Margin="0,0,8,0" VerticalAlignment="Center" />
+                                <ContentPresenter VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SponsorHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SponsorPressedBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     <DockPanel Margin="20">
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Close" IsCancel="True" IsDefault="True" Style="{StaticResource PrimaryButton}" />
@@ -21,8 +56,8 @@
                            TextWrapping="Wrap" Margin="0,14,0,0" />
                 <Image Source="/Assets/promptpay.jpg" Height="320" Stretch="Uniform" Margin="0,16,0,0"
                        AutomationProperties.Name="PromptPay QR code (Paotang Pay) for supporting the developer" />
-                <Button Content="GitHub Sponsors" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Center"
-                        Margin="0,16,0,0" Click="OnGitHubSponsors" />
+                <Button Content="GitHub Sponsors" Style="{StaticResource SponsorButton}" HorizontalAlignment="Center"
+                        Margin="0,20,0,0" Click="OnGitHubSponsors" />
                 <TextBlock Text="For supporters outside Thailand. This opens GitHub in your web browser."
                            TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,8,0,0" />
             </StackPanel>
