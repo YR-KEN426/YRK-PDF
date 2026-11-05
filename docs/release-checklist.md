@@ -5,7 +5,7 @@
 1. **สำรองโฟลเดอร์ feed ก่อน:** คัดลอก `artifacts\releases\win-x64` ทั้งโฟลเดอร์ไปไว้ที่อื่น เช่น `artifacts\releases\win-x64-backup` เพราะ vpk ไม่ยอมแพ็กทับรุ่นที่มีอยู่แล้ว ถ้าไม่สำรองไว้ ตอนปล่อยจริงในข้อ 8 จะหยุดเอง
 2. build และเซ็น **feed ทดสอบรุ่น 1.1.5** โดย**ไม่ใส่ `-Publish`** ขั้นนี้ Ken ทำเอง เพราะต้องใช้กุญแจ:
    ```powershell
-   powershell -ExecutionPolicy Bypass -File build\release.ps1 -GitHubRepo YR-KEN426/yrk-easy-pdf-release -ReleaseNotes docs\release-notes\1.1.5.md
+   powershell -ExecutionPolicy Bypass -File build\release.ps1 -GitHubRepo YR-KEN426/yrk-easy-pdf-release -ReleaseNotes docs\release-notes\1.1.6.md
    ```
    - แล้วสร้างโฟลเดอร์ทดสอบแยก เช่น `C:\yrk-test\feed` คัดลอกจาก `artifacts\releases\win-x64` มาแค่ `YRK.EasyPdf-1.1.5-full.nupkg`, `YRK.EasyPdf-1.1.5.sig` และไฟล์ feed (`releases.win.json`, `assets.win.json`, `RELEASES` ถ้ามี) เพราะสคริปต์ในข้อถัดไปต้องการ `-full.nupkg` ไฟล์เดียว
    - แพ็กเกจนี้เซ็นด้วยกุญแจจริง ห้ามส่งให้ใครหรืออัปโหลด
@@ -34,6 +34,6 @@
    - ลบ `artifacts\releases\win-x64` ที่มีแพ็กเกจทดสอบ แล้วคืนโฟลเดอร์สำรองจากข้อ 1 เป็น `artifacts\releases\win-x64`
    - รัน:
      ```powershell
-     powershell -ExecutionPolicy Bypass -File build\release.ps1 -GitHubRepo YR-KEN426/yrk-easy-pdf-release -Publish -ReleaseNotes docs\release-notes\1.1.5.md
+     powershell -ExecutionPolicy Bypass -File build\release.ps1 -GitHubRepo YR-KEN426/yrk-easy-pdf-release -Publish -ReleaseNotes docs\release-notes\1.1.6.md
      ```
    - แล้วทำต่อตามหัวข้อ "การออกรุ่น" ใน `PROJECT_NOTES.md`: รัน `build\build-site.ps1`, อัปโหลดหน้าเว็บ, ตรวจออนไลน์ และบันทึกสิ่งที่เรียนรู้
