@@ -334,7 +334,8 @@ public sealed partial class MainViewModel
         IsBusy = true;
         try
         {
-            var result = PdfSignatureVerifier.GetRevisionBeforeSignature(File.ReadAllBytes(document.FilePath), signature.Info, _password);
+            var source = File.ReadAllBytes(document.FilePath);
+            var result = PdfSignatureVerifier.GetRevisionBeforeSignature(source, signature.Info, _password);
             if (result.FailureReason == PdfRevisionFailureReason.NoEarlierRevision)
             {
                 _dialogs.ShowError(Loc.T("This file was rewritten as a whole when it was signed or afterwards, so no version from before signing is stored in the file."));
@@ -381,7 +382,11 @@ public sealed partial class MainViewModel
                 }
 
                 targetPath = Path.GetFullPath(chosenPath);
-                if (!string.Equals(targetPath, sourcePath, StringComparison.OrdinalIgnoreCase))
+                // The path text alone misses aliases of the open file (8.3 short names, hard links):
+                // an existing target with exactly the open file's bytes is treated as the same file.
+                if (!string.Equals(targetPath, sourcePath, StringComparison.OrdinalIgnoreCase)
+                    && !(File.Exists(targetPath) && new FileInfo(targetPath).Length == source.Length
+                         && File.ReadAllBytes(targetPath).AsSpan().SequenceEqual(source)))
                 {
                     break;
                 }
