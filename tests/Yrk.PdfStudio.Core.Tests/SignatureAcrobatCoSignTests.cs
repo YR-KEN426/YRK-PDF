@@ -116,9 +116,13 @@ public sealed class SignatureAcrobatCoSignTests
         pdf.Set(Ref(95), new CosDictionary().Set("Type", new CosName("Annot")).Set("Subtype", new CosName("Widget"))
             .Set("FT", new CosName("Sig")).Set("T", CosString.FromText("Empty"))
             .Set("P", Ref(3)).Set("Rect", CosArray.FromNumbers(0, 0, 0, 0)));
+        // A form made by Acrobat also has /Encoding in its default resources.
+        pdf.Set(Ref(90), new CosDictionary().Set("Type", new CosName("Encoding"))
+            .Set("Differences", new CosArray([new CosInteger(24), new CosName("breve")])));
         pdf.Set(Ref(96), new CosDictionary().Set("Fields", new CosArray([Ref(95)]))
             .Set("DA", CosString.FromText("/Helv 0 Tf 0 g")).Set("NeedAppearances", new CosBoolean(false))
-            .Set("SigFlags", new CosInteger(3)).Set("DR", new CosDictionary().Set("Font", new CosDictionary())));
+            .Set("SigFlags", new CosInteger(3)).Set("DR", new CosDictionary().Set("Font", new CosDictionary())
+                .Set("Encoding", new CosDictionary().Set("PDFDocEncoding", Ref(90)))));
         if (includeTextField)
         {
             pdf.Set(Ref(97), new CosDictionary().Set("FT", new CosName("Tx")).Set("T", PdfDoc("ExistingText"))
@@ -232,7 +236,9 @@ public sealed class SignatureAcrobatCoSignTests
         var fields = Assert.IsType<CosArray>(doc.Resolve(form["Fields"])).Clone();
         fields.Items.Add(Ref(116));
         form["Fields"] = fields;
-        form["DR"] = new CosDictionary().Set("Font", new CosDictionary().Set("MyriadPro-Regular", Ref(114)));
+        // Acrobat keeps the form's /Encoding resource and adds its font.
+        form["DR"] = Assert.IsType<CosDictionary>(doc.Resolve(form["DR"])).Clone()
+            .Set("Font", new CosDictionary().Set("MyriadPro-Regular", Ref(114)));
         Put(96, form);
         var info = Assert.IsType<CosDictionary>(doc.Resolve(Ref(21))).Clone();
         foreach (var key in new[] { "Creator", "Producer", "Author", "CreationDate" })

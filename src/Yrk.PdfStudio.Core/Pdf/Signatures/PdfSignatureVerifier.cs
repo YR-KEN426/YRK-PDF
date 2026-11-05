@@ -287,7 +287,11 @@ public static class PdfSignatureVerifier
                     {
                         if (previous is not null && !Same(child, previous) || !Graph(child, depth + 1, false)) return false;
                     }
-                    else if (key is not ("Font" or "XObject" or "ColorSpace" or "ExtGState" or "Pattern" or "Shading" or "Properties")
+                    else if (previous is not null && Same(child, previous))
+                    {
+                        // Unchanged, whatever it is: Acrobat's form resources also carry /Encoding.
+                    }
+                    else if (key is not ("Font" or "XObject" or "ColorSpace" or "ExtGState" or "Pattern" or "Shading" or "Properties" or "Encoding")
                         || !GrowingResources(child, previous, depth + 1)) return false;
                 }
                 else if (previous is not null ? !Same(child, previous) : !Graph(child, depth + 1, streams: true)) return false;
