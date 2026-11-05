@@ -28,6 +28,7 @@ public sealed partial class MainViewModel
     private IAsyncRelayCommand? _digitalSignCommand;
     private IRelayCommand<SignatureInfoViewModel>? _showCertificateCommand;
     private IRelayCommand<SignatureInfoViewModel>? _viewSignedVersionCommand;
+    private IAsyncRelayCommand<SignatureInfoViewModel>? _saveVersionBeforeSigningCommand;
     private IRelayCommand<SignatureInfoViewModel>? _goToSignatureCommand;
 
     /// <summary>Asks the view to show the Signatures panel.</summary>
@@ -44,6 +45,8 @@ public sealed partial class MainViewModel
     });
 
     public IRelayCommand<SignatureInfoViewModel> ViewSignedVersionCommand => _viewSignedVersionCommand ??= new RelayCommand<SignatureInfoViewModel>(ViewSignedVersion);
+
+    public IAsyncRelayCommand<SignatureInfoViewModel> SaveVersionBeforeSigningCommand => _saveVersionBeforeSigningCommand ??= new AsyncRelayCommand<SignatureInfoViewModel>(SaveVersionBeforeSigningAsync);
 
     public IRelayCommand<SignatureInfoViewModel> GoToSignatureCommand => _goToSignatureCommand ??= new RelayCommand<SignatureInfoViewModel>(signature =>
     {
@@ -316,6 +319,102 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
             _dialogs.ShowError(Loc.F("The signed version could not be opened.\n\n{0}", ex.Message));
+        }
+    }
+
+    private async Task SaveVersionBeforeSigningAsync(SignatureInfoViewModel? signature)
+    {
+        if (signature is null || !signature.CanSaveVersionBeforeSigning || _document is not { } document || IsBusy)
+        {
+            return;
+        }
+
+        string? tempPath = null;
+        string? savedPath = null;
+        IsBusy = true;
+        try
+        {
+            var result = PdfSignatureVerifier.GetRevisionBeforeSignature(File.ReadAllBytes(document.FilePath), signature.Info, _password);
+            if (result.FailureReason == PdfRevisionFailureReason.NoEarlierRevision)
+            {
+                _dialogs.ShowError(Loc.T("This file was rewritten as a whole when it was signed or afterwards, so no version from before signing is stored in the file."));
+                return;
+            }
+
+            if (result.FailureReason == PdfRevisionFailureReason.InvalidByteRange || result.Bytes is not { } bytes)
+            {
+                _dialogs.ShowError(Loc.T("The signature's byte range is invalid, so the version before signing cannot be saved."));
+                return;
+            }
+
+            var lostSignatures = string.Join("\n", result.LostSignatures.Select(info => Loc.F("• Signed by {0}: {1}",
+                string.IsNullOrWhiteSpace(info.SignerName) ? Loc.T("unknown signer") : info.SignerName,
+                info.SigningTime is { } time ? DigitalSignatureRenderer.FormatTime(time.ToLocalTime()) : Loc.T("Signing time unknown"))));
+            var message = Loc.F("The saved copy will lose these signatures:\n{0}", lostSignatures);
+            if (result.LosesLaterEdits)
+            {
+                message += "\n\n" + Loc.T("Edits made after this signature will also be lost.");
+            }
+
+            message += "\n\n" + Loc.T("The original file is not changed. Copies already sent to others still carry the signature. Continue?");
+            if (!_dialogs.Confirm(message))
+            {
+                return;
+            }
+
+            var name = Path.GetFileNameWithoutExtension(document.FilePath);
+            const string signedSuffix = " (signed)";
+            if (name.EndsWith(signedSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                name = name[..^signedSuffix.Length];
+            }
+
+            var suggestedName = name + " (before signing).pdf";
+            var sourcePath = Path.GetFullPath(document.FilePath);
+            string targetPath;
+            while (true)
+            {
+                var chosenPath = _dialogs.PickSavePdfFile(suggestedName, Path.GetDirectoryName(sourcePath), Loc.T("Save version before signing…"));
+                if (chosenPath is null)
+                {
+                    return;
+                }
+
+                targetPath = Path.GetFullPath(chosenPath);
+                if (!string.Equals(targetPath, sourcePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+
+                _dialogs.ShowError(Loc.T("Choose a different name: the version before signing cannot overwrite the document you have open."));
+            }
+
+            tempPath = Path.Combine(Path.GetDirectoryName(targetPath)!, $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-writing");
+            await PdfTemporaryFiles.WriteDurableAsync(tempPath, bytes);
+            File.Move(tempPath, targetPath, overwrite: true);
+            savedPath = targetPath;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PdfException)
+        {
+            _dialogs.ShowError(Loc.F("The version before signing could not be saved.\n\n{0}", ex.Message));
+            return;
+        }
+        finally
+        {
+            if (tempPath is not null)
+            {
+                TryDelete(tempPath);
+            }
+
+            IsBusy = false;
+        }
+
+        if (savedPath is not null && _dialogs.AskYesNo(Loc.F("Saved {0}. Open it now?", Path.GetFileName(savedPath))))
+        {
+            if (!RequestOpenInNewTab(savedPath))
+            {
+                await OpenFileAsync(savedPath);
+            }
         }
     }
 

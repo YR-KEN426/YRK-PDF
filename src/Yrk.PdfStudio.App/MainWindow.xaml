@@ -1012,6 +1012,9 @@
                                                 <Button Content="View signed version" Style="{StaticResource LinkButton}"
                                                         Visibility="{Binding CanViewSignedVersion, Converter={StaticResource BoolToVisibility}}"
                                                         Command="{Binding DataContext.ViewSignedVersionCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
+                                                <Button Content="Save version before signing…" Style="{StaticResource LinkButton}"
+                                                        Visibility="{Binding CanSaveVersionBeforeSigning, Converter={StaticResource BoolToVisibility}}"
+                                                        Command="{Binding DataContext.SaveVersionBeforeSigningCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
                                             </WrapPanel>
                                         </StackPanel>
                                     </DataTemplate>

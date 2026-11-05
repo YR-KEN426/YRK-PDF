@@ -99,6 +99,8 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
 
     public bool CanViewSignedVersion => Info.IsIntact && !Info.CoversWholeDocument;
 
+    public bool CanSaveVersionBeforeSigning => Info.ContentsOffset > 0 && Info.SignedLength > 0 && Info.IsIntact;
+
     private static Brush Frozen(Color color)
     {
         var brush = new SolidColorBrush(color);
