@@ -299,12 +299,22 @@ public static class PdfSignatureVerifier
         {
             var info = document.Resolve(document.Trailer["Info"]) as CosDictionary;
             var oldInfo = signed.Resolve(signed.Trailer["Info"]) as CosDictionary;
-            if (info is null ? oldInfo is not null : !SameExcept(info, oldInfo ?? new CosDictionary(), "ModDate", "Producer")) return false;
+            // Acrobat may re-encode unchanged Info text (UTF-16BE to PDFDocEncoding).
+            // Preserve the key set and compare decoded strings only in this dictionary.
+            if (info is null ? oldInfo is not null : info.Entries.Keys.Union(oldInfo?.Entries.Keys.AsEnumerable() ?? [])
+                .Where(k => k is not ("ModDate" or "Producer"))
+                .Any(k => (info[k] is null) != (oldInfo?[k] is null) || !SameInfoValue(info[k], oldInfo?[k]))) return false;
             if (info is not null)
             {
                 Allow(document.Trailer["Info"]);
                 foreach (var key in new[] { "ModDate", "Producer" })
                     if (document.Resolve(info[key]) is not (null or CosString) || !Graph(info[key], 0, false)) return false;
+                foreach (var (key, value) in info.Entries)
+                {
+                    if (document.Resolve(value) is not CosString || signed.Resolve(oldInfo?[key]) is not CosString) continue;
+                    if (!Graph(value, 0, false)) return false;
+                    Allow(oldInfo?[key]);
+                }
             }
             if (document.Catalog["Metadata"] is not { } metadata) return signed.Catalog["Metadata"] is null;
             return document.Resolve(metadata) is CosStream stream
@@ -313,6 +323,10 @@ public static class PdfSignatureVerifier
                 && stream.Dictionary.Entries.Keys.All(k => k is "Type" or "Subtype" or "Length" or "Filter" or "DecodeParms" or "DL")
                 && Graph(metadata, 0, streams: true);
         }
+
+        bool SameInfoValue(CosObject? value, CosObject? oldValue) =>
+            document.Resolve(value) is CosString text && signed.Resolve(oldValue) is CosString oldText
+                ? text.ToText() == oldText.ToText() : Same(value, oldValue);
 
         bool Fields(CosObject? value, CosObject? oldValue, string? inheritedType, int depth)
         {
@@ -657,6 +671,9 @@ public static class PdfSignatureVerifier
                         {
                             ("Catalog", "DSS" or "Metadata") or ("Form", "SigFlags" or "DA") => "Skip",
                             ("Info", "ModDate" or "Producer") => "Skip",
+                            // SigningMetadata already compared these strings by decoded text.
+                            // References reached from any other role remain protected content.
+                            ("Info", _) when doc.Resolve(v) is CosString => "Skip",
                             ("Form", "DR") => doc == signed ? "DefaultResources" : "Skip",
                             ("DefaultResources", _) => "ResourceCategory",
                             ("Catalog", "AcroForm") => "Form",
