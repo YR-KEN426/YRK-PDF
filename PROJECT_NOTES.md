@@ -60,7 +60,7 @@
 - Test ของ e-Tax ในแอปอาจสร้าง `etax.json` ในข้อมูลผู้ใช้ ลบเมื่อทดสอบเสร็จถ้าก่อนหน้าไม่มี
 - ช่องบันทึกไฟล์อาจเปิดที่ OneDrive ของ Ken ตอนทดสอบต้องพิมพ์ path ชั่วคราวเสมอ
 - ตรวจคำแปลด้วย `build\check-translations.ps1` ผลปกติคือมี 4 คำไม่มีภาษาไทย
-- `TemporaryFileSecurityTests` เฝ้าดูทั้ง `%TEMP%` จึงล้มเป็นครั้งคราวเมื่อโปรแกรมอื่นในเครื่องเขียนไฟล์ลง temp พร้อมกัน (เช่น `Ticket_*`) ไม่ใช่บั๊กของ YRK ให้ดูชื่อไฟล์ในข้อความ error แล้วรันซ้ำ
+- ชุดเทสต์ใช้โฟลเดอร์ temp แยกของตัวเอง (`PrivateTempDirectory.cs` ตั้ง TMP/TEMP ก่อนเทสต์ใดๆ เริ่ม) เพราะ `PdfTemporaryFiles.Shared` จำตำแหน่ง temp ตั้งแต่เริ่ม และ `TemporaryFileSecurityTests` เคยล้มเพราะเห็นไฟล์ของโปรแกรมอื่นใน `%TEMP%` อาจเหลือโฟลเดอร์ `yrk-tests-*` ใน temp จริง ลบได้
 - นโยบายความเป็นส่วนตัวในโปรแกรมสร้างจากหน้าเว็บ: แก้ที่ `site-src` แล้วรัน `build\export-privacy.ps1` (`build-site.ps1` จะหยุดถ้าไม่ตรงกัน)
 - คู่มือ: แก้ `docs/guide/*.html` แล้วรัน `build\build-guide.ps1`
 - หน้าเว็บ: แก้ `docs/release-repo/site-src/` แล้วรัน `build\build-site.ps1`
