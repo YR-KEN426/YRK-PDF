@@ -24,7 +24,10 @@
 
 ### ขั้น 1: หน้าต่างสนับสนุนผู้พัฒนา (`gpt-6.1-sol` · medium)
 **ไฟล์:** ไฟล์ใหม่ `App/Views/SupportDialog.xaml` และ `.xaml.cs`, `App/Assets/promptpay.jpg` (คัดลอกจาก `docs/release-repo/site-src/img/promptpay.jpg` ห้ามใช้รูปอื่น), `Yrk.PdfStudio.App.csproj` (`<Resource>` แบบ `yrk-lab-slogan.png`), `MainWindow.xaml.cs:1476`, `Localization/th.json`
-- เมนู Help → "Support the developer…" เปิด `SupportDialog` แทนการเปิดเว็บ
+- เมนู Help → "Support the developer…" เปิด `SupportDialog` แทนการเปิดเว็บ (Ken ย้ำ 2026-11-05: ทำตามแนวคิดออฟไลน์ ใช้เน็ตให้น้อยที่สุด)
+  - การเปิดหน้าต่างนี้ไม่ใช้เน็ตเลย QR อยู่ในตัวโปรแกรม
+  - ปุ่ม GitHub Sponsors เป็นจุดเดียวที่ออกเน็ต และออกเมื่อผู้ใช้กดเท่านั้น ข้อความบนปุ่มหรือข้อความใต้ปุ่มต้องบอกว่าจะเปิดเว็บ GitHub ในเบราว์เซอร์
+  - ไม่ต้องมีลิงก์ไปหน้าเว็บ `#support` อีก ลบ `SupportUrl` ใน `Feedback.cs` ถ้าไม่มีผู้ใช้แล้ว
 - เนื้อหา:
   - ข้อความขอบคุณสั้นๆ ว่าโปรแกรมฟรี ไม่มีโฆษณา ไม่ติดตามผู้ใช้ และเงินสนับสนุนช่วยให้พัฒนาต่อได้
   - QR พร้อมเพย์ (แสดงจากไฟล์ในโปรแกรม ไม่ต้องใช้เน็ต) ใช้ alt/AutomationProperties.Name ตามหน้าเว็บ
