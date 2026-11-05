@@ -26,7 +26,7 @@ public sealed class AppUpdater
     public AppUpdater(TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null)
     {
         _checkTimeout = checkTimeout ?? TimeSpan.FromSeconds(60);
-        _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromSeconds(120);
+        _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromMinutes(5);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_checkTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_downloadIdleTimeout, TimeSpan.Zero);
         FeedUrl = Environment.GetEnvironmentVariable(FeedVariable) is { Length: > 0 } overridden
@@ -55,7 +55,7 @@ public sealed class AppUpdater
         TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null)
     {
         _checkTimeout = checkTimeout ?? TimeSpan.FromSeconds(60);
-        _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromSeconds(120);
+        _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromMinutes(5);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_checkTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_downloadIdleTimeout, TimeSpan.Zero);
         _manager = manager;
