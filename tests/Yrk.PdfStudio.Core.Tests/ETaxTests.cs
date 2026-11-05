@@ -252,6 +252,63 @@ public sealed class ETaxTests : IDisposable
         Assert.Contains("Enter the buyer's address.", (Sample() with { Buyer = Sample().Buyer with { Address = " " } }).Problems());
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("1234")]
+    [InlineData("ABCDE")]
+    public void Separate_buyer_fields_require_a_province_and_valid_postcode(string postcode)
+    {
+        var invoice = WithStructuredBuyer();
+        var buyer = invoice.Buyer with { Province = null, Postcode = postcode, UsesThaiAddressFields = true };
+
+        Assert.False(buyer.IsStructured);
+        var problems = (invoice with { Buyer = buyer }).Problems();
+        Assert.Contains("Enter the buyer's house number, province, district and subdistrict.", problems);
+        Assert.Contains("The buyer's postcode has 5 digits.", problems);
+    }
+
+    [Fact]
+    public void Complete_separate_buyer_fields_have_no_problems()
+    {
+        var invoice = WithStructuredBuyer();
+        Assert.Empty((invoice with { Buyer = invoice.Buyer with { UsesThaiAddressFields = true } }).Problems());
+    }
+
+    [Theory]
+    [InlineData("1 Main Street", "")]
+    [InlineData("1 Main Street", "SW1A 1AA")]
+    [InlineData(" ", "SW1A 1AA")]
+    public void Free_text_buyer_validation_is_unchanged(string address, string postcode)
+    {
+        var invoice = Sample();
+        var buyer = invoice.Buyer with { Address = address, Postcode = postcode, UsesThaiAddressFields = false };
+        var problems = (invoice with { Buyer = buyer }).Problems();
+
+        if (string.IsNullOrWhiteSpace(address))
+            Assert.Equal(["Enter the buyer's address."], problems);
+        else
+            Assert.Empty(problems);
+    }
+
+    [Fact]
+    public void Seller_settings_round_trip_with_or_without_the_address_mode_property()
+    {
+        var seller = Sample().Seller;
+        var path = Path.Combine(_folder.FullName, "etax.json");
+        Assert.False(seller.UsesThaiAddressFields);
+        new App.Services.ETaxSettings { Seller = seller }.Save(path);
+        Assert.Equal(seller, App.Services.ETaxSettings.Load(path).Seller);
+
+        var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!;
+        Assert.True(json["Seller"]!.AsObject().Remove("UsesThaiAddressFields"));
+        File.WriteAllText(path, json.ToJsonString());
+        var legacy = App.Services.ETaxSettings.Load(path);
+        Assert.Equal(seller, legacy.Seller);
+        Assert.False(legacy.Seller!.UsesThaiAddressFields);
+        legacy.Save(path);
+        Assert.Equal(seller, App.Services.ETaxSettings.Load(path).Seller);
+    }
+
     [Fact]
     public async Task Makes_a_pdf_a3_with_a_structured_buyer()
     {
@@ -364,6 +421,7 @@ public sealed class ETaxTests : IDisposable
                 var buyerFields = (App.Views.ThaiAddressFields)dialog.FindName("BuyerFields");
                 var structured = (System.Windows.Controls.RadioButton)dialog.FindName("BuyerStructured");
                 Assert.True(structured.IsChecked);
+                Assert.True(Build().Buyer.UsesThaiAddressFields);
                 buyerFields.Restore(WithStructuredBuyer().Buyer);
                 Assert.Equal("12/3", Build().Buyer.BuildingNumber);
                 Assert.Equal("11", Build().Buyer.Province);
@@ -378,6 +436,7 @@ public sealed class ETaxTests : IDisposable
                 Assert.Equal("SW1A 1AA", Build().Buyer.Postcode);
                 Assert.Null(Build().Buyer.BuildingNumber);
                 Assert.False(Build().Buyer.IsStructured);
+                Assert.False(Build().Buyer.UsesThaiAddressFields);
                 structured.IsChecked = true;
                 Assert.Equal("110101", Build().Buyer.Subdistrict);
                 return true;

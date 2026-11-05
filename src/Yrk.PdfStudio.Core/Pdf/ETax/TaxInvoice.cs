@@ -34,6 +34,7 @@ public enum TaxIdKind
 /// <param name="Address">The address as written (one or two lines). With a province it is only the part besides the codes: street, soi, building.</param>
 /// <param name="BuildingNumber">The house number; the seller must have one.</param>
 /// <param name="Province">The province, district and subdistrict codes (<see cref="ThaiAreas"/>); the Revenue Department requires them of the seller.</param>
+/// <param name="UsesThaiAddressFields">The user chose separate Thai address fields; the structured checks apply even if fields are empty.</param>
 public sealed record TaxParty(
     string Name,
     TaxIdKind IdKind,
@@ -46,7 +47,8 @@ public sealed record TaxParty(
     string? BuildingNumber = null,
     string? Province = null,
     string? District = null,
-    string? Subdistrict = null)
+    string? Subdistrict = null,
+    bool UsesThaiAddressFields = false)
 {
     /// <summary>The address gives its province, district and subdistrict as codes.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
@@ -219,10 +221,10 @@ public sealed record TaxInvoice(
             problems.Add("Enter the buyer's name.");
         }
 
-        if (Buyer.IsStructured)
+        if (Buyer.IsStructured || Buyer.UsesThaiAddressFields)
         {
-            if (string.IsNullOrWhiteSpace(Buyer.BuildingNumber) || string.IsNullOrEmpty(Buyer.District)
-                || string.IsNullOrEmpty(Buyer.Subdistrict))
+            if (string.IsNullOrWhiteSpace(Buyer.BuildingNumber) || string.IsNullOrEmpty(Buyer.Province)
+                || string.IsNullOrEmpty(Buyer.District) || string.IsNullOrEmpty(Buyer.Subdistrict))
             {
                 problems.Add("Enter the buyer's house number, province, district and subdistrict.");
             }
