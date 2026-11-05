@@ -260,6 +260,95 @@
     <p>In the program: Help → Suggestions and problems. Or use the <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform">feedback form</a> (no sign-in), or email <a href="mailto:yrken.official@gmail.com">yrken.official@gmail.com</a>.</p></details>
 </section>
 
+<section class="wrap section prose" id="privacy">
+  <h2>YRK PDF Privacy Policy</h2>
+  <p>Last updated: [1.1.4 release date]</p>
+  <p>YRK PDF is a free Windows program that runs on your computer. We wrote this policy to be clear about what the program does with your data.</p>
+  <h3>At a glance</h3>
+  <ul>
+  <li>Your documents stay on your computer. The program does not upload your files anywhere.</li>
+  <li>No account or login is required.</li>
+  <li>No AI, usage tracking, ads, or error reports sent from your computer.</li>
+  <li>YRK LAB receives no data from the program unless you contact us.</li>
+  </ul>
+  <h3>When the program uses the internet</h3>
+  <p>The program connects to the internet only in these 5 cases. In every case, your document contents are not sent.</p>
+  <ol>
+  <li><strong>Check for a new version:</strong> The program asks the download page on GitHub whether a new version is available. If so, it downloads it and installs it only when you click Restart. Every update file must pass YRK signature verification first.
+  <ul>
+  <li>The first time you open the program, it asks whether to check automatically. You can change this later at Settings → Privacy and safety.</li>
+  </ul>
+  </li>
+  <li><strong>Download OCR language data:</strong> Downloads from the Tesseract project on GitHub once per language, after you confirm.
+  <ul>
+  <li>All text recognition happens on your computer.</li>
+  </ul>
+  </li>
+  <li><strong>Sign with a timestamp:</strong> The program sends the signature hash to the timestamp authority (DigiCert by default), without sending the document.
+  <ul>
+  <li>Used only when you select this option.</li>
+  </ul>
+  </li>
+  <li><strong>Sign for long-term validation (LTV):</strong> The program downloads the certificate revocation list (CRL) from the certificate authority named in the certificate.
+  <ul>
+  <li>Used only when you select this option.</li>
+  </ul>
+  </li>
+  <li><strong>Open a PDF signed with a certificate from an authority trusted by Windows:</strong> Windows may ask the certificate authority whether the certificate has been revoked, without sending the document.
+  </li>
+  </ol>
+  <p>In all the cases above, the destination provider (GitHub, the timestamp authority, or the certificate authority) sees your IP address as is normal for an internet connection. Each has its own privacy policy.</p>
+  <p><strong>Links in the Help menu</strong> (manual, FAQ, feedback, support the developer) open in your browser, not in the program.</p>
+  <ul>
+  <li>The email feedback button fills in the program version, Windows version, and language in the email. You can edit or delete them before sending.</li>
+  </ul>
+  <h3 id="privacy-data">Data stored on your computer</h3>
+  <p>The program stores data at <code>%LOCALAPPDATA%\YRK\EasyPdf</code>. No data is sent from your computer.</p>
+  <div class="table-scroll" role="region" aria-labelledby="privacy-data" tabindex="0">
+  <table>
+  <thead>
+  <tr><th scope="col">Data</th><th scope="col">What is stored</th><th scope="col">Protection</th></tr>
+  </thead>
+  <tbody>
+  <tr><td>Settings</td><td>Language, update checks, units</td><td>Not encrypted</td></tr>
+  <tr><td>Recent files</td><td>Names and locations of up to 12 recently opened files; no contents</td><td>Not encrypted · Can be cleared with the &quot;Clear recent files list&quot; button</td></tr>
+  <tr><td>Stamps</td><td>Text and appearance of stamps you create</td><td>Not encrypted</td></tr>
+  <tr><td>Seller details for e-Tax</td><td>Name, tax ID, branch, address, phone, email, and latest document number</td><td>Not encrypted</td></tr>
+  <tr><td>Digital signing settings</td><td>Most recently used Digital ID, reason, location, and timestamp server</td><td>Not encrypted; passwords are not stored</td></tr>
+  <tr><td>Saved signature images</td><td>Images of signatures</td><td>Encrypted using Windows protection tied to your user account</td></tr>
+  <tr><td>Digital IDs</td><td>Certificates and keys for digital signing</td><td>Protected by the Digital ID password</td></tr>
+  <tr><td>Recovery copies</td><td>Copies of unsaved documents, written every 1 minute while editing</td><td>Password-protected files retain their original password · Deleted when you save, discard, or close the program normally</td></tr>
+  <tr><td>OCR language data</td><td>Downloaded language files</td><td>Files are checked for integrity before use</td></tr>
+  <tr><td>Error logs</td><td>Program error details, which may include file or folder names</td><td>Not sent from your computer · Up to 1 MB per day · Automatically deleted after 14 days</td></tr>
+  </tbody>
+  </table>
+  </div>
+  <p><strong>Temporary files:</strong> While running, the program may store temporary copies in the Windows Temp folder, for example for undo or to convert DWG files.</p>
+  <ul>
+  <li>Password-protected files are not written to unencrypted temporary files.</li>
+  <li>Temporary copies are deleted when you close the program, or the next time you open it if it was not closed normally.</li>
+  </ul>
+  <p><strong>Deleting data:</strong> Open the data folder from Settings → Privacy and safety → &quot;Open data folder&quot;, then delete any files you do not want.</p>
+  <ul>
+  <li>Uninstalling the program does not delete this folder. To delete everything, delete <code>%LOCALAPPDATA%\YRK\EasyPdf</code> yourself.</li>
+  </ul>
+  <h3>This website</h3>
+  <ul>
+  <li>This website is hosted on GitHub Pages, which may collect visit data under GitHub’s policy.</li>
+  <li>The website does not use cookies, trackers, or load resources from other websites.</li>
+  <li>The feedback form uses Google Forms. Information you enter is sent to Google under Google’s policy, and YRK LAB uses it only to reply and improve the program.</li>
+  <li>The support the developer button takes you to GitHub Sponsors or displays a PromptPay QR code. Payments are subject to the provider’s terms.</li>
+  </ul>
+  <h3>Contact</h3>
+  <ul>
+  <li>Email: yrken.official@gmail.com</li>
+  <li>Report a security issue: through the project’s GitHub Security Advisory or by emailing us with “Security” in the subject line.</li>
+  </ul>
+  <h3>Policy changes</h3>
+  <p>If a new version of the program changes how data is handled, we will update this page and note it in the release notes.</p>
+  <p>This policy is provided for transparency and is not a legal guarantee.</p>
+</section>
+
 <section class="wrap final">
   <div class="final-box">
     <div class="final-text">
@@ -278,6 +367,7 @@
     <div class="row">
       <p class="by"><img class="lab-logo" src="{{img:yrk-lab.png}}" width="202" height="192" alt=""><span>YRK PDF (formerly YRK Easy PDF) · freeware by <span class="lab">YRK LAB</span> · Your Reliable Kit</span></p>
       <div class="links">
+        <a href="#privacy">Privacy policy</a>
         <a href="https://docs.google.com/forms/d/e/1FAIpQLSd-H6KQaZ6cZFB6L73aECFCWo84fS7jO5z4AyMol7P8mzGuJQ/viewform">Report a problem / suggest</a>
         <a href="mailto:yrken.official@gmail.com">yrken.official@gmail.com</a>
         <a href="../guide/YRK-PDF-Guide-en.pdf">User guide (PDF)</a>
