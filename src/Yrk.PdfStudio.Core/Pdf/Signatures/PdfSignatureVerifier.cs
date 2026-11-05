@@ -23,12 +23,217 @@ public static class PdfSignatureVerifier
     public static byte[] GetSignedRevision(byte[] file, PdfSignatureInfo signature) =>
         file.AsSpan(0, (int)Math.Min(file.Length, signature.SignedLength)).ToArray();
 
-    public static IReadOnlyList<PdfSignatureInfo> Verify(byte[] file, PdfVerifyOptions options, CancellationToken cancellationToken = default)
+    /// <summary>Recovers the last readable revision before this signature, without rewriting any bytes.</summary>
+    public static PdfRevisionBeforeSignatureResult GetRevisionBeforeSignature(byte[] file, PdfSignatureInfo info, string? password = null)
+    {
+        var document = CosDocument.Load(file, password);
+        try
+        {
+            var field = FindSignatureFields(document).FirstOrDefault(f => f.Name == info.FieldName).Field;
+            if (field is null || document.Resolve(field["V"]) is not CosDictionary signature
+                || !TryByteRange(document, signature, file, out var range)
+                || info.ContentsOffset != range[1] || info.SignedLength != range[2] + range[3])
+            {
+                return new(null, PdfRevisionFailureReason.InvalidByteRange, [], false);
+            }
+        }
+        catch (Exception ex) when (ex is PdfException or OverflowException or ArgumentOutOfRangeException)
+        {
+            return new(null, PdfRevisionFailureReason.InvalidByteRange, [], false);
+        }
+
+        var options = new PdfVerifyOptions(CheckRevocation: false);
+        var signatures = Verify(file, options, password: password);
+        CosDocument signed;
+        try
+        {
+            signed = CosDocument.Load(GetSignedRevision(file, info), password);
+        }
+        catch (Exception ex) when (ex is PdfException or OverflowException or ArgumentOutOfRangeException)
+        {
+            // A rewrite may retain a numeric ByteRange but destroy the signed revision's structure.
+            return new(null, PdfRevisionFailureReason.NoEarlierRevision, [], true);
+        }
+        // Form values are edits too. Reuse the per-revision comparison so signing, DSS/LTV and
+        // DocTimeStamp additions do not warn, but even an edit later restored still does.
+        // Unreadable/unrecognized later changes are conservatively treated as lost edits.
+        var losesEdits = !file.AsSpan((int)info.SignedLength).Trim("\r\n\0 \t"u8).IsEmpty
+            && LaterChanges(document, signed, password).Kind != LaterChangeKind.SigningOnly;
+        var searchEnd = (int)info.ContentsOffset;
+        for (var attempt = 0; attempt < 64; attempt++)
+        {
+            var eof = file.AsSpan(0, searchEnd).LastIndexOf("%%EOF"u8);
+            if (eof < 0) break;
+            searchEnd = eof;
+            var cut = eof + 5;
+            if (cut < file.Length && file[cut] == '\r')
+            {
+                cut++;
+                if (cut < file.Length && file[cut] == '\n') cut++;
+            }
+            else if (cut < file.Length && file[cut] == '\n') cut++;
+            if (cut > info.ContentsOffset) continue;
+
+            // This is the only source of result bytes: an unchanged copy of the input prefix.
+            var prefix = file.AsSpan(0, cut).ToArray();
+            try
+            {
+                var candidate = CosDocument.Load(prefix, password);
+                if (candidate.WasReconstructed || !HasRevisionFooter(candidate, eof)
+                    || candidate.GetPages().Count != signed.GetPages().Count
+                    || Verify(prefix, options, password: password).Any(s =>
+                        s.ContentsOffset == info.ContentsOffset && s.SignedLength == info.SignedLength
+                        || s.FieldName == info.FieldName && s.SignedLength == 0))
+                {
+                    continue;
+                }
+
+                var lost = signatures.Where(s => s.SignedLength > cut && !(s.FieldName == info.FieldName
+                        && s.ContentsOffset == info.ContentsOffset && s.SignedLength == info.SignedLength))
+                    .Append(info).OrderBy(s => s.SignedLength).ToArray();
+                return new(prefix, null, lost, losesEdits);
+            }
+            catch (Exception ex) when (ex is PdfException or OverflowException or ArgumentOutOfRangeException)
+            {
+                // A marker in an unfinished string/stream, or a linearized first part, is not a revision.
+            }
+        }
+
+        return new(null, PdfRevisionFailureReason.NoEarlierRevision, [], losesEdits);
+    }
+
+    // CosDocument deliberately tolerates trailing junk and repairs broken xrefs. In addition to
+    // WasReconstructed, require this EOF's own startxref and an xref section ending at that footer.
+    // Otherwise a %%EOF in a string/stream could reuse an earlier, perfectly readable xref.
+    private static bool HasRevisionFooter(CosDocument document, int eof)
+    {
+        var data = document.Data;
+        var footer = data.AsSpan(0, eof).LastIndexOf("startxref"u8);
+        if (footer < 0) return false;
+        var tail = new CosParser(data) { Position = footer + 9 };
+        tail.SkipWhitespace();
+        if (tail.ReadInteger() != document.StartXref) return false;
+        while (tail.Position < eof && CosParser.IsWhitespace(data[tail.Position])) tail.Position++;
+        if (tail.Position != eof) return false;
+
+        var seen = new HashSet<long>();
+        var offset = document.StartXref;
+        var endsAtFooter = false;
+        while (offset > 0 && offset < footer && seen.Add(offset) && seen.Count <= 1000)
+        {
+            var parser = new CosParser(data, document.GetObject) { Position = (int)offset };
+            parser.SkipWhitespace();
+            CosDictionary trailer;
+            if (parser.PeekKeyword("xref"))
+            {
+                parser.ExpectKeyword("xref");
+                parser.SkipWhitespace();
+                while (!parser.PeekKeyword("trailer"))
+                {
+                    var first = parser.ReadInteger();
+                    parser.SkipWhitespace();
+                    var count = parser.ReadInteger();
+                    if (first < 0 || count < 0 || count > data.Length / 4) return false;
+                    for (long i = 0; i < count; i++)
+                    {
+                        parser.SkipWhitespace();
+                        var objectOffset = parser.ReadInteger();
+                        parser.SkipWhitespace();
+                        var generation = parser.ReadInteger();
+                        parser.SkipWhitespace();
+                        if (parser.PeekKeyword("n"))
+                        {
+                            // Do not let CosDocument's tolerant object-offset scanning repair this prefix.
+                            if (!MatchesObject(objectOffset, first + i, generation)) return false;
+                            parser.ExpectKeyword("n");
+                        }
+                        else parser.ExpectKeyword("f");
+                    }
+                    parser.SkipWhitespace();
+                }
+                parser.ExpectKeyword("trailer");
+                if (parser.ParseObject() is not CosDictionary dictionary) return false;
+                trailer = dictionary;
+                if (trailer["XRefStm"] is CosInteger hybrid)
+                {
+                    if (hybrid.Value <= 0 || hybrid.Value >= footer) return false;
+                    var hidden = new CosParser(data, document.GetObject) { Position = (int)hybrid.Value };
+                    if (hidden.ParseIndirectObject().Value is not CosStream xref || !ValidXrefStream(xref)) return false;
+                }
+            }
+            else
+            {
+                if (parser.ParseIndirectObject().Value is not CosStream stream
+                    || !ValidXrefStream(stream)) return false;
+                parser.ExpectKeyword("endobj");
+                trailer = stream.Dictionary;
+            }
+            parser.SkipWhitespace();
+            endsAtFooter |= parser.Position == footer;
+            // Linearized PDFs may point to a front xref whose /Prev leads to the terminal xref.
+            offset = (trailer["Prev"] as CosInteger)?.Value ?? 0;
+        }
+        return endsAtFooter && offset == 0;
+
+        bool MatchesObject(long position, long number, long generation)
+        {
+            if (position <= 0 || position >= footer) return false;
+            var obj = new CosParser(data) { Position = (int)position };
+            if (obj.ReadInteger() != number) return false;
+            obj.SkipWhitespace();
+            if (obj.ReadInteger() != generation) return false;
+            obj.ExpectKeyword("obj");
+            return true;
+        }
+
+        bool ValidXrefStream(CosStream stream)
+        {
+            var header = stream.Dictionary;
+            if (header["Type"] is not CosName { Value: "XRef" } || header["W"] is not CosArray { Count: 3 } widths) return false;
+            var w = widths.Items.Select(v => v is CosInteger i ? i.Value : -1).ToArray();
+            if (w.Any(n => n is < 0 or > 8) || w.Sum() == 0) return false;
+            var index = header["Index"] is CosArray array ? array.Items.Select(v => v is CosInteger i ? i.Value : -1).ToArray()
+                : new long[] { 0, (header["Size"] as CosInteger)?.Value ?? -1 };
+            if (index.Length % 2 != 0 || index.Any(n => n < 0)) return false;
+            var entries = CosFilters.Decode(stream, document.Resolve);
+            var position = 0;
+            for (var pair = 0; pair < index.Length; pair += 2)
+            {
+                if (index[pair + 1] > (entries.Length - position) / w.Sum()) return false;
+                for (long i = 0; i < index[pair + 1]; i++)
+                {
+                    var kind = w[0] == 0 ? 1 : Read(w[0]);
+                    var address = Read(w[1]);
+                    var generation = Read(w[2]);
+                    if (kind is < 0 or > 2 || kind == 1 && !MatchesObject(address, index[pair] + i, generation)) return false;
+                }
+            }
+            return true;
+
+            long Read(long width)
+            {
+                long value = 0;
+                for (var i = 0; i < width; i++) value = (value << 8) | entries[position++];
+                return value;
+            }
+        }
+    }
+
+    private static bool TryByteRange(CosDocument document, CosDictionary signature, byte[] file, out long[] range)
+    {
+        range = (document.Resolve(signature["ByteRange"]) as CosArray)?.Items
+            .Select(i => (document.Resolve(i) as CosInteger)?.Value ?? -1).ToArray() ?? [];
+        return range.Length == 4 && range[0] == 0 && range[1] > 0 && range[1] < file.Length
+            && range[2] > range[1] && range[2] <= file.Length && range[3] >= 0 && range[3] <= file.Length - range[2]
+            && file[range[1]] == '<' && file[range[2] - 1] == '>';
+    }
+
+    public static IReadOnlyList<PdfSignatureInfo> Verify(byte[] file, PdfVerifyOptions options, CancellationToken cancellationToken = default, string? password = null)
     {
         CosDocument document;
         try
         {
-            document = CosDocument.Load(file);
+            document = CosDocument.Load(file, password);
         }
         catch (PdfException)
         {
@@ -42,7 +247,7 @@ public static class PdfSignatureVerifier
             cancellationToken.ThrowIfCancellationRequested();
             if (document.Resolve(field["V"]) is CosDictionary signature)
             {
-                results.Add(Check(document, file, name, field, signature, options, validationData));
+                results.Add(Check(document, file, name, field, signature, options, validationData, password));
             }
         }
 
@@ -831,7 +1036,7 @@ public static class PdfSignatureVerifier
 
     // Check each xref revision, so changing content and restoring it in a later signing revision
     // cannot erase the warning. Select older xrefs explicitly without scanning arbitrary streams.
-    private static (bool ValidationOnly, LaterChangeKind Kind, IReadOnlyList<string> FilledNames) LaterChanges(CosDocument document, CosDocument signed)
+    private static (bool ValidationOnly, LaterChangeKind Kind, IReadOnlyList<string> FilledNames) LaterChanges(CosDocument document, CosDocument signed, string? password = null)
     {
         var current = document;
         var validationOnly = true;
@@ -863,7 +1068,7 @@ public static class PdfSignatureVerifier
                 buffer.Write(System.Text.Encoding.ASCII.GetBytes($"\nstartxref\n{previous.Value}\n%%EOF\n"));
                 try
                 {
-                    before = CosDocument.Load(buffer.ToArray());
+                    before = CosDocument.Load(buffer.ToArray(), password);
                 }
                 catch (PdfException)
                 {
@@ -957,7 +1162,7 @@ public static class PdfSignatureVerifier
     };
 
     private static PdfSignatureInfo Check(CosDocument document, byte[] file, string fieldName, CosDictionary field, CosDictionary signature, PdfVerifyOptions options,
-        DssValidationData validationData)
+        DssValidationData validationData, string? password)
     {
         var subFilter = (document.Resolve(signature["SubFilter"]) as CosName)?.Value ?? string.Empty;
         var reason = (document.Resolve(signature["Reason"]) as CosString)?.ToText();
@@ -970,26 +1175,26 @@ public static class PdfSignatureVerifier
         var modifiedAfterSigning = true;
         var formFilledAfterSigning = false;
         IReadOnlyList<string> filledFieldNames = [];
+        long contentsOffset = 0;
 
         PdfSignatureInfo Result(PdfSignatureStatus status, string? problem, long signedLength = 0, bool covers = false) => new(
             fieldName, pageIndex, claimedName ?? string.Empty, null, claimedTime, false, reason, location, subFilter,
             status, false, PdfSignerIdentity.Unknown, false, covers, isCertification, signedLength, problem)
-        { Certification = certification, ModifiedAfterSigning = modifiedAfterSigning,
+        { ContentsOffset = contentsOffset, Certification = certification, ModifiedAfterSigning = modifiedAfterSigning,
             FormFilledAfterSigning = formFilledAfterSigning, FilledFieldNames = filledFieldNames };
 
         // /ByteRange must cover the whole revision except exactly the /Contents hex string.
-        var range = (document.Resolve(signature["ByteRange"]) as CosArray)?.Items.Select(i => (document.Resolve(i) as CosInteger)?.Value ?? -1).ToArray();
-        if (range is not { Length: 4 } || range[0] != 0 || range[1] <= 0 || range[2] <= range[1] || range[3] < 0 || range[2] + range[3] > file.Length
-            || file[range[1]] != '<' || file[range[2] - 1] != '>')
+        if (!TryByteRange(document, signature, file, out var range))
         {
             return Result(PdfSignatureStatus.Invalid, "The signature's byte range is invalid.");
         }
 
+        contentsOffset = range[1];
         var signedLength = range[2] + range[3];
         CosDocument signed;
         try
         {
-            signed = CosDocument.Load(file.AsSpan(0, (int)signedLength).ToArray());
+            signed = CosDocument.Load(file.AsSpan(0, (int)signedLength).ToArray(), password);
         }
         catch (PdfException)
         {
@@ -1020,7 +1225,7 @@ public static class PdfSignatureVerifier
         }
 
         var noLaterRevision = file.AsSpan((int)signedLength).Trim("\r\n\0 \t"u8).IsEmpty;
-        var changes = noLaterRevision ? (ValidationOnly: true, Kind: LaterChangeKind.SigningOnly, FilledNames: (IReadOnlyList<string>)[]) : LaterChanges(document, signed);
+        var changes = noLaterRevision ? (ValidationOnly: true, Kind: LaterChangeKind.SigningOnly, FilledNames: (IReadOnlyList<string>)[]) : LaterChanges(document, signed, password);
         var covers = changes.ValidationOnly;
         var forbiddenChange = !covers && certification == PdfCertification.NoChanges;
         modifiedAfterSigning = changes.Kind == LaterChangeKind.Other;
@@ -1113,7 +1318,7 @@ public static class PdfSignatureVerifier
         return new PdfSignatureInfo(
             fieldName, pageIndex, signerName, certificate, signingTime, isTimestamped, reason, location, subFilter,
             status, intact, identity, revocationChecked, covers, isCertification, signedLength, problem)
-        { Certification = certification, ModifiedAfterSigning = modifiedAfterSigning,
+        { ContentsOffset = contentsOffset, Certification = certification, ModifiedAfterSigning = modifiedAfterSigning,
             FormFilledAfterSigning = formFilledAfterSigning, FilledFieldNames = filledFieldNames };
     }
 

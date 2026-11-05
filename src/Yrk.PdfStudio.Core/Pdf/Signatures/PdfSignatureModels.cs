@@ -96,6 +96,9 @@ public sealed record PdfSignatureInfo(
     long SignedLength,
     string? Problem)
 {
+    /// <summary>Start of the /Contents gap (ByteRange[1]); zero if the byte range is invalid.</summary>
+    public long ContentsOffset { get; init; }
+
     /// <summary>Later revisions changed more than signing data, validation data and form values.</summary>
     public bool ModifiedAfterSigning { get; init; }
 
@@ -108,6 +111,19 @@ public sealed record PdfSignatureInfo(
     /// <summary>DocMDP permission from the signed revision, never from a later update.</summary>
     public PdfCertification Certification { get; init; }
 }
+
+public enum PdfRevisionFailureReason
+{
+    NoEarlierRevision,
+    InvalidByteRange,
+}
+
+/// <summary>A copied file prefix, or a reason an earlier revision could not be recovered.</summary>
+public sealed record PdfRevisionBeforeSignatureResult(
+    byte[]? Bytes,
+    PdfRevisionFailureReason? FailureReason,
+    IReadOnlyList<PdfSignatureInfo> LostSignatures,
+    bool LosesLaterEdits);
 
 public sealed record PdfVerifyOptions(bool CheckRevocation = true, TimeSpan? NetworkTimeout = null)
 {
