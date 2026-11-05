@@ -68,9 +68,20 @@ public partial class AboutDialog : Window
     {
         CheckButton.IsEnabled = false;
         ResultText.Text = Loc.T("Checking…");
-        ResultText.Text = await _model.CheckNowAsync();
-        CheckButton.IsEnabled = true;
-        ShowRestartButton();
+        var checking = true;
+        try
+        {
+            ResultText.Text = await _model.CheckNowAsync(percent => Dispatcher.BeginInvoke(() =>
+            {
+                if (checking && IsLoaded) ResultText.Text = Loc.F("Downloading the update… {0}%", percent);
+            }));
+        }
+        finally
+        {
+            checking = false;
+            CheckButton.IsEnabled = _model.CanUpdate;
+            ShowRestartButton();
+        }
     }
 
     private async void OnRestartToUpdate(object sender, RoutedEventArgs e)

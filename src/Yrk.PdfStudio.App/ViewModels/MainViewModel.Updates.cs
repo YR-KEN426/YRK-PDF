@@ -91,7 +91,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>Checks the feed and downloads an update. Returns a sentence for the user.</summary>
-    private async Task<string> CheckForUpdatesAsync(bool quiet)
+    private async Task<string> CheckForUpdatesAsync(bool quiet, Action<int>? progress = null)
     {
         if (!_updater.IsAvailable)
         {
@@ -111,13 +111,18 @@ public sealed partial class MainViewModel
         }
 
         s_isCheckingForUpdates = true;
+        var acceptingProgress = true;
         try
         {
             var update = await _updater.CheckAndDownloadAsync(percent =>
             {
+                progress?.Invoke(percent);
                 if (!quiet)
                 {
-                    App.Current?.Dispatcher.BeginInvoke(() => StatusMessage = Loc.F("Downloading the update… {0}%", percent));
+                    App.Current?.Dispatcher.BeginInvoke(() =>
+                    {
+                        if (acceptingProgress) StatusMessage = Loc.F("Downloading the update… {0}%", percent);
+                    });
                 }
             });
             if (update is null)
@@ -129,6 +134,12 @@ public sealed partial class MainViewModel
             UpdateReady?.Invoke(null, EventArgs.Empty);
             StatusMessage = string.Empty;
             return Loc.F("Version {0} is downloaded. Restart to install it.", s_readyVersion);
+        }
+        catch (TimeoutException ex)
+        {
+            App.LogMessage("Update timed out: " + ex);
+            StatusMessage = Loc.T("The download stopped. Check the internet connection and try again.");
+            return StatusMessage;
         }
         catch (UpdateVerificationException ex)
         {
@@ -145,6 +156,7 @@ public sealed partial class MainViewModel
         }
         finally
         {
+            acceptingProgress = false;
             s_isCheckingForUpdates = false;
         }
     }
@@ -203,7 +215,7 @@ public sealed partial class MainViewModel
 
         public string UpdateReadyText => owner.UpdateReadyText;
 
-        public Task<string> CheckNowAsync() => owner.CheckForUpdatesAsync(quiet: false);
+        public Task<string> CheckNowAsync(Action<int>? progress = null) => owner.CheckForUpdatesAsync(quiet: false, progress);
 
         public Task RestartToUpdateAsync() => owner.RestartToUpdateAsync();
     }

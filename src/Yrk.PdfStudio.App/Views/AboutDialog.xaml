@@ -37,8 +37,8 @@
             <Button x:Name="CheckButton" Content="Check for updates now" Style="{StaticResource SecondaryButton}" Click="OnCheckNow" />
             <Button x:Name="RestartButton" Content="Restart to update" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Visibility="Collapsed"
                     Click="OnRestartToUpdate" AutomationProperties.Name="Restart to update" />
-            <TextBlock x:Name="ResultText" VerticalAlignment="Center" Margin="10,0,0,0" TextWrapping="Wrap" MaxWidth="260" />
         </StackPanel>
+        <TextBlock x:Name="ResultText" Margin="0,8,0,0" TextWrapping="Wrap" />
 
         <TextBlock Text="Open-source components" FontWeight="SemiBold" Margin="0,18,0,4" />
         <TextBox x:Name="NoticesText" Height="180" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"

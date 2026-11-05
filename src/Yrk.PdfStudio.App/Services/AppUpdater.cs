@@ -20,9 +20,15 @@ public sealed class AppUpdater
     private const string PackageId = "YRK.EasyPdf";
     private readonly YrkUpdateManager? _manager;
     private readonly VerifiedUpdateSource? _source;
+    private readonly TimeSpan _checkTimeout;
+    private readonly TimeSpan _downloadIdleTimeout;
 
-    public AppUpdater()
+    public AppUpdater(TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null)
     {
+        _checkTimeout = checkTimeout ?? TimeSpan.FromSeconds(60);
+        _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromSeconds(120);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_checkTimeout, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_downloadIdleTimeout, TimeSpan.Zero);
         FeedUrl = Environment.GetEnvironmentVariable(FeedVariable) is { Length: > 0 } overridden
             ? overridden
             : typeof(AppUpdater).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "YrkUpdateUrl")?.Value;
@@ -45,8 +51,13 @@ public sealed class AppUpdater
         }
     }
 
-    internal AppUpdater(YrkUpdateManager manager, VerifiedUpdateSource source)
+    internal AppUpdater(YrkUpdateManager manager, VerifiedUpdateSource source,
+        TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null)
     {
+        _checkTimeout = checkTimeout ?? TimeSpan.FromSeconds(60);
+        _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromSeconds(120);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_checkTimeout, TimeSpan.Zero);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_downloadIdleTimeout, TimeSpan.Zero);
         _manager = manager;
         _source = source;
     }
@@ -69,12 +80,47 @@ public sealed class AppUpdater
     {
         if (_manager is not { IsInstalled: true } manager) return null;
         Ready = null;
-        var update = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
+        var update = await manager.CheckForUpdatesAsync().WaitAsync(_checkTimeout, cancellationToken).ConfigureAwait(false);
         if (update is null) return null;
 
-        await RemoveInvalidCachedPackageAsync(manager, update.TargetFullRelease, cancellationToken).ConfigureAwait(false);
-        await manager.DownloadUpdatesAsync(update, progress, cancellationToken).ConfigureAwait(false);
-        await VerifyAsync(manager, update.TargetFullRelease, cancellationToken).ConfigureAwait(false);
+        using var download = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        download.CancelAfter(_downloadIdleTimeout);
+        var progressLock = new object();
+        var lastPercent = -1;
+        var finished = false;
+        void ReportProgress(int percent)
+        {
+            lock (progressLock)
+            {
+                if (finished || download.IsCancellationRequested) return;
+                if (percent != lastPercent)
+                {
+                    lastPercent = percent;
+                    download.CancelAfter(_downloadIdleTimeout);
+                }
+                progress?.Invoke(percent);
+            }
+        }
+        try
+        {
+            await RemoveInvalidCachedPackageAsync(manager, update.TargetFullRelease, download.Token).ConfigureAwait(false);
+            // Await cancellation fully: abandoning the task could let it write files after cleanup or retry.
+            await manager.DownloadUpdatesAsync(update, ReportProgress, download.Token).ConfigureAwait(false);
+            await VerifyAsync(manager, update.TargetFullRelease, download.Token).ConfigureAwait(false);
+            download.Token.ThrowIfCancellationRequested();
+        }
+        catch (Exception ex) when (download.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            var package = VerifiedUpdateSource.GetPackagePath(manager.PackagesDir, update.TargetFullRelease);
+            // The source normally deletes rejected files; also cover a cached package and Velopack's partial.
+            File.Delete(package + ".partial");
+            File.Delete(package);
+            throw new TimeoutException("The download stopped. Check the internet connection and try again.", ex);
+        }
+        finally
+        {
+            lock (progressLock) finished = true;
+        }
         Ready = update;
         return update;
     }
