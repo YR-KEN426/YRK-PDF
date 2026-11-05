@@ -111,11 +111,9 @@ internal static class CrlValidation
             var critical = false;
             if (extension.HasData && extension.PeekTag().HasSameClassAndValue(Asn1Tag.Boolean))
             {
+                // An explicit FALSE is not strict DER but means the same as an omitted one; 1.1.5 accepted it,
+                // and rejecting it would break LTV for CAs that write it, with no gain in safety.
                 critical = extension.ReadBoolean();
-                if (!critical) // DEFAULT FALSE must be omitted in DER.
-                {
-                    return false;
-                }
             }
             var value = extension.ReadOctetString();
             extension.ThrowIfNotEmpty();
@@ -173,7 +171,7 @@ internal static class CrlValidation
             {
                 if (!point.ReadBoolean(tag))
                 {
-                    return false; // All four BOOLEAN fields are DEFAULT FALSE in DER.
+                    continue; // An explicit FALSE (DEFAULT FALSE) narrows nothing, same as omitted.
                 }
                 switch (tag.TagValue)
                 {

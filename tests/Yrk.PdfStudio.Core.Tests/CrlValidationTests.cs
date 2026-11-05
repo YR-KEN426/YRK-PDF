@@ -67,11 +67,12 @@ public sealed class CrlValidationTests
     [InlineData(2)]
     [InlineData(4)]
     [InlineData(5)]
-    public void IDP_explicit_DEFAULT_FALSE_is_not_DER(int flag)
+    public void IDP_explicit_FALSE_flag_means_the_same_as_omitted(int flag)
     {
         using var pki = new TestPki();
         var crl = CreateCrl(pki.Issuer, [new("2.5.29.28", Idp(flag: flag, flagValue: false), true)], VerificationTime);
-        Assert.False(CrlValidation.TryCheck(crl, pki.Certificate, pki.Issuer, VerificationTime, out _));
+        Assert.True(CrlValidation.TryCheck(crl, pki.Certificate, pki.Issuer, VerificationTime, out var revoked));
+        Assert.False(revoked);
     }
 
     [Theory]
@@ -106,11 +107,12 @@ public sealed class CrlValidationTests
     }
 
     [Fact]
-    public void Extension_critical_DEFAULT_FALSE_must_also_be_omitted_in_DER()
+    public void Extension_explicit_critical_FALSE_is_accepted_as_non_critical()
     {
         using var pki = new TestPki();
         var crl = CreateCrl(pki.Issuer, [new("2.5.29.28", Idp(), false)], VerificationTime, explicitCriticalFalse: true);
-        Assert.False(CrlValidation.TryCheck(crl, pki.Certificate, pki.Issuer, VerificationTime, out _));
+        Assert.True(CrlValidation.TryCheck(crl, pki.Certificate, pki.Issuer, VerificationTime, out var revoked));
+        Assert.False(revoked);
     }
 
     [Theory]
