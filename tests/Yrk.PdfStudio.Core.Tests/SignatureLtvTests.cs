@@ -1,18 +1,74 @@
 using System.Formats.Asn1;
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Pkcs;
 using System.Security.Cryptography.X509Certificates;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Cos;
 using Yrk.PdfStudio.Core.Pdf.Signatures;
+using Yrk.PdfStudio.App.Services;
+using Yrk.PdfStudio.App.ViewModels;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class SignatureLtvTests
 {
     private static byte[] Source => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf"));
+
+    [Theory]
+    [InlineData("Signing…")]
+    [InlineData("Recognizing text…")]
+    public async Task Transform_hides_progress_before_showing_an_error(string operationText)
+    {
+        var folder = Directory.CreateTempSubdirectory("yrk-transform-error-");
+        var inputPath = Path.Combine(folder.FullName, "input.pdf");
+        await File.WriteAllBytesAsync(inputPath, Source);
+        var dialogs = DispatchProxy.Create<IDialogService, SignatureSecurityTests.TestProxy>();
+        var document = DispatchProxy.Create<IPdfDocument, SignatureSecurityTests.TestProxy>();
+        ((SignatureSecurityTests.TestProxy)(object)document).Handle = (method, _) => method.Name switch
+        {
+            "get_FilePath" => inputPath,
+            _ => throw new InvalidOperationException(method.Name),
+        };
+        var store = DispatchProxy.Create<ISignatureStore, SignatureSecurityTests.TestProxy>();
+        ((SignatureSecurityTests.TestProxy)(object)store).Handle = (_, _) => Array.Empty<SavedSignature>();
+        var model = new MainViewModel(null!, dialogs, store);
+        var documentField = typeof(MainViewModel).GetField("_document", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        documentField.SetValue(model, document);
+        var errors = 0;
+        ((SignatureSecurityTests.TestProxy)(object)dialogs).Handle = (method, _) =>
+        {
+            Assert.Equal("ShowError", method.Name);
+            Assert.False(model.IsOperationRunning);
+            Assert.False(model.IsBusy);
+            Assert.Equal(string.Empty, model.OperationText);
+            Assert.Equal(string.Empty, model.StatusMessage);
+            Assert.Equal([inputPath], Directory.GetFiles(folder.FullName));
+            errors++;
+            return null;
+        };
+        Func<IPdfDocument, byte[], CancellationToken, Task<byte[]?>> transform = (_, _, _) =>
+        {
+            Assert.True(model.IsOperationRunning);
+            Assert.True(model.IsBusy);
+            throw new PdfException("simulated transform failure", new IOException("inner cause"));
+        };
+        try
+        {
+            var method = typeof(MainViewModel).GetMethod("TransformToFileAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            var result = await (Task<string?>)method.Invoke(model, [Path.Combine(folder.FullName, "output.pdf"), operationText, transform])!;
+            Assert.Null(result);
+            Assert.Equal(1, errors);
+        }
+        finally
+        {
+            documentField.SetValue(model, null);
+            await model.CloseTabAsync();
+            folder.Delete(recursive: true);
+        }
+    }
 
     [Theory]
     [InlineData(false)]
@@ -102,7 +158,47 @@ public sealed class SignatureLtvTests
         using var pki = new TestPki();
         var error = await Assert.ThrowsAsync<PdfException>(() => PdfSigner.SignAsync(
             Store(Source, [pki.Ca, pki.Root]), new(pki.Signer, RevocationSource: new TestRevocationSource(pki.BadCrl(kind)))));
-        Assert.Contains("revocation list", error.Message, StringComparison.Ordinal);
+        Assert.Contains("was downloaded but could not be validated", error.Message, StringComparison.Ordinal);
+        Assert.IsType<InvalidDataException>(error.InnerException);
+    }
+
+    [Fact]
+    public async Task LTV_reports_download_failure_and_keeps_the_network_exception()
+    {
+        using var pki = new TestPki(multipleUrls: true);
+        var source = new FailingRevocationSource();
+        var error = await Assert.ThrowsAsync<PdfException>(() => PdfSigner.SignAsync(
+            Store(Source, [pki.Ca, pki.Root]), new(pki.Signer, RevocationSource: source)));
+        Assert.Contains("could not be downloaded", error.Message, StringComparison.Ordinal);
+        Assert.Same(source.Failure, error.InnerException);
+        Assert.Equal(LongTermValidation.CrlUrls(pki.Signer).Count, source.Calls);
+        Assert.Equal(2, source.Calls);
+    }
+
+    [Fact]
+    public async Task Invalid_download_is_not_reported_as_offline_when_a_later_URL_fails()
+    {
+        using var pki = new TestPki(multipleUrls: true);
+        var source = new FailingRevocationSource { InvalidFirst = true };
+        var error = await Assert.ThrowsAsync<PdfException>(() => PdfSigner.SignAsync(
+            Store(Source, [pki.Ca, pki.Root]), new(pki.Signer, RevocationSource: source)));
+        Assert.Equal(2, source.Calls);
+        Assert.Contains("was downloaded but could not be validated", error.Message, StringComparison.Ordinal);
+        Assert.Contains("https://crl.example.test/test", error.Message, StringComparison.Ordinal);
+        Assert.IsType<InvalidDataException>(error.InnerException);
+    }
+
+    private sealed class FailingRevocationSource : IPdfRevocationSource
+    {
+        internal readonly HttpRequestException Failure = new("simulated offline");
+        internal int Calls;
+        internal bool InvalidFirst;
+        public Task<byte[]> GetAsync(Uri url, CancellationToken cancellationToken)
+        {
+            Calls++;
+            if (InvalidFirst && Calls == 1) return Task.FromResult(new byte[] { 1, 2, 3 });
+            return Task.FromException<byte[]>(Failure);
+        }
     }
 
     [Theory]
@@ -225,7 +321,7 @@ public sealed class SignatureLtvTests
         internal X509Certificate2 Ca { get; }
         internal X509Certificate2 Signer { get; }
 
-        internal TestPki()
+        internal TestPki(bool multipleUrls = false)
         {
             using var rootKey = RSA.Create(2048);
             using var caKey = RSA.Create(2048);
@@ -235,19 +331,20 @@ public sealed class SignatureLtvTests
             using var ca = Request("Intermediate " + Guid.NewGuid(), caKey, ca: true).Create(
                 Root, DateTimeOffset.UtcNow.AddMonths(-1), DateTimeOffset.UtcNow.AddYears(1), [1]);
             Ca = ca.CopyWithPrivateKey(caKey);
-            using var leaf = Request("LTV test signer", leafKey, ca: false).Create(
+            using var leaf = Request("LTV test signer", leafKey, ca: false, multipleUrls).Create(
                 Ca, DateTimeOffset.UtcNow.AddDays(-7), DateTimeOffset.UtcNow.AddMonths(1), [0x12, 0x34]);
             Signer = leaf.CopyWithPrivateKey(leafKey);
         }
 
-        private static CertificateRequest Request(string name, RSA key, bool ca)
+        private static CertificateRequest Request(string name, RSA key, bool ca, bool multipleUrls = false)
         {
             var request = new CertificateRequest("CN=" + name, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
             request.CertificateExtensions.Add(new X509BasicConstraintsExtension(ca, false, 0, true));
             request.CertificateExtensions.Add(new X509KeyUsageExtension(ca
                 ? X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign : X509KeyUsageFlags.DigitalSignature, true));
             request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
-            request.CertificateExtensions.Add(CertificateRevocationListBuilder.BuildCrlDistributionPointExtension(["https://crl.example.test/test"]));
+            request.CertificateExtensions.Add(CertificateRevocationListBuilder.BuildCrlDistributionPointExtension(multipleUrls
+                ? ["https://crl.example.test/test", "https://crl.example.test/backup"] : ["https://crl.example.test/test"]));
             return request;
         }
 

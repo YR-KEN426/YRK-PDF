@@ -55,6 +55,7 @@ public sealed partial class MainViewModel
         var folder = Path.GetDirectoryName(Path.GetFullPath(targetPath))!;
         var editsPath = Path.Combine(folder, $"~{Path.GetFileNameWithoutExtension(document.FilePath)}.{Guid.NewGuid():N}.yrk-saving");
         var tempPath = Path.Combine(folder, $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-writing");
+        string? error = null;
         try
         {
             try
@@ -97,7 +98,10 @@ public sealed partial class MainViewModel
             catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException or CryptographicException or HttpRequestException)
             {
                 TryDelete(tempPath);
-                _dialogs.ShowError(Loc.F("{0} failed.\n\n{1}", busyText.TrimEnd('…', '.'), ex.Message));
+                App.LogMessage("Document transform failed: " + ex);
+                var detail = ex.Data["RevocationMessageFormat"] is string format && ex.Data["RevocationUrl"] is Uri url
+                    ? Loc.F(format, url) : ex.Message;
+                error = Loc.F("{0} failed.\n\n{1}", busyText.TrimEnd('…', '.'), detail);
                 StatusMessage = string.Empty;
                 return null;
             }
@@ -116,11 +120,12 @@ public sealed partial class MainViewModel
             {
                 savedPath = UniqueSiblingPath(targetPath, "new");
                 File.Move(tempPath, savedPath);
-                _dialogs.ShowError(Loc.F(
+                App.LogMessage("Document replacement failed: " + ex);
+                error = Loc.F(
                     "Couldn't replace \"{0}\". Is it open in another program?\n\n{1}\n\nThe result was saved as \"{2}\" instead.",
                     Path.GetFileName(targetPath),
                     ex.Message,
-                    Path.GetFileName(savedPath)));
+                    Path.GetFileName(savedPath));
             }
 
             ClearEdits();
@@ -139,6 +144,11 @@ public sealed partial class MainViewModel
 
             OperationText = string.Empty;
             IsBusy = false;
+            // ShowError is modal: release the progress UI before entering its message loop.
+            if (error is not null)
+            {
+                _dialogs.ShowError(error);
+            }
         }
     }
 

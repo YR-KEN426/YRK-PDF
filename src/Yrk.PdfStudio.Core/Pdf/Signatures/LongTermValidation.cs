@@ -147,6 +147,8 @@ internal static class LongTermValidation
         X509Certificate2 certificate, X509Certificate2? issuer, CancellationToken cancellationToken)
     {
         Exception? last = null;
+        Exception? validationFailure = null;
+        Uri? invalidUrl = null;
         foreach (var url in urls)
         {
             try
@@ -154,7 +156,9 @@ internal static class LongTermValidation
                 var crl = await source.GetAsync(url, cancellationToken).ConfigureAwait(false);
                 if (issuer is null || !CrlValidation.TryCheck(crl, certificate, issuer, DateTimeOffset.UtcNow, out _))
                 {
-                    throw new HttpRequestException("The revocation list has an invalid signature, validity period, size or format, or its issuer is unavailable.");
+                    validationFailure = new InvalidDataException("The revocation list has an invalid signature, validity period, size or format, or its issuer is unavailable.");
+                    invalidUrl = url;
+                    continue;
                 }
                 return crl;
             }
@@ -164,8 +168,23 @@ internal static class LongTermValidation
             }
         }
 
-        throw new PdfException(
-            $"The revocation list at {urls[0]} could not be downloaded. Check the internet connection, or sign without long-term validation.", last!);
+        if (validationFailure is not null)
+        {
+            throw DownloadError(
+                "The revocation list from {0} was downloaded but could not be validated. Sign without long-term validation, or try again later.",
+                invalidUrl!, validationFailure);
+        }
+        throw DownloadError(
+            "The revocation list at {0} could not be downloaded. Check the internet connection, or sign without long-term validation.", urls[0], last!);
+    }
+
+    private static PdfException DownloadError(string format, Uri url, Exception cause)
+    {
+        // Keep the existing exception type and English message; the UI translates the format before inserting the URL.
+        var error = new PdfException(string.Format(System.Globalization.CultureInfo.InvariantCulture, format, url), cause);
+        error.Data["RevocationMessageFormat"] = format;
+        error.Data["RevocationUrl"] = url;
+        return error;
     }
 
     /// <summary>The http(s) addresses in a certificate's CRL distribution points.</summary>

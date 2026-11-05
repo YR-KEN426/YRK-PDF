@@ -1384,6 +1384,8 @@
   "• It has never been tested by actually submitting to the e-Tax Invoice system": "• ยังไม่เคยทดสอบส่งจริงในระบบ e-Tax Invoice",
   "• It is not certified by the Revenue Department": "• ไม่ได้รับการรับรองจากกรมสรรพากร",
   "• YRK PDF is not an e-Tax Invoice service provider. You must check the file and are responsible for submitting it yourself": "• YRK PDF ไม่ใช่ผู้ให้บริการ e-Tax Invoice ผู้ใช้ต้องตรวจไฟล์และรับผิดชอบการส่งเอง",
+  "The revocation list at {0} could not be downloaded. Check the internet connection, or sign without long-term validation.": "ดาวน์โหลดรายการใบรับรองที่ถูกเพิกถอนจาก {0} ไม่ได้ โปรดตรวจสอบการเชื่อมต่ออินเทอร์เน็ต หรือเซ็นโดยไม่เพิ่มข้อมูลตรวจสอบระยะยาว",
+  "The revocation list from {0} was downloaded but could not be validated. Sign without long-term validation, or try again later.": "ดาวน์โหลดรายการใบรับรองที่ถูกเพิกถอนจาก {0} แล้ว แต่ตรวจสอบความถูกต้องไม่ผ่าน โปรดเซ็นโดยไม่เพิ่มข้อมูลตรวจสอบระยะยาว หรือลองใหม่ภายหลัง",
   "Continue signing": "เซ็นต่อ",
   "This file already has 1 signature. Signing again adds another signature after it; the earlier signature stays.": "ไฟล์นี้มีลายเซ็นอยู่แล้ว 1 รายการ การเซ็นอีกครั้งจะเพิ่มลายเซ็นต่อท้าย ลายเซ็นเดิมยังอยู่",
   "This file already has {0} signatures. Signing again adds another signature after them; the earlier signatures stay.": "ไฟล์นี้มีลายเซ็นอยู่แล้ว {0} รายการ การเซ็นอีกครั้งจะเพิ่มลายเซ็นต่อท้าย ลายเซ็นเดิมยังอยู่",
