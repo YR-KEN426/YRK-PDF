@@ -12,14 +12,22 @@ public partial class DigitalSignDialog : Window
 {
     private readonly DigitalIdStore _store;
     private readonly bool _lockOnly;
+    private readonly bool _alreadySigned;
     private readonly DigitalSignSettings _settings = DigitalSignSettings.Load();
 
     /// <param name="lockOnly">The handwritten signature is already on the page: sign invisibly by default.</param>
-    public DigitalSignDialog(DigitalIdStore store, IReadOnlyList<SavedSignature> signatures, bool lockOnly = false)
+    public DigitalSignDialog(DigitalIdStore store, IReadOnlyList<SavedSignature> signatures, bool lockOnly = false, bool alreadySigned = false)
     {
         InitializeComponent();
         _store = store;
         _lockOnly = lockOnly;
+        _alreadySigned = alreadySigned;
+        if (alreadySigned)
+        {
+            CertifyChoice.SelectedIndex = 0; // Approval has PdfCertification.None.
+            CertifyChoice.IsEnabled = false;
+            AlreadySignedNote.Visibility = Visibility.Visible;
+        }
 
         var handwritten = new List<HandwrittenOption> { new(Loc.T("Signer's name (no handwritten signature)"), null) };
         handwritten.AddRange(signatures.Select(s => new HandwrittenOption(string.Empty, s)));
@@ -268,7 +276,7 @@ public partial class DigitalSignDialog : Window
             VisibleOption.IsChecked == true,
             handwritten?.Image,
             timestampUrl,
-            (CertifyChoice.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag is string tag ? (PdfCertification)int.Parse(tag, System.Globalization.CultureInfo.InvariantCulture) : PdfCertification.None,
+            !_alreadySigned && (CertifyChoice.SelectedItem as System.Windows.Controls.ComboBoxItem)?.Tag is string tag ? (PdfCertification)int.Parse(tag, System.Globalization.CultureInfo.InvariantCulture) : PdfCertification.None,
             LongTermBox.IsChecked == true);
         _settings.LongTermValidation = Options.LongTermValidation;
 

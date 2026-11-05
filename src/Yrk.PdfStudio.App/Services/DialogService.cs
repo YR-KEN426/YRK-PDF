@@ -54,7 +54,7 @@ public sealed class DialogService : IDialogService
             AddExtension = true,
             OverwritePrompt = true,
             InitialDirectory = Path.GetDirectoryName(currentPath),
-            FileName = Path.GetFileNameWithoutExtension(currentPath) + " (signed).pdf",
+            FileName = Path.GetFileName(currentPath),
         };
         return ShowDialog(dialog) ? dialog.FileName : null;
     }
@@ -185,10 +185,16 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog() == true ? dialog.Options : null;
     }
 
-    public DigitalSignOptions? AskDigitalSign(IReadOnlyList<SavedSignature> signatures, bool lockOnly = false)
+    public DigitalSignOptions? AskDigitalSign(IReadOnlyList<SavedSignature> signatures, bool lockOnly = false, bool alreadySigned = false)
     {
-        var dialog = new DigitalSignDialog(new DigitalIdStore(), signatures, lockOnly) { Owner = Owner };
+        var dialog = new DigitalSignDialog(new DigitalIdStore(), signatures, lockOnly, alreadySigned) { Owner = Owner };
         return dialog.ShowDialog() == true ? dialog.Options : null;
+    }
+
+    public bool ConfirmSignAgain(int signatureCount, bool hasUnsavedEdits)
+    {
+        var dialog = new SignAgainDialog(signatureCount, hasUnsavedEdits) { Owner = Owner };
+        return dialog.ShowDialog() == true;
     }
 
     public OcrOptions? AskOcr()

@@ -97,7 +97,10 @@ public interface IDialogService
     PdfCompressionOptions? AskCompression();
 
     /// <param name="lockOnly">A handwritten signature was just placed: offer an invisible signature first.</param>
-    DigitalSignOptions? AskDigitalSign(IReadOnlyList<SavedSignature> signatures, bool lockOnly = false);
+    DigitalSignOptions? AskDigitalSign(IReadOnlyList<SavedSignature> signatures, bool lockOnly = false, bool alreadySigned = false);
+
+    /// <summary>Warns before adding another signature; false when cancelled.</summary>
+    bool ConfirmSignAgain(int signatureCount, bool hasUnsavedEdits);
 
     OcrOptions? AskOcr();
 

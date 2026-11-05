@@ -100,6 +100,9 @@
             <ComboBoxItem Content="Certify as the author: form filling, signing and comments allowed after" Tag="3" />
             <ComboBoxItem Content="Certify as the author: no changes allowed after" Tag="1" />
         </ComboBox>
+        <TextBlock x:Name="AlreadySignedNote" Visibility="Collapsed" Margin="0,4,0,0" TextWrapping="Wrap"
+                   Foreground="{StaticResource SecondaryTextBrush}"
+                   Text="This file is already signed, so it can only be approved, not certified. Only the first signature can certify a document." />
         <TextBlock Text="Only the first signature of a document can certify it. Viewers such as Adobe Acrobat then show which later changes break the certification."
                    FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
 

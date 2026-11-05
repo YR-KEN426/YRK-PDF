@@ -105,7 +105,12 @@ public sealed partial class MainViewModel
 
         CommitEditsRequested?.Invoke(this, EventArgs.Empty);
         EndPlacement();
-        if (_dialogs.AskDigitalSign(SavedSignatures, lockOnly) is not { } options)
+        if (HasSignatures && !_dialogs.ConfirmSignAgain(Signatures.Count, IsDirty))
+        {
+            return;
+        }
+
+        if (_dialogs.AskDigitalSign(SavedSignatures, lockOnly, alreadySigned: HasSignatures) is not { } options)
         {
             return;
         }
@@ -178,7 +183,7 @@ public sealed partial class MainViewModel
         }
 
         var targetPath = _dialogs.PickSavePdfFile(
-            Path.GetFileNameWithoutExtension(document.FilePath) + " (signed).pdf", Path.GetDirectoryName(document.FilePath), "Save the signed document");
+            SignedFileName.Suggest(document.FilePath), Path.GetDirectoryName(document.FilePath), "Save the signed document");
         if (targetPath is null)
         {
             return;
