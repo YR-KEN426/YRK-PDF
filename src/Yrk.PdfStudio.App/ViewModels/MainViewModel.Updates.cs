@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Input;
+using System.Windows.Threading;
 using Yrk.PdfStudio.App.Services;
 
 namespace Yrk.PdfStudio.App.ViewModels;
@@ -21,6 +22,19 @@ public sealed partial class MainViewModel
     private AppSettings _settings => SharedSettings;
     private static string? s_readyVersion; // Shared: every tab shows the same update banner.
     private static event EventHandler? UpdateReady;
+    private enum UpdateState { None, Downloading, Stalled, Stopped, Ready }
+    private static UpdateState s_updateState;
+    private static readonly object UpdateProgressLock = new();
+    private static UpdateDownloadProgress? s_downloadProgress;
+    private static CancellationTokenSource? s_updateCancellation;
+    private static DispatcherTimer? s_updateTimer;
+    private static string? s_downloadingVersion;
+    private static long s_downloadSize;
+    private static DateTimeOffset s_lastProgressUi;
+    private static bool s_progressUiPending;
+    private IRelayCommand? _cancelUpdateCommand;
+    private IAsyncRelayCommand? _retryUpdateCommand;
+    private IRelayCommand? _dismissUpdateCommand;
 
     /// <summary>Set by the window: asks about unsaved changes in every tab before a restart.</summary>
     public Func<Task<bool>>? ConfirmAllTabsAsync { get; set; }
@@ -30,6 +44,52 @@ public sealed partial class MainViewModel
     private IRelayCommand<string>? _setLanguageCommand;
 
     public bool IsUpdateReady => s_readyVersion is not null;
+    public bool ShowUpdateBanner => s_updateState != UpdateState.None;
+    public bool IsUpdateDownloading => s_updateState is UpdateState.Downloading or UpdateState.Stalled;
+    public bool IsUpdateStopped => s_updateState == UpdateState.Stopped;
+    public int UpdateDownloadPercent { get { lock (UpdateProgressLock) return s_downloadProgress?.Percent ?? 0; } }
+    public string UpdateBannerText
+    {
+        get
+        {
+            lock (UpdateProgressLock)
+            {
+                return s_updateState switch
+                {
+                    UpdateState.Ready => UpdateReadyText,
+                    UpdateState.Stalled => Loc.T("The download isn't progressing. The connection may be slow or stalled."),
+                    UpdateState.Stopped => Loc.T("The download has stopped."),
+                    UpdateState.Downloading => Loc.F("Downloading YRK PDF {0}… {1}% ({2} / {3} MB)",
+                        s_downloadingVersion, s_downloadProgress?.Percent ?? 0,
+                        ((s_downloadProgress?.DownloadedBytes ?? 0) / 1048576d).ToString("F1"),
+                        (s_downloadSize / 1048576d).ToString("F1")),
+                    _ => string.Empty
+                };
+            }
+        }
+    }
+
+    public IRelayCommand CancelUpdateCommand => _cancelUpdateCommand ??= new RelayCommand(() =>
+    {
+        if (!IsUpdateDownloading) return;
+        // Keep the source alive until the updater has finished cancellation and cleanup.
+        SetUpdateState(UpdateState.Stopped);
+        s_updateTimer?.Stop();
+        s_updateCancellation?.Cancel();
+    });
+    public IAsyncRelayCommand RetryUpdateCommand => _retryUpdateCommand ??= new AsyncRelayCommand(
+        async () => { await CheckForUpdatesAsync(quiet: true); },
+        () => IsUpdateStopped && !s_isCheckingForUpdates);
+    public IRelayCommand DismissUpdateCommand => _dismissUpdateCommand ??= new RelayCommand(() =>
+    {
+        if (IsUpdateStopped) SetUpdateState(UpdateState.None);
+    });
+
+    private static void SetUpdateState(UpdateState state)
+    {
+        s_updateState = state;
+        UpdateReady?.Invoke(null, EventArgs.Empty);
+    }
 
     public string UpdateReadyText => Loc.F("YRK PDF {0} is ready to install.", s_readyVersion);
 
@@ -93,6 +153,10 @@ public sealed partial class MainViewModel
     /// <summary>Checks the feed and downloads an update. Returns a sentence for the user.</summary>
     private async Task<string> CheckForUpdatesAsync(bool quiet, Action<int>? progress = null)
     {
+        var dispatcher = App.Current.Dispatcher;
+        if (!dispatcher.CheckAccess())
+            return await dispatcher.InvokeAsync(() => CheckForUpdatesAsync(quiet, progress)).Task.Unwrap();
+
         if (!_updater.IsAvailable)
         {
             return string.IsNullOrWhiteSpace(_updater.FeedUrl)
@@ -111,38 +175,81 @@ public sealed partial class MainViewModel
         }
 
         s_isCheckingForUpdates = true;
-        var acceptingProgress = true;
+        var cancellation = new CancellationTokenSource();
+        s_updateCancellation = cancellation;
+        SetUpdateState(UpdateState.None); // Checking the feed alone does not show a banner.
         try
         {
             var update = await _updater.CheckAndDownloadAsync(percent =>
             {
                 progress?.Invoke(percent);
-                if (!quiet)
+                lock (UpdateProgressLock)
                 {
-                    App.Current?.Dispatcher.BeginInvoke(() =>
-                    {
-                        if (acceptingProgress) StatusMessage = Loc.F("Downloading the update… {0}%", percent);
-                    });
+                    if (s_updateCancellation != cancellation || cancellation.IsCancellationRequested) return;
+                    var now = DateTimeOffset.UtcNow;
+                    s_downloadProgress?.Report(percent, now);
+                    if (s_progressUiPending || now - s_lastProgressUi < TimeSpan.FromMilliseconds(250)) return;
+                    s_lastProgressUi = now;
+                    s_progressUiPending = true;
                 }
-            });
+                dispatcher.BeginInvoke(() =>
+                {
+                    lock (UpdateProgressLock)
+                    {
+                        if (s_updateCancellation != cancellation) return;
+                        s_progressUiPending = false;
+                        s_lastProgressUi = DateTimeOffset.UtcNow;
+                    }
+                    if (s_updateCancellation != cancellation || !IsUpdateDownloading) return;
+                    RefreshDownloadState(progressChanged: true);
+                    if (!quiet)
+                    {
+                        StatusMessage = Loc.F("Downloading the update… {0}%", UpdateDownloadPercent);
+                    }
+                });
+            }, cancellation.Token, (size, version) => dispatcher.Invoke(() =>
+            {
+                if (cancellation.IsCancellationRequested) return;
+                lock (UpdateProgressLock)
+                {
+                    s_downloadSize = size;
+                    s_downloadingVersion = version;
+                    s_downloadProgress = new UpdateDownloadProgress(size);
+                    s_downloadProgress.Report(0, DateTimeOffset.UtcNow);
+                    s_lastProgressUi = DateTimeOffset.MinValue;
+                    s_progressUiPending = false;
+                }
+                SetUpdateState(UpdateState.Downloading);
+                s_updateTimer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background,
+                    (_, _) => RefreshDownloadState(), dispatcher);
+                s_updateTimer.Start();
+            }));
             if (update is null)
             {
+                SetUpdateState(UpdateState.None);
                 return Loc.F("You have the latest version ({0}).", AppVersion);
             }
 
             s_readyVersion = update.TargetFullRelease.Version.ToString();
-            UpdateReady?.Invoke(null, EventArgs.Empty);
+            SetUpdateState(UpdateState.Ready); // A completed, verified result wins a late cancel.
             StatusMessage = string.Empty;
             return Loc.F("Version {0} is downloaded. Restart to install it.", s_readyVersion);
         }
+        catch (Exception) when (cancellation.IsCancellationRequested) // The updater may wrap the cancel in UpdateVerificationException.
+        {
+            if (s_updateState != UpdateState.None) SetUpdateState(UpdateState.Stopped);
+            return Loc.T("The download has stopped.");
+        }
         catch (TimeoutException ex)
         {
+            SetUpdateState(UpdateState.Stopped);
             App.LogMessage("Update timed out: " + ex);
             StatusMessage = Loc.T("The download stopped. Check the internet connection and try again.");
             return StatusMessage;
         }
         catch (UpdateVerificationException ex)
         {
+            SetUpdateState(UpdateState.None);
             // Not signed with YRK's key: it was deleted. Say so, even for the background check.
             App.LogMessage(ex.Message);
             StatusMessage = "An update was found but it is not signed by YRK, so it was deleted and not installed.";
@@ -150,15 +257,30 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            SetUpdateState(UpdateState.None);
             // Offline or a broken feed: never bother the user about it in the background.
             App.LogMessage("Update check failed: " + ex);
             return Loc.T("Couldn't check for updates. Check the internet connection and try again later.");
         }
         finally
         {
-            acceptingProgress = false;
+            s_updateTimer?.Stop();
+            s_updateTimer = null;
+            lock (UpdateProgressLock) s_updateCancellation = null;
+            cancellation.Dispose();
             s_isCheckingForUpdates = false;
+            UpdateReady?.Invoke(null, EventArgs.Empty);
         }
+    }
+
+    private static void RefreshDownloadState(bool progressChanged = false)
+    {
+        if (s_updateState is not (UpdateState.Downloading or UpdateState.Stalled)) return;
+        bool stalled;
+        lock (UpdateProgressLock)
+            stalled = s_downloadProgress?.IsStalled(DateTimeOffset.UtcNow) == true;
+        var state = stalled ? UpdateState.Stalled : UpdateState.Downloading;
+        if (progressChanged || state != s_updateState) SetUpdateState(state);
     }
 
     private async Task RestartToUpdateAsync()
@@ -186,7 +308,7 @@ public sealed partial class MainViewModel
     {
         App.LogMessage(ex.ToString());
         s_readyVersion = null;
-        UpdateReady?.Invoke(null, EventArgs.Empty);
+        SetUpdateState(UpdateState.None);
         StatusMessage = Loc.T("An update was found but it is not signed by YRK, so it was deleted and not installed.");
     }
 

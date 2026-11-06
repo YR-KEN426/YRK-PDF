@@ -57,7 +57,7 @@ public sealed class AppUpdaterTests
         finally
         {
             cancellation.Cancel();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => downloading).WaitAsync(TimeSpan.FromSeconds(10));
+            await Assert.ThrowsAnyAsync<Exception>(() => downloading).WaitAsync(TimeSpan.FromSeconds(10));
         }
         Assert.Null(updater.Ready);
         Assert.Equal(0L, updater.DownloadingPackageSize);

@@ -56,6 +56,12 @@ public sealed partial class MainViewModel
         {
             OnPropertyChanged(nameof(IsUpdateReady));
             OnPropertyChanged(nameof(UpdateReadyText));
+            OnPropertyChanged(nameof(ShowUpdateBanner));
+            OnPropertyChanged(nameof(IsUpdateDownloading));
+            OnPropertyChanged(nameof(IsUpdateStopped));
+            OnPropertyChanged(nameof(UpdateDownloadPercent));
+            OnPropertyChanged(nameof(UpdateBannerText));
+            _retryUpdateCommand?.NotifyCanExecuteChanged();
         };
         UpdateReady += _onUpdateReady;
     }

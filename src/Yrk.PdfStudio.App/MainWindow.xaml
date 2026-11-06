@@ -1177,12 +1177,26 @@
                 </DockPanel>
             </Border>
             <Border x:Name="UpdateBanner" DockPanel.Dock="Top" Background="#E8F3FC" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="10,5"
-                    Visibility="{Binding IsUpdateReady, Converter={StaticResource BoolToVisibility}}">
+                    Visibility="{Binding ShowUpdateBanner, Converter={StaticResource BoolToVisibility}}">
                 <DockPanel>
                     <Button DockPanel.Dock="Right" Content="Restart to update" Style="{StaticResource PrimaryButton}" Padding="10,3"
+                            Visibility="{Binding IsUpdateReady, Converter={StaticResource BoolToVisibility}}"
                             Command="{Binding RestartToUpdateCommand}" AutomationProperties.Name="Restart to update" />
+                    <Button DockPanel.Dock="Right" Content="Close" Style="{StaticResource SecondaryButton}" Padding="10,3" Margin="6,0,0,0"
+                            Visibility="{Binding IsUpdateStopped, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding DismissUpdateCommand}" AutomationProperties.Name="Close" />
+                    <Button DockPanel.Dock="Right" Content="Try again" Style="{StaticResource SecondaryButton}" Padding="10,3"
+                            Visibility="{Binding IsUpdateStopped, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding RetryUpdateCommand}" AutomationProperties.Name="Try again" />
+                    <Button DockPanel.Dock="Right" Content="Cancel" Style="{StaticResource SecondaryButton}" Padding="10,3"
+                            Visibility="{Binding IsUpdateDownloading, Converter={StaticResource BoolToVisibility}}"
+                            Command="{Binding CancelUpdateCommand}" AutomationProperties.Name="Cancel" />
                     <TextBlock Style="{StaticResource IconText}" Text="&#xE896;" Foreground="{StaticResource AccentBrush}" Margin="0,0,8,0" />
-                    <TextBlock Text="{Binding UpdateReadyText}" VerticalAlignment="Center" />
+                    <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
+                        <TextBlock Text="{Binding UpdateBannerText}" />
+                        <ProgressBar Height="3" Margin="0,4,0,0" Minimum="0" Maximum="100" Value="{Binding UpdateDownloadPercent}"
+                                     Visibility="{Binding IsUpdateDownloading, Converter={StaticResource BoolToVisibility}}" />
+                    </StackPanel>
                 </DockPanel>
             </Border>
             <Border DockPanel.Dock="Top" Background="{StaticResource ToolbarBrush}" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1" Padding="10,5"

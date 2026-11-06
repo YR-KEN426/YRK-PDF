@@ -128,7 +128,7 @@ public sealed class AppUpdater
             // The source normally deletes rejected files; also cover a cached package and Velopack's partial.
             File.Delete(package + ".partial");
             File.Delete(package);
-            cancellationToken.ThrowIfCancellationRequested();
+            if (cancellationToken.IsCancellationRequested) throw; // Keep the original exception; the caller cancelled.
             throw new TimeoutException("The download stopped. Check the internet connection and try again.", ex);
         }
         finally
