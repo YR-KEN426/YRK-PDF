@@ -37,7 +37,9 @@ public sealed class ThaiPostcodesTests
         var areas = Subdistricts.ToArray();
         var missing = areas.Where(area => ThaiPostcodes.PostcodesOf(area.Code).Count == 0).Select(area => area.Code).Order().ToArray();
         Assert.True(areas.Length - missing.Length >= 7420);
-        Assert.Equal(new[] { "104701", "105001" }, missing);
+        Assert.Empty(missing);
+        Assert.Equal("10260", Assert.Single(ThaiPostcodes.PostcodesOf("104701")).Postcode);
+        Assert.Equal("10150", Assert.Single(ThaiPostcodes.PostcodesOf("105001")).Postcode);
         Assert.Empty(ThaiPostcodes.PostcodesOf("100910")); // Not in our Revenue Department list.
         Assert.Contains(areas, area => ThaiPostcodes.PostcodesOf(area.Code).Count > 1);
     }

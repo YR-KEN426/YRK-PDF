@@ -1,4 +1,4 @@
-# Thai postal codes: thailand-geography-data/thailand-geography-json, commit 021d18e9a481bc141ea87de4ddeebe843cff2f12; Thailand Post, May 2018. Columns: subdistrictCode, postcode, detailTh, detailEn (tab-separated); primary first.
+# Thai postal codes: thailand-geography-data/thailand-geography-json, commit 021d18e9a481bc141ea87de4ddeebe843cff2f12; Thailand Post, May 2018. Columns: subdistrictCode, postcode, detailTh, detailEn (tab-separated); primary first. Plus 2 supplementary rows (104701, 105001) from the Thailand Post website, checked by the maintainer 2026-11-06.
 100101	10200	ทั้งตำบล	Whole subdistrict
 100102	10200	ทั้งตำบล	Whole subdistrict
 100103	10200	ทั้งตำบล	Whole subdistrict
@@ -167,10 +167,12 @@
 104603	10510	ทั้งตำบล	Whole subdistrict
 104604	10510	ทั้งตำบล	Whole subdistrict
 104605	10510	ทั้งตำบล	Whole subdistrict
+104701	10260	ทั้งตำบล	Whole subdistrict
 104801	10170	ทั้งตำบล	Whole subdistrict
 104802	10170	ทั้งตำบล	Whole subdistrict
 104901	10140	ทั้งตำบล	Whole subdistrict
 104902	10140	ทั้งตำบล	Whole subdistrict
+105001	10150	ทั้งตำบล	Whole subdistrict
 110101	10270	ทั้งตำบล	Whole subdistrict
 110102	10270	ทั้งตำบล	Whole subdistrict
 110103	10270	ทั้งตำบล	Whole subdistrict

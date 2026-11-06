@@ -50,7 +50,7 @@ $seen = @{}
 $included = @{}
 $extra = [System.Collections.Generic.List[string]]::new()
 $lines = [System.Collections.Generic.List[string]]::new()
-$lines.Add('# Thai postal codes: thailand-geography-data/thailand-geography-json, commit 021d18e9a481bc141ea87de4ddeebe843cff2f12; Thailand Post, May 2018. Columns: subdistrictCode, postcode, detailTh, detailEn (tab-separated); primary first.')
+$lines.Add('# Thai postal codes: thailand-geography-data/thailand-geography-json, commit 021d18e9a481bc141ea87de4ddeebe843cff2f12; Thailand Post, May 2018. Columns: subdistrictCode, postcode, detailTh, detailEn (tab-separated); primary first. Plus 2 supplementary rows (104701, 105001) from the Thailand Post website, checked by the maintainer 2026-11-06.')
 foreach ($area in ($data | Sort-Object subdistrictCode)) {
     $code = Convert-Code $area.subdistrictCode 6 'subdistrictCode'
     if ($seen.ContainsKey($code)) { throw "Duplicate subdistrictCode: $code" }
@@ -86,6 +86,33 @@ foreach ($area in ($data | Sort-Object subdistrictCode)) {
         $lines.Add($row.Line)
     }
 }
+
+# These old (pre-split) subdistrict codes are used by the Revenue Department list (thai-areas.txt).
+# The 2018 main data uses the new subdistrict names, so it does not contain them.
+# Source: Thailand Post website, checked by the maintainer 2026-11-06. 10260 is listed for Bang Na district.
+# For 105001, the Thailand Post website lists 10150 directly for Bang Bon district.
+# Thai text is written as escapes so Windows PowerShell 5.1 reads it the same with or without a BOM.
+$wholeTh = -join ([char[]](0x0E17, 0x0E31, 0x0E49, 0x0E07, 0x0E15, 0x0E33, 0x0E1A, 0x0E25))
+$supplementary = @(
+    [pscustomobject]@{ Code = '104701'; Postcode = '10260'; DetailTh = $wholeTh; DetailEn = 'Whole subdistrict' }
+    [pscustomobject]@{ Code = '105001'; Postcode = '10150'; DetailTh = $wholeTh; DetailEn = 'Whole subdistrict' }
+)
+foreach ($row in $supplementary) {
+    if ($seen.ContainsKey($row.Code)) { throw "Supplementary subdistrictCode already exists in main data: $($row.Code)" }
+    if (-not $areas.ContainsKey($row.Code)) { throw "Supplementary subdistrictCode is missing from thai-areas.txt: $($row.Code)" }
+    $seen[$row.Code] = $true
+    $included[$row.Code] = $true
+    $lines.Add("$($row.Code)`t$($row.Postcode)`t$($row.DetailTh)`t$($row.DetailEn)")
+}
+
+# Keep each area's primary-first row order while ordering all areas by their subdistrict code.
+$orderedRows = for ($index = 1; $index -lt $lines.Count; $index++) {
+    [pscustomobject]@{ Code = $lines[$index].Substring(0, 6); Index = $index; Line = $lines[$index] }
+}
+$sortedLines = [System.Collections.Generic.List[string]]::new()
+$sortedLines.Add($lines[0])
+foreach ($row in ($orderedRows | Sort-Object Code, Index)) { $sortedLines.Add($row.Line) }
+$lines = $sortedLines
 
 $missing = @($areas.Keys | Where-Object { -not $included.ContainsKey($_) } | Sort-Object)
 # Write only after the entire input has passed validation; use stable LF and UTF-8 without BOM.

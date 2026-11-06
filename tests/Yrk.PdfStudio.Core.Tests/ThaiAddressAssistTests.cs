@@ -104,10 +104,10 @@ public sealed class ThaiAddressAssistTests
     [Fact]
     public void Does_not_guess_when_the_subdistrict_has_no_data()
     {
-        var suggestion = ThaiAddressAssist.SuggestPostcode("104701", "", "10200");
+        var suggestion = ThaiAddressAssist.SuggestPostcode("100910", "", "10200");
         Assert.Null(suggestion.TextToSet);
         Assert.Empty(suggestion.Options);
-        Assert.Equal(ThaiPostcodeMatch.Unknown, ThaiAddressAssist.Check("104701", "10200"));
+        Assert.Equal(ThaiPostcodeMatch.Unknown, ThaiAddressAssist.Check("100910", "10200"));
     }
 
     [Fact]
@@ -193,7 +193,8 @@ public sealed class ThaiAddressAssistTests
     [InlineData("100101", "10550", ThaiPostcodeMatch.Mismatch)]
     [InlineData("100101", "99999", ThaiPostcodeMatch.Unknown)]
     [InlineData("100101", "1020", ThaiPostcodeMatch.Unknown)]
-    [InlineData("104701", "10200", ThaiPostcodeMatch.Unknown)]
+    [InlineData("104701", "10260", ThaiPostcodeMatch.Match)]
+    [InlineData("104701", "10200", ThaiPostcodeMatch.Mismatch)]
     [InlineData(null, "10200", ThaiPostcodeMatch.Unknown)]
     [InlineData("100101", null, ThaiPostcodeMatch.Unknown)]
     public void Checks_match_mismatch_and_missing_data(string? subdistrict, string? postcode, ThaiPostcodeMatch expected) =>

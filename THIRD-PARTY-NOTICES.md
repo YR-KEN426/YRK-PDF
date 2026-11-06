@@ -60,3 +60,5 @@ The dataset attributes its postal codes to Thailand Post's nationwide postal cod
 in our Thai area list. These are form-filling suggestions, may be outdated, and can be overridden
 by typing a postcode. This data and YRK PDF are not endorsed or certified by Thailand Post or the
 Revenue Department. The program uses embedded data offline and does not download postal code updates.
+Two supplementary entries (104701, 105001) come from the Thailand Post website rather than that dataset,
+checked by the maintainer 2026-11-06.
