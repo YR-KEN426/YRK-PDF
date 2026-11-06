@@ -1,73 +1,91 @@
-# แผน 1.1.8: แสดงความคืบหน้าการดาวน์โหลดอัปเดต
+# แผน 1.1.9: ใบรับรองที่ฉันเชื่อถือ + หมุนรูปและปรับความโปร่งใส
 
 ## ที่มา
-Ken ขอ (2026-11-06): ให้ผู้ใช้รู้ว่าอัปเดตกำลังโหลดอยู่ และเน็ตค้างหรือไม่
-- ตอนนี้ % ขึ้นเฉพาะตอนกด "ตรวจหาการอัปเดต" ในหน้าต่างเกี่ยวกับ ส่วนการตรวจเบื้องหลัง (quiet) ไม่แสดงอะไรเลยจนปุ่มรีสตาร์ทขึ้น
-- รวมงานเล็กที่ค้าง: ComboBox จังหวัดใน e-Tax
-- เมื่ออนุมัติ: เขียนแผนนี้ลง `plan.md` แทนแผน 1.1.7 (แผนเดิมดูได้จาก git `920d708`) แล้ว commit พร้อม `.gitignore` และ `PROJECT_NOTES.md` ที่แก้ค้างไว้
+Ken ตัดสินใจ (2026-11-07):
+- ทำ 3 เรื่องที่รอเลือก แบ่ง 2 รุ่น: **1.1.9** = ใบรับรองที่เชื่อถือ + หมุนรูป/ความโปร่งใส, **1.2.0** = ใบเพิ่มหนี้/ใบลดหนี้ + ส่วนลด (เขียนแผนแยกหลังปล่อย 1.1.9; เลขรุ่นไม่กระโดด จึงต่อจาก 1.1.9 เป็น 1.2.0) งานสำรอง/MSIX ที่เคยวางไว้ 1.2.0 เลื่อนเป็น 1.2.1 และงานย้ายสีไป ResourceDictionary เลื่อนไปหลังจากนั้น (รอ Ken ยืนยันลำดับ)
+- ใบรับรองที่เชื่อถือ: เก็บเป็นรายการของ YRK เอง ไม่แตะที่เก็บใบรับรองของ Windows
+- หมุน: จุดจับหมุนอิสระ (Shift = ทีละ 15°) + ปุ่มหมุน 90°
+- ส่วนลด e-Tax (ของ 1.2.0): ทั้งรายบรรทัดและท้ายบิล
+- เมื่ออนุมัติ: เขียนแผนนี้ลง `plan.md` แทนแผน 1.1.8 และบันทึกการตัดสินใจข้างบนใน `PROJECT_NOTES.md` แล้ว commit
 
 ## สิ่งที่ผู้ใช้จะเห็น
-- ใช้แถบเดิม `UpdateBanner` (`MainWindow.xaml:1179`) ซึ่งเห็นทั้งบนหน้า Home และในแท็บอยู่แล้ว ระยะกันใน `MainWindow.Home.cs:109` ใช้ได้ต่อโดยไม่ต้องแก้
-- **กำลังโหลด:** "กำลังดาวน์โหลด YRK PDF 1.1.9… 42% (12.3 / 29.4 MB)" พร้อมแถบความคืบหน้าบางๆ
-- **ไม่ขยับ 30 วินาที:** ข้อความเปลี่ยนเป็น "การดาวน์โหลดไม่คืบหน้า เน็ตอาจช้าหรือค้าง" และมีปุ่ม "ยกเลิก" ถ้าโหลดต่อได้ ข้อความกลับเป็นปกติเอง
-- **หยุดเอง 5 นาที หรือกดยกเลิก:** แถบแสดง "การดาวน์โหลดหยุดแล้ว" พร้อมปุ่ม "ลองอีกครั้ง" และ "ปิด" ในรอบนี้โปรแกรมจะไม่โหลดซ้ำเอง (รอเปิดโปรแกรมครั้งหน้า หรือผู้ใช้กดลองอีกครั้ง)
-- **โหลดเสร็จ:** แถบเดิม "YRK PDF {0} พร้อมติดตั้ง" + ปุ่มรีสตาร์ท เหมือนเดิม
-- ช่วงตรวจ feed (ยังไม่รู้ว่ามีรุ่นใหม่) ไม่แสดงแถบ เพื่อไม่รบกวนผู้ใช้ที่ไม่มีอัปเดต
-- ข้อจำกัด: ผู้ใช้เห็นแถบนี้ตั้งแต่อัปเดตจาก 1.1.8 ขึ้นไป
+
+### ใบรับรองที่ฉันเชื่อถือ
+- ลายเซ็นจาก Digital ID ที่สร้างเอง (self-signed) ตอนนี้ขึ้น "ไม่ทราบตัวตน" ในแผงลายเซ็นจะมีปุ่มใหม่ **"เชื่อถือใบรับรองนี้…"** ข้างปุ่ม "ใบรับรอง" (`MainWindow.xaml:1009`)
+  - ขึ้นเฉพาะลายเซ็นที่เอกสารไม่ถูกแก้ ตัวตนเป็น Untrusted และใบรับรองเป็นแบบ self-signed (รอบนี้ไม่ทำกับใบรับรองที่ออกโดย CA ที่ไม่รู้จัก)
+- กดแล้วขึ้นหน้าต่างยืนยัน: ชื่อ อีเมล องค์กร วันหมดอายุ และ **ลายนิ้วมือ SHA-256** พร้อมคำเตือนให้ตรวจลายนิ้วมือกับเจ้าของผ่านช่องทางอื่น (เช่น โทรถาม) ก่อนกดเชื่อถือ
+- เชื่อถือแล้ว ลายเซ็นขึ้นสถานะใหม่ **"ถูกต้อง: คุณเลือกเชื่อถือผู้ลงนามนี้"** (แยกจาก "ถูกต้อง" ที่ Windows รับรอง) และบอกว่ามีผลเฉพาะใน YRK บนเครื่องนี้ โปรแกรมอื่น เช่น Acrobat ยังแสดงว่าไม่ทราบตัวตน
+- หน้าต่าง **"ใบรับรองที่ฉันเชื่อถือ"** (เปิดจากเมนูเดียวกับการจัดการ Digital ID): ดูรายการ ลบ และนำเข้าไฟล์ `.cer`
+- ฝั่งผู้เซ็น: หน้าข้อมูล Digital ID แสดงลายนิ้วมือ SHA-256 และปุ่ม "ส่งออกใบรับรอง (.cer)" ซึ่งมีแค่กุญแจสาธารณะ ส่งให้ผู้รับนำเข้าได้
+
+### หมุนรูปและความโปร่งใส
+- ใช้กับรูป ตรายาง และรูปลายเซ็นที่วางบนหน้า (สิ่งที่ยังไม่บันทึกลงหน้า)
+- จุดจับหมุนกลมเหนือกรอบ ลากเพื่อหมุนรอบจุดกลาง กด Shift ให้ติดทีละ 15° ระหว่างลากแสดงองศา
+- แถบเล็กข้างปุ่มลบ: ปุ่ม ↻ 90° และปุ่มความโปร่งใสที่เปิดแถบเลื่อน 10–100%
+- ย่อ/ขยายยังคงสัดส่วนเหมือนเดิม และทำงานถูกเมื่อหมุนแล้ว
+- Undo/Redo รวมการหมุนและความโปร่งใส
+- บันทึกแล้วสิ่งที่เห็นในไฟล์ตรงกับที่วาง ทั้งใน YRK และ Acrobat รวมหน้าที่มี /Rotate
 
 ## ขั้นตอน
 
-### ขั้น 1: ตัวติดตามความคืบหน้า + AppUpdater (Codex `gpt-6.1-sol` · medium)
-ไฟล์: `src/Yrk.PdfStudio.App/Services/AppUpdater.cs`, ไฟล์ใหม่ `src/Yrk.PdfStudio.App/Services/UpdateDownloadProgress.cs`, `tests/Yrk.PdfStudio.Core.Tests/AppUpdaterTests.cs`, ไฟล์ใหม่ `tests/Yrk.PdfStudio.Core.Tests/UpdateDownloadProgressTests.cs`
-- `UpdateDownloadProgress`: คลาสล้วน ไม่มี timer รับเวลาจากผู้เรียก (นาฬิกาจำลองในเทสต์ = ส่งเวลาเอง)
-  - `Report(int percent, DateTimeOffset now)` ขยับเวลาล่าสุดเฉพาะเมื่อ % เปลี่ยน (เหมือนกติกา 5 นาทีใน `AppUpdater.cs:91-103`)
-  - `IsStalled(DateTimeOffset now)` จริงเมื่อไม่ขยับ ≥ 30 วินาที
-  - `DownloadedBytes` จาก `percent × ขนาดไฟล์`
-- `AppUpdater`:
-  - เก็บขนาดไฟล์และเลขรุ่นที่กำลังโหลดจาก `update.TargetFullRelease` ให้ผู้เรียกอ่านได้
-  - กดยกเลิก (token ของผู้เรียก) ต้องลบ `.partial` และไฟล์แพ็กเกจเหมือนกรณีหมดเวลา (`AppUpdater.cs:112`) แล้วตรวจใหม่ได้ทันที
-  - ห้ามเปลี่ยนการตรวจลายเซ็นและกติกา 5 นาที
-- เทสต์ (ตามที่ Ken ตกลง เล็ก 2–3 ข้อ + 1 ข้อของการลบไฟล์):
-  1. ไม่ขยับ 30 วินาที → `IsStalled` จริง, 29 วินาที → เท็จ
-  2. % ซ้ำไม่รีเซ็ต, % เปลี่ยนแล้วรีเซ็ต
-  3. กดยกเลิกระหว่างโหลด → ไฟล์ที่ยังไม่ครบถูกลบ และเรียกโหลดใหม่ได้ (ใช้ `TrackingSource` / `UpdateFixture` เดิม)
-  - ข้อ 3 ต้องทำ mutation check: ลบโค้ดลบไฟล์ออกแล้วเทสต์ต้อง fail
+### ขั้น 1: Core ตรวจลายเซ็นด้วยรายการที่ผู้ใช้เชื่อถือ (Codex `gpt-6.1-sol` · high, ความปลอดภัย Claude ตรวจ)
+- ไฟล์: `src/Yrk.PdfStudio.Core/Pdf/Signatures/PdfSignatureModels.cs`, `PdfSignatureVerifier.cs`, เทสต์ใหม่ `tests/Yrk.PdfStudio.Core.Tests/SignatureUserTrustTests.cs`
+- `PdfVerifyOptions` เพิ่ม `UserTrustedCertificates` (public, ค่าเริ่มต้นว่าง) และ `PdfSignerIdentity.TrustedByUser`
+- `CheckIdentity` (`PdfSignatureVerifier.cs:1368`): ตรวจกับ Windows ก่อนเหมือนเดิม ถ้าได้ Trusted จบ ถ้าผลมีแค่ `UntrustedRoot`/`PartialChain` และ signer เป็น self-signed ให้สร้าง chain รอบสองด้วย `CustomRootTrust` = ใบรับรองในรายการ ถ้าผ่านไม่มี flag ใดเลย → `TrustedByUser`
+  - เทียบด้วยตัวใบรับรองทั้งใบ (SHA-256 ของ DER) ไม่เทียบชื่อ
+  - หมดอายุ/เพิกถอน/ใช้งานผิดประเภท ยังเป็นผลเดิม (Expired/Revoked/Untrusted)
+- สถานะ (`:1348`): `TrustedByUser` ได้ `Valid` เหมือน Trusted แต่เอกสารถูกแก้หรือลายเซ็นเสียยังเป็น Modified/Invalid
+- ไม่เปลี่ยนการตรวจการเพิกถอนออนไลน์ (`MainViewModel.Signatures.cs:295` ยังเริ่มเฉพาะ Trusted)
+- เทสต์: ไม่มีรายการ → IdentityUnknown; มีรายการ → Valid/TrustedByUser; ใบรับรองอื่นชื่อเหมือนกัน → ยัง IdentityUnknown; ใบในรายการหมดอายุ → Expired; แก้เอกสารหลังเซ็น → ไม่ใช่ Valid; ใบรับรองที่มี CA (ไม่ใช่ self-signed) ในรายการ → ไม่มีผล; เทสต์เดิมใน `SignatureTests.cs:39` ยังผ่าน
 
-### ขั้น 2: ViewModel และแถบอัปเดต (Codex `gpt-6.1-sol` · medium)
-ไฟล์: `src/Yrk.PdfStudio.App/ViewModels/MainViewModel.Updates.cs`, `MainViewModel.Tabs.cs`, `MainWindow.xaml`, `Localization/th.json`
-- สถานะร่วมทุกแท็บแบบ static ตามแบบเดิม (`s_readyVersion` + event `UpdateReady`, ต่อ event ใน `MainViewModel.Tabs.cs:55-60`): สถานะ ไม่มี / กำลังโหลด / ค้าง / หยุด / พร้อม, ตัวติดตาม, `CancellationTokenSource` ตัวเดียว
-- ส่ง progress ทั้งตอน quiet และไม่ quiet (ไม่ quiet ยังเขียน `StatusMessage` เหมือนเดิม) อัปเดต UI ผ่าน Dispatcher ไม่เกินประมาณ 4 ครั้งต่อวินาที
-- `DispatcherTimer` 1 วินาทีขณะโหลด ใช้เช็ก `IsStalled` หยุด timer เมื่อจบ
-- คำสั่งใหม่: ยกเลิก, ลองอีกครั้ง (เรียก `CheckForUpdatesAsync(quiet: true)`), ปิดแถบ
-- XAML: ใน `UpdateBanner` เพิ่ม ProgressBar บาง, ปุ่มยกเลิก/ลองอีกครั้ง/ปิด, ปุ่มรีสตาร์ทเห็นเฉพาะสถานะพร้อม เปลี่ยน Visibility ของแถบเป็นเห็นเมื่อสถานะไม่ใช่ "ไม่มี"
-- ข้อความใหม่ทั้งหมดใส่ `th.json` แล้วรัน `build\check-translations.ps1` (ผลปกติ: 4 คำไม่มีภาษาไทย)
-- หน้าต่างเกี่ยวกับ (`AboutDialog.xaml.cs:74`) คงเดิม
-- ที่ทำจริงต่างจากแผน (Claude ตรวจแล้วรับ): ปุ่มยกเลิกเห็นตลอดการโหลด ไม่ใช่เฉพาะตอนค้าง 30 วินาที; ถ้าลายเซ็นไม่ผ่านพร้อมกับที่ผู้ใช้กดยกเลิก แถบจะบอกว่า "หยุดแล้ว" แทน "ไม่ได้เซ็นโดย YRK" (ไฟล์ถูกลบทั้งสองกรณี)
+### ขั้น 2: App รายการเชื่อถือ + UI (Codex `gpt-6.1-sol` · medium)
+- ไฟล์: `src/Yrk.PdfStudio.App/Services/TrustedCertificateStore.cs` (ใหม่), `ViewModels/SignatureInfoViewModel.cs`, `ViewModels/MainViewModel.Signatures.cs`, `MainWindow.xaml`, `Views/TrustCertificateDialog.xaml(.cs)` และ `Views/TrustedCertificatesDialog.xaml(.cs)` (ใหม่), หน้าต่างข้อมูล Digital ID ที่มีอยู่, `Localization/th.json` + ไฟล์อังกฤษ, เทสต์ `tests/.../TrustedCertificateStoreTests.cs`
+- เก็บที่ `%LOCALAPPDATA%\YRK\EasyPdf\TrustedCertificates\<sha256>.cer` (DER, กุญแจสาธารณะเท่านั้น) แบบเดียวกับ `DigitalIdStore.cs:32`
+  - โหลดแล้วข้ามไฟล์ที่เสีย ชื่อไฟล์ไม่ตรงกับ hash หรือมีกุญแจส่วนตัว
+  - นำเข้า `.cer`/`.crt` เท่านั้น ไม่รับ `.pfx`
+- ส่งรายการเข้า `PdfVerifyOptions` ทุกครั้งที่ตรวจ (`MainViewModel.Signatures.cs:280, 298`) และตรวจลายเซ็นใหม่ทันทีหลังเพิ่ม/ลบ
+- ปุ่มและหน้าต่างตาม "สิ่งที่ผู้ใช้จะเห็น" ใช้รูปแบบคำสั่งเดียวกับ `ShowCertificateCommand` (`MainViewModel.Signatures.cs:41`) และ `DialogService`
+- ข้อความ `StatusText` ใหม่ใน `SignatureInfoViewModel.cs:34` ทั้งไทยและอังกฤษ, ไอคอน/สีใช้แบบ Valid
+- ส่งออก `.cer` ของ Digital ID ตัวเอง: `X509Certificate2.Export(Cert)` เท่านั้น
+- เทสต์: เพิ่ม/ลบ/โหลดซ้ำ, ไฟล์ขยะถูกข้าม, `.cer` ที่ส่งออกไม่มีกุญแจส่วนตัว, ใน `tests/.../App/` (`AppTestHarness`) เซ็นด้วย ID ที่สร้างเอง → เชื่อถือ → สถานะเปลี่ยน → ลบ → กลับเป็นไม่ทราบ
 
-### ขั้น 3: e-Tax ComboBox จังหวัด (Claude แก้เอง ไม่เกิน 30 บรรทัด + เทสต์ `gpt-6-luna` · low)
-ไฟล์: `src/Yrk.PdfStudio.App/Views/ThaiAddressFields.xaml.cs` (+ `.xaml`), `tests/Yrk.PdfStudio.Core.Tests/ETaxTests.cs`
-- ต้นเหตุ: เลือกจังหวัดเดิมซ้ำไม่เกิด `SelectionChanged` จึงไม่ล้าง `_autoSelectedAreas` (:14)
-- แก้: ฟัง `DropDownClosed` ของ ComboBox จังหวัด/อำเภอ/ตำบล ถ้าผู้ใช้เปิดรายการแล้วปิด ถือว่ายืนยันค่านั้นเอง ล้างส่วนที่เลือกอัตโนมัติ (แยกเป็นเมธอดที่เทสต์เรียกได้)
-- เทสต์: ต่อจาก `ETaxTests.cs:350-377` รหัสไปรษณีย์เลือกจังหวัด → ผู้ใช้ยืนยันจังหวัดเดิม → แก้รหัส → จังหวัดไม่เปลี่ยน
+### ขั้น 3: Core หมุนและความโปร่งใสตอนเขียนลงหน้า (Codex `gpt-6.1-sol` · high)
+- ไฟล์: `src/Yrk.PdfStudio.Core/Pdf/IPdfEngine.cs` (`AddImageAsync` :113 และ `AddVectorAsync`, `AddPdfPageAsync`), `Pdf/Pdfium/PdfiumDocument.Editing.cs` (`AddImage` :336, `UnitSquareTo` :392, ส่วน vector/form :443, :521), `PdfiumNative.cs` ถ้าต้องเพิ่มฟังก์ชัน, เทสต์ `tests/.../PdfEditingTests.cs`
+- เพิ่มพารามิเตอร์เลือกได้ `PlacementStyle(double RotationDegrees = 0, double Opacity = 1)` ค่าเริ่มต้นได้ผลเหมือนเดิมทุก byte
+- หมุนรอบจุดกลางของ bounds ต่อจาก matrix ของ `UnitSquareTo` (ซึ่งจัดการ /Rotate ของหน้าอยู่แล้ว)
+- ความโปร่งใส: รูปคูณ alpha ใน BGRA ก่อนสร้าง bitmap; vector ใช้ alpha ของสีเส้น/สีเติม; PDF-page (form object) ใช้ ExtGState `ca/CA` ถ้า PDFium ทำได้สะอาด ถ้าไม่ได้ให้รายงานกลับ แล้วรอบนี้ซ่อนแถบความโปร่งใสของลายเซ็นชนิดนี้
+- เทสต์: รูปหมุน 90°/45° แล้วกรอบที่อ่านจาก `PdfiumDocument.Graphics.cs` ตรงที่คาด; หน้า /Rotate 90 + หมุน 30°; opacity 0.5 แล้วสีพิกเซลที่ render ผสมกับพื้นขาวถูก; vector หมุนแล้วกรอบถูก; ไม่ส่ง style แล้วผลเหมือนเดิม
 
-### ขั้น 4: เลขรุ่นและ release notes (Codex `gpt-6-luna` · low)
-ไฟล์: `Directory.Build.props` (1.1.8), `docs/release-notes/1.1.8.md` (ไทย/อังกฤษตามแบบรุ่นก่อน), FAQ ในคู่มือถ้าพูดถึงการรออัปเดต
-- การ build, เซ็น และปล่อยรุ่น: Ken ทำเองตามเช็กลิสต์
+### ขั้น 4: App หมุน/ความโปร่งใสของสิ่งที่วาง (Codex `gpt-6.1-sol` · high)
+- ไฟล์: `ViewModels/PlacedItemViewModel.cs` (เพิ่ม `Rotation`, `Opacity`), `ViewModels/MainViewModel.Editing.cs` (`ResizeItem` :188, undo, `CommitOverlaysAsync` :638), `MainViewModel.SignatureArt.cs` (`WriteSignatureAsync` :84), `MainViewModel.PlacedText.cs` (คำบนตรายาง), `MainWindow.xaml` (:165-212 template + thumbs), `MainWindow.xaml.cs` (:1024-1057), ข้อความไทย/อังกฤษ, เทสต์ใน `tests/.../App/`
+- จอ: `RenderTransform` หมุนรอบกลางกรอบ + `Opacity`; `Bounds` ยังเป็นกรอบก่อนหมุน
+- ย่อ/ขยายเมื่อหมุน: แปลงระยะลากเป็นแกนของกรอบที่หมุนแล้ว และให้มุมตรงข้ามอยู่ที่เดิม
+- ตรายางที่คำเขียนเป็นข้อความจริง: กรอบหมุนตาม และคำหมุนรอบจุดกลางเดียวกันด้วย rotation/opacity ที่มีใน `PdfTextWriter.cs:64, :132` อยู่แล้ว
+- เทสต์: หมุน/โปร่งใส แล้ว undo/redo; หมุน 90° สี่ครั้งกลับที่เดิม; บันทึกแล้วไฟล์มีภาพหมุนตรงกรอบ; ตรายางคำจริงหมุนตรงกับกรอบ; `MainWindowLayoutTests` ยังผ่าน (แก้ XAML หน้าต่างหลัก)
 
-### ขั้น 5: ตรวจอีกมุม (Codex read-only)
-- `codex exec --sandbox read-only -o <scratchpad>/review.md` ตรวจ diff ทั้งฟีเจอร์ เน้นการลบไฟล์ตอนยกเลิก, race ระหว่างยกเลิกกับโหลดเสร็จ, และการกดลองอีกครั้งซ้ำๆ
+### ขั้น 5: เลขรุ่น, release notes, คู่มือ (Codex `gpt-6-luna` · low)
+- เลขรุ่น 1.1.9, `docs/release-notes/1.1.9.md` (ไทย/อังกฤษ), อัปเดต `docs/guide/th.html` และ `en.html` ส่วนลายเซ็นและการวางรูป
+
+### ขั้น 6: ตรวจ (Claude + Codex read-only)
+- Claude ตรวจความปลอดภัยขั้น 1–2 เอง: การตัดสินความเชื่อถือ, การเทียบใบรับรอง, ไฟล์ที่เก็บ, ข้อความเตือน
+- `codex exec --sandbox read-only "ตรวจ git diff ของ 1.1.9 หาบั๊ก ช่องโหว่ และสิ่งที่ผิดจาก plan.md"`
+- เปิดตัว Release ดูด้วยตา (บอก Ken ก่อนว่าจะมีหน้าต่างขึ้น สำรอง/คืน `*.json` ใน `%LOCALAPPDATA%\YRK\EasyPdf` ตามบทเรียน 1.1.8)
+
+ส่ง Codex เป็นชุด: ขั้น 1–2 → ตรวจ → ขั้น 3–4 → ตรวจ → ขั้น 5
 
 ## การตรวจ
-- ทุกขั้น: Claude อ่าน `git diff` + รัน `dotnet test` ข้างนอก sandbox (OutDir แยก เพราะ Ken อาจเปิดโปรแกรมอยู่)
-- ขั้น 2: build Release แล้วเปิดดูแถบด้วยตา โดยใช้ feed ทดสอบในเครื่อง (`UpdateFixture` หรือ `build\make-tampered-feed.ps1` แบบไฟล์ถูกต้อง) ทั้งบน Home และในแท็บ ไทยและอังกฤษ — ต้องเช็กก่อนว่า Ken ไม่ได้เปิดโปรแกรมอยู่
-- หลังปล่อย: ทดสอบอัปเดตจริง 1.1.8 → 1.1.9 ดูแถบด้วยตา (เช็กลิสต์เดิม)
+- ทั้งชุดเทสต์ผ่าน (`dotnet test`) ทุกขั้น
+- Claude ดู `git diff` ทุกขั้น ส่วนความปลอดภัยอ่านละเอียด
+- Ken ทดสอบเอง:
+  - เซ็นด้วย Digital ID ที่สร้างเอง → เปิดไฟล์ → "ไม่ทราบตัวตน" → เชื่อถือ (ตรวจลายนิ้วมือตรงกับหน้าข้อมูล Digital ID) → "ถูกต้อง: คุณเลือกเชื่อถือ" → ลบในหน้าต่างรายการ → กลับเป็นไม่ทราบ
+  - ส่งออก `.cer` แล้วนำเข้าในหน้าต่างรายการ
+  - วางรูป ตรายาง ลายเซ็น หมุนอิสระ/90°/โปร่งใส บันทึก แล้วเปิดใน YRK และ Acrobat ให้ตรงกัน รวมไฟล์ที่หน้าหมุนอยู่
+  - อัปเดต 1.1.8 → 1.1.9 จริง พร้อมดูแถบความคืบหน้าบน Home และในแท็บ (ค้างจาก 1.1.8)
 
 ## สถานะ
-- [x] ขั้น 1: ตัวติดตามความคืบหน้า + AppUpdater + เทสต์
-- [x] ขั้น 2: ViewModel และแถบอัปเดต
-- [x] ขั้น 3: e-Tax ComboBox จังหวัด (mutation check: ปิดโค้ดแก้แล้วเทสต์ fail)
-- [x] ตรวจด้วยตาในตัว Release (Claude, 2026-11-06): ทั้ง 4 สถานะบนหน้า Home และในแท็บเอกสาร พบบั๊กหน้าต่างเปิดไม่ขึ้น (ProgressBar ผูก TwoWay กับค่าอ่านอย่างเดียว) แก้เป็น OneWay แล้ว
-- [x] ขั้น 3b: เทสต์ที่สร้าง MainWindow ในหน่วยความจำแล้ว layout ได้โดยไม่มี exception เพื่อจับบั๊กแบบนี้ (Codex `gpt-6-luna` · low, แบบเดียวกับ `ETaxTests` ที่สร้าง `ThaiAddressFields`) (mutation check: ถอด Mode=OneWay แล้วเทสต์ fail ด้วย InvalidOperationException)
-- [x] ขั้น 4: เลขรุ่นและ release notes (คู่มือ: ไม่มี FAQ เรื่องรอ/ตรวจการดาวน์โหลดอัปเดต จึงไม่แก้)
-- [x] ขั้น 5: Codex ตรวจอีกมุม (gpt-6.1-sol high): ไม่พบปัญหาความปลอดภัย แก้ 2 ข้อ P2 แล้ว (ปิดแท็บสุดท้ายแล้วแถบบนหน้า Home ค้าง; ยกเลิกแล้วการตรวจเบื้องหลังโหลดใหม่เอง)
-  - รับไว้ทำภายหลัง (P3): `MainWindowLayoutTests` พึ่ง field ภายในของ WPF และไม่ล้าง Application ให้หมด อาจพังเมื่ออัปเดต .NET; เทสต์ e-Tax เรียก `ConfirmAreaChoice()` ตรง ไม่ได้ผ่าน `DropDownClosed` ใน XAML
+- [ ] ขั้น 1: Core ตรวจด้วยรายการที่ผู้ใช้เชื่อถือ
+- [ ] ขั้น 2: App รายการเชื่อถือ + UI
+- [ ] ขั้น 3: Core หมุน/ความโปร่งใส
+- [ ] ขั้น 4: App หมุน/ความโปร่งใส
+- [ ] ขั้น 5: เลขรุ่น, release notes, คู่มือ
+- [ ] ขั้น 6: ตรวจความปลอดภัย, Codex ตรวจ, ดูตัว Release
