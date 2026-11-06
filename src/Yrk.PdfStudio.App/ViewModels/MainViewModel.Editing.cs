@@ -25,6 +25,8 @@ public sealed partial class MainViewModel
     private Placement? _placement;
     private PlacedItemViewModel? _selectedItem;
     private NormalizedRect _dragStartBounds;
+    private double _dragStartRotation;
+    private double _dragStartOpacity;
     private bool _isBusy;
     private string _statusMessage = string.Empty;
 
@@ -180,6 +182,8 @@ public sealed partial class MainViewModel
     {
         SelectItem(item);
         _dragStartBounds = item.Bounds;
+        _dragStartRotation = item.Rotation;
+        _dragStartOpacity = item.Opacity;
     }
 
     public void MoveItem(PlacedItemViewModel item, double deltaX, double deltaY) =>
@@ -187,18 +191,63 @@ public sealed partial class MainViewModel
 
     public void ResizeItem(PlacedItemViewModel item, double deltaX, double deltaY)
     {
-        var width = item.Width + deltaX;
-        var height = item.AspectRatio > 0 ? width / item.AspectRatio : item.Height + deltaY;
-        item.Bounds = item.ToBounds(item.Left, item.Top, width, height);
+        if (item.Rotation == 0)
+        {
+            var width = item.Width + deltaX;
+            var height = item.AspectRatio > 0 ? width / item.AspectRatio : item.Height + deltaY;
+            item.Bounds = item.ToBounds(item.Left, item.Top, width, height);
+            return;
+        }
+
+        var angle = item.Rotation * Math.PI / 180;
+        double cos = Math.Cos(angle), sin = Math.Sin(angle);
+        var localX = cos * deltaX + sin * deltaY;
+        var localY = -sin * deltaX + cos * deltaY;
+        var ratio = item.AspectRatio;
+        var minWidth = ratio > 0 ? Math.Max(PlacedItemViewModel.MinimumSize, PlacedItemViewModel.MinimumSize * ratio) : PlacedItemViewModel.MinimumSize;
+        var widthAfter = Math.Max(minWidth, item.Width + localX);
+        var heightAfter = ratio > 0 ? widthAfter / ratio : Math.Max(PlacedItemViewModel.MinimumSize, item.Height + localY);
+        // The screen-space top-left corner is the anchor. Moving the centre by half the
+        // rotated size change leaves that corner fixed, even when the bounds cross a page edge.
+        var changeX = (cos * (widthAfter - item.Width) - sin * (heightAfter - item.Height)) / 2;
+        var changeY = (sin * (widthAfter - item.Width) + cos * (heightAfter - item.Height)) / 2;
+        var left = item.Left + item.Width / 2 + changeX - widthAfter / 2;
+        var top = item.Top + item.Height / 2 + changeY - heightAfter / 2;
+        item.Bounds = new NormalizedRect(left / item.PageWidth, top / item.PageHeight, widthAfter / item.PageWidth, heightAfter / item.PageHeight);
+    }
+
+    public void RotateItem90(PlacedItemViewModel item)
+    {
+        BeginItemDrag(item);
+        item.Rotation += 90;
+        EndItemDrag(item);
+    }
+
+    /// <summary>Updates a rotation gesture; its caller records the whole gesture with Begin/EndItemDrag.</summary>
+    public void RotateItem(PlacedItemViewModel item, double degrees, bool snap) =>
+        item.Rotation = snap ? Math.Round(degrees / 15, MidpointRounding.AwayFromZero) * 15 : degrees;
+
+    public void ChangeItemOpacity(PlacedItemViewModel item, double opacity)
+    {
+        var before = item.Opacity;
+        item.Opacity = opacity;
+        var after = item.Opacity;
+        if (before != after) _undo.Push(() => item.Opacity = before, () => item.Opacity = after);
     }
 
     public void EndItemDrag(PlacedItemViewModel item)
     {
         var before = _dragStartBounds;
         var after = item.Bounds;
-        if (before != after)
+        var rotationBefore = _dragStartRotation;
+        var rotationAfter = item.Rotation;
+        var opacityBefore = _dragStartOpacity;
+        var opacityAfter = item.Opacity;
+        if (before != after || rotationBefore != rotationAfter || opacityBefore != opacityAfter)
         {
-            _undo.Push(() => item.Bounds = before, () => item.Bounds = after);
+            _undo.Push(
+                () => { item.Bounds = before; item.Rotation = rotationBefore; item.Opacity = opacityBefore; },
+                () => { item.Bounds = after; item.Rotation = rotationAfter; item.Opacity = opacityAfter; });
         }
     }
 
@@ -655,7 +704,7 @@ public sealed partial class MainViewModel
                 // The stamp's frame goes into the page now; its words are written as real text over it (ApplyPlacedText).
                 if (!item.FrameCommitted)
                 {
-                    await document.AddImageAsync(item.PageIndex, ImageConversion.ToPdfImage(item.Stamp!.Frame!), item.Bounds);
+                    await document.AddImageAsync(item.PageIndex, ImageConversion.ToPdfImage(item.Stamp!.Frame!), item.Bounds, style: PlacementStyleOf(item));
                     item.FrameCommitted = true;
                     _documentModified = true;
                 }
@@ -669,7 +718,7 @@ public sealed partial class MainViewModel
             }
             else
             {
-                await document.AddImageAsync(item.PageIndex, ItemRenderer.Render(item), item.Bounds);
+                await document.AddImageAsync(item.PageIndex, ItemRenderer.Render(item), item.Bounds, style: PlacementStyleOf(item));
             }
 
             DetachItem(item); // Now part of the page: never add it twice, even if a later step fails.

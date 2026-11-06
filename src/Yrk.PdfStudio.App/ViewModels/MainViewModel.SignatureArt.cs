@@ -83,8 +83,14 @@ public sealed partial class MainViewModel
     /// <summary>Writes a placed signature into the page as vectors, a PDF page or an image.</summary>
     private static Task WriteSignatureAsync(IPdfDocument document, PlacedItemViewModel item, SignatureArt art) => art.Kind switch
     {
-        SignatureArtKind.Vector => document.AddVectorAsync(item.PageIndex, art.Vector!, item.Bounds),
-        SignatureArtKind.Pdf => document.AddPdfPageAsync(item.PageIndex, art.Pdf!, art.PdfCrop!.Value, item.Bounds),
-        _ => document.AddImageAsync(item.PageIndex, ImageConversion.ToPdfImage(art.Preview), item.Bounds),
+        SignatureArtKind.Vector => document.AddVectorAsync(item.PageIndex, art.Vector!, item.Bounds, style: PlacementStyleOf(item)),
+        SignatureArtKind.Pdf => document.AddPdfPageAsync(item.PageIndex, art.Pdf!, art.PdfCrop!.Value, item.Bounds, style: PlacementStyleOf(item)),
+        _ => document.AddImageAsync(item.PageIndex, ImageConversion.ToPdfImage(art.Preview), item.Bounds, style: PlacementStyleOf(item)),
     };
+
+    private static PlacementStyle? PlacementStyleOf(PlacedItemViewModel item)
+    {
+        var opacity = item.Art?.Kind == SignatureArtKind.Pdf ? 1 : item.Opacity;
+        return item.Rotation == 0 && opacity == 1 ? null : new PlacementStyle(item.Rotation, opacity);
+    }
 }

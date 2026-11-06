@@ -1,4 +1,7 @@
 {
+  "Drag to rotate. Hold Shift to snap to 15°.": "ลากเพื่อหมุน กด Shift ค้างเพื่อติดทีละ 15°",
+  "Rotate 90° clockwise": "หมุนตามเข็มนาฬิกา 90°",
+  "Rotate": "หมุน",
   "Valid: you chose to trust this signer": "ถูกต้อง: คุณเลือกเชื่อถือผู้ลงนามนี้",
   "This trust applies only in YRK on this computer. Other programs may still show an unknown signer.": "การเชื่อถือนี้มีผลเฉพาะใน YRK บนเครื่องนี้ โปรแกรมอื่นอาจยังแสดงว่าไม่ทราบตัวตนผู้ลงนาม",
   "Trust this certificate…": "เชื่อถือใบรับรองนี้…",

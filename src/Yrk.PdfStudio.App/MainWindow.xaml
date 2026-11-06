@@ -186,11 +186,16 @@
 
         <!-- A signature, stamp or text box placed on the page (unsaved until File > Save). -->
         <DataTemplate x:Key="PlacedItemTemplate" DataType="{x:Type vm:PlacedItemViewModel}">
-            <Grid Width="{Binding Width}" Height="{Binding Height}">
-                <Image Source="{Binding Image}" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"
-                       Visibility="{Binding IsImage, Converter={StaticResource BoolToVisibility}}" />
-                <TextBlock Text="{Binding Text}" FontSize="{Binding FontSize}" FontFamily="{Binding FontFamily}" Padding="1"
-                           FontWeight="{Binding FontWeight}" FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" Visibility="{Binding ShowTextPreview, Converter={StaticResource BoolToVisibility}}" />
+            <Grid Width="{Binding Width}" Height="{Binding Height}" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <RotateTransform Angle="{Binding Rotation}" />
+                </Grid.RenderTransform>
+                <Grid Opacity="{Binding Opacity}">
+                    <Image Source="{Binding Image}" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality"
+                           Visibility="{Binding IsImage, Converter={StaticResource BoolToVisibility}}" />
+                    <TextBlock Text="{Binding Text}" FontSize="{Binding FontSize}" FontFamily="{Binding FontFamily}" Padding="1"
+                               FontWeight="{Binding FontWeight}" FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" Visibility="{Binding ShowTextPreview, Converter={StaticResource BoolToVisibility}}" />
+                </Grid>
                 <Thumb Style="{StaticResource MoveThumb}"
                        DragStarted="OnItemDragStarted" DragDelta="OnItemMoveDelta" DragCompleted="OnItemDragCompleted"
                        PreviewMouseRightButtonUp="OnItemRightClick" PreviewMouseLeftButtonDown="OnItemMouseDown" ToolTip="Drag to move. Double-click text to edit." />
@@ -207,12 +212,50 @@
                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
                        DragStarted="OnItemDragStarted" DragDelta="OnItemResizeDelta" DragCompleted="OnItemDragCompleted"
                        Visibility="{Binding ShowResizeHandle, Converter={StaticResource BoolToVisibility}}" ToolTip="Drag to resize" />
-                <Button Width="10" Height="10" Margin="0,-12,-12,0" Padding="0" HorizontalAlignment="Right" VerticalAlignment="Top"
-                        Background="{StaticResource AccentBrush}" BorderThickness="0" Cursor="Hand" ToolTip="Remove (Delete)"
-                        Command="{Binding DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                        Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
-                    <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="6" Foreground="White" />
-                </Button>
+                <Rectangle Width="0.8" Height="18" Fill="{StaticResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-18,0,0"
+                           IsHitTestVisible="False" Visibility="{Binding ShowResizeHandle, Converter={StaticResource BoolToVisibility}}" />
+                <Thumb Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-26,0,0" Cursor="Hand"
+                       DragStarted="OnItemRotationStarted" DragDelta="OnItemRotationDelta" DragCompleted="OnItemRotationCompleted"
+                       Visibility="{Binding ShowResizeHandle, Converter={StaticResource BoolToVisibility}}"
+                       ToolTip="Drag to rotate. Hold Shift to snap to 15°." AutomationProperties.Name="Rotate">
+                    <Thumb.Template>
+                        <ControlTemplate TargetType="Thumb">
+                            <Ellipse Fill="White" Stroke="{StaticResource AccentBrush}" StrokeThickness="1" />
+                        </ControlTemplate>
+                    </Thumb.Template>
+                </Thumb>
+                <TextBlock Text="{Binding Rotation, StringFormat={}{0:0.#}°}" Background="White" Padding="3,1"
+                           HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-47,0,0" IsHitTestVisible="False"
+                           Visibility="{Binding IsRotating, Converter={StaticResource BoolToVisibility}}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel.RenderTransform><TranslateTransform X="{Binding Width}" Y="-22" /></StackPanel.RenderTransform>
+                    <Button Content="↻ 90°" Padding="2,0" Height="18" Margin="0,0,2,0" Click="OnItemRotate90"
+                            Visibility="{Binding IsImage, Converter={StaticResource BoolToVisibility}}"
+                            ToolTip="Rotate 90° clockwise" AutomationProperties.Name="Rotate 90° clockwise" />
+                    <ToggleButton x:Name="OpacityButton" Content="◐" Padding="3,0" Height="18" Margin="0,0,2,0"
+                                  Visibility="{Binding CanAdjustOpacity, Converter={StaticResource BoolToVisibility}}"
+                                  ToolTip="Opacity" AutomationProperties.Name="Opacity" />
+                    <Popup PlacementTarget="{Binding ElementName=OpacityButton}" Placement="Bottom" StaysOpen="False"
+                           IsOpen="{Binding IsChecked, ElementName=OpacityButton, Mode=TwoWay}">
+                        <Border Background="White" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Padding="6">
+                            <StackPanel>
+                                <TextBlock Text="Opacity" />
+                                <Slider Width="120" Minimum="0.1" Maximum="1" TickFrequency="0.1"
+                                        Value="{Binding Opacity, Mode=OneWay}" ValueChanged="OnItemOpacityChanged"
+                                        Thumb.DragStarted="OnItemOpacityDragStarted" Thumb.DragCompleted="OnItemOpacityDragCompleted"
+                                        ToolTip="Opacity" AutomationProperties.Name="Opacity" />
+                                <TextBlock Text="{Binding Opacity, StringFormat={}{0:0%}}" HorizontalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                    <Button Width="18" Height="18" Padding="0"
+                            Background="{StaticResource AccentBrush}" BorderThickness="0" Cursor="Hand" ToolTip="Remove (Delete)"
+                            Command="{Binding DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="6" Foreground="White" />
+                    </Button>
+                </StackPanel>
             </Grid>
         </DataTemplate>
 

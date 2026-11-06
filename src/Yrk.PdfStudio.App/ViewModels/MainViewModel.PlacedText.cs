@@ -32,6 +32,7 @@ public sealed partial class MainViewModel
     private byte[] ApplyPlacedText(byte[] pdf, bool fallback)
     {
         var lines = new List<(int PageIndex, NormalizedPoint TopLeft, PdfColor Color, TextShaper.ShapedLine Line)>();
+        var owners = new List<PlacedItemViewModel>();
         foreach (var item in _placedItems.Where(i => i.IsText && i.Text.Trim().Length > 0))
         {
             var style = item.Style;
@@ -46,6 +47,7 @@ public sealed partial class MainViewModel
                         item.Bounds.X + (TextRendering.Padding / item.PageWidth),
                         item.Bounds.Y + (y / item.PageHeight));
                     lines.Add((item.PageIndex, topLeft, color, shaped));
+                    owners.Add(item);
                 }
 
                 y += shaped.Height;
@@ -56,9 +58,26 @@ public sealed partial class MainViewModel
         foreach (var item in _placedItems.Where(i => i.HasStampText))
         {
             AddStampWords(lines, item.Stamp!, item.PageIndex, item.Bounds, item.PageWidth, item.PageHeight);
+            while (owners.Count < lines.Count) owners.Add(item);
         }
 
-        return lines.Count == 0 ? pdf : PdfTextWriter.AddText(pdf, TextShaper.ToBlocks(lines), _document?.OpenPassword);
+        if (lines.Count == 0) return pdf;
+        var blocks = TextShaper.ToBlocks(lines).Select((block, index) =>
+        {
+            var item = owners[index];
+            if (item.Rotation == 0 && item.Opacity == 1) return block;
+            var angle = item.Rotation * Math.PI / 180;
+            var centreX = item.Left + item.Width / 2;
+            var centreY = item.Top + item.Height / 2;
+            var dx = block.TopLeft.X * item.PageWidth - centreX;
+            var dy = block.TopLeft.Y * item.PageHeight - centreY;
+            var topLeft = new NormalizedPoint(
+                (centreX + Math.Cos(angle) * dx - Math.Sin(angle) * dy) / item.PageWidth,
+                (centreY + Math.Sin(angle) * dx + Math.Cos(angle) * dy) / item.PageHeight);
+            // PdfTextWriter's positive angle is counter-clockwise; overlays use clockwise.
+            return block with { TopLeft = topLeft, Rotation = -item.Rotation, Opacity = item.Opacity };
+        }).ToList();
+        return PdfTextWriter.AddText(pdf, blocks, _document?.OpenPassword);
     }
 
     /// <summary>The words of a stamp placed at <paramref name="bounds"/>, as lines of real text.</summary>

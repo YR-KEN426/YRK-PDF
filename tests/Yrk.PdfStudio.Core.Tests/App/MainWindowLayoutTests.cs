@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Yrk.PdfStudio.App;
@@ -72,6 +73,55 @@ public sealed class MainWindowLayoutTests
                 Assert.NotNull(bar);
                 Assert.Equal(42, bar!.Value);
                 Assert.Equal(Visibility.Visible, bar.Visibility);
+
+                // Materialize the overlay template too: an empty main window never evaluates
+                // bindings on the rotation controls or on the opacity slider inside its popup.
+                var image = System.Windows.Media.Imaging.BitmapSource.Create(2, 1, 96, 96, PixelFormats.Bgra32,
+                    null, new byte[] { 0, 0, 255, 255, 255, 0, 0, 255 }, 8);
+                image.Freeze();
+                var item = PlacedItemViewModel.CreateImage(0, PlacedItemKind.Picture, 400, 300, image);
+                item.Bounds = item.ToBounds(100, 100, 100, 50);
+                item.Rotation = 30;
+                item.Opacity = 0.4;
+                harness.Model.SelectItem(item);
+                var presenter = new ContentPresenter
+                {
+                    Content = item,
+                    ContentTemplate = (DataTemplate)window.Resources["PlacedItemTemplate"],
+                };
+                var canvas = new Canvas();
+                canvas.Children.Add(presenter);
+                window.Content = canvas;
+                presenter.ApplyTemplate();
+                presenter.Measure(new Size(400, 300));
+                presenter.Arrange(new Rect(0, 0, 400, 300));
+                Settle();
+                var overlay = FindVisualChild<Grid>(presenter)!;
+                Assert.Equal(new Point(0.5, 0.5), overlay.RenderTransformOrigin);
+                Assert.Equal(30, Assert.IsType<RotateTransform>(overlay.RenderTransform).Angle);
+                Assert.Equal(0.4, Assert.IsType<Grid>(VisualTreeHelper.GetParent(FindVisualChild<Image>(overlay)!)).Opacity);
+                var toggle = FindVisualChild<ToggleButton>(overlay)!;
+                Assert.Equal(Visibility.Visible, toggle.Visibility);
+                var popup = FindVisualChild<Popup>(overlay)!;
+                var slider = FindVisualChild<Slider>(popup.Child)!;
+                popup.Child.Measure(new Size(200, 100));
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                Assert.Equal(0.1, slider.Minimum);
+                Assert.Equal(1, slider.Maximum);
+                Assert.Equal(0.4, slider.Value);
+                Assert.Equal(0.4, item.Opacity); // Activating the slider must not change the model.
+                FindVisualChild<Button>(overlay)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.Equal(120, item.Rotation);
+                harness.Model.UndoCommand.Execute(null);
+                Assert.Equal(30, item.Rotation);
+
+                var pdfItem = PlacedItemViewModel.CreateImage(0, PlacedItemKind.Signature, 400, 300, image,
+                    SignatureArt.FromPdf([], new Yrk.PdfStudio.Core.Pdf.NormalizedRect(0, 0, 1, 1), image));
+                harness.Model.SelectItem(pdfItem);
+                presenter.Content = pdfItem;
+                presenter.Measure(new Size(400, 300));
+                Settle();
+                Assert.Equal(Visibility.Collapsed, FindVisualChild<ToggleButton>(presenter)!.Visibility);
                 return true;
             }
             finally

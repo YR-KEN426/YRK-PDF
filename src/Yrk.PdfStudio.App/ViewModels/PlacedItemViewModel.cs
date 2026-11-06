@@ -16,7 +16,8 @@ public enum PlacedItemKind
 /// <summary>
 /// Something the user added to a page (signature, stamp, text or picture). It stays an overlay that can be
 /// moved, resized and undone until the document is saved, when it is drawn into the page.
-/// Geometry is in PDF points of the displayed page; <see cref="Bounds"/> is the page-relative form.
+/// Geometry is in PDF points of the displayed page; <see cref="Bounds"/> is the page-relative,
+/// unrotated rectangle. Rotation is clockwise on screen about that rectangle's centre.
 /// </summary>
 public sealed class PlacedItemViewModel : ObservableObject
 {
@@ -27,6 +28,9 @@ public sealed class PlacedItemViewModel : ObservableObject
     private bool _isSelected;
     private bool _isEditing;
     private TextStyle _style;
+    private double _rotation;
+    private double _opacity = 1;
+    private bool _isRotating;
 
     private PlacedItemViewModel(int pageIndex, PlacedItemKind kind, double pageWidth, double pageHeight, BitmapSource? image, string text, TextStyle style)
     {
@@ -50,6 +54,34 @@ public sealed class PlacedItemViewModel : ObservableObject
     public bool ShowTextPreview => IsText && !_isEditing;
 
     public bool ShowResizeHandle => IsImage && _isSelected;
+
+    public bool CanAdjustOpacity => IsImage && Art?.Kind != Services.SignatureArtKind.Pdf;
+
+    public double Rotation
+    {
+        get => _rotation;
+        set
+        {
+            if (!double.IsFinite(value)) return;
+            SetProperty(ref _rotation, ((value % 360) + 360) % 360);
+        }
+    }
+
+    public double Opacity
+    {
+        get => _opacity;
+        set
+        {
+            if (!double.IsFinite(value)) return;
+            SetProperty(ref _opacity, Art?.Kind == Services.SignatureArtKind.Pdf ? 1 : Math.Clamp(value, 0.1, 1));
+        }
+    }
+
+    public bool IsRotating
+    {
+        get => _isRotating;
+        set => SetProperty(ref _isRotating, value);
+    }
 
     public double PageWidth { get; }
 

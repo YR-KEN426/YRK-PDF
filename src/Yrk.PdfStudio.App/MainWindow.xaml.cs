@@ -1023,12 +1023,30 @@ public partial class MainWindow : Window
 
     private static PlacedItemViewModel? ItemOf(object sender) => (sender as FrameworkElement)?.DataContext as PlacedItemViewModel;
 
+    private Canvas? _itemDragCanvas;
+    private Point _itemDragPoint;
+    private double _rotationPointerStart;
+    private double _rotationValueStart;
+    private PlacedItemViewModel? _opacityDragItem;
+
+    private Vector ItemPointerDelta()
+    {
+        var point = Mouse.GetPosition(_itemDragCanvas!);
+        var delta = point - _itemDragPoint;
+        _itemDragPoint = point;
+        return delta;
+    }
+
     private void OnItemDragStarted(object sender, DragStartedEventArgs e)
     {
         if (ItemOf(sender) is { } item)
         {
             CommitInPlaceEdits();
             _viewModel.BeginItemDrag(item);
+            // Thumb deltas are in its rotated coordinate system. Read the pointer in the
+            // stable page canvas instead; its Viewbox also accounts for the current zoom.
+            _itemDragCanvas = FindAncestor<Canvas>((DependencyObject)sender);
+            _itemDragPoint = Mouse.GetPosition(_itemDragCanvas!);
         }
     }
 
@@ -1036,7 +1054,8 @@ public partial class MainWindow : Window
     {
         if (ItemOf(sender) is { } item)
         {
-            _viewModel.MoveItem(item, e.HorizontalChange, e.VerticalChange);
+            var delta = ItemPointerDelta();
+            _viewModel.MoveItem(item, delta.X, delta.Y);
         }
     }
 
@@ -1044,7 +1063,8 @@ public partial class MainWindow : Window
     {
         if (ItemOf(sender) is { } item)
         {
-            _viewModel.ResizeItem(item, e.HorizontalChange, e.VerticalChange);
+            var delta = ItemPointerDelta();
+            _viewModel.ResizeItem(item, delta.X, delta.Y);
         }
     }
 
@@ -1053,6 +1073,76 @@ public partial class MainWindow : Window
         if (ItemOf(sender) is { } item)
         {
             _viewModel.EndItemDrag(item);
+            _itemDragCanvas = null;
+        }
+    }
+
+    private double ItemPointerAngle(PlacedItemViewModel item)
+    {
+        var point = Mouse.GetPosition(_itemDragCanvas!);
+        return Math.Atan2(point.Y - item.Top - item.Height / 2, point.X - item.Left - item.Width / 2) * 180 / Math.PI;
+    }
+
+    private void OnItemRotationStarted(object sender, DragStartedEventArgs e)
+    {
+        OnItemDragStarted(sender, e);
+        if (ItemOf(sender) is { } item)
+        {
+            _rotationPointerStart = ItemPointerAngle(item);
+            _rotationValueStart = item.Rotation;
+            item.IsRotating = true;
+        }
+        e.Handled = true;
+    }
+
+    private void OnItemRotationDelta(object sender, DragDeltaEventArgs e)
+    {
+        if (ItemOf(sender) is { } item)
+            _viewModel.RotateItem(item, _rotationValueStart + ItemPointerAngle(item) - _rotationPointerStart,
+                (Keyboard.Modifiers & ModifierKeys.Shift) != 0);
+        e.Handled = true;
+    }
+
+    private void OnItemRotationCompleted(object sender, DragCompletedEventArgs e)
+    {
+        if (ItemOf(sender) is { } item) item.IsRotating = false;
+        OnItemDragCompleted(sender, e);
+        e.Handled = true;
+    }
+
+    private void OnItemRotate90(object sender, RoutedEventArgs e)
+    {
+        if (ItemOf(sender) is { } item)
+        {
+            CommitInPlaceEdits();
+            _viewModel.RotateItem90(item);
+        }
+        e.Handled = true;
+    }
+
+    private void OnItemOpacityDragStarted(object sender, DragStartedEventArgs e)
+    {
+        if (ItemOf(sender) is { } item)
+        {
+            _opacityDragItem = item;
+            _viewModel.BeginItemDrag(item);
+        }
+        e.Handled = true;
+    }
+
+    private void OnItemOpacityDragCompleted(object sender, DragCompletedEventArgs e)
+    {
+        if (_opacityDragItem is { } item) _viewModel.EndItemDrag(item);
+        _opacityDragItem = null;
+        e.Handled = true;
+    }
+
+    private void OnItemOpacityChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (sender is Slider { IsLoaded: true } && ItemOf(sender) is { } item && item.Opacity != e.NewValue)
+        {
+            if (_opacityDragItem == item) item.Opacity = e.NewValue;
+            else _viewModel.ChangeItemOpacity(item, e.NewValue);
         }
     }
 
