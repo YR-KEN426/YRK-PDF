@@ -421,11 +421,9 @@ public sealed partial class MainViewModel
                 }
 
                 targetPath = Path.GetFullPath(chosenPath);
-                // The path text alone misses aliases of the open file (8.3 short names, hard links):
-                // an existing target with exactly the open file's bytes is treated as the same file.
+                // The path text alone misses aliases of the open file (8.3 short names, hard links).
                 if (!string.Equals(targetPath, sourcePath, StringComparison.OrdinalIgnoreCase)
-                    && !(File.Exists(targetPath) && new FileInfo(targetPath).Length == source.Length
-                         && File.ReadAllBytes(targetPath).AsSpan().SequenceEqual(source)))
+                    && !(File.Exists(targetPath) && FileIdentity.AreSameFile(sourcePath, targetPath)))
                 {
                     break;
                 }
