@@ -1194,7 +1194,7 @@
                     <TextBlock Style="{StaticResource IconText}" Text="&#xE896;" Foreground="{StaticResource AccentBrush}" Margin="0,0,8,0" />
                     <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
                         <TextBlock Text="{Binding UpdateBannerText}" />
-                        <ProgressBar Height="3" Margin="0,4,0,0" Minimum="0" Maximum="100" Value="{Binding UpdateDownloadPercent}"
+                        <ProgressBar Height="3" Margin="0,4,0,0" Minimum="0" Maximum="100" Value="{Binding UpdateDownloadPercent, Mode=OneWay}"
                                      Visibility="{Binding IsUpdateDownloading, Converter={StaticResource BoolToVisibility}}" />
                     </StackPanel>
                 </DockPanel>
