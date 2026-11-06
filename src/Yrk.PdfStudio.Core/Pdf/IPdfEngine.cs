@@ -1,6 +1,12 @@
 namespace Yrk.PdfStudio.Core.Pdf;
 
 /// <summary>
+/// Placement about the centre of the displayed bounds. Positive rotation is clockwise on screen;
+/// opacity multiplies the artwork's existing alpha (0 = transparent, 1 = unchanged).
+/// </summary>
+public sealed record PlacementStyle(double RotationDegrees = 0, double Opacity = 1);
+
+/// <summary>
 /// Entry point to a PDF engine. The UI only talks to these interfaces, so the engine behind them
 /// (PDFium today) can be replaced or moved into a separate process without touching the UI.
 /// </summary>
@@ -110,17 +116,18 @@ public interface IPdfDocument : IAsyncDisposable
     Task ApplyFormEditsAsync(IReadOnlyList<PdfFormFieldEdit> edits, CancellationToken cancellationToken = default);
 
     /// <summary>Draws an image into the page content (flattened) at a page-relative position.</summary>
-    Task AddImageAsync(int pageIndex, PdfImage image, NormalizedRect bounds, CancellationToken cancellationToken = default);
+    Task AddImageAsync(int pageIndex, PdfImage image, NormalizedRect bounds, CancellationToken cancellationToken = default, PlacementStyle? style = null);
 
     /// <summary>Draws filled vector shapes into the page content, scaled to a page-relative rectangle (stays upright on rotated pages).</summary>
-    Task AddVectorAsync(int pageIndex, PdfVectorArt art, NormalizedRect bounds, CancellationToken cancellationToken = default);
+    Task AddVectorAsync(int pageIndex, PdfVectorArt art, NormalizedRect bounds, CancellationToken cancellationToken = default, PlacementStyle? style = null);
 
     /// <summary>
     /// Places the first page of another PDF into this page as vector content (a form XObject), scaled to a
     /// page-relative rectangle. Only <paramref name="sourceCrop"/> of that page (relative, top-left origin)
-    /// is shown. Used for signatures supplied as PDF.
+    /// is shown. Used for signatures supplied as PDF. Rotation is supported; opacity must be 1.
     /// </summary>
-    Task AddPdfPageAsync(int pageIndex, byte[] pdf, NormalizedRect sourceCrop, NormalizedRect bounds, CancellationToken cancellationToken = default);
+    /// <exception cref="NotSupportedException">The style requests opacity other than 1 for a PDF form.</exception>
+    Task AddPdfPageAsync(int pageIndex, byte[] pdf, NormalizedRect sourceCrop, NormalizedRect bounds, CancellationToken cancellationToken = default, PlacementStyle? style = null);
 
     /// <summary>
     /// Writes the document with all in-memory changes to <paramref name="path"/> as an incremental

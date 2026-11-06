@@ -33,10 +33,11 @@ internal sealed partial class PdfiumDocument
             cancellationToken);
     }
 
-    public Task AddImageAsync(int pageIndex, PdfImage image, NormalizedRect bounds, CancellationToken cancellationToken = default)
+    public Task AddImageAsync(int pageIndex, PdfImage image, NormalizedRect bounds, CancellationToken cancellationToken = default, PlacementStyle? style = null)
     {
         ValidatePageIndex(pageIndex);
         ArgumentNullException.ThrowIfNull(image);
+        ValidatePlacementStyle(style);
         if (image.Width <= 0 || image.Height <= 0 || image.Pixels.Length < image.Width * image.Height * 4)
         {
             throw new ArgumentException("The image size does not match its pixel buffer.", nameof(image));
@@ -46,17 +47,18 @@ internal sealed partial class PdfiumDocument
             () =>
             {
                 _revision++;
-                AddImage(pageIndex, image, bounds);
+                AddImage(pageIndex, image, bounds, style);
                 return true;
             },
             PdfWorkPriority.Interactive,
             cancellationToken);
     }
 
-    public Task AddVectorAsync(int pageIndex, PdfVectorArt art, NormalizedRect bounds, CancellationToken cancellationToken = default)
+    public Task AddVectorAsync(int pageIndex, PdfVectorArt art, NormalizedRect bounds, CancellationToken cancellationToken = default, PlacementStyle? style = null)
     {
         ValidatePageIndex(pageIndex);
         ArgumentNullException.ThrowIfNull(art);
+        ValidatePlacementStyle(style);
         if (art.Width <= 0 || art.Height <= 0)
         {
             throw new ArgumentException("The artwork has no size.", nameof(art));
@@ -66,22 +68,27 @@ internal sealed partial class PdfiumDocument
             () =>
             {
                 _revision++;
-                AddVector(pageIndex, art, bounds);
+                AddVector(pageIndex, art, bounds, style);
                 return true;
             },
             PdfWorkPriority.Interactive,
             cancellationToken);
     }
 
-    public Task AddPdfPageAsync(int pageIndex, byte[] pdf, NormalizedRect sourceCrop, NormalizedRect bounds, CancellationToken cancellationToken = default)
+    public Task AddPdfPageAsync(int pageIndex, byte[] pdf, NormalizedRect sourceCrop, NormalizedRect bounds, CancellationToken cancellationToken = default, PlacementStyle? style = null)
     {
         ValidatePageIndex(pageIndex);
         ArgumentNullException.ThrowIfNull(pdf);
+        ValidatePlacementStyle(style);
+        // Setting fill/stroke alpha on PDFium's form object does not reliably affect its
+        // children when rendered/saved. Keep PDF content intact instead of rewriting it.
+        if (style is { Opacity: not 1 })
+            throw new NotSupportedException("Opacity is not supported for PDF-page placement.");
         return _engine.InvokeAsync(
             () =>
             {
                 _revision++;
-                AddPdfPage(pageIndex, pdf, sourceCrop, bounds);
+                AddPdfPage(pageIndex, pdf, sourceCrop, bounds, style);
                 return true;
             },
             PdfWorkPriority.Interactive,
@@ -333,7 +340,7 @@ internal sealed partial class PdfiumDocument
 
     // --- Images ----------------------------------------------------------------------------
 
-    private unsafe void AddImage(int pageIndex, PdfImage image, NormalizedRect bounds)
+    private unsafe void AddImage(int pageIndex, PdfImage image, NormalizedRect bounds, PlacementStyle? style)
     {
         var page = GetPage(pageIndex);
         var imageObject = PdfiumNative.FPDFPageObj_NewImageObj(_handle);
@@ -345,7 +352,19 @@ internal sealed partial class PdfiumDocument
         var inserted = false;
         try
         {
-            fixed (byte* pixels = image.Pixels)
+            var opacity = style?.Opacity ?? 1;
+            var buffer = image.Pixels;
+            if (opacity != 1)
+            {
+                // BGRA is straight alpha. Keep RGB and the caller's shared pixel buffer intact.
+                buffer = (byte[])buffer.Clone();
+                for (var i = 3; i < image.Width * image.Height * 4; i += 4)
+                {
+                    buffer[i] = PlacementAlpha(buffer[i], opacity);
+                }
+            }
+
+            fixed (byte* pixels = buffer)
             {
                 var bitmap = PdfiumNative.FPDFBitmap_CreateEx(image.Width, image.Height, PdfiumNative.FPDFBitmap_BGRA, (IntPtr)pixels, image.Width * 4);
                 if (bitmap == IntPtr.Zero)
@@ -366,7 +385,7 @@ internal sealed partial class PdfiumDocument
                 }
             }
 
-            var (a, b, c, d, e, f) = UnitSquareTo(pageIndex, page, bounds);
+            var (a, b, c, d, e, f) = PlacementMatrix(pageIndex, page, bounds, style);
             PdfiumNative.FPDFImageObj_SetMatrix(imageObject, a, b, c, d, e, f);
 
             PdfiumNative.FPDFPage_InsertObject(page, imageObject);
@@ -398,12 +417,50 @@ internal sealed partial class PdfiumDocument
         return (bottomRight.X - bottomLeft.X, bottomRight.Y - bottomLeft.Y, topLeft.X - bottomLeft.X, topLeft.Y - bottomLeft.Y, bottomLeft.X, bottomLeft.Y);
     }
 
+    // --- Placement style -------------------------------------------------------------------
+
+    private static void ValidatePlacementStyle(PlacementStyle? style)
+    {
+        if (style is null) return;
+        if (!double.IsFinite(style.RotationDegrees))
+            throw new ArgumentOutOfRangeException(nameof(style), "Rotation must be finite.");
+        if (!double.IsFinite(style.Opacity) || style.Opacity is < 0 or > 1)
+            throw new ArgumentOutOfRangeException(nameof(style), "Opacity must be between 0 and 1.");
+    }
+
+    private static byte PlacementAlpha(byte alpha, double opacity) =>
+        opacity == 1 ? alpha : (byte)Math.Round(alpha * opacity, MidpointRounding.AwayFromZero);
+
+    private (double A, double B, double C, double D, double E, double F) PlacementMatrix(
+        int pageIndex, IntPtr page, NormalizedRect bounds, PlacementStyle? style)
+    {
+        var matrix = UnitSquareTo(pageIndex, page, bounds);
+        var degrees = (style?.RotationDegrees ?? 0) % 360;
+        // Preserve the legacy matrix and serialization exactly for null/default styles.
+        if (degrees == 0) return matrix;
+
+        var (a, b, c, d, e, f) = matrix;
+        var radians = degrees * Math.PI / 180;
+        var cos = Math.Cos(radians);
+        var sin = Math.Sin(radians);
+        var centreX = e + (a + c) / 2;
+        var centreY = f + (b + d) / 2;
+        // Convention: positive is clockwise in displayed coordinates (y down), hence -theta
+        // in PDF page space (y up). Post-compose AFTER UnitSquareTo, about its mapped centre.
+        // /Rotate is a rigid rotation, so it commutes with this rotation for 90/180/270 too.
+        var ra = cos * a + sin * b;
+        var rb = -sin * a + cos * b;
+        var rc = cos * c + sin * d;
+        var rd = -sin * c + cos * d;
+        return (ra, rb, rc, rd, centreX - (ra + rc) / 2, centreY - (rb + rd) / 2);
+    }
+
     // --- Vector artwork --------------------------------------------------------------------
 
-    private void AddVector(int pageIndex, PdfVectorArt art, NormalizedRect bounds)
+    private void AddVector(int pageIndex, PdfVectorArt art, NormalizedRect bounds, PlacementStyle? style)
     {
         var page = GetPage(pageIndex);
-        var (a, b, c, d, e, f) = UnitSquareTo(pageIndex, page, bounds);
+        var (a, b, c, d, e, f) = PlacementMatrix(pageIndex, page, bounds, style);
         foreach (var shape in art.Paths.Where(p => p.Commands.Count > 0))
         {
             // Built in the unit square (y up), then placed with the same matrix as an image.
@@ -438,7 +495,7 @@ internal sealed partial class PdfiumDocument
                 }
 
                 var color = shape.Color;
-                PdfiumNative.FPDFPageObj_SetFillColor(path, color.R, color.G, color.B, color.A);
+                PdfiumNative.FPDFPageObj_SetFillColor(path, color.R, color.G, color.B, PlacementAlpha(color.A, style?.Opacity ?? 1));
                 PdfiumNative.FPDFPath_SetDrawMode(path, shape.EvenOdd ? PdfiumNative.FPDF_FILLMODE_ALTERNATE : PdfiumNative.FPDF_FILLMODE_WINDING, 0);
                 PdfiumNative.FPDFPageObj_Transform(path, a, b, c, d, e, f);
                 PdfiumNative.FPDFPage_InsertObject(page, path);
@@ -459,7 +516,7 @@ internal sealed partial class PdfiumDocument
         }
     }
 
-    private unsafe void AddPdfPage(int pageIndex, byte[] pdf, NormalizedRect sourceCrop, NormalizedRect bounds)
+    private unsafe void AddPdfPage(int pageIndex, byte[] pdf, NormalizedRect sourceCrop, NormalizedRect bounds, PlacementStyle? style)
     {
         var page = GetPage(pageIndex);
         fixed (byte* data = pdf)
@@ -517,7 +574,7 @@ internal sealed partial class PdfiumDocument
                 // PDFium's form starts at the crop box's lower-left corner (0, 0): scale it to the unit square,
                 // then map the unit square onto the target.
                 double cropWidth = right - left, cropHeight = top - bottom;
-                var (a, b, c, d, e, f) = UnitSquareTo(pageIndex, page, bounds);
+                var (a, b, c, d, e, f) = PlacementMatrix(pageIndex, page, bounds, style);
                 PdfiumNative.FPDFPageObj_Transform(form, a / cropWidth, b / cropWidth, c / cropHeight, d / cropHeight, e, f);
                 PdfiumNative.FPDFPage_InsertObject(page, form);
                 if (PdfiumNative.FPDFPage_GenerateContent(page) == 0)
