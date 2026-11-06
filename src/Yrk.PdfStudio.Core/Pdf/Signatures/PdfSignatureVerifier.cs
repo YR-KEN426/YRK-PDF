@@ -1348,7 +1348,8 @@ public static class PdfSignatureVerifier
         var status = !intact || identity == PdfSignerIdentity.Revoked || forbiddenChange
             ? PdfSignatureStatus.Invalid
             : modifiedAfterSigning ? PdfSignatureStatus.Modified
-            : identity == PdfSignerIdentity.Trusted ? PdfSignatureStatus.Valid : PdfSignatureStatus.IdentityUnknown;
+            : identity is PdfSignerIdentity.Trusted or PdfSignerIdentity.TrustedByUser
+                ? PdfSignatureStatus.Valid : PdfSignatureStatus.IdentityUnknown;
         if (problem is null && identity == PdfSignerIdentity.Revoked)
         {
             problem = "The signer's certificate has been revoked.";
@@ -1412,9 +1413,7 @@ public static class PdfSignatureVerifier
             chain.ChainPolicy.DisableCertificateDownloads = false;
             chain.Build(certificate);
         }
-        var flags = chain.ChainElements.SelectMany(e => e.ChainElementStatus).Select(s => s.Status)
-            .Concat(chain.ChainStatus.Select(s => s.Status))
-            .Aggregate(X509ChainStatusFlags.NoError, (all, s) => all | s);
+        var flags = ChainFlags(chain);
 
         const X509ChainStatusFlags revocationUnknown = X509ChainStatusFlags.RevocationStatusUnknown | X509ChainStatusFlags.OfflineRevocation;
         // Ignore offline errors only for certificates whose status DSS actually established.
@@ -1439,12 +1438,86 @@ public static class PdfSignatureVerifier
         var identity = flags switch
         {
             _ when flags.HasFlag(X509ChainStatusFlags.Revoked) => PdfSignerIdentity.Revoked,
-            _ when (flags & (X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.PartialChain)) != 0 => PdfSignerIdentity.Untrusted,
             _ when flags.HasFlag(X509ChainStatusFlags.NotTimeValid) => PdfSignerIdentity.Expired,
+            _ when (flags & (X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.PartialChain)) != 0 => PdfSignerIdentity.Untrusted,
             _ when (flags & ~revocationUnknown) == 0 => PdfSignerIdentity.Trusted,
             _ => PdfSignerIdentity.Untrusted,
         };
+
+        const X509ChainStatusFlags missingTrust = X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.PartialChain;
+        if (identity == PdfSignerIdentity.Untrusted && (flags & missingTrust) != 0
+            && (flags & ~(missingTrust | revocationUnknown)) == 0
+            && options.UserTrustedCertificates.Count > 0 && IsSelfSigned(certificate)
+            && !certificate.Extensions.OfType<X509KeyUsageExtension>().Any(usage =>
+                (usage.KeyUsages & (X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation)) == 0))
+        {
+            var signerHash = SHA256.HashData(certificate.RawData);
+            var matches = options.UserTrustedCertificates.Where(candidate =>
+                SHA256.HashData(candidate.RawData).AsSpan().SequenceEqual(signerHash)).ToArray();
+            if (matches.Length > 0)
+            {
+                using var userChain = new X509Chain();
+                userChain.ChainPolicy = chain.ChainPolicy.Clone();
+                userChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                userChain.ChainPolicy.CustomTrustStore.Clear();
+                userChain.ChainPolicy.CustomTrustStore.AddRange(matches);
+                // Restrictive EKUs must permit document signing, even when this leaf is the root.
+                userChain.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.4.1.311.10.3.12"));
+                userChain.ChainPolicy.VerificationTime = verificationTime.UtcDateTime;
+                userChain.Build(certificate);
+                if ((ChainFlags(userChain) & ~revocationUnknown) == 0)
+                {
+                    identity = PdfSignerIdentity.TrustedByUser;
+                }
+            }
+        }
         return (identity, revocationChecked);
+    }
+
+    private static X509ChainStatusFlags ChainFlags(X509Chain chain) =>
+        chain.ChainElements.SelectMany(e => e.ChainElementStatus).Select(s => s.Status)
+            .Concat(chain.ChainStatus.Select(s => s.Status))
+            .Aggregate(X509ChainStatusFlags.NoError, (all, status) => all | status);
+
+    private static bool IsSelfSigned(X509Certificate2 certificate)
+    {
+        if (!certificate.IssuerName.RawData.AsSpan().SequenceEqual(certificate.SubjectName.RawData)) return false;
+        try
+        {
+            var reader = new AsnReader(certificate.RawData, AsnEncodingRules.DER);
+            var sequence = reader.ReadSequence();
+            var tbs = sequence.ReadEncodedValue();
+            var algorithm = sequence.ReadSequence();
+            var oid = algorithm.ReadObjectIdentifier();
+            var signature = sequence.ReadBitString(out var unusedBits);
+            sequence.ThrowIfNotEmpty();
+            reader.ThrowIfNotEmpty();
+            if (unusedBits != 0) return false;
+
+            var hash = oid switch
+            {
+                "1.2.840.113549.1.1.11" or "1.2.840.10045.4.3.2" => HashAlgorithmName.SHA256,
+                "1.2.840.113549.1.1.12" or "1.2.840.10045.4.3.3" => HashAlgorithmName.SHA384,
+                "1.2.840.113549.1.1.13" or "1.2.840.10045.4.3.4" => HashAlgorithmName.SHA512,
+                _ => default,
+            };
+            // Unknown signature algorithms fail closed: matching names alone prove nothing.
+            if (hash == default) return false;
+            if (oid.StartsWith("1.2.840.113549.1.1.", StringComparison.Ordinal))
+            {
+                if (algorithm.HasData) algorithm.ReadNull();
+                algorithm.ThrowIfNotEmpty();
+                using var rsa = certificate.GetRSAPublicKey();
+                return rsa?.VerifyData(tbs.Span, signature, hash, RSASignaturePadding.Pkcs1) == true;
+            }
+            algorithm.ThrowIfNotEmpty();
+            using var ec = certificate.GetECDsaPublicKey();
+            return ec?.VerifyData(tbs.Span, signature, hash, DSASignatureFormat.Rfc3279DerSequence) == true;
+        }
+        catch (Exception ex) when (ex is CryptographicException or AsnContentException)
+        {
+            return false;
+        }
     }
 
     private static (DateTimeOffset? Time, bool IsTimestamped) ReadTimestamp(SignerInfo signerInfo, PdfVerifyOptions options)

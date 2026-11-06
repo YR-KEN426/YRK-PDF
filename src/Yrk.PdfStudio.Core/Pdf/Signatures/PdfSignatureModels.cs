@@ -75,6 +75,9 @@ public enum PdfSignerIdentity
     Expired,
     Revoked,
     Unknown,
+
+    /// <summary>The exact self-signed certificate was explicitly trusted by this user.</summary>
+    TrustedByUser,
 }
 
 public sealed record PdfSignatureInfo(
@@ -127,6 +130,9 @@ public sealed record PdfRevisionBeforeSignatureResult(
 
 public sealed record PdfVerifyOptions(bool CheckRevocation = true, TimeSpan? NetworkTimeout = null)
 {
+    /// <summary>Exact self-signed signer certificates trusted for this verification; never changes the Windows store.</summary>
+    public IReadOnlyList<X509Certificate2> UserTrustedCertificates { get; init; } = [];
+
     // Explicit, per-verification trust for isolated callers/tests; never changes the Windows store.
     internal X509Certificate2Collection? CustomTrustRoots { get; init; }
 }
