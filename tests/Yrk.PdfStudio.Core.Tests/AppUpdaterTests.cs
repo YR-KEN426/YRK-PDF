@@ -18,6 +18,64 @@ public sealed class AppUpdaterTests
     private const string Name = Id + "-" + Version + "-full.nupkg";
     private static readonly IVelopackLogger Log = new NullVelopackLogger();
 
+    [Fact]
+    public async Task Caller_cancellation_deletes_partial_and_package_clears_metadata_and_can_retry()
+    {
+        using var fixture = new UpdateFixture();
+        using var cancellation = new CancellationTokenSource();
+        var written = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Inner.InterruptDownload = async (path, progress, token) =>
+        {
+            await File.WriteAllTextAsync(path, "incomplete", token);
+            await File.WriteAllTextAsync(fixture.Complete, "incomplete", token);
+            await File.WriteAllTextAsync(fixture.Complete + ".partial", "incomplete", token);
+            progress(25);
+            written.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+        };
+        var updater = fixture.CreateUpdater();
+        var starts = 0;
+        void DownloadStarting(long size, string version)
+        {
+            Assert.Equal(fixture.Asset.Size, size);
+            Assert.Equal(Version, version);
+            Assert.Equal(size, updater.DownloadingPackageSize);
+            Assert.Equal(version, updater.DownloadingVersion);
+            Assert.Equal(starts, fixture.Inner.Downloads);
+            starts++;
+        }
+        var downloading = updater.CheckAndDownloadAsync(cancellationToken: cancellation.Token, downloadStarting: DownloadStarting);
+        try
+        {
+            await written.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            // Prove the cleanup assertions below exercise files that actually existed before cancellation.
+            Assert.True(File.Exists(fixture.Complete + ".partial"));
+            Assert.True(File.Exists(fixture.Complete));
+            Assert.Equal(fixture.Asset.Size, updater.DownloadingPackageSize);
+            Assert.Equal(Version, updater.DownloadingVersion);
+        }
+        finally
+        {
+            cancellation.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => downloading).WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        Assert.Null(updater.Ready);
+        Assert.Equal(0L, updater.DownloadingPackageSize);
+        Assert.Null(updater.DownloadingVersion);
+        Assert.False(File.Exists(fixture.Complete + ".partial"));
+        Assert.False(File.Exists(fixture.Complete));
+        Assert.Equal("original updater", File.ReadAllText(fixture.UpdateExe));
+
+        fixture.Inner.InterruptDownload = null;
+        var update = await updater.CheckAndDownloadAsync(downloadStarting: DownloadStarting);
+        Assert.NotNull(update);
+        Assert.Same(update, updater.Ready);
+        Assert.Equal(2, starts);
+        Assert.Equal(0L, updater.DownloadingPackageSize);
+        Assert.Null(updater.DownloadingVersion);
+        Assert.Equal("verified updater", File.ReadAllText(fixture.UpdateExe));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

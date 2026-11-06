@@ -22,6 +22,8 @@ public sealed class AppUpdater
     private readonly VerifiedUpdateSource? _source;
     private readonly TimeSpan _checkTimeout;
     private readonly TimeSpan _downloadIdleTimeout;
+    private sealed record DownloadPackage(long Size, string Version);
+    private DownloadPackage? _downloadingPackage;
 
     public AppUpdater(TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null)
     {
@@ -74,9 +76,17 @@ public sealed class AppUpdater
     /// <summary>A downloaded update waiting for a restart.</summary>
     public UpdateInfo? Ready { get; private set; }
 
+    /// <summary>Size of the active full package in bytes; zero when no download is active.</summary>
+    public long DownloadingPackageSize => Volatile.Read(ref _downloadingPackage)?.Size ?? 0;
+    /// <summary>Version of the active full package; null when no download is active.</summary>
+    public string? DownloadingVersion => Volatile.Read(ref _downloadingPackage)?.Version;
+
     /// <summary>Checks for and downloads an update, keeping only a package signed by YRK.</summary>
     /// <exception cref="UpdateVerificationException">The update could not be authenticated.</exception>
-    public async Task<UpdateInfo?> CheckAndDownloadAsync(Action<int>? progress = null, CancellationToken cancellationToken = default)
+    /// <param name="downloadStarting">Called synchronously before downloading, with full-package bytes and version.
+    /// Like progress, this callback may run on a worker thread.</param>
+    public async Task<UpdateInfo?> CheckAndDownloadAsync(Action<int>? progress = null, CancellationToken cancellationToken = default,
+        Action<long, string>? downloadStarting = null)
     {
         if (_manager is not { IsInstalled: true } manager) return null;
         Ready = null;
@@ -88,6 +98,7 @@ public sealed class AppUpdater
         var progressLock = new object();
         var lastPercent = -1;
         var finished = false;
+        var packageInfo = new DownloadPackage(update.TargetFullRelease.Size, update.TargetFullRelease.Version.ToString());
         void ReportProgress(int percent)
         {
             lock (progressLock)
@@ -103,23 +114,27 @@ public sealed class AppUpdater
         }
         try
         {
+            Volatile.Write(ref _downloadingPackage, packageInfo);
+            downloadStarting?.Invoke(packageInfo.Size, packageInfo.Version);
             await RemoveInvalidCachedPackageAsync(manager, update.TargetFullRelease, download.Token).ConfigureAwait(false);
             // Await cancellation fully: abandoning the task could let it write files after cleanup or retry.
             await manager.DownloadUpdatesAsync(update, ReportProgress, download.Token).ConfigureAwait(false);
             await VerifyAsync(manager, update.TargetFullRelease, download.Token).ConfigureAwait(false);
             download.Token.ThrowIfCancellationRequested();
         }
-        catch (Exception ex) when (download.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (download.IsCancellationRequested)
         {
             var package = VerifiedUpdateSource.GetPackagePath(manager.PackagesDir, update.TargetFullRelease);
             // The source normally deletes rejected files; also cover a cached package and Velopack's partial.
             File.Delete(package + ".partial");
             File.Delete(package);
+            cancellationToken.ThrowIfCancellationRequested();
             throw new TimeoutException("The download stopped. Check the internet connection and try again.", ex);
         }
         finally
         {
             lock (progressLock) finished = true;
+            Interlocked.CompareExchange(ref _downloadingPackage, null, packageInfo);
         }
         Ready = update;
         return update;
