@@ -63,9 +63,12 @@ public sealed class PlacedItemViewModel : ObservableObject
         set
         {
             if (!double.IsFinite(value)) return;
-            SetProperty(ref _rotation, ((value % 360) + 360) % 360);
+            if (SetProperty(ref _rotation, ((value % 360) + 360) % 360)) OnPropertyChanged(nameof(UprightAngle));
         }
     }
+
+    /// <summary>Undoes <see cref="Rotation"/> for the item's buttons and labels, so they always read upright.</summary>
+    public double UprightAngle => -_rotation;
 
     public double Opacity
     {

@@ -226,10 +226,19 @@
                 </Thumb>
                 <TextBlock Text="{Binding Rotation, StringFormat={}{0:0.#}°}" Background="White" Padding="3,1"
                            HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-47,0,0" IsHitTestVisible="False"
-                           Visibility="{Binding IsRotating, Converter={StaticResource BoolToVisibility}}" />
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top"
+                           RenderTransformOrigin="0.5,0.5"
+                           Visibility="{Binding IsRotating, Converter={StaticResource BoolToVisibility}}">
+                    <TextBlock.RenderTransform><RotateTransform Angle="{Binding UprightAngle}" /></TextBlock.RenderTransform>
+                </TextBlock>
+                <!-- Pinned to the frame's top-right corner but kept upright, so it never reads sideways or upside down. -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Top" RenderTransformOrigin="0,1"
                             Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
-                    <StackPanel.RenderTransform><TranslateTransform X="{Binding Width}" Y="-22" /></StackPanel.RenderTransform>
+                    <StackPanel.RenderTransform>
+                        <TransformGroup>
+                            <RotateTransform Angle="{Binding UprightAngle}" />
+                            <TranslateTransform X="{Binding Width}" Y="-22" />
+                        </TransformGroup>
+                    </StackPanel.RenderTransform>
                     <Button Content="↻ 90°" Padding="2,0" Height="18" Margin="0,0,2,0" Click="OnItemRotate90"
                             Visibility="{Binding IsImage, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Rotate 90° clockwise" AutomationProperties.Name="Rotate 90° clockwise" />
