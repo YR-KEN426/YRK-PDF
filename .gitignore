@@ -21,3 +21,6 @@ TestResults/
 
 # Downloaded source data (see plan.md, step 1)
 third-party-data/
+
+# Design briefs for 2.0.0: kept local until Ken decides (public repo)
+docs/design/
