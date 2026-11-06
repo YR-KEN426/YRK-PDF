@@ -69,7 +69,7 @@ public partial class PrivacyPolicyDialog : Window
                 }
                 document.Blocks.Add(table);
             }
-            else if (line.TrimStart().StartsWith("- ", StringComparison.Ordinal))
+            else if (ListMarker(line) is not null)
             {
                 document.Blocks.Add(ReadList(lines, ref i, ListDepth(line)));
             }
@@ -94,10 +94,25 @@ public partial class PrivacyPolicyDialog : Window
 
     private static int ListDepth(string line) => line.Length - line.TrimStart().Length;
 
+    /// <summary>The list marker that starts the line ("- " or "1. "), or null when the line is not a list item.</summary>
+    private static string? ListMarker(string line)
+    {
+        var text = line.TrimStart();
+        if (text.StartsWith("- ", StringComparison.Ordinal)) return "- ";
+        var digits = text.TakeWhile(char.IsAsciiDigit).Count();
+        return digits > 0 && text.Length > digits + 1 && text[digits] == '.' && text[digits + 1] == ' '
+            ? text[..(digits + 2)] : null;
+    }
+
     private static List ReadList(string[] lines, ref int index, int depth)
     {
-        var list = new List { MarkerStyle = TextMarkerStyle.Disc, Margin = new Thickness(0, 0, 0, 10), Padding = new Thickness(22, 0, 0, 0) };
-        while (index < lines.Length && lines[index].TrimStart().StartsWith("- ", StringComparison.Ordinal))
+        var numbered = ListMarker(lines[index]) != "- ";
+        var list = new List
+        {
+            MarkerStyle = numbered ? TextMarkerStyle.Decimal : TextMarkerStyle.Disc,
+            Margin = new Thickness(0, 0, 0, 10), Padding = new Thickness(22, 0, 0, 0)
+        };
+        while (index < lines.Length && ListMarker(lines[index]) is { } marker)
         {
             var line = lines[index];
             var nextDepth = ListDepth(line);
@@ -107,7 +122,9 @@ public partial class PrivacyPolicyDialog : Window
                 list.ListItems.LastListItem.Blocks.Add(ReadList(lines, ref index, nextDepth));
                 continue;
             }
-            list.ListItems.Add(new ListItem(ParagraphFor(line.TrimStart()[2..])) { Margin = new Thickness(0, 0, 0, 5) });
+            // A bulleted list and a numbered list next to each other at one depth are separate lists.
+            if ((marker != "- ") != numbered) break;
+            list.ListItems.Add(new ListItem(ParagraphFor(line.TrimStart()[marker.Length..])) { Margin = new Thickness(0, 0, 0, 5) });
             index++;
         }
         return list;
