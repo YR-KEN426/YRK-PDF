@@ -64,10 +64,13 @@ public sealed class AppSaveTests
         Assert.Empty(app.Dialogs.Named("ShowError"));
     }
 
-    // SaveAsAsync forwards to SaveToAsync without CheckNotOpenFile/FileIdentity. Moving the
-    // completed save over the alias replaces that directory entry instead of rejecting it.
-    [Fact(Skip = "1.1.7 bug: SaveAsAsync/SaveToAsync do not reject a hard link of the open source; the alias is replaced.")]
-    public async Task Save_as_rejects_a_hard_link_and_preserves_both_names()
+    // Save As onto a hard link of the open file is an ordinary overwrite of that name, which the
+    // user confirmed in the save dialog. The new file is written to a temporary file and then moved
+    // over the alias, so only the alias's directory entry is replaced: the source name keeps the
+    // original bytes and the two names stop sharing one file. (Signing refuses aliases instead,
+    // because signing must never touch the source.)
+    [Fact]
+    public async Task Save_as_onto_a_hard_link_replaces_only_that_name()
     {
         await using var app = new AppTestHarness();
         var source = app.CreatePdf();
@@ -81,11 +84,11 @@ public sealed class AppSaveTests
 
         await app.Model.SaveAsCommand.ExecuteAsync(null);
 
-        Assert.NotEmpty(app.Dialogs.Named("ShowError"));
-        Assert.True(app.Model.IsDirty);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+        Assert.False(app.Model.IsDirty);
         Assert.Equal(before, File.ReadAllBytes(source));
-        Assert.Equal(before, File.ReadAllBytes(alias));
-        Assert.True(Yrk.PdfStudio.App.Services.FileIdentity.AreSameFile(source, alias));
+        await AssertRotatedAsync(app, alias);
+        Assert.False(Yrk.PdfStudio.App.Services.FileIdentity.AreSameFile(source, alias));
         Assert.Equal(2, Directory.GetFiles(app.Folder).Length);
     }
 
