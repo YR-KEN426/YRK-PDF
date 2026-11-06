@@ -1,0 +1,20 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.TrustCertificateDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Trust this certificate…" Width="560" SizeToContent="Height" ResizeMode="NoResize"
+        ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
+        PreviewKeyDown="OnPreviewKeyDown">
+    <StackPanel Margin="20">
+        <TextBlock Text="Certificate details" FontSize="16" FontWeight="SemiBold" />
+        <TextBox x:Name="DetailsText" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent" Margin="0,12" />
+        <TextBlock Text="Before trusting, compare the SHA-256 fingerprint with the owner through another channel, such as a phone call. A matching name alone does not prove identity."
+                   TextWrapping="Wrap" />
+        <TextBlock Text="This trust applies only in YRK on this computer. Other programs may still show an unknown signer."
+                   TextWrapping="Wrap" Margin="0,12" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Trust this certificate" IsDefault="False" Style="{StaticResource PrimaryButton}" Click="OnTrust" />
+            <Button x:Name="CancelButton" Content="Cancel" IsCancel="True" IsDefault="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+        </StackPanel>
+    </StackPanel>
+</Window>

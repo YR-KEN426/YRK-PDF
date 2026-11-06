@@ -125,6 +125,10 @@ public interface IDialogService
     /// <summary>Shows the Windows certificate details window.</summary>
     void ShowCertificate(X509Certificate2 certificate);
 
+    bool ConfirmTrustCertificate(X509Certificate2 certificate);
+
+    void ShowTrustedCertificates(TrustedCertificateStore store);
+
     /// <summary>OK / Cancel question; true for OK.</summary>
     bool Confirm(string message);
 

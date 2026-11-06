@@ -604,6 +604,7 @@
                                 <TextBlock Text="Digital ID" Margin="6,0,2,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
+                        <Button Content="My trusted certificates" Style="{StaticResource ToolbarButton}" Command="{Binding ShowTrustedCertificatesCommand}" />
                         <Button Style="{StaticResource ToolbarButton}" Command="{Binding CertifiedCopyCommand}"
                                 ToolTip="Stamp a certified true copy (สำเนาถูกต้อง)" AutomationProperties.Name="Certified copy">
                             <StackPanel Orientation="Horizontal">
@@ -1009,6 +1010,9 @@
                                                 <Button Content="Certificate" Style="{StaticResource LinkButton}"
                                                         Visibility="{Binding HasCertificate, Converter={StaticResource BoolToVisibility}}"
                                                         Command="{Binding DataContext.ShowCertificateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
+                                                <Button Content="Trust this certificate…" Style="{StaticResource LinkButton}"
+                                                        Visibility="{Binding CanTrustCertificate, Converter={StaticResource BoolToVisibility}}"
+                                                        Command="{Binding DataContext.TrustCertificateCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
                                                 <Button Content="View signed version" Style="{StaticResource LinkButton}"
                                                         Visibility="{Binding CanViewSignedVersion, Converter={StaticResource BoolToVisibility}}"
                                                         Command="{Binding DataContext.ViewSignedVersionCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />

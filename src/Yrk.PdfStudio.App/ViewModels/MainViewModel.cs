@@ -71,7 +71,14 @@ public sealed partial class MainViewModel : ObservableObject
     private SearchHit? _currentHit;
 
     public MainViewModel(IPdfEngine engine, IDialogService dialogs, ISignatureStore signatureStore)
+        : this(engine, dialogs, signatureStore, TrustedCertificateStore.Default)
     {
+    }
+
+    internal MainViewModel(IPdfEngine engine, IDialogService dialogs, ISignatureStore signatureStore,
+        TrustedCertificateStore trustedCertificateStore)
+    {
+        _trustedCertificateStore = trustedCertificateStore;
         _engine = engine;
         _dialogs = dialogs;
         SubscribeToLanguage();

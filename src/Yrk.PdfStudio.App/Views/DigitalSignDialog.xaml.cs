@@ -97,6 +97,45 @@ public partial class DigitalSignDialog : Window
 
     private void OnRefresh(object sender, RoutedEventArgs e) => LoadIds((IdList.SelectedItem as DigitalId) is { } id ? Key(id) : null);
 
+    private void OnTrustedCertificates(object sender, RoutedEventArgs e) =>
+        new TrustedCertificatesDialog(TrustedCertificateStore.Default) { Owner = this }.ShowDialog();
+
+    private void OnCertificateDetails(object sender, RoutedEventArgs e)
+    {
+        if (IdList.SelectedItem is not DigitalId id) return;
+        try
+        {
+            using var certificate = _store.Open(id, id.IsFile ? PasswordInput.Password : null);
+            var details = new Window
+            {
+                Owner = this, Title = Loc.T("Certificate details"), Width = 560,
+                SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                ShowInTaskbar = false,
+            };
+            var panel = new System.Windows.Controls.StackPanel { Margin = new Thickness(20) };
+            panel.Children.Add(new System.Windows.Controls.TextBox
+            {
+                Text = TrustCertificateDialog.Describe(certificate), IsReadOnly = true,
+                TextWrapping = TextWrapping.Wrap, BorderThickness = new Thickness(0),
+            });
+            var export = new System.Windows.Controls.Button { Content = Loc.T("Export certificate (.cer)"), Margin = new Thickness(0,12,0,0) };
+            export.Click += (_, _) =>
+            {
+                var picker = new SaveFileDialog { Filter = Loc.T("Certificates (*.cer)|*.cer"), DefaultExt = ".cer", AddExtension = true,
+                    FileName = TrustedCertificateStore.Fingerprint(certificate) + ".cer", OverwritePrompt = true };
+                if (picker.ShowDialog(details) != true) return;
+                try { File.WriteAllBytes(picker.FileName, certificate.Export(X509ContentType.Cert)); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+                { MessageBox.Show(details, ex.Message, details.Title, MessageBoxButton.OK, MessageBoxImage.Error); }
+            };
+            panel.Children.Add(export);
+            details.Content = panel;
+            details.ShowDialog();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+        { ShowError(ex.Message); }
+    }
+
     private void OnCreateId(object sender, RoutedEventArgs e)
     {
         var dialog = new CreateDigitalIdDialog { Owner = this };

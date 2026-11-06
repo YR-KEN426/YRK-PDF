@@ -35,6 +35,7 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
         && Info.Status is PdfSignatureStatus.Valid or PdfSignatureStatus.IdentityUnknown ? FormFilledText : Loc.T(Info.Status switch
     {
         _ when Info.ModifiedAfterSigning && Info.Status != PdfSignatureStatus.Invalid => "Signed, but the document was changed after signing",
+        PdfSignatureStatus.Valid when Info.Identity == PdfSignerIdentity.TrustedByUser => "Valid: you chose to trust this signer",
         PdfSignatureStatus.Valid => "Signature is valid.",
         PdfSignatureStatus.Invalid => Info.Problem ?? "Signature is invalid.",
         PdfSignatureStatus.Unsupported => Info.Problem ?? "This signature format can't be checked.",
@@ -51,6 +52,8 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
         get
         {
             var lines = new List<string>();
+            if (Info.Identity == PdfSignerIdentity.TrustedByUser)
+                lines.Add(Loc.T("This trust applies only in YRK on this computer. Other programs may still show an unknown signer."));
             if (Info.ModifiedAfterSigning && Info.IsCertification)
             {
                 lines.Add(Loc.T(Info.Certification == PdfCertification.NoChanges
@@ -94,6 +97,10 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
             return lines;
         }
     }
+
+    public bool CanTrustCertificate => Info.IsIntact && !Info.ModifiedAfterSigning
+        && Info.Identity == PdfSignerIdentity.Untrusted && Info.Certificate is { } certificate
+        && certificate.SubjectName.RawData.AsSpan().SequenceEqual(certificate.IssuerName.RawData);
 
     public bool HasCertificate => Info.Certificate is not null;
 

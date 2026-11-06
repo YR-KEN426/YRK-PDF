@@ -17,6 +17,62 @@ public sealed class AppSignRedactTests
     private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
 
     [Fact]
+    public async Task Self_signed_digital_id_becomes_trusted_and_unknown_again_when_certificate_is_removed()
+    {
+        await using var app = new AppTestHarness();
+        var source = app.CreatePdf();
+        var target = app.PathFor("source (signed).pdf");
+        var ids = new DigitalIdStore(app.PathFor("digital-ids"), File.Delete);
+        const string password = "app-trust-test-password";
+        var id = ids.Create("App trust test " + Guid.NewGuid().ToString("N"),
+            "trust@example.test", "Test organization", password);
+        using var certificate = ids.Open(id, password);
+        // Signing owns and disposes the private certificate; keep only its public part for assertions/removal.
+        using var publicCertificate = X509CertificateLoader.LoadCertificate(certificate.RawData);
+        Assert.True(await app.OpenAsync(source));
+        app.Dialogs.Answer("AskDigitalSign", new DigitalSignOptions(certificate, null, null,
+            Visible: false, Handwritten: null, TimestampUrl: null));
+        app.Dialogs.Answer("PickSavePdfFile", target);
+
+        await StartSigningAsync(app);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+        Assert.True(File.Exists(target));
+        Assert.True(await app.OpenAsync(target));
+        await WaitForSignaturesAsync(app);
+        var unknown = Assert.Single(app.Model.Signatures);
+        Assert.Equal(PdfSignatureStatus.IdentityUnknown, unknown.Info.Status);
+        Assert.Equal(PdfSignerIdentity.Untrusted, unknown.Info.Identity);
+        Assert.True(unknown.CanTrustCertificate);
+        Assert.Equal(publicCertificate.RawData, unknown.Info.Certificate!.RawData);
+
+        app.Dialogs.Answer("ConfirmTrustCertificate", true);
+        await app.Model.TrustCertificateCommand.ExecuteAsync(unknown);
+        await WaitForSignaturesAsync(app);
+
+        Assert.Single(app.Dialogs.Named("ConfirmTrustCertificate"));
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+        var trusted = Assert.Single(app.Model.Signatures);
+        Assert.Equal(PdfSignatureStatus.Valid, trusted.Info.Status);
+        Assert.Equal(PdfSignerIdentity.TrustedByUser, trusted.Info.Identity);
+        Assert.False(trusted.CanTrustCertificate);
+        using (var stored = Assert.Single(app.TrustedCertificates.LoadAll()))
+        {
+            Assert.Equal(publicCertificate.RawData, stored.RawData);
+            Assert.False(stored.HasPrivateKey);
+        }
+
+        app.TrustedCertificates.Delete(publicCertificate);
+        await WaitForSignaturesAsync(app);
+
+        Assert.Empty(app.TrustedCertificates.LoadAll());
+        var removed = Assert.Single(app.Model.Signatures);
+        Assert.Equal(PdfSignatureStatus.IdentityUnknown, removed.Info.Status);
+        Assert.Equal(PdfSignerIdentity.Untrusted, removed.Info.Identity);
+        Assert.True(removed.CanTrustCertificate);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+    }
+
+    [Fact]
     public async Task Signing_saves_a_signed_copy_with_an_intact_signature_and_preserves_source()
     {
         await using var app = new AppTestHarness();

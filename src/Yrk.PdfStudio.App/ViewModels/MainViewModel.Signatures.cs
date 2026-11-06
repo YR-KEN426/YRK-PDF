@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +16,29 @@ namespace Yrk.PdfStudio.App.ViewModels;
 /// <summary>Digital signatures: signing with a certificate and the Signatures panel.</summary>
 public sealed partial class MainViewModel
 {
+    private readonly TrustedCertificateStore _trustedCertificateStore;
+    private bool _trustSubscribed;
+    private IAsyncRelayCommand<SignatureInfoViewModel>? _trustCertificateCommand;
+    public IAsyncRelayCommand<SignatureInfoViewModel> TrustCertificateCommand => _trustCertificateCommand ??= new AsyncRelayCommand<SignatureInfoViewModel>(async signature =>
+    {
+        if (signature?.CanTrustCertificate != true) return;
+        if (!_dialogs.ConfirmTrustCertificate(signature.Info.Certificate!)) return;
+        try
+        {
+            _trustedCertificateStore.Add(signature.Info.Certificate!);
+            await _signatureLoadTask;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
+        { _dialogs.ShowError(ex.Message); }
+    });
+
+    public IRelayCommand ShowTrustedCertificatesCommand => new RelayCommand(() => _dialogs.ShowTrustedCertificates(_trustedCertificateStore));
+
+    private void OnTrustChanged(object? sender, EventArgs e)
+    {
+        if (_document is { } document) _signatureLoadTask = LoadSignaturesAsync(document);
+    }
+
     private const double DefaultDigitalSignatureWidth = 200; // points
     private const double DefaultDigitalSignatureHeight = 56; // points
 
@@ -266,6 +290,12 @@ public sealed partial class MainViewModel
 
     private async Task LoadSignaturesAsync(IPdfDocument document)
     {
+        if (!_trustSubscribed)
+        {
+            WeakEventManager<TrustedCertificateStore, EventArgs>.AddHandler(_trustedCertificateStore, nameof(TrustedCertificateStore.Changed), OnTrustChanged);
+            _trustSubscribed = true;
+        }
+        IReadOnlyList<X509Certificate2> trusted = [];
         var firstPass = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _signatureFirstPassTask = firstPass.Task;
         var generation = ++_signaturesGeneration;
@@ -276,8 +306,9 @@ public sealed partial class MainViewModel
             try
             {
                 Signatures = [];
+                trusted = _trustedCertificateStore.LoadAll();
                 // A quick pass without network access; it already tells most users what they need.
-                results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: false), password: password);
+                results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: false) { UserTrustedCertificates = trusted }, password: password);
                 if (generation != _signaturesGeneration || results.Count == 0)
                 {
                     return;
@@ -295,7 +326,7 @@ public sealed partial class MainViewModel
             if (results.Any(r => r.Identity == PdfSignerIdentity.Trusted))
             {
                 SetChecking(true);
-                results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: true), password: password);
+                results = await PdfSignatureVerifier.VerifyFileAsync(document.FilePath, new PdfVerifyOptions(CheckRevocation: true) { UserTrustedCertificates = trusted }, password: password);
                 if (generation == _signaturesGeneration)
                 {
                     Signatures = results.Select(r => new SignatureInfoViewModel(r)).ToList();
@@ -308,6 +339,7 @@ public sealed partial class MainViewModel
         }
         finally
         {
+            foreach (var certificate in trusted) certificate.Dispose();
             if (generation == _signaturesGeneration)
             {
                 SetChecking(false);

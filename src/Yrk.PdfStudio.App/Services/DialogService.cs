@@ -258,6 +258,12 @@ public sealed class DialogService : IDialogService
         CryptUIDlgViewContext(CertStoreCertificateContext, certificate.Handle, owner, "Certificate", 0, IntPtr.Zero);
     }
 
+    public bool ConfirmTrustCertificate(X509Certificate2 certificate) =>
+        new TrustCertificateDialog(certificate) { Owner = Owner }.ShowDialog() == true;
+
+    public void ShowTrustedCertificates(TrustedCertificateStore store) =>
+        new TrustedCertificatesDialog(store) { Owner = Owner }.ShowDialog();
+
     private const uint CertStoreCertificateContext = 1;
 
     [DllImport("cryptui.dll", CharSet = CharSet.Unicode, SetLastError = true)]

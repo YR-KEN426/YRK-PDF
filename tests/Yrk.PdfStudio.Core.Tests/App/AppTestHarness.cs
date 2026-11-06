@@ -14,6 +14,7 @@ internal sealed class AppTestHarness : IAsyncDisposable
     public PdfiumEngine Engine { get; } = new();
     public ScriptedDialogs Dialogs { get; } = new();
     public MainViewModel Model { get; }
+    public TrustedCertificateStore TrustedCertificates { get; }
     public string? FailedWritePath { get; private set; }
     public bool PartialFileExistedAtFailure { get; private set; }
 
@@ -29,7 +30,8 @@ internal sealed class AppTestHarness : IAsyncDisposable
                 return result is Task<IPdfDocument> opening ? WrapDocumentAsync(opening) : result;
             })
             : Engine;
-        Model = new MainViewModel(modelEngine, Dialogs.Service, store);
+        TrustedCertificates = new TrustedCertificateStore(PathFor("trusted-certificates"), File.Delete);
+        Model = new MainViewModel(modelEngine, Dialogs.Service, store, TrustedCertificates);
     }
 
     private async Task<IPdfDocument> WrapDocumentAsync(Task<IPdfDocument> opening)
