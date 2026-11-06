@@ -74,7 +74,7 @@ public sealed class PlacedItemTests
     {
         await using var app = new AppTestHarness();
         var item = ImageItem();
-        item.Bounds = item.ToBounds(8, 10, 100, 50); // Also exercise an anchor near the page edge.
+        item.Bounds = item.ToBounds(150, 120, 100, 50); // Away from the edges: keeping on the page is tested separately.
         item.Rotation = angle;
         var before = item.Bounds;
         var corner = Corner(item);
@@ -241,6 +241,37 @@ public sealed class PlacedItemTests
         await using var document = await app.Engine.OpenAsync(path);
         Assert.Contains("ROTATE", await document.GetPageTextAsync(0), StringComparison.Ordinal);
         return await document.RenderPageAsync(0, (int)page.WidthPoints * 2, (int)page.HeightPoints * 2);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 200, 50)] // Fits the page when rotated: only moves inwards.
+    [InlineData(10, 130, 380, 40)] // Taller than the page when rotated: shrinks, keeping its shape.
+    public async Task Rotated_item_stays_on_page_and_keeps_its_shape_when_moved(double left, double top, double width, double height)
+    {
+        await using var app = new AppTestHarness();
+        var item = ImageItem();
+        item.Bounds = item.ToBounds(left, top, width, height);
+        app.Model.RotateItem90(item);
+        AssertRotatedInsidePage(item);
+        Assert.Equal(width / height, item.Width / item.Height, 6);
+        var size = (item.Width, item.Height);
+        app.Model.BeginItemDrag(item);
+        app.Model.MoveItem(item, 1, -500);
+        app.Model.EndItemDrag(item);
+        AssertRotatedInsidePage(item);
+        Assert.Equal(size, (item.Width, item.Height));
+    }
+
+    private static void AssertRotatedInsidePage(PlacedItemViewModel item)
+    {
+        var angle = item.Rotation * Math.PI / 180;
+        double cos = Math.Abs(Math.Cos(angle)), sin = Math.Abs(Math.Sin(angle));
+        double halfX = (cos * item.Width + sin * item.Height) / 2, halfY = (sin * item.Width + cos * item.Height) / 2;
+        double centreX = item.Left + item.Width / 2, centreY = item.Top + item.Height / 2;
+        Assert.InRange(centreX - halfX, -1e-6, item.PageWidth);
+        Assert.InRange(centreX + halfX, 0, item.PageWidth + 1e-6);
+        Assert.InRange(centreY - halfY, -1e-6, item.PageHeight);
+        Assert.InRange(centreY + halfY, 0, item.PageHeight + 1e-6);
     }
 
     private static void Attach(AppTestHarness app, PlacedItemViewModel item) =>

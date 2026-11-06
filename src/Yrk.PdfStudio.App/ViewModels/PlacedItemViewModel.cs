@@ -197,6 +197,23 @@ public sealed class PlacedItemViewModel : ObservableObject
     /// <summary>Converts a rectangle in page points to page-relative bounds, kept inside the page.</summary>
     public NormalizedRect ToBounds(double left, double top, double width, double height)
     {
+        if (Rotation % 360 != 0)
+        {
+            // Keep the whole rotated item on the page, as the saved PDF clips at the page edge.
+            // Too big for the page: shrink both sides alike so the aspect ratio stays.
+            var angle = Rotation * Math.PI / 180;
+            double cos = Math.Abs(Math.Cos(angle)), sin = Math.Abs(Math.Sin(angle));
+            width = Math.Max(width, MinimumSize);
+            height = Math.Max(height, MinimumSize);
+            double centreX = left + width / 2, centreY = top + height / 2;
+            double halfX = (cos * width + sin * height) / 2, halfY = (sin * width + cos * height) / 2;
+            var scale = Math.Min(1, Math.Min(PageWidth / (2 * halfX), PageHeight / (2 * halfY)));
+            width *= scale; height *= scale; halfX *= scale; halfY *= scale;
+            centreX = Math.Clamp(centreX, halfX, PageWidth - halfX);
+            centreY = Math.Clamp(centreY, halfY, PageHeight - halfY);
+            return new NormalizedRect((centreX - width / 2) / PageWidth, (centreY - height / 2) / PageHeight, width / PageWidth, height / PageHeight);
+        }
+
         width = Math.Clamp(width, MinimumSize, PageWidth);
         height = Math.Clamp(height, MinimumSize, PageHeight);
         left = Math.Clamp(left, 0, PageWidth - width);

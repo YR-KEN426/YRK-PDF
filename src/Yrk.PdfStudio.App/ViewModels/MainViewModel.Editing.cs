@@ -213,19 +213,28 @@ public sealed partial class MainViewModel
         var changeY = (sin * (widthAfter - item.Width) + cos * (heightAfter - item.Height)) / 2;
         var left = item.Left + item.Width / 2 + changeX - widthAfter / 2;
         var top = item.Top + item.Height / 2 + changeY - heightAfter / 2;
-        item.Bounds = new NormalizedRect(left / item.PageWidth, top / item.PageHeight, widthAfter / item.PageWidth, heightAfter / item.PageHeight);
+        item.Bounds = item.ToBounds(left, top, widthAfter, heightAfter);
     }
 
     public void RotateItem90(PlacedItemViewModel item)
     {
         BeginItemDrag(item);
         item.Rotation += 90;
+        KeepOnPage(item);
         EndItemDrag(item);
     }
 
+    private static void KeepOnPage(PlacedItemViewModel item) =>
+        item.Bounds = item.ToBounds(item.Left, item.Top, item.Width, item.Height);
+
     /// <summary>Updates a rotation gesture; its caller records the whole gesture with Begin/EndItemDrag.</summary>
-    public void RotateItem(PlacedItemViewModel item, double degrees, bool snap) =>
+    public void RotateItem(PlacedItemViewModel item, double degrees, bool snap)
+    {
         item.Rotation = snap ? Math.Round(degrees / 15, MidpointRounding.AwayFromZero) * 15 : degrees;
+        // Fit from the gesture's starting box, so a temporary shrink at 45° is undone back at 0°.
+        item.Bounds = _dragStartBounds;
+        KeepOnPage(item);
+    }
 
     public void ChangeItemOpacity(PlacedItemViewModel item, double opacity)
     {
