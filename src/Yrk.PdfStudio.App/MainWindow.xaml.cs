@@ -240,7 +240,7 @@ public partial class MainWindow : Window
 
         if (Tabs.Count == 1)
         {
-            await tab.CloseTabAsync(); // The last tab stays, empty.
+            await tab.CloseTabAsync(keepAlive: true); // The last tab stays, empty.
             return;
         }
 

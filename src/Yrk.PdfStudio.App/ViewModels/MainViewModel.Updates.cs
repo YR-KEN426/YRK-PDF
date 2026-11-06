@@ -32,6 +32,7 @@ public sealed partial class MainViewModel
     private static long s_downloadSize;
     private static DateTimeOffset s_lastProgressUi;
     private static bool s_progressUiPending;
+    private static bool s_autoDownloadSuppressed;
     private IRelayCommand? _cancelUpdateCommand;
     private IAsyncRelayCommand? _retryUpdateCommand;
     private IRelayCommand? _dismissUpdateCommand;
@@ -72,6 +73,7 @@ public sealed partial class MainViewModel
     public IRelayCommand CancelUpdateCommand => _cancelUpdateCommand ??= new RelayCommand(() =>
     {
         if (!IsUpdateDownloading) return;
+        s_autoDownloadSuppressed = true; // A cancelled download must wait for an explicit retry or manual check.
         // Keep the source alive until the updater has finished cancellation and cleanup.
         SetUpdateState(UpdateState.Stopped);
         s_updateTimer?.Stop();
@@ -124,7 +126,7 @@ public sealed partial class MainViewModel
     /// </summary>
     public async Task CheckForUpdatesInBackgroundAsync()
     {
-        if (!_updater.IsAvailable)
+        if (s_autoDownloadSuppressed || !_updater.IsAvailable)
         {
             return;
         }
@@ -144,7 +146,7 @@ public sealed partial class MainViewModel
         }
 
         await Task.Delay(FirstCheckDelay);
-        if (_settings.CheckForUpdates) // It may have been switched off in the meantime.
+        if (!s_autoDownloadSuppressed && _settings.CheckForUpdates) // It may have been switched off in the meantime.
         {
             await CheckForUpdatesAsync(quiet: true);
         }

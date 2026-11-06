@@ -69,4 +69,5 @@ Ken ขอ (2026-11-06): ให้ผู้ใช้รู้ว่าอัป�
 - [x] ตรวจด้วยตาในตัว Release (Claude, 2026-11-06): ทั้ง 4 สถานะบนหน้า Home และในแท็บเอกสาร พบบั๊กหน้าต่างเปิดไม่ขึ้น (ProgressBar ผูก TwoWay กับค่าอ่านอย่างเดียว) แก้เป็น OneWay แล้ว
 - [x] ขั้น 3b: เทสต์ที่สร้าง MainWindow ในหน่วยความจำแล้ว layout ได้โดยไม่มี exception เพื่อจับบั๊กแบบนี้ (Codex `gpt-6-luna` · low, แบบเดียวกับ `ETaxTests` ที่สร้าง `ThaiAddressFields`) (mutation check: ถอด Mode=OneWay แล้วเทสต์ fail ด้วย InvalidOperationException)
 - [x] ขั้น 4: เลขรุ่นและ release notes (คู่มือ: ไม่มี FAQ เรื่องรอ/ตรวจการดาวน์โหลดอัปเดต จึงไม่แก้)
-- [ ] ขั้น 5: Codex ตรวจอีกมุม
+- [x] ขั้น 5: Codex ตรวจอีกมุม (gpt-6.1-sol high): ไม่พบปัญหาความปลอดภัย แก้ 2 ข้อ P2 แล้ว (ปิดแท็บสุดท้ายแล้วแถบบนหน้า Home ค้าง; ยกเลิกแล้วการตรวจเบื้องหลังโหลดใหม่เอง)
+  - รับไว้ทำภายหลัง (P3): `MainWindowLayoutTests` พึ่ง field ภายในของ WPF และไม่ล้าง Application ให้หมด อาจพังเมื่ออัปเดต .NET; เทสต์ e-Tax เรียก `ConfirmAreaChoice()` ตรง ไม่ได้ผ่าน `DropDownClosed` ใน XAML

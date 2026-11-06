@@ -34,12 +34,15 @@ public sealed partial class MainViewModel
     /// <summary>Where this tab was scrolled to, restored when it becomes active again.</summary>
     public double ScrollOffset => _scrollOffset;
 
-    /// <summary>Closes the document for good when its tab is closed (after <see cref="ConfirmDiscardOrSaveAsync"/>).</summary>
-    public async Task CloseTabAsync()
+    /// <summary>
+    /// Closes the document and clears edits (after <see cref="ConfirmDiscardOrSaveAsync"/>).
+    /// When <paramref name="keepAlive"/> is true, keeps event subscriptions for the tab that remains as Home.
+    /// </summary>
+    public async Task CloseTabAsync(bool keepAlive = false)
     {
         await ReleaseDocumentAsync();
         ClearEdits();
-        if (_onLanguageChanged is not null)
+        if (!keepAlive && _onLanguageChanged is not null)
         {
             Loc.LanguageChanged -= _onLanguageChanged;
             UpdateReady -= _onUpdateReady;
