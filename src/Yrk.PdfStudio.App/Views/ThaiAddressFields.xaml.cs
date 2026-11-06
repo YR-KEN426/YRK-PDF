@@ -93,6 +93,15 @@ public partial class ThaiAddressFields : UserControl
         Suggest();
     }
 
+    // Picking the same item again raises no SelectionChanged: opening the list and closing it
+    // still means the user has seen the area and chosen it, so a later postcode must not replace it.
+    private void OnAreaDropDownClosed(object? sender, EventArgs e) => ConfirmAreaChoice();
+
+    internal void ConfirmAreaChoice()
+    {
+        if (!_busy) _autoSelectedAreas = null;
+    }
+
     private void OnSubdistrictChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_busy)

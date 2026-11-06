@@ -403,6 +403,14 @@ public sealed class ETaxTests : IDisposable
                 Assert.Null(fields.Province);
                 Assert.Null(fields.District);
 
+                // Re-picking the province the postcode chose raises no SelectionChanged; closing the list
+                // still confirms it, so a later postcode does not replace it (plan 1.1.8 step 3).
+                editor.Text = "10200";
+                Assert.Equal("10", fields.Province);
+                fields.ConfirmAreaChoice();
+                editor.Text = "50200";
+                Assert.Equal("10", fields.Province);
+
                 fields.Restore(saved with { Postcode = string.Empty, District = "1005", Subdistrict = "100508" });
                 // Restoring even an empty postcode does not auto-fill it.
                 Assert.Equal(string.Empty, fields.Postcode);

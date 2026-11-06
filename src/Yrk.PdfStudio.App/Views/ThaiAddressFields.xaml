@@ -24,7 +24,7 @@
             </StackPanel>
         </Grid>
         <TextBlock Text="Province" Style="{StaticResource AddressLabel}" />
-        <ComboBox x:Name="ProvinceInput" DisplayMemberPath="Name" AutomationProperties.Name="Province" SelectionChanged="OnProvinceChanged" />
+        <ComboBox x:Name="ProvinceInput" DisplayMemberPath="Name" AutomationProperties.Name="Province" SelectionChanged="OnProvinceChanged" DropDownClosed="OnAreaDropDownClosed" />
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition />
@@ -33,11 +33,11 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="District" Style="{StaticResource AddressLabel}" />
-                <ComboBox x:Name="DistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="District" SelectionChanged="OnDistrictChanged" />
+                <ComboBox x:Name="DistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="District" SelectionChanged="OnDistrictChanged" DropDownClosed="OnAreaDropDownClosed" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="Subdistrict" Style="{StaticResource AddressLabel}" />
-                <ComboBox x:Name="SubdistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="Subdistrict" SelectionChanged="OnSubdistrictChanged" />
+                <ComboBox x:Name="SubdistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="Subdistrict" SelectionChanged="OnSubdistrictChanged" DropDownClosed="OnAreaDropDownClosed" />
             </StackPanel>
         </Grid>
         <TextBlock Text="Postcode" Style="{StaticResource AddressLabel}" />
