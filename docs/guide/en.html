@@ -143,13 +143,13 @@
   <h3>Adding a picture</h3>
   <ul>
     <li>On the <span class="path">Fill &amp; Sign</span> tab, press <span class="path">Add picture</span>, choose a file and click where it should go. Or copy a picture and press <kbd>Ctrl</kbd>+<kbd>V</kbd>, or drop a picture file on the window.</li>
-    <li>Drag the picture to move it, and its lower-right corner to resize it (the proportions stay). <kbd>Delete</kbd> or the × removes it; <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes.</li>
+    <li>Drag the picture to move it, and its lower-right corner to resize it (the proportions stay). Use the <span class="path">Rotate</span> handle above the box to rotate freely (hold <kbd>Shift</kbd> to snap to 15° steps), or press <span class="path">Rotate 90° clockwise</span>. Set opacity from 10–100%. <kbd>Delete</kbd> or the × removes it; <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes.</li>
     <li>Once the file is saved the picture is part of the page and can no longer be moved or resized, so place it before saving.</li>
   </ul>
   <h3>Signing</h3>
   <ol>
     <li>Press <span class="path">Sign</span> and create a signature: draw it with the mouse or a pen, type your name, or import a photo of it on white paper (the white is removed).</li>
-    <li>Click the page to place it, then drag to move or resize it.</li>
+    <li>Click the page to place it, then drag to move or resize it. Use the <span class="path">Rotate</span> handle above the box to rotate freely (hold <kbd>Shift</kbd> to snap to 15° steps), or press <span class="path">Rotate 90° clockwise</span>. Set opacity from 10–100%. Opacity cannot be adjusted for signatures imported from a PDF file.</li>
     <li>If you keep the signature for next time, it is stored encrypted on this PC.</li>
   </ol>
   <h3>Certified true copy</h3>
@@ -158,13 +158,14 @@
 
   <h3>Rubber stamps</h3>
   <p><span class="path">Rubber stamp</span> has the stamps offices use every day: approved, received, paid, checked, original, copy, urgent, cancelled and confidential, with the date (Thai Buddhist year or English). Choose Thai, English, or both (the Thai word with the English one under it). Pick another date, change the words, colour and shape, or add small lines under the word, such as your company name or "by ......", then click <span class="path">Save to my stamps</span> to use it again.</p>
-  <p>Click on the page to place the stamp; drag to move or resize it. Its words are saved as real text, so they can be searched and copied.</p>
+  <p>Click on the page to place the stamp; drag to move or resize it. Use the <span class="path">Rotate</span> handle above the box to rotate freely (hold <kbd>Shift</kbd> to snap to 15° steps), or press <span class="path">Rotate 90° clockwise</span>. Set opacity from 10–100%. Its words are saved as real text, so they can be searched and copied.</p>
   <p>To stamp a whole document, choose <span class="path">Same place on every page</span> and click once: the stamp goes on every page (one Undo removes them all). <span class="path">Stamp many files at once…</span> stamps a list of files or a folder, at a corner of the first or every page, and saves the results as new files.</p>
   <figure class="half"><img src="img/en/stamp.jpg" alt=""><figcaption>Choose a ready-made stamp, or change its words, colour, shape and date</figcaption></figure>
   <figure><img src="img/en/stamp-page.jpg" alt=""><figcaption>An "APPROVED" stamp with the company name and date on a quotation</figcaption></figure>
 
   <h3>Digital signatures (Digital ID)</h3>
   <p>A digital signature (PAdES) proves who signed and shows whether the document changed afterwards. Press <span class="path">Digital ID</span> and choose an ID on a USB token, add a .pfx file from your certificate authority, or create your own. Choose whether the signature shows on the page and whether to add a trusted timestamp (needs internet). Signatures in a file are listed in the sidebar's <span class="path">Signatures</span> tab.</p>
+  <p><b>Trusted certificates:</b> In the <span class="path">Signatures</span> panel, you can trust a signer using a self-signed certificate after checking its SHA-256 fingerprint with the owner through another channel. The status becomes <span class="path">Valid: you chose to trust this signer</span>. This trust applies only in YRK on this computer; Acrobat may still show an unknown signer. Manage the list in <span class="path">My trusted certificates</span>: use <span class="path">Import .cer / .crt…</span>, select a certificate and press <span class="path">Certificate</span> to view it, or <span class="path">Delete</span> to remove it. In your Digital ID details, open <span class="path">Certificate details…</span> to see its fingerprint and use <span class="path">Export certificate (.cer)</span> to export your public certificate.</p>
   <ul>
     <li><b>Signature type:</b> <span class="path">Approval</span> for an ordinary signature, or <span class="path">Certify as the author</span> to decide what may still happen afterwards (form filling and signing, comments as well, or no changes at all). Only the first signature of a document can certify it.</li>
     <li><b>Before signing version:</b> in the sidebar&rsquo;s <span class="path">Signatures</span> tab, press <span class="path">Save version before signing…</span> to save a new file without changing the original. Before saving, the program explains which signatures and post-signing edits will be lost. This is unavailable for files rewritten in full during or after signing; copies already sent to others still have their signatures.</li>
