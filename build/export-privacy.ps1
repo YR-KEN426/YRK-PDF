@@ -24,7 +24,14 @@ function Add-Blocks($node, $lines, [int]$depth = 0) {
                 # Keep nested lists separate from the parent item's inline text.
                 $inline = $child.CloneNode($true)
                 foreach ($list in @($inline.SelectNodes('./ul|./ol'))) { [void]$inline.RemoveChild($list) }
-                $lines.Add(('  ' * $depth) + '- ' + (Get-InlineText $inline))
+                $listNode = $child.ParentNode
+                if ($listNode.LocalName -eq 'ol') {
+                    $siblings = @($listNode.SelectNodes('./li'))
+                    $marker = ([array]::IndexOf($siblings, $child) + 1).ToString() + '. '
+                } else {
+                    $marker = '- '
+                }
+                $lines.Add(('  ' * $depth) + $marker + (Get-InlineText $inline))
                 foreach ($list in $child.SelectNodes('./ul|./ol')) {
                     Add-Blocks $list $lines ($depth + 1)
                 }

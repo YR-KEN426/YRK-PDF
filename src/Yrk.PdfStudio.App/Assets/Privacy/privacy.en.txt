@@ -15,15 +15,15 @@ YRK PDF is a free Windows program that runs on your computer. We wrote this poli
 
 The program connects to the internet only in these 5 cases. In every case, your document contents are not sent.
 
-- Check for a new version: The program asks the download page on GitHub whether a new version is available. If so, it downloads it and installs it only when you click Restart. Every update file must pass YRK signature verification first.
+1. Check for a new version: The program asks the download page on GitHub whether a new version is available. If so, it downloads it and installs it only when you click Restart. Every update file must pass YRK signature verification first.
   - The first time you open the program, it asks whether to check automatically. You can change this later at Settings → Privacy and safety.
-- Download OCR language data: Downloads from the Tesseract project on GitHub once per language, after you confirm.
+2. Download OCR language data: Downloads from the Tesseract project on GitHub once per language, after you confirm.
   - All text recognition happens on your computer.
-- Sign with a timestamp: The program sends the signature hash to the timestamp authority (DigiCert by default), without sending the document.
+3. Sign with a timestamp: The program sends the signature hash to the timestamp authority (DigiCert by default), without sending the document.
   - Used only when you select this option.
-- Sign for long-term validation (LTV): The program downloads the certificate revocation list (CRL) from the certificate authority named in the certificate.
+4. Sign for long-term validation (LTV): The program downloads the certificate revocation list (CRL) from the certificate authority named in the certificate.
   - Used only when you select this option.
-- Open a PDF signed with a certificate from an authority trusted by Windows: Windows may ask the certificate authority whether the certificate has been revoked, without sending the document.
+5. Open a PDF signed with a certificate from an authority trusted by Windows: Windows may ask the certificate authority whether the certificate has been revoked, without sending the document.
 
 In all the cases above, the destination provider (GitHub, the timestamp authority, or the certificate authority) sees your IP address as is normal for an internet connection. Each has its own privacy policy.
 
