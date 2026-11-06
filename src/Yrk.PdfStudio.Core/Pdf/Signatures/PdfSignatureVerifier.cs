@@ -1449,7 +1449,12 @@ public static class PdfSignatureVerifier
             && (flags & ~(missingTrust | revocationUnknown)) == 0
             && options.UserTrustedCertificates.Count > 0 && IsSelfSigned(certificate)
             && !certificate.Extensions.OfType<X509KeyUsageExtension>().Any(usage =>
-                (usage.KeyUsages & (X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation)) == 0))
+                (usage.KeyUsages & (X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation)) == 0)
+            // A restrictive EKU must allow signing documents. Self-signed IDs from YRK, Acrobat and others use
+            // Microsoft Document Signing, Adobe Authentic Documents or Email Protection; any of them is enough.
+            && certificate.Extensions.OfType<X509EnhancedKeyUsageExtension>().All(eku =>
+                eku.EnhancedKeyUsages.Cast<Oid>().Any(oid => oid.Value is
+                    "1.3.6.1.4.1.311.10.3.12" or "1.2.840.113583.1.1.5" or "1.3.6.1.5.5.7.3.4" or "2.5.29.37.0")))
         {
             var signerHash = SHA256.HashData(certificate.RawData);
             var matches = options.UserTrustedCertificates.Where(candidate =>
@@ -1461,8 +1466,6 @@ public static class PdfSignatureVerifier
                 userChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 userChain.ChainPolicy.CustomTrustStore.Clear();
                 userChain.ChainPolicy.CustomTrustStore.AddRange(matches);
-                // Restrictive EKUs must permit document signing, even when this leaf is the root.
-                userChain.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.4.1.311.10.3.12"));
                 userChain.ChainPolicy.VerificationTime = verificationTime.UtcDateTime;
                 userChain.Build(certificate);
                 if ((ChainFlags(userChain) & ~revocationUnknown) == 0)

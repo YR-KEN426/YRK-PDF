@@ -223,15 +223,19 @@ public sealed class SignatureUserTrustTests
         Assert.Equal(PdfSignatureStatus.Valid, result.Status);
     }
 
-    [Fact]
-    public async Task Digital_ID_document_signing_usage_is_accepted()
+    [Theory]
+    [InlineData("1.3.6.1.4.1.311.10.3.12", "1.3.6.1.5.5.7.3.4")] // YRK Digital ID
+    [InlineData("1.2.840.113583.1.1.5", null)] // Adobe Authentic Documents
+    [InlineData("1.3.6.1.5.5.7.3.4", null)] // Email Protection only
+    public async Task Digital_ID_document_signing_usage_is_accepted(string first, string? second)
     {
         using var key = RSA.Create(2048);
         var request = Request(key);
         request.CertificateExtensions.Add(new X509KeyUsageExtension(
             X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.NonRepudiation, true));
-        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(
-            [new Oid("1.3.6.1.4.1.311.10.3.12"), new Oid("1.3.6.1.5.5.7.3.4")], false));
+        var usages = new OidCollection { new Oid(first) };
+        if (second is not null) usages.Add(new Oid(second));
+        request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(usages, false));
         using var signer = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(7));
         var result = Verify(await PdfSigner.SignAsync(Source, new(signer)), Trust(signer));
         Assert.Equal(PdfSignerIdentity.TrustedByUser, result.Identity);
