@@ -177,7 +177,7 @@ public sealed class AppSaveTests
     }
 
     [Fact]
-    public async Task Failed_save_leaves_no_temporary_file_and_preserves_source()
+    public async Task Save_to_an_unusable_folder_shows_an_error_and_preserves_source()
     {
         await using var app = new AppTestHarness();
         var source = app.CreatePdf();
@@ -195,6 +195,30 @@ public sealed class AppSaveTests
         Assert.Equal(before, File.ReadAllBytes(source));
         Assert.Equal("blocker", File.ReadAllText(blocker));
         Assert.Equal(new[] { blocker, source }.Order(), Directory.GetFiles(app.Folder, "*", SearchOption.AllDirectories).Order());
+        Assert.True(app.Model.IsDirty);
+        Assert.False(app.Model.IsBusy);
+    }
+
+    [Fact]
+    public async Task Failed_write_midway_removes_partial_temporary_file_and_preserves_source()
+    {
+        await using var app = new AppTestHarness(failWriteMidway: true);
+        var source = app.CreatePdf();
+        var before = File.ReadAllBytes(source);
+        var target = app.PathFor("saved.pdf");
+        Assert.True(await app.OpenAsync(source));
+        await app.RotateAsync();
+
+        Assert.False(await app.SaveToAsync(target));
+
+        Assert.True(app.PartialFileExistedAtFailure);
+        Assert.NotNull(app.FailedWritePath);
+        Assert.EndsWith(".yrk-saving", app.FailedWritePath);
+        Assert.Equal(app.Folder, Path.GetDirectoryName(app.FailedWritePath));
+        Assert.Single(app.Dialogs.Named("ShowError"));
+        Assert.Equal(before, File.ReadAllBytes(source));
+        Assert.Empty(Directory.GetFiles(app.Folder, "*.yrk-saving"));
+        Assert.False(File.Exists(target));
         Assert.True(app.Model.IsDirty);
         Assert.False(app.Model.IsBusy);
     }

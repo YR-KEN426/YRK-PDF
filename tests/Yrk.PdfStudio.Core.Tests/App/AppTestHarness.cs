@@ -1,6 +1,8 @@
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.App.ViewModels;
+using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
 
 namespace Yrk.PdfStudio.Core.Tests;
@@ -12,13 +14,60 @@ internal sealed class AppTestHarness : IAsyncDisposable
     public PdfiumEngine Engine { get; } = new();
     public ScriptedDialogs Dialogs { get; } = new();
     public MainViewModel Model { get; }
+    public string? FailedWritePath { get; private set; }
+    public bool PartialFileExistedAtFailure { get; private set; }
 
-    public AppTestHarness()
+    public AppTestHarness(bool failWriteMidway = false)
     {
         var store = DispatchProxy.Create<ISignatureStore, SignatureSecurityTests.TestProxy>();
         ((SignatureSecurityTests.TestProxy)(object)store).Handle = (method, _) => method.Name == "LoadAll"
             ? Array.Empty<SavedSignature>() : throw new InvalidOperationException(method.Name);
-        Model = new MainViewModel(Engine, Dialogs.Service, store);
+        var modelEngine = failWriteMidway
+            ? Forward<IPdfEngine>((method, args) =>
+            {
+                var result = ForwardCall(Engine, method, args);
+                return result is Task<IPdfDocument> opening ? WrapDocumentAsync(opening) : result;
+            })
+            : Engine;
+        Model = new MainViewModel(modelEngine, Dialogs.Service, store);
+    }
+
+    private async Task<IPdfDocument> WrapDocumentAsync(Task<IPdfDocument> opening)
+    {
+        var document = await opening;
+        return Forward<IPdfDocument>((method, args) =>
+            method.Name == nameof(IPdfDocument.SaveAsync)
+                ? FailWriteAsync((string)args![0]!, (CancellationToken)args[1]!)
+                : ForwardCall(document, method, args));
+    }
+
+    private async Task FailWriteAsync(string path, CancellationToken cancellationToken)
+    {
+        await File.WriteAllBytesAsync(path, new byte[] { 0x25, 0x50, 0x44, 0x46 }, cancellationToken);
+        FailedWritePath = path;
+        PartialFileExistedAtFailure = File.Exists(path) && new FileInfo(path).Length > 0;
+        throw new IOException("Simulated failure after writing a partial PDF.");
+    }
+
+    private static T Forward<T>(Func<MethodInfo, object?[]?, object?> handle) where T : class
+    {
+        var proxy = DispatchProxy.Create<T, SignatureSecurityTests.TestProxy>();
+        ((SignatureSecurityTests.TestProxy)(object)proxy).Handle = handle;
+        return proxy;
+    }
+
+    private static object? ForwardCall(object target, MethodInfo method, object?[]? args)
+    {
+        try
+        {
+            // Return Task/ValueTask objects unchanged, preserving their result and exception types.
+            return method.Invoke(target, args);
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException is not null)
+        {
+            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+            throw;
+        }
     }
 
     public string PathFor(string name) => Path.Combine(Folder, name);
