@@ -107,9 +107,7 @@ public static class PdfSignatureVerifier
                 var candidate = CosDocument.Load(prefix, password);
                 if (candidate.WasReconstructed || !HasRevisionFooter(candidate, eof)
                     || candidate.GetPages().Count != signed.GetPages().Count
-                    || Verify(prefix, options, password: password).Any(s =>
-                        s.ContentsOffset == info.ContentsOffset && s.SignedLength == info.SignedLength
-                        || s.FieldName == info.FieldName && s.SignedLength == 0))
+                    || HasTargetSignature(candidate, info))
                 {
                     continue;
                 }
@@ -126,6 +124,25 @@ public static class PdfSignatureVerifier
         }
 
         return new(null, PdfRevisionFailureReason.NoEarlierRevision, [], losesEdits);
+    }
+
+    private static bool HasTargetSignature(CosDocument document, PdfSignatureInfo info)
+    {
+        foreach (var (name, field) in FindSignatureFields(document))
+        {
+            // Verify only produces a result when /V resolves to a dictionary. Check leaves
+            // ContentsOffset and SignedLength at zero if TryByteRange fails, even with /Contents.
+            if (document.Resolve(field["V"]) is not CosDictionary signature) continue;
+            if (!TryByteRange(document, signature, document.Data, out var range))
+            {
+                if (name == info.FieldName) return true;
+            }
+            else if (range[1] == info.ContentsOffset && range[2] + range[3] == info.SignedLength)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     // CosDocument deliberately tolerates trailing junk and repairs broken xrefs. In addition to

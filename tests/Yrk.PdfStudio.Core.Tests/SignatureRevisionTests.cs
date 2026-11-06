@@ -82,6 +82,115 @@ public sealed class SignatureRevisionTests
         Assert.False(result.LosesLaterEdits);
     }
 
+    [Theory]
+    [InlineData("missing", false)]
+    [InlineData("null", false)]
+    [InlineData("integer", false)]
+    [InlineData("empty", true)]
+    [InlineData("indirect-empty", true)]
+    [InlineData("invalid-range", true)]
+    [InlineData("nonempty-contents", true)]
+    public async Task Preexisting_unsigned_signature_field_preserves_zero_length_rules(string valueKind, bool skip)
+    {
+        using var signer = NewSigner();
+        var source = Source;
+        var doc = CosDocument.Load(source);
+        var update = new CosIncrementalUpdate(doc);
+        CosObject? value = valueKind switch
+        {
+            "missing" => null,
+            "null" => CosNull.Instance,
+            "integer" => new CosInteger(1),
+            "indirect-empty" => update.Add(new CosDictionary()),
+            "invalid-range" => new CosDictionary().Set("ByteRange", CosArray.FromNumbers(0, 1, 2, 0)),
+            "nonempty-contents" => new CosDictionary().Set("Contents", CosString.FromText("not a signature")),
+            _ => new CosDictionary(),
+        };
+        var page = doc.GetPages()[0];
+        var dictionary = new CosDictionary().Set("Type", new CosName("Annot")).Set("Subtype", new CosName("Widget"))
+            .Set("FT", new CosName("Sig")).Set("T", CosString.FromText("Synthetic"))
+            .Set("Rect", CosArray.FromNumbers(0, 0, 0, 0)).Set("P", new CosReference(page.Id));
+        dictionary["V"] = value;
+        var field = update.Add(dictionary);
+        update.Replace(page.Id, page.Dictionary.Clone().Set("Annots", new CosArray([field])));
+        update.Replace(((CosReference)doc.Trailer["Root"]!).Id, doc.Catalog.Clone().Set("AcroForm",
+            update.Add(new CosDictionary().Set("Fields", new CosArray([field])))));
+        var original = update.Build().Bytes;
+        var previous = Verify(original, signer);
+        if (skip) Assert.Equal(0, Assert.Single(previous).SignedLength);
+        else Assert.Empty(previous);
+
+        var file = await TestSignature(original, signer, reuseField: true);
+        var info = Assert.Single(Verify(file, signer));
+        Assert.Equal(PdfSignatureStatus.Valid, info.Status);
+        Assert.Equal("Synthetic", info.FieldName);
+        var result = PdfSignatureVerifier.GetRevisionBeforeSignature(file, info);
+        IsPrefix(file, skip ? source : original, result);
+        Assert.Equal([info.FieldName], result.LostSignatures.Select(s => s.FieldName));
+        Assert.False(result.LosesLaterEdits);
+    }
+
+    [Fact]
+    public async Task Multiple_signatures_recover_each_exact_preceding_revision()
+    {
+        using var signer = NewSigner();
+        var revisions = new List<byte[]> { Source };
+        for (var i = 0; i < 4; i++)
+            revisions.Add(await PdfSigner.SignAsync(revisions[^1], new(signer)));
+        var file = revisions[^1];
+        var infos = Verify(file, signer);
+        Assert.Equal(4, infos.Length);
+        Assert.All(infos, info => Assert.Equal(PdfSignatureStatus.Valid, info.Status));
+        for (var i = infos.Length - 1; i >= 0; i--)
+        {
+            var result = PdfSignatureVerifier.GetRevisionBeforeSignature(file, infos[i]);
+            IsPrefix(file, revisions[i], result);
+            var remaining = Verify(result.Bytes!, signer);
+            Assert.Equal(i, remaining.Length);
+            Assert.All(remaining, info => Assert.Equal(PdfSignatureStatus.Valid, info.Status));
+            Assert.Equal(infos.Skip(i).Select(s => s.FieldName), result.LostSignatures.Select(s => s.FieldName));
+            Assert.False(result.LosesLaterEdits);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Previous_revision_with_same_field_name_but_different_signature_is_usable(bool emptyContents)
+    {
+        using var signer = NewSigner();
+        var first = await TestSignature(Source, signer);
+        if (emptyContents)
+        {
+            var doc = CosDocument.Load(first);
+            var form = (CosDictionary)doc.Resolve(doc.Catalog["AcroForm"])!;
+            var field = (CosDictionary)doc.Resolve(((CosArray)doc.Resolve(form["Fields"])!)[0])!;
+            var signature = (CosReference)field["V"]!;
+            var update = new CosIncrementalUpdate(doc);
+            update.Replace(signature.Id, ((CosDictionary)doc.Resolve(signature)!).Clone()
+                .Set("Contents", CosString.FromText(string.Empty)));
+            first = update.Build().Bytes;
+        }
+        var previous = Assert.Single(Verify(first, signer));
+        Assert.True(previous.SignedLength > 0);
+        Assert.Equal(emptyContents ? PdfSignatureStatus.Invalid : PdfSignatureStatus.Valid, previous.Status);
+        var file = await TestSignature(first, signer, reuseField: true);
+        var info = Assert.Single(Verify(file, signer));
+        Assert.Equal(PdfSignatureStatus.Valid, info.Status);
+        Assert.Equal(previous.FieldName, info.FieldName);
+        Assert.NotEqual(previous.ContentsOffset, info.ContentsOffset);
+        Assert.NotEqual(previous.SignedLength, info.SignedLength);
+        var result = PdfSignatureVerifier.GetRevisionBeforeSignature(file, info);
+        IsPrefix(file, first, result);
+        var recovered = Assert.Single(Verify(result.Bytes!, signer));
+        Assert.Equal(previous.FieldName, recovered.FieldName);
+        Assert.Equal(previous.ContentsOffset, recovered.ContentsOffset);
+        Assert.Equal(previous.SignedLength, recovered.SignedLength);
+        Assert.Equal(previous.Status, recovered.Status);
+        Assert.Equal([info.FieldName], result.LostSignatures.Select(s => s.FieldName));
+        Assert.False(result.LosesLaterEdits);
+    }
+
     [Fact]
     public async Task Panel_allows_recovery_with_valid_byte_range_even_when_signature_is_not_intact()
     {
@@ -386,7 +495,7 @@ public sealed class SignatureRevisionTests
     // /Contents so the backward search actually encounters them. CMS is generated by the real signer.
     private static async Task<byte[]> TestSignature(byte[] input, X509Certificate2 signer,
         string? placement = null, string marker = "", bool rewrite = false, bool timestamp = false, bool linearized = false,
-        bool extraPage = false, bool fakeXref = false)
+        bool extraPage = false, bool fakeXref = false, bool reuseField = false)
     {
         var doc = CosDocument.Load(input);
         var update = new CosIncrementalUpdate(doc);
@@ -409,15 +518,23 @@ public sealed class SignatureRevisionTests
             kids.Items.Add(update.Add(page.Dictionary.Clone()));
             update.Replace(pages.Id, tree.Set("Kids", kids).Set("Count", new CosInteger(2)));
         }
-        var field = update.Add(new CosDictionary().Set("Type", new CosName("Annot")).Set("Subtype", new CosName("Widget"))
+        var fieldDictionary = new CosDictionary().Set("Type", new CosName("Annot")).Set("Subtype", new CosName("Widget"))
             .Set("FT", new CosName("Sig")).Set("T", CosString.FromText(timestamp ? "Timestamp" : "Synthetic"))
-            .Set("V", signatureRef).Set("Rect", CosArray.FromNumbers(0, 0, 0, 0)).Set("P", new CosReference(page.Id)));
-        var annots = (doc.Resolve(page.Dictionary["Annots"]) as CosArray)?.Clone() ?? new CosArray();
-        annots.Items.Add(field);
-        update.Replace(page.Id, page.Dictionary.Clone().Set("Annots", annots));
+            .Set("V", signatureRef).Set("Rect", CosArray.FromNumbers(0, 0, 0, 0)).Set("P", new CosReference(page.Id));
         var form = (doc.Resolve(catalog["AcroForm"]) as CosDictionary)?.Clone() ?? new CosDictionary();
         var fields = (doc.Resolve(form["Fields"]) as CosArray)?.Clone() ?? new CosArray();
-        fields.Items.Add(field);
+        if (reuseField)
+        {
+            update.Replace(((CosReference)fields[0]).Id, fieldDictionary);
+        }
+        else
+        {
+            var field = update.Add(fieldDictionary);
+            var annots = (doc.Resolve(page.Dictionary["Annots"]) as CosArray)?.Clone() ?? new CosArray();
+            annots.Items.Add(field);
+            update.Replace(page.Id, page.Dictionary.Clone().Set("Annots", annots));
+            fields.Items.Add(field);
+        }
         catalog["AcroForm"] = update.Add(form.Set("Fields", fields).Set("SigFlags", new CosInteger(3)));
         update.Replace(((CosReference)doc.Trailer["Root"]!).Id, catalog);
         var bytes = update.Build().Bytes;
