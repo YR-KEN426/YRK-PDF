@@ -6,6 +6,7 @@ using Yrk.PdfStudio.Core.Pdf.Pdfium;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
+[Collection("WPF Application")] // Only one System.Windows.Application can exist at a time; shared with MainWindowLayoutTests.
 public sealed class ETaxTests : IDisposable
 {
     private static readonly XNamespace Ram = "urn:etda:uncefact:data:standard:TaxInvoice_ReusableAggregateBusinessInformationEntity:2";

@@ -67,6 +67,6 @@ Ken ขอ (2026-11-06): ให้ผู้ใช้รู้ว่าอัป�
 - [x] ขั้น 2: ViewModel และแถบอัปเดต
 - [x] ขั้น 3: e-Tax ComboBox จังหวัด (mutation check: ปิดโค้ดแก้แล้วเทสต์ fail)
 - [x] ตรวจด้วยตาในตัว Release (Claude, 2026-11-06): ทั้ง 4 สถานะบนหน้า Home และในแท็บเอกสาร พบบั๊กหน้าต่างเปิดไม่ขึ้น (ProgressBar ผูก TwoWay กับค่าอ่านอย่างเดียว) แก้เป็น OneWay แล้ว
-- [ ] ขั้น 3b: เทสต์ที่สร้าง MainWindow ในหน่วยความจำแล้ว layout ได้โดยไม่มี exception เพื่อจับบั๊กแบบนี้ (Codex `gpt-6-luna` · low, แบบเดียวกับ `ETaxTests` ที่สร้าง `ThaiAddressFields`)
+- [x] ขั้น 3b: เทสต์ที่สร้าง MainWindow ในหน่วยความจำแล้ว layout ได้โดยไม่มี exception เพื่อจับบั๊กแบบนี้ (Codex `gpt-6-luna` · low, แบบเดียวกับ `ETaxTests` ที่สร้าง `ThaiAddressFields`) (mutation check: ถอด Mode=OneWay แล้วเทสต์ fail ด้วย InvalidOperationException)
 - [ ] ขั้น 4: เลขรุ่นและ release notes
 - [ ] ขั้น 5: Codex ตรวจอีกมุม
