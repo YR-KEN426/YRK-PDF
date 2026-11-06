@@ -22,9 +22,32 @@ public sealed record ThaiAddressNarrowing(
     public ThaiArea? UniqueSubdistrict => Subdistricts.Count == 1 ? Subdistricts[0] : null;
 }
 
-/// <summary>Pure address suggestions. Call Narrow only before a province has been selected; otherwise use Check.</summary>
+public sealed record ThaiAddressSelection(string? Province, string? District, string? Subdistrict);
+
+public sealed record ThaiAddressPostcodeChange(
+    ThaiAddressSelection Selection, ThaiAddressSelection? AutoSelected, ThaiAddressNarrowing Narrowing);
+
+/// <summary>Pure address suggestions and selection updates.</summary>
 public static class ThaiAddressAssist
 {
+    /// <summary>Replace only the unchanged selection previously supplied by postcode narrowing.</summary>
+    public static ThaiAddressPostcodeChange ChangePostcode(
+        string? postcode, ThaiAddressSelection current, ThaiAddressSelection? autoSelected)
+    {
+        var selection = autoSelected is not null && current == autoSelected
+            ? new ThaiAddressSelection(null, null, null) : current;
+        if (selection.Province is not null)
+            return new(selection, null, new(false, [], [], [], ThaiAddressNotice.None));
+
+        var narrowing = Narrow(postcode);
+        if (!narrowing.IsFiltered)
+            return new(selection, null, narrowing);
+
+        selection = new(narrowing.UniqueProvince?.Code, narrowing.UniqueDistrict?.Code,
+            narrowing.UniqueSubdistrict?.Code);
+        return new(selection, selection, narrowing);
+    }
+
     public static ThaiPostcodeSuggestion SuggestPostcode(string? subdistrict, string? currentText, string? lastAutoFilled)
     {
         var options = ThaiPostcodes.PostcodesOf(subdistrict);

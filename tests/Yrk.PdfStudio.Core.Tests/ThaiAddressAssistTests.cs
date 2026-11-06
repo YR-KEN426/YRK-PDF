@@ -4,6 +4,52 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class ThaiAddressAssistTests
 {
+    [Fact]
+    public void Changing_postcode_replaces_automatically_selected_areas_with_the_new_province()
+    {
+        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
+        Assert.Equal(new("11", "1102", "110205"), first.Selection);
+        Assert.Equal(first.Selection, first.AutoSelected);
+
+        var changed = ThaiAddressAssist.ChangePostcode("10200", first.Selection, first.AutoSelected);
+
+        Assert.True(changed.Narrowing.IsFiltered);
+        Assert.Equal(new("10", "1001", null), changed.Selection);
+        Assert.Equal(changed.Selection, changed.AutoSelected);
+    }
+
+    [Fact]
+    public void Changing_postcode_preserves_manual_areas_and_warns_about_a_mismatch()
+    {
+        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
+        var manual = new ThaiAddressSelection("10", "1001", "100101");
+
+        var changed = ThaiAddressAssist.ChangePostcode("10550", manual, first.AutoSelected);
+
+        Assert.Equal(manual, changed.Selection);
+        Assert.Null(changed.AutoSelected);
+        Assert.False(changed.Narrowing.IsFiltered);
+        Assert.Equal(ThaiAddressNotice.PostcodeMismatch,
+            ThaiAddressAssist.SuggestPostcode(changed.Selection.Subdistrict, "10550", null).Notice);
+        // Explicit manual selection also protects the same values originally selected by the system.
+        var reselected = ThaiAddressAssist.ChangePostcode("10200", first.Selection, null);
+        Assert.Equal(first.Selection, reselected.Selection);
+        Assert.False(reselected.Narrowing.IsFiltered);
+    }
+
+    [Fact]
+    public void Unknown_postcode_clears_automatically_selected_areas_without_selecting_new_ones()
+    {
+        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
+
+        var changed = ThaiAddressAssist.ChangePostcode("99999", first.Selection, first.AutoSelected);
+
+        Assert.Equal(new(null, null, null), changed.Selection);
+        Assert.Null(changed.AutoSelected);
+        Assert.False(changed.Narrowing.IsFiltered);
+        Assert.Equal(ThaiAddressNotice.PostcodeNotFound, changed.Narrowing.Notice);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

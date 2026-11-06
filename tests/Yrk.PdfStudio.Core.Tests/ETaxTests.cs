@@ -397,12 +397,11 @@ public sealed class ETaxTests : IDisposable
                 Assert.Equal(narrowed.UniqueProvince?.Code, fields.Province);
                 Assert.Equal(narrowed.UniqueDistrict?.Code, fields.District);
                 Assert.Equal("10310", fields.Postcode);
-                var selectedProvince = fields.Province;
-                var selectedDistrict = fields.District;
                 editor.Text = "1031";
                 Assert.Equal(77, province.Items.Count);
-                Assert.Equal(selectedProvince, fields.Province);
-                Assert.Equal(selectedDistrict, fields.District);
+                // Areas the postcode chose are cleared when the user edits the postcode (plan 1.1.7 step 2).
+                Assert.Null(fields.Province);
+                Assert.Null(fields.District);
 
                 fields.Restore(saved with { Postcode = string.Empty, District = "1005", Subdistrict = "100508" });
                 // Restoring even an empty postcode does not auto-fill it.

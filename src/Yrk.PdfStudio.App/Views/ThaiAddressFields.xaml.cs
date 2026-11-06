@@ -11,6 +11,7 @@ public partial class ThaiAddressFields : UserControl
     private string? _optionsSubdistrict;
     private string? _optionsLanguage;
     private ThaiAddressNarrowing? _narrowing;
+    private ThaiAddressSelection? _autoSelectedAreas;
     private ThaiAddressNotice _notice;
 
     public ThaiAddressFields()
@@ -36,6 +37,7 @@ public partial class ThaiAddressFields : UserControl
     {
         _busy = true;
         _narrowing = null;
+        _autoSelectedAreas = null;
         _lastAutoFilled = null;
         _notice = ThaiAddressNotice.None;
         HouseInput.Text = party.BuildingNumber ?? string.Empty;
@@ -64,6 +66,7 @@ public partial class ThaiAddressFields : UserControl
     private void OnProvinceChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_busy) return;
+        _autoSelectedAreas = null;
         _busy = true;
         DistrictInput.ItemsSource = Province is { } province
             ? ThaiAreas.DistrictsOf(province).Where(a => _narrowing is null || _narrowing.Districts.Contains(a)).ToArray() : [];
@@ -81,6 +84,7 @@ public partial class ThaiAddressFields : UserControl
     private void OnDistrictChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_busy) return;
+        _autoSelectedAreas = null;
         _busy = true;
         SubdistrictInput.ItemsSource = District is { } district
             ? ThaiAreas.SubdistrictsOf(district).Where(a => _narrowing is null || _narrowing.Subdistricts.Contains(a)).ToArray() : [];
@@ -91,7 +95,11 @@ public partial class ThaiAddressFields : UserControl
 
     private void OnSubdistrictChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!_busy) Suggest();
+        if (!_busy)
+        {
+            _autoSelectedAreas = null;
+            Suggest();
+        }
     }
 
     private void Suggest()
@@ -120,36 +128,19 @@ public partial class ThaiAddressFields : UserControl
         if (_busy) return;
         _busy = true;
         _lastAutoFilled = null;
-        // Restore lists before evaluating a new postcode, retaining every selected area.
-        if (_narrowing is not null)
-        {
-            var province = Province;
-            var district = District;
-            var subdistrict = Subdistrict;
-            _narrowing = null;
-            ProvinceInput.ItemsSource = ThaiAreas.Provinces;
-            Select(ProvinceInput, province);
-            DistrictInput.ItemsSource = province is not null ? ThaiAreas.DistrictsOf(province) : [];
-            Select(DistrictInput, district);
-            SubdistrictInput.ItemsSource = district is not null ? ThaiAreas.SubdistrictsOf(district) : [];
-            Select(SubdistrictInput, subdistrict);
-        }
-        _notice = ThaiAddressNotice.None;
-        if (Province is null)
-        {
-            var narrowed = ThaiAddressAssist.Narrow(PostcodeInput.Text);
-            _notice = narrowed.Notice;
-            if (narrowed.IsFiltered)
-            {
-                _narrowing = narrowed;
-                ProvinceInput.ItemsSource = narrowed.Provinces;
-                ProvinceInput.SelectedItem = narrowed.UniqueProvince;
-                DistrictInput.ItemsSource = narrowed.UniqueProvince is not null ? narrowed.Districts : [];
-                DistrictInput.SelectedItem = narrowed.UniqueDistrict;
-                SubdistrictInput.ItemsSource = narrowed.UniqueDistrict is not null ? narrowed.Subdistricts : [];
-                SubdistrictInput.SelectedItem = narrowed.UniqueSubdistrict;
-            }
-        }
+        var change = ThaiAddressAssist.ChangePostcode(PostcodeInput.Text,
+            new(Province, District, Subdistrict), _autoSelectedAreas);
+        _autoSelectedAreas = change.AutoSelected;
+        _narrowing = change.Narrowing.IsFiltered ? change.Narrowing : null;
+        _notice = change.Narrowing.Notice;
+        ProvinceInput.ItemsSource = _narrowing?.Provinces ?? ThaiAreas.Provinces;
+        Select(ProvinceInput, change.Selection.Province);
+        DistrictInput.ItemsSource = Province is { } province
+            ? _narrowing?.Districts ?? ThaiAreas.DistrictsOf(province) : [];
+        Select(DistrictInput, change.Selection.District);
+        SubdistrictInput.ItemsSource = District is { } district
+            ? _narrowing?.Subdistricts ?? ThaiAreas.SubdistrictsOf(district) : [];
+        Select(SubdistrictInput, change.Selection.Subdistrict);
         RefreshOptions();
         _busy = false;
         CheckNotice();
