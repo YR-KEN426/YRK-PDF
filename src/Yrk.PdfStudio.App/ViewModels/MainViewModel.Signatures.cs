@@ -402,14 +402,7 @@ public sealed partial class MainViewModel
                 return;
             }
 
-            var name = Path.GetFileNameWithoutExtension(document.FilePath);
-            const string signedSuffix = " (signed)";
-            if (name.EndsWith(signedSuffix, StringComparison.OrdinalIgnoreCase))
-            {
-                name = name[..^signedSuffix.Length];
-            }
-
-            var suggestedName = name + " (before signing).pdf";
+            var suggestedName = SignedFileName.SuggestBeforeSigning(document.FilePath);
             var sourcePath = Path.GetFullPath(document.FilePath);
             string targetPath;
             while (true)

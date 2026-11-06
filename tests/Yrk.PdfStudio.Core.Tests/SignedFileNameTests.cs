@@ -15,4 +15,15 @@ public sealed class SignedFileNameTests
     {
         Assert.Equal(expected, SignedFileName.Suggest(path));
     }
+
+    [Theory]
+    [InlineData("report.pdf", "report (before signing).pdf")]
+    [InlineData("report (signed).pdf", "report (before signing).pdf")]
+    [InlineData("report (SIGNED).pdf", "report (before signing).pdf")]
+    [InlineData("report (signed) draft.pdf", "report (signed) draft (before signing).pdf")]
+    [InlineData("C:/documents/report.pdf", "report (before signing).pdf")]
+    public void SuggestBeforeSigningRemovesOnlyTrailingSignedSuffix(string path, string expected)
+    {
+        Assert.Equal(expected, SignedFileName.SuggestBeforeSigning(path));
+    }
 }
