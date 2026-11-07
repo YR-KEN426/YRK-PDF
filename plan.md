@@ -37,7 +37,7 @@ Ken ตัดสินใจ (2026-11-07):
 - ไฟล์: `src/Yrk.PdfStudio.Core/Pdf/ETax/TaxInvoice.cs`, `tests/Yrk.PdfStudio.Core.Tests/ETaxTests.cs`
 - `TaxInvoiceLine` เพิ่มส่วนลด (`Discount` = ค่า + เป็น % หรือไม่) และ `TaxInvoice` เพิ่มส่วนลดท้ายบิล; `Amount` = ยอดหลังลดของบรรทัด ปัด 2 ตำแหน่ง AwayFromZero เหมือนเดิม
 - ยอดรวม: LineTotal → ส่วนลดท้ายบิล → TaxBasis → VAT (ทั้งแบบราคารวม/ไม่รวม VAT) → GrandTotal; `LineVats()` กระจายส่วนลดท้ายบิลให้ VAT รายบรรทัดรวมได้เท่ายอด VAT
-- XML: AllowanceCharge ระดับบรรทัด/หัวบิล และ AllowanceTotalAmount ตามขั้น 1
+- XML ตาม `docs/etax-debit-credit-notes.md` ข้อ 5: `SpecifiedTradeAllowanceCharge` (ChargeIndicator `false`, ActualAmount THB, TypeCode `95`) ใน `SpecifiedLineTradeSettlement` (หลัง ApplicableTradeTax) และใน `ApplicableHeaderTradeSettlement` (หลัง ApplicableTradeTax); `AllowanceTotalAmount` = ผลรวมส่วนลดท้ายบิลเท่านั้น; NetLineTotalAmount = ยอดหลังลด
 - `Problems()`: ส่วนลดติดลบ, ส่วนลดเกินยอดบรรทัด/เกินยอดรวม, % เกิน 100
 - **ไม่มีส่วนลด → XML ทุก byte เหมือนเดิม** (เทสต์ golden เดิม :195-218 ต้องผ่าน)
 - เทสต์: ลดบาท/ลด % รายบรรทัด, ลดท้ายบิล, ราคารวม VAT + ส่วนลด, VAT รายบรรทัดรวมเท่ายอด, ปัดเศษสตางค์ขอบ, ข้อผิดพลาดแต่ละแบบ
@@ -45,14 +45,19 @@ Ken ตัดสินใจ (2026-11-07):
 ### ขั้น 3: Core ใบเพิ่มหนี้/ใบลดหนี้ (Codex `gpt-6.1-sol` · high)
 - ไฟล์: `TaxInvoice.cs`, `ETaxTests.cs`
 - `TaxDocumentType` เพิ่ม `DebitNote` (80), `CreditNote` (81); `TypeCode`, `ThaiName`, `XmpExtension` (DocumentType ตามประเภท ตอนนี้ฝัง "Tax Invoice" ไว้ :151-159)
-- `TaxInvoice` เพิ่ม `Reference` (เลขที่, วันที่, มูลค่าเดิม) และ `Reason` (รหัส + ข้อความ) ใช้เฉพาะ 80/81
-- ยอด: รายการในใบคือ "ผลต่าง"; มูลค่าที่ถูกต้อง = มูลค่าเดิม ± ผลต่าง; VAT คิดจากผลต่าง
+- ทำตาม `docs/etax-debit-credit-notes.md` (สรุปจาก XSD/Schematron จริง):
+  - 80/81 ใช้ root `rsm:DebitCreditNote_CrossIndustryInvoice` และ namespace `DebitCreditNote_*:2` (คนละตัวกับใบกำกับ) ส่วนอื่นใช้ตัวเขียนเดิม
+  - `ExchangedDocument`: `Name` = "ใบเพิ่มหนี้"/"ใบลดหนี้" ตรงตัว, `Purpose` + `PurposeCode` (DBNG01/02/99, DBNS01/02/99, CDNG01–05/99, CDNS01–04/99 ตามประเภท; รหัส 99 ต้องมีข้อความ) อยู่หลัง IssueDateTime
+  - `AdditionalReferencedDocument` (IssuerAssignedID, IssueDateTime, ReferenceTypeCode ∈ 388/T02/T03/T04) ท้าย `ApplicableHeaderTradeAgreement`
+  - ยอด: `OriginalInformationAmount`, `LineTotalAmount` (มูลค่าที่ถูกต้อง), `DifferenceInformationAmount` (ค่าบวก), `TaxBasisTotalAmount` = ผลต่าง, `TaxTotalAmount`, `GrandTotalAmount` = ผลต่าง + VAT
+- `TaxInvoice` เพิ่ม `Reference` (เลขที่, วันที่, ประเภทใบเดิม, มูลค่าเดิม) และ `Reason` (รหัส + ข้อความ) ใช้เฉพาะ 80/81
+- ยอด: รายการในใบคือ "ผลต่าง"; มูลค่าที่ถูกต้อง = มูลค่าเดิม − ผลต่าง (81) หรือ + ผลต่าง (80); VAT คิดจากผลต่าง
 - `Problems()`: 80/81 ต้องมีเลขที่/วันที่/มูลค่าเดิม/เหตุผล; ใบลดหนี้ลดเกินมูลค่าเดิมไม่ได้; ประเภทอื่นห้ามมี Reference
 - เทสต์: XML ของ 80/81 มี element ตามขั้น 1 ครบและเรียงตาม XSD, ยอดผลต่างถูก, XMP DocumentType, PDF/A-3 แนบ XML ได้, 388/T02–T04 เหมือนเดิม
 
 ### ขั้น 4: App ฟอร์มและหน้า PDF (Codex `gpt-6.1-sol` · medium)
 - ไฟล์: `Views/ETaxInvoiceDialog.xaml(.cs)`, `Imaging/TaxInvoiceRenderer.cs`, `Services/ETaxSettings.cs`, `ViewModels/MainViewModel.ETax.cs`, `Localization/th.json` + ไฟล์อังกฤษ, เทสต์ใน `ETaxTests.cs` (ส่วนที่เรียก `Build()` :346-457)
-- ฟอร์ม: คอลัมน์ส่วนลดใน `ItemsGrid` (`ItemRow` :178-219 รับ `50` หรือ `10%`), ช่องส่วนลดท้ายบิล, กล่องอ้างใบเดิม + เหตุผล แสดงเฉพาะ 80/81, `Types` (:16-22) เพิ่ม 2 ประเภท, `Update()` แสดงยอดหลังลด
+- ฟอร์ม: คอลัมน์ส่วนลดใน `ItemsGrid` (`ItemRow` :178-219 รับ `50` หรือ `10%`), ช่องส่วนลดท้ายบิล, กล่องอ้างใบเดิม (เลขที่ วันที่ ประเภทใบเดิม 388/T02/T03/T04 ค่าเริ่มต้น = ประเภทที่ใช้ล่าสุด มูลค่าเดิม) + เหตุผล (รายการรหัสตามประเภท, รหัส 99 บังคับพิมพ์) แสดงเฉพาะ 80/81, `Types` (:16-22) เพิ่ม 2 ประเภท, `Update()` แสดงยอดหลังลด
 - หน้า PDF: คอลัมน์ส่วนลด (แสดงเมื่อมีส่วนลดอย่างน้อยบรรทัดเดียว), แถวยอดเพิ่ม (รวม/ส่วนลด/หลังลด/VAT/สุทธิ; 80/81: มูลค่าเดิม/ที่ถูกต้อง/ผลต่าง/VAT/รวม), กล่องอ้างใบเดิมและเหตุผล, ขยาย `FooterTop` ให้พอ (ตอนนี้ 150pt)
 - ตั้งค่า: `LastNumber` แยกต่อประเภท ย้ายค่าเดิมเข้าประเภทที่เคยเลือกโดยไม่หาย; `etax.json` เก่าเปิดได้
 - เทสต์: `Build()` กับส่วนลดบาท/% และ 80/81, ไฟล์ตั้งค่าเก่าย้ายเลขถูก, เลขรันแยกประเภท; ตรวจคำแปลด้วย `build\check-translations.ps1`
@@ -110,7 +115,7 @@ Ken ตัดสินใจ (2026-11-07):
   - อัปเดต 1.1.9 → 1.2.0 จริง จากหน้า Home และแท็บเอกสาร
 
 ## สถานะ
-- [ ] ขั้น 1: อ่านสเปก ETDA 80/81 + ส่วนลด
+- [x] ขั้น 1: อ่านสเปก ETDA 80/81 + ส่วนลด (2026-11-07, `docs/etax-debit-credit-notes.md`; ยังไม่ยืนยัน: XMP DocumentType, ผลต่างค่าบวก, คำไทยของรหัสเหตุผล)
 - [ ] ขั้น 2: Core ส่วนลด
 - [ ] ขั้น 3: Core ใบเพิ่มหนี้/ใบลดหนี้
 - [ ] ขั้น 4: App ฟอร์มและหน้า PDF
