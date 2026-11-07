@@ -1,91 +1,122 @@
-# แผน 1.1.9: ใบรับรองที่ฉันเชื่อถือ + หมุนรูปและปรับความโปร่งใส
+# แผน 1.2.0: ใบเพิ่มหนี้/ใบลดหนี้ + ส่วนลด, จำหน้าที่อ่านค้าง, ใบรับรอง (RSA-PSS + 2 จุดเล็ก), ป้ายบนสิ่งที่ YRK วาง
 
 ## ที่มา
+ลำดับรุ่นที่ Ken ตกลง (PROJECT_NOTES.md): 1.2.0 = ใบเพิ่มหนี้/ลดหนี้ + ส่วนลด + จำหน้าที่อ่านค้าง + 2 จุดเล็กของใบรับรอง + RSA-PSS + ป้ายบนสิ่งที่ YRK วาง และเก็บงานค้างจาก 1.1.9 (release.ps1 ไม่ build คู่มือ, เทสต์เขียน log ลงเครื่องจริง)
+
 Ken ตัดสินใจ (2026-11-07):
-- ทำ 3 เรื่องที่รอเลือก แบ่ง 2 รุ่น: **1.1.9** = ใบรับรองที่เชื่อถือ + หมุนรูป/ความโปร่งใส, **1.2.0** = ใบเพิ่มหนี้/ใบลดหนี้ + ส่วนลด (เขียนแผนแยกหลังปล่อย 1.1.9; เลขรุ่นไม่กระโดด จึงต่อจาก 1.1.9 เป็น 1.2.0) งานสำรอง/MSIX ที่เคยวางไว้ 1.2.0 เลื่อนเป็น 1.2.1 และงานย้ายสีไป ResourceDictionary เลื่อนไปหลังจากนั้น (Ken ยืนยัน 2026-11-07); สติกเกอร์เป็น 1.2.2
-- ใบรับรองที่เชื่อถือ: เก็บเป็นรายการของ YRK เอง ไม่แตะที่เก็บใบรับรองของ Windows
-- หมุน: จุดจับหมุนอิสระ (Shift = ทีละ 15°) + ปุ่มหมุน 90°
-- ส่วนลด e-Tax (ของ 1.2.0): ทั้งรายบรรทัดและท้ายบิล
-- เมื่ออนุมัติ: เขียนแผนนี้ลง `plan.md` แทนแผน 1.1.8 และบันทึกการตัดสินใจข้างบนใน `PROJECT_NOTES.md` แล้ว commit
+- เลขที่เอกสารแยกต่อประเภท (ใบกำกับ / ใบลดหนี้ / ใบเพิ่มหนี้ จำเลขล่าสุดแยกกัน)
+- ส่วนลดพิมพ์เป็นบาทหรือ % ได้ ทั้งรายบรรทัดและท้ายบิล (XML เก็บเป็นจำนวนเงิน)
+- ใบเพิ่ม/ลดหนี้: กรอกเลขที่ วันที่ มูลค่าเดิมของใบกำกับเดิม และเหตุผลเอง
+- จำหน้าที่อ่านค้าง: เปิดตลอด ไม่มีปุ่มปิด
+
+เมื่ออนุมัติ: เขียนแผนนี้ลง `plan.md` แทนแผน 1.1.9 (แผนเก่าอยู่ใน git) บันทึกการตัดสินใจลง `PROJECT_NOTES.md` แล้ว commit
 
 ## สิ่งที่ผู้ใช้จะเห็น
 
-### ใบรับรองที่ฉันเชื่อถือ
-- ลายเซ็นจาก Digital ID ที่สร้างเอง (self-signed) ตอนนี้ขึ้น "ไม่ทราบตัวตน" ในแผงลายเซ็นจะมีปุ่มใหม่ **"เชื่อถือใบรับรองนี้…"** ข้างปุ่ม "ใบรับรอง" (`MainWindow.xaml:1009`)
-  - ขึ้นเฉพาะลายเซ็นที่เอกสารไม่ถูกแก้ ตัวตนเป็น Untrusted และใบรับรองเป็นแบบ self-signed (รอบนี้ไม่ทำกับใบรับรองที่ออกโดย CA ที่ไม่รู้จัก)
-- กดแล้วขึ้นหน้าต่างยืนยัน: ชื่อ อีเมล องค์กร วันหมดอายุ และ **ลายนิ้วมือ SHA-256** พร้อมคำเตือนให้ตรวจลายนิ้วมือกับเจ้าของผ่านช่องทางอื่น (เช่น โทรถาม) ก่อนกดเชื่อถือ
-- เชื่อถือแล้ว ลายเซ็นขึ้นสถานะใหม่ **"ถูกต้อง: คุณเลือกเชื่อถือผู้ลงนามนี้"** (แยกจาก "ถูกต้อง" ที่ Windows รับรอง) และบอกว่ามีผลเฉพาะใน YRK บนเครื่องนี้ โปรแกรมอื่น เช่น Acrobat ยังแสดงว่าไม่ทราบตัวตน
-- หน้าต่าง **"ใบรับรองที่ฉันเชื่อถือ"** (เปิดจากเมนูเดียวกับการจัดการ Digital ID): ดูรายการ ลบ และนำเข้าไฟล์ `.cer`
-- ฝั่งผู้เซ็น: หน้าข้อมูล Digital ID แสดงลายนิ้วมือ SHA-256 และปุ่ม "ส่งออกใบรับรอง (.cer)" ซึ่งมีแค่กุญแจสาธารณะ ส่งให้ผู้รับนำเข้าได้
+### e-Tax
+- ช่อง "ส่วนลด" ในตารางรายการ และช่อง "ส่วนลดท้ายบิล" ใต้ตาราง พิมพ์ `50` = 50 บาท, `10%` = 10%
+- เลือกประเภท "ใบเพิ่มหนี้ (80)" / "ใบลดหนี้ (81)" แล้วมีกล่องเพิ่ม: เลขที่ใบกำกับเดิม, วันที่, มูลค่าเดิม, เหตุผล (รายการตามรหัสของสเปก + พิมพ์เพิ่มได้)
+- PDF ที่ได้แสดงส่วนลด, ยอดหลังลด และสำหรับใบเพิ่ม/ลดหนี้แสดง มูลค่าเดิม / มูลค่าที่ถูกต้อง / ผลต่าง / VAT ของผลต่าง ตามหลักใบลดหนี้ (ม.86/10)
+- เลขที่เอกสารนับแยกต่อประเภท
 
-### หมุนรูปและความโปร่งใส
-- ใช้กับรูป ตรายาง และรูปลายเซ็นที่วางบนหน้า (สิ่งที่ยังไม่บันทึกลงหน้า)
-- จุดจับหมุนกลมเหนือกรอบ ลากเพื่อหมุนรอบจุดกลาง กด Shift ให้ติดทีละ 15° ระหว่างลากแสดงองศา
-- แถบเล็กข้างปุ่มลบ: ปุ่ม ↻ 90° และปุ่มความโปร่งใสที่เปิดแถบเลื่อน 10–100%
-- ย่อ/ขยายยังคงสัดส่วนเหมือนเดิม และทำงานถูกเมื่อหมุนแล้ว
-- Undo/Redo รวมการหมุนและความโปร่งใส
-- บันทึกแล้วสิ่งที่เห็นในไฟล์ตรงกับที่วาง ทั้งใน YRK และ Acrobat รวมหน้าที่มี /Rotate
+### อื่นๆ
+- เปิดไฟล์เดิมอีกครั้งแล้วกลับไปหน้าที่อ่านค้างเอง (จำ 200 ไฟล์ล่าสุด เก็บในเครื่องเท่านั้น ไม่เขียนลง PDF)
+- ลายเซ็นที่ใบรับรอง self-signed ใช้ RSA-PSS กดเชื่อถือได้
+- ลายนิ้วมือ SHA-256 แสดงเป็นกลุ่มละ 4 ตัว (หน้าต่างยืนยัน, รายการ, ข้อมูล Digital ID)
+- หน้าต่าง "ใบรับรองที่ฉันเชื่อถือ" ตอนว่างมีคำอธิบายแทนกรอบขาว
+- ป้ายในไฟล์บนรูป ตรายาง ลายเซ็นที่ YRK วาง: มองไม่เห็น หน้าตาไฟล์ไม่เปลี่ยน (เตรียมให้ 1.2.1 แก้รูปที่บันทึกแล้วได้)
 
 ## ขั้นตอน
 
-### ขั้น 1: Core ตรวจลายเซ็นด้วยรายการที่ผู้ใช้เชื่อถือ (Codex `gpt-6.1-sol` · high, ความปลอดภัย Claude ตรวจ)
-- ไฟล์: `src/Yrk.PdfStudio.Core/Pdf/Signatures/PdfSignatureModels.cs`, `PdfSignatureVerifier.cs`, เทสต์ใหม่ `tests/Yrk.PdfStudio.Core.Tests/SignatureUserTrustTests.cs`
-- `PdfVerifyOptions` เพิ่ม `UserTrustedCertificates` (public, ค่าเริ่มต้นว่าง) และ `PdfSignerIdentity.TrustedByUser`
-- `CheckIdentity` (`PdfSignatureVerifier.cs:1368`): ตรวจกับ Windows ก่อนเหมือนเดิม ถ้าได้ Trusted จบ ถ้าผลมีแค่ `UntrustedRoot`/`PartialChain` และ signer เป็น self-signed ให้สร้าง chain รอบสองด้วย `CustomRootTrust` = ใบรับรองในรายการ ถ้าผ่านไม่มี flag ใดเลย → `TrustedByUser`
-  - เทียบด้วยตัวใบรับรองทั้งใบ (SHA-256 ของ DER) ไม่เทียบชื่อ
-  - หมดอายุ/เพิกถอน/ใช้งานผิดประเภท ยังเป็นผลเดิม (Expired/Revoked/Untrusted)
-- สถานะ (`:1348`): `TrustedByUser` ได้ `Valid` เหมือน Trusted แต่เอกสารถูกแก้หรือลายเซ็นเสียยังเป็น Modified/Invalid
-- ไม่เปลี่ยนการตรวจการเพิกถอนออนไลน์ (`MainViewModel.Signatures.cs:295` ยังเริ่มเฉพาะ Trusted)
-- เทสต์: ไม่มีรายการ → IdentityUnknown; มีรายการ → Valid/TrustedByUser; ใบรับรองอื่นชื่อเหมือนกัน → ยัง IdentityUnknown; ใบในรายการหมดอายุ → Expired; แก้เอกสารหลังเซ็น → ไม่ใช่ Valid; ใบรับรองที่มี CA (ไม่ใช่ self-signed) ในรายการ → ไม่มีผล; เทสต์เดิมใน `SignatureTests.cs:39` ยังผ่าน
+### ขั้น 1: อ่านสเปก ETDA ของ 80/81 และส่วนลด (Claude ทำเอง: ตีความสเปก)
+- แหล่ง: ETDA ขมธอ. 3-2560 v2.0 (PDF ภาษาอังกฤษจาก etda.or.th, ฉบับไทยเป็นฉบับหลัก) และ `XMLSchemaV2.zip` จาก etax.rd.go.th (ถาม Ken ก่อนดาวน์โหลด; เก็บใน scratchpad ไม่เข้า repo) อ่านข้อความ PDF ด้วยโปรแกรมเล็กที่อ้าง `Yrk.PdfStudio.Core.dll` ตามบทเรียน 1.1.7
+- สิ่งที่ต้องได้: `docs/etax-debit-credit-notes.md` สรุป TypeCode 80/81, `ExchangedDocument/Purpose` + `PurposeCode` (รายการรหัสเหตุผล), `ApplicableHeaderTradeAgreement/AdditionalReferencedDocument` หรือ `InvoiceReferencedDocument` (ตามที่ XSD กำหนด), ช่องยอดใน `SpecifiedTradeSettlementHeaderMonetarySummation` (OriginalInformationAmount, LineTotalAmount, DifferenceInformationAmount, AllowanceTotalAmount, TaxBasisTotalAmount ฯลฯ), โครง `SpecifiedTradeAllowanceCharge` ระดับบรรทัดและหัวบิล, XMP `DocumentType` ของแต่ละประเภท; ทุกข้อขัดกันให้ยึด XSD (กฎใน PROJECT_NOTES)
+- จากนั้นเติมรายละเอียดชื่อ element ลงขั้น 2–3 ใน `plan.md` ให้ Ken ดูก่อนส่ง Codex
 
-### ขั้น 2: App รายการเชื่อถือ + UI (Codex `gpt-6.1-sol` · medium)
-- ไฟล์: `src/Yrk.PdfStudio.App/Services/TrustedCertificateStore.cs` (ใหม่), `ViewModels/SignatureInfoViewModel.cs`, `ViewModels/MainViewModel.Signatures.cs`, `MainWindow.xaml`, `Views/TrustCertificateDialog.xaml(.cs)` และ `Views/TrustedCertificatesDialog.xaml(.cs)` (ใหม่), หน้าต่างข้อมูล Digital ID ที่มีอยู่, `Localization/th.json` + ไฟล์อังกฤษ, เทสต์ `tests/.../TrustedCertificateStoreTests.cs`
-- เก็บที่ `%LOCALAPPDATA%\YRK\EasyPdf\TrustedCertificates\<sha256>.cer` (DER, กุญแจสาธารณะเท่านั้น) แบบเดียวกับ `DigitalIdStore.cs:32`
-  - โหลดแล้วข้ามไฟล์ที่เสีย ชื่อไฟล์ไม่ตรงกับ hash หรือมีกุญแจส่วนตัว
-  - นำเข้า `.cer`/`.crt` เท่านั้น ไม่รับ `.pfx`
-- ส่งรายการเข้า `PdfVerifyOptions` ทุกครั้งที่ตรวจ (`MainViewModel.Signatures.cs:280, 298`) และตรวจลายเซ็นใหม่ทันทีหลังเพิ่ม/ลบ
-- ปุ่มและหน้าต่างตาม "สิ่งที่ผู้ใช้จะเห็น" ใช้รูปแบบคำสั่งเดียวกับ `ShowCertificateCommand` (`MainViewModel.Signatures.cs:41`) และ `DialogService`
-- ข้อความ `StatusText` ใหม่ใน `SignatureInfoViewModel.cs:34` ทั้งไทยและอังกฤษ, ไอคอน/สีใช้แบบ Valid
-- ส่งออก `.cer` ของ Digital ID ตัวเอง: `X509Certificate2.Export(Cert)` เท่านั้น
-- เทสต์: เพิ่ม/ลบ/โหลดซ้ำ, ไฟล์ขยะถูกข้าม, `.cer` ที่ส่งออกไม่มีกุญแจส่วนตัว, ใน `tests/.../App/` (`AppTestHarness`) เซ็นด้วย ID ที่สร้างเอง → เชื่อถือ → สถานะเปลี่ยน → ลบ → กลับเป็นไม่ทราบ
+### ขั้น 2: Core ส่วนลด (Codex `gpt-6.1-sol` · high)
+- ไฟล์: `src/Yrk.PdfStudio.Core/Pdf/ETax/TaxInvoice.cs`, `tests/Yrk.PdfStudio.Core.Tests/ETaxTests.cs`
+- `TaxInvoiceLine` เพิ่มส่วนลด (`Discount` = ค่า + เป็น % หรือไม่) และ `TaxInvoice` เพิ่มส่วนลดท้ายบิล; `Amount` = ยอดหลังลดของบรรทัด ปัด 2 ตำแหน่ง AwayFromZero เหมือนเดิม
+- ยอดรวม: LineTotal → ส่วนลดท้ายบิล → TaxBasis → VAT (ทั้งแบบราคารวม/ไม่รวม VAT) → GrandTotal; `LineVats()` กระจายส่วนลดท้ายบิลให้ VAT รายบรรทัดรวมได้เท่ายอด VAT
+- XML: AllowanceCharge ระดับบรรทัด/หัวบิล และ AllowanceTotalAmount ตามขั้น 1
+- `Problems()`: ส่วนลดติดลบ, ส่วนลดเกินยอดบรรทัด/เกินยอดรวม, % เกิน 100
+- **ไม่มีส่วนลด → XML ทุก byte เหมือนเดิม** (เทสต์ golden เดิม :195-218 ต้องผ่าน)
+- เทสต์: ลดบาท/ลด % รายบรรทัด, ลดท้ายบิล, ราคารวม VAT + ส่วนลด, VAT รายบรรทัดรวมเท่ายอด, ปัดเศษสตางค์ขอบ, ข้อผิดพลาดแต่ละแบบ
 
-### ขั้น 3: Core หมุนและความโปร่งใสตอนเขียนลงหน้า (Codex `gpt-6.1-sol` · high)
-- ไฟล์: `src/Yrk.PdfStudio.Core/Pdf/IPdfEngine.cs` (`AddImageAsync` :113 และ `AddVectorAsync`, `AddPdfPageAsync`), `Pdf/Pdfium/PdfiumDocument.Editing.cs` (`AddImage` :336, `UnitSquareTo` :392, ส่วน vector/form :443, :521), `PdfiumNative.cs` ถ้าต้องเพิ่มฟังก์ชัน, เทสต์ `tests/.../PdfEditingTests.cs`
-- เพิ่มพารามิเตอร์เลือกได้ `PlacementStyle(double RotationDegrees = 0, double Opacity = 1)` ค่าเริ่มต้นได้ผลเหมือนเดิมทุก byte
-- หมุนรอบจุดกลางของ bounds ต่อจาก matrix ของ `UnitSquareTo` (ซึ่งจัดการ /Rotate ของหน้าอยู่แล้ว)
-- ความโปร่งใส: รูปคูณ alpha ใน BGRA ก่อนสร้าง bitmap; vector ใช้ alpha ของสีเส้น/สีเติม; PDF-page (form object) ใช้ ExtGState `ca/CA` ถ้า PDFium ทำได้สะอาด ถ้าไม่ได้ให้รายงานกลับ แล้วรอบนี้ซ่อนแถบความโปร่งใสของลายเซ็นชนิดนี้
-- เทสต์: รูปหมุน 90°/45° แล้วกรอบที่อ่านจาก `PdfiumDocument.Graphics.cs` ตรงที่คาด; หน้า /Rotate 90 + หมุน 30°; opacity 0.5 แล้วสีพิกเซลที่ render ผสมกับพื้นขาวถูก; vector หมุนแล้วกรอบถูก; ไม่ส่ง style แล้วผลเหมือนเดิม
+### ขั้น 3: Core ใบเพิ่มหนี้/ใบลดหนี้ (Codex `gpt-6.1-sol` · high)
+- ไฟล์: `TaxInvoice.cs`, `ETaxTests.cs`
+- `TaxDocumentType` เพิ่ม `DebitNote` (80), `CreditNote` (81); `TypeCode`, `ThaiName`, `XmpExtension` (DocumentType ตามประเภท ตอนนี้ฝัง "Tax Invoice" ไว้ :151-159)
+- `TaxInvoice` เพิ่ม `Reference` (เลขที่, วันที่, มูลค่าเดิม) และ `Reason` (รหัส + ข้อความ) ใช้เฉพาะ 80/81
+- ยอด: รายการในใบคือ "ผลต่าง"; มูลค่าที่ถูกต้อง = มูลค่าเดิม ± ผลต่าง; VAT คิดจากผลต่าง
+- `Problems()`: 80/81 ต้องมีเลขที่/วันที่/มูลค่าเดิม/เหตุผล; ใบลดหนี้ลดเกินมูลค่าเดิมไม่ได้; ประเภทอื่นห้ามมี Reference
+- เทสต์: XML ของ 80/81 มี element ตามขั้น 1 ครบและเรียงตาม XSD, ยอดผลต่างถูก, XMP DocumentType, PDF/A-3 แนบ XML ได้, 388/T02–T04 เหมือนเดิม
 
-### ขั้น 4: App หมุน/ความโปร่งใสของสิ่งที่วาง (Codex `gpt-6.1-sol` · high)
-- ไฟล์: `ViewModels/PlacedItemViewModel.cs` (เพิ่ม `Rotation`, `Opacity`), `ViewModels/MainViewModel.Editing.cs` (`ResizeItem` :188, undo, `CommitOverlaysAsync` :638), `MainViewModel.SignatureArt.cs` (`WriteSignatureAsync` :84), `MainViewModel.PlacedText.cs` (คำบนตรายาง), `MainWindow.xaml` (:165-212 template + thumbs), `MainWindow.xaml.cs` (:1024-1057), ข้อความไทย/อังกฤษ, เทสต์ใน `tests/.../App/`
-- จอ: `RenderTransform` หมุนรอบกลางกรอบ + `Opacity`; `Bounds` ยังเป็นกรอบก่อนหมุน
-- ย่อ/ขยายเมื่อหมุน: แปลงระยะลากเป็นแกนของกรอบที่หมุนแล้ว และให้มุมตรงข้ามอยู่ที่เดิม
-- ตรายางที่คำเขียนเป็นข้อความจริง: กรอบหมุนตาม และคำหมุนรอบจุดกลางเดียวกันด้วย rotation/opacity ที่มีใน `PdfTextWriter.cs:64, :132` อยู่แล้ว
-- เทสต์: หมุน/โปร่งใส แล้ว undo/redo; หมุน 90° สี่ครั้งกลับที่เดิม; บันทึกแล้วไฟล์มีภาพหมุนตรงกรอบ; ตรายางคำจริงหมุนตรงกับกรอบ; `MainWindowLayoutTests` ยังผ่าน (แก้ XAML หน้าต่างหลัก)
+### ขั้น 4: App ฟอร์มและหน้า PDF (Codex `gpt-6.1-sol` · medium)
+- ไฟล์: `Views/ETaxInvoiceDialog.xaml(.cs)`, `Imaging/TaxInvoiceRenderer.cs`, `Services/ETaxSettings.cs`, `ViewModels/MainViewModel.ETax.cs`, `Localization/th.json` + ไฟล์อังกฤษ, เทสต์ใน `ETaxTests.cs` (ส่วนที่เรียก `Build()` :346-457)
+- ฟอร์ม: คอลัมน์ส่วนลดใน `ItemsGrid` (`ItemRow` :178-219 รับ `50` หรือ `10%`), ช่องส่วนลดท้ายบิล, กล่องอ้างใบเดิม + เหตุผล แสดงเฉพาะ 80/81, `Types` (:16-22) เพิ่ม 2 ประเภท, `Update()` แสดงยอดหลังลด
+- หน้า PDF: คอลัมน์ส่วนลด (แสดงเมื่อมีส่วนลดอย่างน้อยบรรทัดเดียว), แถวยอดเพิ่ม (รวม/ส่วนลด/หลังลด/VAT/สุทธิ; 80/81: มูลค่าเดิม/ที่ถูกต้อง/ผลต่าง/VAT/รวม), กล่องอ้างใบเดิมและเหตุผล, ขยาย `FooterTop` ให้พอ (ตอนนี้ 150pt)
+- ตั้งค่า: `LastNumber` แยกต่อประเภท ย้ายค่าเดิมเข้าประเภทที่เคยเลือกโดยไม่หาย; `etax.json` เก่าเปิดได้
+- เทสต์: `Build()` กับส่วนลดบาท/% และ 80/81, ไฟล์ตั้งค่าเก่าย้ายเลขถูก, เลขรันแยกประเภท; ตรวจคำแปลด้วย `build\check-translations.ps1`
 
-### ขั้น 5: เลขรุ่น, release notes, คู่มือ (Codex `gpt-6-luna` · low)
-- เลขรุ่น 1.1.9, `docs/release-notes/1.1.9.md` (ไทย/อังกฤษ), อัปเดต `docs/guide/th.html` และ `en.html` ส่วนลายเซ็นและการวางรูป
+### ขั้น 5: ใบรับรอง RSA-PSS + 2 จุดเล็ก (Codex `gpt-6.1-sol` · high, ความปลอดภัย Claude ตรวจละเอียด)
+- ไฟล์: `src/Yrk.PdfStudio.Core/Pdf/Signatures/PdfSignatureVerifier.cs` (`IsSelfSigned` :1485-1524), `App/ViewModels/SignatureInfoViewModel.cs` (:101-103), `App/Services/TrustedCertificateStore.cs`, `Views/TrustCertificateDialog.xaml.cs`, `Views/TrustedCertificatesDialog.xaml(.cs)`, `Views/DigitalSignDialog.xaml.cs`, `th.json` + อังกฤษ, เทสต์ `SignatureUserTrustTests.cs`, `TrustedCertificateStoreTests.cs`
+- `IsSelfSigned` รองรับ `1.2.840.113549.1.1.10`: อ่าน RSASSA-PSS-params; รับเฉพาะ hash SHA-256/384/512 ที่ MGF1 ใช้ hash เดียวกัน, salt = ความยาว hash, trailer = 1; ไม่มี params (ค่าเริ่มต้น SHA-1) → ปฏิเสธ; ตรวจด้วย `RSASignaturePadding.Pss`; สาขา PKCS#1/ECDSA เดิมไม่แตะ
+- เปิด `IsSelfSigned` เป็น public helper ใน Core ให้ `CanTrustCertificate` ใช้ตัวเดียวกัน (ตอนนี้เทียบแค่ชื่อ Subject = Issuer ทำให้ปุ่มขึ้นแต่กดแล้วไม่มีผล)
+- ลายนิ้วมือ: เพิ่ม `TrustedCertificateStore.DisplayFingerprint` จัดกลุ่มละ 4 ตัว (แบบ `UpdateSignature.cs:133-139`) ใช้ใน `Describe()` เท่านั้น; `Fingerprint` (ชื่อไฟล์) คงเดิม
+- รายการว่าง: ข้อความอธิบายว่าเพิ่มได้จากปุ่ม "เชื่อถือใบรับรองนี้…" ในแผงลายเซ็น หรือ "นำเข้า .cer"
+- เทสต์: PSS self-signed → TrustedByUser; PSS ลายเซ็นเสีย → ไม่ผ่าน; PSS ออกโดย CA ชื่อเดียวกัน → ไม่ผ่าน; params ผิด (salt อื่น, MGF hash อื่น) → ไม่ผ่าน; ปุ่มไม่ขึ้นกับใบที่ชื่อเหมือนแต่ไม่ได้ self-signed; แก้เทสต์ :34 ที่หา fingerprint แบบไม่มีช่องว่าง
+- mutation check: ลบการตรวจ salt/MGF แล้วเทสต์ต้อง fail
 
-### ขั้น 6: ตรวจ (Claude + Codex read-only)
-- Claude ตรวจความปลอดภัยขั้น 1–2 เอง: การตัดสินความเชื่อถือ, การเทียบใบรับรอง, ไฟล์ที่เก็บ, ข้อความเตือน
-- `codex exec --sandbox read-only "ตรวจ git diff ของ 1.1.9 หาบั๊ก ช่องโหว่ และสิ่งที่ผิดจาก plan.md"`
-- เปิดตัว Release ดูด้วยตา (บอก Ken ก่อนว่าจะมีหน้าต่างขึ้น สำรอง/คืน `*.json` ใน `%LOCALAPPDATA%\YRK\EasyPdf` ตามบทเรียน 1.1.8)
+### ขั้น 6: ป้ายบนสิ่งที่ YRK วาง (Codex `gpt-6.1-sol` · high)
+- ไฟล์: `Core/Pdf/Pdfium/PdfiumNative.cs`, `PdfiumDocument.Editing.cs` (`AddImage` :343, `AddVector` :460, `AddPdfPage` :519), `IPdfEngine.cs` (`PlacementStyle` :7 หรือพารามิเตอร์ใหม่), `Core/Pdf/Text/PdfTextWriter.cs` (:85-104), `App/ViewModels/MainViewModel.Editing.cs` (`CommitOverlaysAsync` :696-755), `MainViewModel.SignatureArt.cs`, `MainViewModel.PlacedText.cs`, เทสต์ `PdfEditingTests.cs`
+- เพิ่ม P/Invoke ของ PDFium 8100: `FPDFPageObj_AddMark`, `FPDFPageObjMark_SetStringParam`, และตัวอ่าน (`CountMarks`, `GetMark`, `GetName`, `GetParamStringValue`) สำหรับเทสต์และ 1.2.1
+- ป้ายชื่อ `YRK` พร้อม `Kind` (Image / Stamp / StampText / Signature / Text), `Group` (GUID ต่อชิ้นที่วาง), `V` = 1
+  - รูป/form object: ใส่ป้ายก่อน `FPDFPage_InsertObject`; vector: ทุก path ของชิ้นเดียวกันใช้ Group เดียวกัน
+  - คำจริง (ตรายาง/ข้อความที่วาง): `/YRK <</Kind/StampText/Group(...)/V 1>> BDC … EMC` ใน `PdfTextWriter` ซ้อนกับ `/OC` เดิมให้ถูกลำดับ
+  - กรอบตรายางกับคำของตรายางใช้ Group เดียวกัน
+- ใส่ป้ายเฉพาะชิ้นที่ผู้ใช้วางใน App (ไม่ใส่ใน Batch/Recovery/e-Tax รอบนี้)
+- เทสต์: บันทึกแล้วอ่านป้ายกลับได้ทุกชนิด, ตรายาง Group ตรงกัน, render หน้าก่อน/หลังใส่ป้ายเหมือนกันทุกพิกเซล, ไฟล์ที่มีลายเซ็นแล้ววางรูปเพิ่ม ลายเซ็นเดิมยังถูกต้อง, หน้าที่มี /Rotate
 
-ส่ง Codex เป็นชุด: ขั้น 1–2 → ตรวจ → ขั้น 3–4 → ตรวจ → ขั้น 5
+### ขั้น 7: จำหน้าที่อ่านค้าง (Codex `gpt-6.1-sol` · medium)
+- ไฟล์: `App/Services/ReadingPositions.cs` (ใหม่, แบบ `RecentFiles.cs`), `ViewModels/MainViewModel.cs` (`OpenFileAsync` :287, `LoadDocument` :476, `ReleaseDocumentAsync` :522), ที่ปิดแท็บ/ปิดโปรแกรม, เทสต์ใน `tests/.../App/`
+- เก็บ `%LOCALAPPDATA%\YRK\EasyPdf\reading-positions.json`: path ที่ normalize (ไม่สนตัวพิมพ์) → เลขหน้า + เวลา, สูงสุด 200 รายการ, ข้ามไฟล์ใน temp เหมือน `RecentFiles`
+- บันทึกตอนปิดเอกสาร/แท็บ/โปรแกรม; เปิดไฟล์ใหม่ (ไม่ใช่ reopen ที่มี `restore`) แล้ว `GoToPage` ถ้าหน้ายังมีอยู่ ไม่อย่างนั้นหน้า 1; ไม่กลับหน้าเมื่อหน้าที่จำคือหน้า 1
+- ล้างรายการไฟล์ล่าสุดแล้วล้างตำแหน่งด้วย (ถ้ามีคำสั่งล้าง)
+- เทสต์: บันทึก/โหลด, เกิน 200 ตัดรายการเก่า, ไฟล์ json เสียไม่แครช, หน้าที่จำเกินจำนวนหน้า → หน้า 1, ใน `AppTestHarness` เปิด-ไปหน้า 5-ปิด-เปิดใหม่ → หน้า 5; เทสต์ใช้โฟลเดอร์ temp ไม่แตะไฟล์จริง
+
+### ขั้น 8: งานค้างจาก 1.1.9 (Claude แก้เอง ≤30 บรรทัด/ไฟล์ + Codex `gpt-6-luna` · low)
+- `build/release.ps1`: รัน `build\build-guide.ps1` หลังเทสต์ (:145) ก่อน "== Publish" (:147) — Claude แก้เอง (สคริปต์ปล่อยรุ่น)
+- log ของเทสต์: ให้ `App.LogFolder` (`App.xaml.cs:99-100`) เปลี่ยนได้จากเทสต์ (internal setter) แล้วตั้งในชุดเทสต์ไปโฟลเดอร์ temp ส่วนตัว (`PrivateTempDirectory.cs`) — luna
+
+### ขั้น 9: เลขรุ่น, release notes, คู่มือ (Codex `gpt-6-luna` · low)
+- เลขรุ่น 1.2.0 ใน `Directory.Build.props`, `docs/release-notes/1.2.0.md` (ไทย/อังกฤษ), `docs/guide/th.html` + `en.html` ส่วน e-Tax และการอ่าน
+- เทียบชื่อปุ่มกับ `th.json` ทุกจุด (บทเรียน 1.1.9), ใช้คำว่า "ความทึบ"
+
+### ขั้น 10: ตรวจ (Claude + Codex read-only + Ken)
+- Claude ตรวจความปลอดภัยขั้น 5 ละเอียด และขั้น 6 ส่วนไฟล์ที่มีลายเซ็น
+- `codex exec --sandbox read-only "ตรวจ git diff ของ 1.2.0 หาบั๊ก ช่องโหว่ และสิ่งที่ผิดจาก plan.md"`
+- เปิดตัว Release ดูด้วยตา (บอก Ken ก่อน, สำรอง/คืน `*.json` ใน `%LOCALAPPDATA%\YRK\EasyPdf`) เพราะแก้ XAML หน้าต่าง e-Tax และหน้าต่างใบรับรอง
+
+ส่ง Codex เป็นชุด: ขั้น 1 (Claude) → 2–3 → ตรวจ → 4 → ตรวจ → 5–6 → ตรวจ → 7–8 → ตรวจ → 9 → 10
 
 ## การตรวจ
-- ทั้งชุดเทสต์ผ่าน (`dotnet test`) ทุกขั้น
+- `dotnet test` ทั้งชุดผ่านทุกขั้น (build ไป `-p:OutDir=` ถ้า Ken เปิดโปรแกรมอยู่)
 - Claude ดู `git diff` ทุกขั้น ส่วนความปลอดภัยอ่านละเอียด
 - Ken ทดสอบเอง:
-  - เซ็นด้วย Digital ID ที่สร้างเอง → เปิดไฟล์ → "ไม่ทราบตัวตน" → เชื่อถือ (ตรวจลายนิ้วมือตรงกับหน้าข้อมูล Digital ID) → "ถูกต้อง: คุณเลือกเชื่อถือ" → ลบในหน้าต่างรายการ → กลับเป็นไม่ทราบ
-  - ส่งออก `.cer` แล้วนำเข้าในหน้าต่างรายการ
-  - วางรูป ตรายาง ลายเซ็น หมุนอิสระ/90°/โปร่งใส บันทึก แล้วเปิดใน YRK และ Acrobat ให้ตรงกัน รวมไฟล์ที่หน้าหมุนอยู่
-  - อัปเดต 1.1.8 → 1.1.9 จริง พร้อมดูแถบความคืบหน้าบน Home และในแท็บ (ค้างจาก 1.1.8)
+  - ส่ง XML ตัวอย่าง 4 แบบเข้า validateschema ของกรมสรรพากร (Schema + Schematron): ใบกำกับมีส่วนลดรายบรรทัด+ท้ายบิล, ราคารวม VAT + ส่วนลด, ใบลดหนี้ (81), ใบเพิ่มหนี้ (80) — Claude ใส่ไฟล์ให้ Ken ติ๊ก reCAPTCHA
+  - ดู PDF ใบลดหนี้/เพิ่มหนี้ว่าอ่านง่ายและครบตามที่ต้องมี
+  - เปิด e-book อ่านถึงหน้า 30 ปิด เปิดใหม่ → หน้า 30 (ทั้งเปิดจากไฟล์ล่าสุดและดับเบิลคลิกไฟล์)
+  - วางรูป ตรายาง ลายเซ็น บันทึก แล้วเปิดใน Acrobat หน้าตาเหมือนเดิม
+  - (ถ้ามี) ใบรับรอง RSA-PSS self-signed: เชื่อถือได้ และเทียบลายนิ้วมือแบบกลุ่มละ 4 ตัว
+  - อัปเดต 1.1.9 → 1.2.0 จริง จากหน้า Home และแท็บเอกสาร
 
 ## สถานะ
-- [x] ขั้น 1: Core ตรวจด้วยรายการที่ผู้ใช้เชื่อถือ
-- [x] ขั้น 2: App รายการเชื่อถือ + UI
-- [x] ขั้น 3: Core หมุน/ความโปร่งใส
-- [x] ขั้น 4: App หมุน/ความโปร่งใส
-- [x] ขั้น 5: เลขรุ่น, release notes, คู่มือ
-- [x] ขั้น 6: ตรวจความปลอดภัย, Codex ตรวจ, ดูตัว Release (2026-11-07: หมุน 30°/180° + โปร่งใส 50%, ปุ่มเชื่อถือ, หน้าต่างยืนยัน; แก้แถบปุ่มให้ตั้งตรง. ปล่อยไว้: RSA-PSS ยังเชื่อถือไม่ได้, ลายเซ็นเส้นที่โปร่งใสเข้มขึ้นตรงจุดเส้นตัดกัน)
+- [ ] ขั้น 1: อ่านสเปก ETDA 80/81 + ส่วนลด
+- [ ] ขั้น 2: Core ส่วนลด
+- [ ] ขั้น 3: Core ใบเพิ่มหนี้/ใบลดหนี้
+- [ ] ขั้น 4: App ฟอร์มและหน้า PDF
+- [ ] ขั้น 5: RSA-PSS + ลายนิ้วมือ + รายการว่าง
+- [ ] ขั้น 6: ป้ายบนสิ่งที่ YRK วาง
+- [ ] ขั้น 7: จำหน้าที่อ่านค้าง
+- [ ] ขั้น 8: release.ps1 build คู่มือ + log ของเทสต์
+- [ ] ขั้น 9: เลขรุ่น, release notes, คู่มือ
+- [ ] ขั้น 10: ตรวจ
