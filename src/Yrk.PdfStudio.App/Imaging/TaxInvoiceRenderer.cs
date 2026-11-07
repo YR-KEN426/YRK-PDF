@@ -19,7 +19,7 @@ internal static class TaxInvoiceRenderer
     private const string Font = "Sarabun";
     private const double Body = 10.5;
     private const double RowPadding = 4;
-    private const double FooterTop = PageHeight - 150; // Totals and signatures need the space below.
+    internal static double FooterTopFor(int totalRows) => PageHeight - 150 - Math.Max(0, totalRows - 3) * 20;
 
     private static readonly CultureInfo Thai = CreateThaiCulture();
 
@@ -28,6 +28,13 @@ internal static class TaxInvoiceRenderer
 
     public static byte[] Render(TaxInvoice invoice, DateTimeOffset created)
     {
+        var lineDiscounts = invoice.Lines.Any(l => l.Discount is not null);
+        var hasDiscount = lineDiscounts || invoice.Discount is not null;
+        var totals = Totals(invoice, hasDiscount);
+        var footerTop = FooterTopFor(totals.Length);
+        double[] columns = lineDiscounts
+            ? [Margin, Margin + 30, Right - 310, Right - 265, Right - 230, Right - 150, Right - 80, Right]
+            : Columns;
         var pages = new List<List<PdfStroke>>();
         var text = new List<(int PageIndex, NormalizedPoint TopLeft, PdfColor Color, TextShaper.ShapedLine Line)>();
         var black = new PdfColor(0, 0, 0);
@@ -100,13 +107,23 @@ internal static class TaxInvoiceRenderer
             strokes.Add(new PdfStroke(split, top, split, bottom));
             y = bottom + 12;
 
+            if (invoice.IsDebitCreditNote)
+            {
+                if (invoice.Reference is { } reference)
+                    y += Write(page, $"อ้างถึงใบกำกับภาษีเลขที่ {reference.Number} ลงวันที่ {reference.IssueDate.ToString("d MMMM yyyy", Thai)}", Margin, y, wrap: Right - Margin);
+                y += Write(page, "เหตุผล: " + invoice.Reason?.Text, Margin, y, wrap: Right - Margin);
+                y += 8;
+            }
+
             // Table header.
             var headerBottom = y + 20;
             strokes.Add(new PdfStroke(Margin, y, Right, headerBottom, Fill: 0.92));
-            string[] titles = ["ลำดับ", "รายการ", "จำนวน", "หน่วย", "ราคาต่อหน่วย", "จำนวนเงิน"];
+            string[] titles = lineDiscounts
+                ? ["ลำดับ", "รายการ", "จำนวน", "หน่วย", "ราคาต่อหน่วย", "ส่วนลด", "จำนวนเงิน"]
+                : ["ลำดับ", "รายการ", "จำนวน", "หน่วย", "ราคาต่อหน่วย", "จำนวนเงิน"];
             for (var c = 0; c < titles.Length; c++)
             {
-                Write(page, titles[c], (Columns[c] + Columns[c + 1]) / 2, y + 3, bold: true, align: 0.5);
+                Write(page, titles[c], (columns[c] + columns[c + 1]) / 2, y + 3, bold: true, align: 0.5);
             }
 
             strokes.Add(new PdfStroke(Margin, y, Right, y));
@@ -116,7 +133,7 @@ internal static class TaxInvoiceRenderer
 
         void CloseTable(int page, double top, double bottom)
         {
-            foreach (var x in Columns)
+            foreach (var x in columns)
             {
                 pages[page].Add(new PdfStroke(x, top, x, bottom));
             }
@@ -131,10 +148,10 @@ internal static class TaxInvoiceRenderer
         for (var i = 0; i < invoice.Lines.Count; i++)
         {
             var line = invoice.Lines[i];
-            var descriptionWidth = Columns[2] - Columns[1] - 8;
+            var descriptionWidth = columns[2] - columns[1] - 8;
             var rowHeight = Height(line.Description, descriptionWidth) + (2 * RowPadding);
             var isLast = i == invoice.Lines.Count - 1;
-            if (y + rowHeight > (isLast ? FooterTop : PageHeight - Margin - 20))
+            if (y + rowHeight > (isLast ? footerTop : PageHeight - Margin - 20))
             {
                 CloseTable(pageIndex, tableTop, y);
                 pageIndex++;
@@ -143,16 +160,18 @@ internal static class TaxInvoiceRenderer
             }
 
             var ty = y + RowPadding;
-            Write(pageIndex, (i + 1).ToString(CultureInfo.InvariantCulture), (Columns[0] + Columns[1]) / 2, ty, align: 0.5);
-            Write(pageIndex, line.Description, Columns[1] + 4, ty, wrap: descriptionWidth);
-            Write(pageIndex, Number(line.Quantity, line.Quantity % 1 == 0 ? 0 : 2), Columns[3] - 4, ty, align: 1);
-            Write(pageIndex, line.Unit, (Columns[3] + Columns[4]) / 2, ty, align: 0.5);
-            Write(pageIndex, Number(line.UnitPrice), Columns[5] - 4, ty, align: 1);
-            Write(pageIndex, Number(line.Amount), Columns[6] - 4, ty, align: 1);
+            Write(pageIndex, (i + 1).ToString(CultureInfo.InvariantCulture), (columns[0] + columns[1]) / 2, ty, align: 0.5);
+            Write(pageIndex, line.Description, columns[1] + 4, ty, wrap: descriptionWidth);
+            Write(pageIndex, Number(line.Quantity, line.Quantity % 1 == 0 ? 0 : 2), columns[3] - 4, ty, align: 1);
+            Write(pageIndex, line.Unit, (columns[3] + columns[4]) / 2, ty, align: 0.5);
+            Write(pageIndex, Number(line.UnitPrice), columns[5] - 4, ty, align: 1);
+            if (lineDiscounts && line.Discount is not null)
+                Write(pageIndex, Number(line.DiscountAmount), columns[6] - 4, ty, align: 1);
+            Write(pageIndex, Number(line.Amount), columns[^1] - 4, ty, align: 1);
             y += rowHeight;
         }
 
-        if (y > FooterTop - 10)
+        if (y > footerTop - 10)
         {
             CloseTable(pageIndex, tableTop, y);
             pageIndex++;
@@ -161,14 +180,10 @@ internal static class TaxInvoiceRenderer
         }
 
         // The table runs down to the totals, as on a printed form.
-        var tableBottom = Math.Max(y, FooterTop - 60);
+        var tableBottom = Math.Max(y, footerTop - 60);
         CloseTable(pageIndex, tableTop, tableBottom);
 
         // --- Totals, amount in words, note and signatures --------------------------------------
-        var vat = invoice.VatRate.ToString("0.##", CultureInfo.InvariantCulture);
-        (string Label, decimal Value)[] totals = invoice.PricesIncludeVat
-            ? [("มูลค่าสินค้า/บริการ (ไม่รวมภาษี)", invoice.TaxBasis), ($"ภาษีมูลค่าเพิ่ม {vat}%", invoice.Vat), ("จำนวนเงินรวมทั้งสิ้น", invoice.GrandTotal)]
-            : [("รวมเป็นเงิน", invoice.LineTotal), ($"ภาษีมูลค่าเพิ่ม {vat}%", invoice.Vat), ("จำนวนเงินรวมทั้งสิ้น", invoice.GrandTotal)];
         var ty2 = tableBottom;
         for (var t = 0; t < totals.Length; t++)
         {
@@ -214,6 +229,37 @@ internal static class TaxInvoiceRenderer
             created,
             [new PdfAAttachment(TaxInvoice.XmlFileName, xml, "text/xml", "Source", "e-Tax Invoice (ETDA ขมธอ. 3-2560)")],
             invoice.XmpExtension).Pdf;
+    }
+
+    private static (string Label, decimal Value)[] Totals(TaxInvoice invoice, bool hasDiscount)
+    {
+        var vat = invoice.VatRate.ToString("0.##", CultureInfo.InvariantCulture);
+        var totals = new List<(string Label, decimal Value)>();
+        if (hasDiscount)
+        {
+            totals.Add(("รวมเป็นเงิน", invoice.Lines.Sum(l => l.Gross)));
+            totals.Add(("ส่วนลด", invoice.Lines.Sum(l => l.DiscountAmount) + invoice.DiscountAmount));
+        }
+        if (invoice.IsDebitCreditNote)
+        {
+            totals.Add(("มูลค่าตามใบกำกับเดิม", invoice.OriginalValue));
+            totals.Add(("มูลค่าที่ถูกต้อง", invoice.CorrectValue));
+            totals.Add(("ผลต่าง", invoice.Difference));
+        }
+        else if (hasDiscount)
+        {
+            // GrandTotal is the discounted VAT-inclusive amount supplied by Core.
+            totals.Add(("หลังหักส่วนลด", invoice.PricesIncludeVat ? invoice.GrandTotal : invoice.TaxBasis));
+            if (invoice.PricesIncludeVat) totals.Add(("มูลค่าสินค้า/บริการ (ไม่รวมภาษี)", invoice.TaxBasis));
+        }
+        else
+        {
+            totals.Add(invoice.PricesIncludeVat
+                ? ("มูลค่าสินค้า/บริการ (ไม่รวมภาษี)", invoice.TaxBasis) : ("รวมเป็นเงิน", invoice.LineTotal));
+        }
+        totals.Add(($"ภาษีมูลค่าเพิ่ม {vat}%", invoice.Vat));
+        totals.Add(("จำนวนเงินรวมทั้งสิ้น", invoice.GrandTotal));
+        return totals.ToArray();
     }
 
     /// <summary>The address as typed, with the postcode at the end of its last line (unless it is written there already).</summary>

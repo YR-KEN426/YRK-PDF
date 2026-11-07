@@ -996,6 +996,7 @@ public sealed class ETaxTests : IDisposable
                 Assert.False(Build().Buyer.UsesThaiAddressFields);
                 structured.IsChecked = true;
                 Assert.Equal("110101", Build().Buyer.Subdistrict);
+                Dialog_builds_discounts_and_notes_and_preserves_manually_edited_numbers();
                 return true;
             }
             finally
@@ -1003,6 +1004,201 @@ public sealed class ETaxTests : IDisposable
                 application.Shutdown();
             }
         });
+    }
+
+    [Theory]
+    [InlineData("CreditNote", TaxDocumentType.CreditNote, TaxDocumentType.TaxInvoice)]
+    [InlineData("InvoiceTaxInvoice", TaxDocumentType.InvoiceTaxInvoice, TaxDocumentType.InvoiceTaxInvoice)]
+    public void Migrates_the_last_number_only_to_its_document_type(string oldType, TaxDocumentType type, TaxDocumentType lastInvoiceType)
+    {
+        var path = Path.Combine(_folder.FullName, "legacy.json");
+        File.WriteAllText(path, $$"""{ "LastNumber":"INV-0009", "Type":"{{oldType}}" }""");
+        var settings = App.Services.ETaxSettings.Load(path);
+        Assert.Equal("INV-0009", settings.LastNumberFor(type));
+        Assert.Single(settings.LastNumbers);
+        Assert.Null(settings.LastNumberFor(TaxDocumentType.DebitNote));
+        Assert.Equal(lastInvoiceType, settings.LastInvoiceType);
+        Assert.Null(settings.LastNumber);
+        settings.Save(path);
+        var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        Assert.False(json.ContainsKey("LastNumber"));
+        Assert.Equal("INV-0009", json["LastNumbers"]![oldType]!.GetValue<string>());
+        var loaded = App.Services.ETaxSettings.Load(path);
+        Assert.Equal(settings.LastNumbers, loaded.LastNumbers);
+        Assert.Equal(lastInvoiceType, loaded.LastInvoiceType);
+        loaded.SetLastNumber(TaxDocumentType.TaxInvoice, "INV-0040");
+        loaded.SetLastNumber(TaxDocumentType.CreditNote, "CN-0002");
+        loaded.Save(path);
+        loaded = App.Services.ETaxSettings.Load(path);
+        Assert.Equal("INV-0040", loaded.LastNumberFor(TaxDocumentType.TaxInvoice));
+        Assert.Equal("CN-0002", loaded.LastNumberFor(TaxDocumentType.CreditNote));
+        Assert.Equal("INV-0041", App.Services.ETaxSettings.NextNumber(loaded.LastNumberFor(TaxDocumentType.TaxInvoice)));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("broken")]
+    [InlineData("{}")]
+    [InlineData("null")]
+    public void Empty_or_invalid_settings_use_defaults(string content)
+    {
+        var path = Path.Combine(_folder.FullName, "empty.json");
+        File.WriteAllText(path, content);
+        var settings = App.Services.ETaxSettings.Load(path);
+        Assert.Empty(settings.LastNumbers);
+        Assert.Equal(TaxDocumentType.TaxInvoice, settings.Type);
+        Assert.Equal(TaxDocumentType.TaxInvoice, settings.LastInvoiceType);
+    }
+
+    [Theory]
+    [InlineData("50", true, 50, false)]
+    [InlineData("50.5", true, 50.5, false)]
+    [InlineData("10%", true, 10, true)]
+    [InlineData("10 %", true, 10, true)]
+    [InlineData(" 10% ", true, 10, true)]
+    [InlineData("฿1,000", true, 1000, false)]
+    [InlineData("", true, -1, false)]
+    [InlineData("abc", false, -1, false)]
+    [InlineData("-5", false, -1, false)]
+    [InlineData("10%%", false, -1, false)]
+    [InlineData("%", false, -1, false)]
+    public void Parses_discounts_in_baht_or_percent(string text, bool ok, double value, bool percent)
+    {
+        var parsed = App.Views.ETaxInvoiceDialog.ParseDiscount(text);
+        Assert.Equal(ok, parsed.Ok);
+        Assert.Equal(value < 0 ? null : new TaxDiscount((decimal)value, percent), parsed.Discount);
+        var row = new App.Views.ETaxInvoiceDialog.ItemRow { Description = "Item", UnitPrice = "2000", Discount = text };
+        Assert.Equal(ok, row.IsValid);
+        if (ok)
+        {
+            Assert.Equal(parsed.Discount, row.ToLine().Discount);
+            Assert.Equal(row.ToLine().Amount.ToString("#,##0.00", System.Globalization.CultureInfo.InvariantCulture), row.Amount);
+        }
+    }
+
+    [Fact]
+    public void Totals_reserve_more_footer_space_without_moving_the_legacy_footer()
+    {
+        Assert.Equal(841.89 - 150, App.Imaging.TaxInvoiceRenderer.FooterTopFor(3));
+        Assert.Equal(App.Imaging.TaxInvoiceRenderer.FooterTopFor(3) - 40, App.Imaging.TaxInvoiceRenderer.FooterTopFor(5));
+        Assert.True(App.Imaging.TaxInvoiceRenderer.FooterTopFor(7) < App.Imaging.TaxInvoiceRenderer.FooterTopFor(5));
+    }
+
+    // Runs inside the existing STA application test: WPF allows only one Application per AppDomain.
+    private static void Dialog_builds_discounts_and_notes_and_preserves_manually_edited_numbers()
+    {
+        var settings = new App.Services.ETaxSettings { Seller = Sample().Seller, LastInvoiceType = TaxDocumentType.InvoiceTaxInvoice };
+        settings.SetLastNumber(TaxDocumentType.TaxInvoice, "INV-0009");
+        settings.SetLastNumber(TaxDocumentType.CreditNote, "CN-0002");
+        settings.SetLastNumber(TaxDocumentType.DebitNote, "DN-0004");
+        var dialog = new App.Views.ETaxInvoiceDialog(settings); // Never shown.
+        T Field<T>(string name) => (T)dialog.FindName(name);
+        void Text(string name, string value) => Field<System.Windows.Controls.TextBox>(name).Text = value;
+        TaxInvoice Build() => (TaxInvoice)typeof(App.Views.ETaxInvoiceDialog)
+            .GetMethod("Build", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, null)!;
+        var grid = Field<System.Windows.Controls.DataGrid>("ItemsGrid");
+        var items = (System.Collections.ObjectModel.ObservableCollection<App.Views.ETaxInvoiceDialog.ItemRow>)grid.ItemsSource;
+        items.Add(new() { Description = "Item A", UnitPrice = "500", Discount = "50" });
+        items.Add(new() { Description = "Item B", UnitPrice = "100", Discount = "10%" });
+        Text("BillDiscountInput", "5%");
+        Assert.Equal(new TaxDiscount(50), Build().Lines[0].Discount);
+        Assert.Equal(new TaxDiscount(10, true), Build().Lines[1].Discount);
+        Assert.Equal(new TaxDiscount(5, true), Build().Discount);
+        Text("BuyerName", "Buyer");
+        Field<System.Windows.Controls.ComboBox>("BuyerKind").SelectedIndex = 3;
+        Field<App.Views.ThaiAddressFields>("BuyerFields").Restore(WithStructuredBuyer().Buyer);
+        Assert.True(Field<System.Windows.Controls.Button>("OkButton").IsEnabled);
+        Text("BillDiscountInput", "abc");
+        Assert.False(Field<System.Windows.Controls.Button>("OkButton").IsEnabled);
+        Text("BillDiscountInput", "5%");
+        var type = Field<System.Windows.Controls.ComboBox>("TypeInput");
+        var reason = Field<System.Windows.Controls.ComboBox>("ReasonInput");
+        type.SelectedIndex = 5;
+        Assert.Equal("CN-0003", Build().Number);
+        Assert.Equal(System.Windows.Visibility.Visible, Field<System.Windows.FrameworkElement>("ReferencePanel").Visibility);
+        Assert.Equal(-1, reason.SelectedIndex);
+        Assert.Contains("Enter the debit or credit note reason code.", Build().Problems());
+        Assert.Equal(11, reason.Items.Count);
+        Text("ReferenceNumberInput", "ORIGINAL-123");
+        Field<System.Windows.Controls.DatePicker>("ReferenceDateInput").SelectedDate = new DateTime(2026, 10, 1);
+        Text("OriginalValueInput", "฿1,000.50");
+        reason.SelectedIndex = 1;
+        Assert.Equal(new TaxInvoiceReference("ORIGINAL-123", new DateTime(2026, 10, 1), TaxDocumentType.InvoiceTaxInvoice, 1000.50m), Build().Reference);
+        Assert.Equal(new TaxInvoiceReason("CDNG02", "สินค้าชำรุดเสียหาย"), Build().Reason);
+        Assert.False(Field<System.Windows.Controls.TextBox>("ReasonDetailsInput").IsEnabled);
+        reason.SelectedIndex = 5;
+        Assert.True(Field<System.Windows.Controls.TextBox>("ReasonDetailsInput").IsEnabled);
+        Assert.Contains("Enter the reason text for a code ending in 99.", Build().Problems());
+        Text("ReasonDetailsInput", "เหตุผลที่พิมพ์เอง");
+        Assert.Equal(new TaxInvoiceReason("CDNG99", "เหตุผลที่พิมพ์เอง"), Build().Reason);
+        Assert.Empty(Build().Problems());
+        type.SelectedIndex = 4;
+        Assert.Equal("DN-0005", Build().Number);
+        Assert.Equal(6, reason.Items.Count);
+        Assert.Equal(-1, reason.SelectedIndex);
+        reason.SelectedIndex = 0;
+        Assert.Equal("DBNG01", Build().Reason!.Code);
+        Text("NumberInput", "CUSTOM-42");
+        type.SelectedIndex = 5;
+        Assert.Equal("CUSTOM-42", Build().Number);
+        Assert.Equal(-1, reason.SelectedIndex);
+        type.SelectedIndex = 0;
+        Assert.Equal("CUSTOM-42", Build().Number);
+        Assert.Null(Build().Reference);
+        Assert.Null(Build().Reason);
+        Assert.Equal(System.Windows.Visibility.Collapsed, Field<System.Windows.FrameworkElement>("ReferencePanel").Visibility);
+        Assert.Equal(new TaxDiscount(5, true), Build().Discount);
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.TaxInvoice, false, false, false)]
+    [InlineData(TaxDocumentType.TaxInvoice, false, true, false)]
+    [InlineData(TaxDocumentType.TaxInvoice, true, true, false)]
+    [InlineData(TaxDocumentType.DebitNote, false, false, false)]
+    [InlineData(TaxDocumentType.CreditNote, false, false, false)]
+    [InlineData(TaxDocumentType.DebitNote, false, true, true)]
+    [InlineData(TaxDocumentType.CreditNote, true, true, true)]
+    public async Task Renders_discounts_and_adjustments_as_searchable_pdf_a3(TaxDocumentType type, bool inclusive, bool discounted, bool manyPages)
+    {
+        var isNote = type is TaxDocumentType.DebitNote or TaxDocumentType.CreditNote;
+        var invoice = Sample() with
+        {
+            Type = type, PricesIncludeVat = inclusive,
+            Lines = Enumerable.Range(1, manyPages ? 40 : 2).Select(i => new TaxInvoiceLine($"รายการทดสอบ {i}", 1, "ชิ้น", 200,
+                discounted && i % 2 == 1 ? new TaxDiscount(10, true) : null)).ToArray(),
+            Discount = discounted ? new TaxDiscount(5, true) : null,
+            Reference = isNote ? new TaxInvoiceReference("ORIGINAL-123", new DateTime(2026, 10, 1), TaxDocumentType.TaxInvoice, 10000) : null,
+            Reason = isNote ? new TaxInvoiceReason(type == TaxDocumentType.DebitNote ? "DBNG99" : "CDNG99", "เหตุผลทดสอบ") : null,
+        };
+        Assert.Empty(invoice.Problems());
+        var created = DateTimeOffset.Now;
+        var pdf = Sta.Run(() => App.Imaging.TaxInvoiceRenderer.Render(invoice, created));
+        var path = Path.Combine(_folder.FullName, "adjustment.pdf");
+        await File.WriteAllBytesAsync(path, pdf);
+        await using (var document = await _engine.OpenAsync(path))
+        {
+            Assert.True(manyPages ? document.PageCount > 1 : document.PageCount == 1);
+            var text = string.Join("\n", await Task.WhenAll(Enumerable.Range(0, document.PageCount).Select(p => document.GetPageTextAsync(p))));
+            if (discounted) Assert.Contains("ส่วนลด", text, StringComparison.Ordinal);
+            else Assert.DoesNotContain("ส่วนลด", text, StringComparison.Ordinal);
+            if (discounted && !isNote) Assert.Contains("หลังหักส่วนลด", text, StringComparison.Ordinal);
+            if (isNote)
+            {
+                Assert.Contains("มูลค่าที่ถูกต้อง", text, StringComparison.Ordinal);
+                Assert.Contains("ผลต่าง", text, StringComparison.Ordinal);
+                Assert.Contains("ORIGINAL-123", text, StringComparison.Ordinal);
+                Assert.Contains("เหตุผลทดสอบ", text, StringComparison.Ordinal);
+                Assert.Contains(invoice.CorrectValue.ToString("#,##0.00", System.Globalization.CultureInfo.InvariantCulture), text, StringComparison.Ordinal);
+            }
+            Assert.Contains(invoice.GrandTotal.ToString("#,##0.00", System.Globalization.CultureInfo.InvariantCulture), text, StringComparison.Ordinal);
+        }
+        var cos = CosDocument.Load(pdf);
+        var metadata = (CosStream)cos.Resolve(cos.Catalog["Metadata"])!;
+        Assert.Contains("<pdfaid:part>3</pdfaid:part>", Encoding.UTF8.GetString(CosFilters.Decode(metadata, cos.Resolve)), StringComparison.Ordinal);
+        Assert.Contains("<pdfaid:conformance>U</pdfaid:conformance>", Encoding.UTF8.GetString(CosFilters.Decode(metadata, cos.Resolve)), StringComparison.Ordinal);
+        var spec = (CosDictionary)cos.Resolve(((CosArray)cos.Catalog["AF"]!)[0])!;
+        var file = (CosStream)cos.Resolve(((CosDictionary)spec["EF"]!)["F"])!;
+        Assert.Equal(invoice.ToXml(created), CosFilters.Decode(file, cos.Resolve));
     }
 
     private static TaxInvoice Sample() => new(

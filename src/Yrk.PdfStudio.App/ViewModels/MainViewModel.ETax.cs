@@ -24,8 +24,10 @@ public sealed partial class MainViewModel
         }
 
         settings.Seller = invoice.Seller;
-        settings.LastNumber = invoice.Number;
+        settings.SetLastNumber(invoice.Type, invoice.Number);
         settings.Type = invoice.Type;
+        if (ETaxSettings.IsInvoiceType(invoice.Type)) settings.LastInvoiceType = invoice.Type;
+        else if (invoice.Reference is { } reference) settings.LastInvoiceType = reference.Type;
         settings.VatRate = invoice.VatRate;
         settings.PricesIncludeVat = invoice.PricesIncludeVat;
         settings.Save();

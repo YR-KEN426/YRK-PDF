@@ -20,7 +20,19 @@ public sealed class ETaxSettings
 
     public TaxParty? Seller { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? LastNumber { get; set; }
+
+    public Dictionary<TaxDocumentType, string> LastNumbers { get; set; } = [];
+
+    public TaxDocumentType LastInvoiceType { get; set; } = TaxDocumentType.TaxInvoice;
+
+    public string? LastNumberFor(TaxDocumentType type) => LastNumbers.GetValueOrDefault(type);
+
+    public void SetLastNumber(TaxDocumentType type, string number) => LastNumbers[type] = number;
+
+    public static bool IsInvoiceType(TaxDocumentType type) => type is TaxDocumentType.TaxInvoice
+        or TaxDocumentType.InvoiceTaxInvoice or TaxDocumentType.ReceiptTaxInvoice or TaxDocumentType.DeliveryTaxInvoice;
 
     public TaxDocumentType Type { get; set; } = TaxDocumentType.TaxInvoice;
 
@@ -33,7 +45,19 @@ public sealed class ETaxSettings
         path ??= DefaultPath;
         try
         {
-            return File.Exists(path) ? JsonSerializer.Deserialize<ETaxSettings>(File.ReadAllText(path), Json) ?? new() : new();
+            if (!File.Exists(path)) return new();
+            var text = File.ReadAllText(path);
+            var settings = JsonSerializer.Deserialize<ETaxSettings>(text, Json) ?? new();
+            settings.LastNumbers ??= [];
+            if (settings.LastNumbers.Count == 0 && !string.IsNullOrWhiteSpace(settings.LastNumber))
+                settings.SetLastNumber(settings.Type, settings.LastNumber);
+            settings.LastNumber = null;
+            using var document = JsonDocument.Parse(text);
+            if (document.RootElement.ValueKind == JsonValueKind.Object
+                && !document.RootElement.TryGetProperty(nameof(LastInvoiceType), out _) && IsInvoiceType(settings.Type))
+                settings.LastInvoiceType = settings.Type;
+            if (!IsInvoiceType(settings.LastInvoiceType)) settings.LastInvoiceType = TaxDocumentType.TaxInvoice;
+            return settings;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {

@@ -55,7 +55,7 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="Document" Style="{StaticResource Label}" />
-                        <ComboBox x:Name="TypeInput" AutomationProperties.Name="Document" />
+                        <ComboBox x:Name="TypeInput" AutomationProperties.Name="Document" SelectionChanged="OnTypeChanged" />
                     </StackPanel>
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="Number" Style="{StaticResource Label}" />
@@ -63,9 +63,33 @@
                     </StackPanel>
                     <StackPanel Grid.Column="4">
                         <TextBlock Text="Date" Style="{StaticResource Label}" />
-                        <DatePicker x:Name="DateInput" AutomationProperties.Name="Date" />
+                        <DatePicker x:Name="DateInput" AutomationProperties.Name="Date" SelectedDateChanged="OnChanged" />
                     </StackPanel>
                 </Grid>
+
+                <StackPanel x:Name="ReferencePanel" Visibility="Collapsed" Margin="0,10,0,0">
+                    <TextBlock Text="Original tax invoice" FontWeight="SemiBold" />
+                    <WrapPanel>
+                        <StackPanel Width="170" Margin="0,0,8,0">
+                            <TextBlock Text="Number" Style="{StaticResource Label}" />
+                            <TextBox x:Name="ReferenceNumberInput" AutomationProperties.Name="Original invoice number" TextChanged="OnChanged" />
+                        </StackPanel>
+                        <StackPanel Width="170" Margin="0,0,8,0">
+                            <TextBlock Text="Date" Style="{StaticResource Label}" />
+                            <DatePicker x:Name="ReferenceDateInput" AutomationProperties.Name="Original invoice date" SelectedDateChanged="OnChanged" />
+                        </StackPanel>
+                        <StackPanel Width="170">
+                            <TextBlock Text="Value before VAT" Style="{StaticResource Label}" />
+                            <TextBox x:Name="OriginalValueInput" AutomationProperties.Name="Value before VAT" TextChanged="OnChanged" />
+                        </StackPanel>
+                    </WrapPanel>
+                    <TextBlock Text="Original invoice type" Style="{StaticResource Label}" />
+                    <ComboBox x:Name="ReferenceTypeInput" AutomationProperties.Name="Original invoice type" SelectionChanged="OnChanged" />
+                    <TextBlock Text="Reason" Style="{StaticResource Label}" />
+                    <ComboBox x:Name="ReasonInput" AutomationProperties.Name="Reason" SelectionChanged="OnReasonChanged" />
+                    <TextBlock Text="Reason details" Style="{StaticResource Label}" />
+                    <TextBox x:Name="ReasonDetailsInput" AutomationProperties.Name="Reason details" TextChanged="OnChanged" TextWrapping="Wrap" AcceptsReturn="True" MinLines="2" IsEnabled="False" />
+                </StackPanel>
 
                 <Grid Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>
@@ -149,6 +173,8 @@
                 <TextBlock Text="Type in the empty last row to add an item; select a row and press Delete to remove it." FontSize="11"
                            Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0" />
 
+                <TextBlock Text="Bill discount" Style="{StaticResource Label}" />
+                <TextBox x:Name="BillDiscountInput" AutomationProperties.Name="Bill discount" TextChanged="OnChanged" />
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                     <TextBlock Text="VAT %" VerticalAlignment="Center" />
                     <TextBox x:Name="VatInput" Width="50" Margin="6,0,16,0" Text="7" TextAlignment="Center" AutomationProperties.Name="VAT percent" TextChanged="OnChanged" />
