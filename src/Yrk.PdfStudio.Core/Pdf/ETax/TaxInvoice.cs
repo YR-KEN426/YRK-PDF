@@ -124,10 +124,19 @@ public sealed record TaxParty(
     private static string Digits(string text) => new(text.Where(char.IsAsciiDigit).ToArray());
 }
 
-/// <param name="Unit">The unit as written (for example "ชิ้น", "EA"); empty for a service.</param>
-public sealed record TaxInvoiceLine(string Description, decimal Quantity, string Unit, decimal UnitPrice)
+/// <summary>A discount in baht, or as a percentage of the amount being discounted.</summary>
+public sealed record TaxDiscount(decimal Value, bool IsPercent = false)
 {
-    public decimal Amount => Math.Round(Quantity * UnitPrice, 2, MidpointRounding.AwayFromZero);
+    internal decimal Of(decimal amount) => IsPercent ? amount * Value / 100 : Value;
+}
+
+/// <param name="Unit">The unit as written (for example "ชิ้น", "EA"); empty for a service.</param>
+/// <param name="Discount">A discount on the whole line, before VAT is calculated.</param>
+public sealed record TaxInvoiceLine(string Description, decimal Quantity, string Unit, decimal UnitPrice, TaxDiscount? Discount = null)
+{
+    public decimal DiscountAmount => Math.Round(Discount?.Of(Quantity * UnitPrice) ?? 0, 2, MidpointRounding.AwayFromZero);
+
+    public decimal Amount => Math.Round(Quantity * UnitPrice - (Discount?.Of(Quantity * UnitPrice) ?? 0), 2, MidpointRounding.AwayFromZero);
 }
 
 /// <summary>An e-Tax Invoice: what is printed on the PDF and written in its XML (ขมธอ. 3-2560 version 2.0).</summary>
@@ -142,7 +151,8 @@ public sealed record TaxInvoice(
     IReadOnlyList<TaxInvoiceLine> Lines,
     decimal VatRate = 7,
     bool PricesIncludeVat = false,
-    string? Note = null)
+    string? Note = null,
+    TaxDiscount? Discount = null)
 {
     /// <summary>The name ETDA gives the XML inside the PDF.</summary>
     public const string XmlFileName = "ETDA-invoice.xml";
@@ -160,12 +170,17 @@ public sealed record TaxInvoice(
 
     public decimal LineTotal => Lines.Sum(l => l.Amount);
 
+    /// <summary>The bill-level allowance only, in the same pricing mode as the lines.</summary>
+    public decimal DiscountAmount => Math.Round(Discount?.Of(LineTotal) ?? 0, 2, MidpointRounding.AwayFromZero);
+
+    private decimal DiscountedTotal => LineTotal - DiscountAmount;
+
     /// <summary>The value before VAT.</summary>
-    public decimal TaxBasis => PricesIncludeVat ? LineTotal - Vat : LineTotal;
+    public decimal TaxBasis => PricesIncludeVat ? DiscountedTotal - Vat : DiscountedTotal;
 
     public decimal Vat => PricesIncludeVat
-        ? Math.Round(LineTotal * VatRate / (100 + VatRate), 2, MidpointRounding.AwayFromZero)
-        : Math.Round(LineTotal * VatRate / 100, 2, MidpointRounding.AwayFromZero);
+        ? Math.Round(DiscountedTotal * VatRate / (100 + VatRate), 2, MidpointRounding.AwayFromZero)
+        : Math.Round(DiscountedTotal * VatRate / 100, 2, MidpointRounding.AwayFromZero);
 
     public decimal GrandTotal => TaxBasis + Vat;
 
@@ -254,7 +269,35 @@ public sealed record TaxInvoice(
             problems.Add("Each item needs a description, a quantity above zero and a price.");
         }
 
+        foreach (var line in Lines)
+        {
+            CheckDiscount(line.Discount, line.Quantity * line.UnitPrice, "line amount");
+        }
+
+        CheckDiscount(Discount, LineTotal, "invoice total");
+
         return problems.Distinct().ToList();
+
+        void CheckDiscount(TaxDiscount? discount, decimal amount, string scope)
+        {
+            if (discount is null)
+            {
+                return;
+            }
+
+            if (discount.Value < 0)
+            {
+                problems.Add("Discounts cannot be negative.");
+            }
+            else if (discount.IsPercent && discount.Value > 100)
+            {
+                problems.Add("A discount percentage cannot exceed 100.");
+            }
+            else if (discount.Value > 0 && discount.Of(amount) > amount)
+            {
+                problems.Add($"The discount cannot exceed the {scope}.");
+            }
+        }
     }
 
     /// <summary>A Thai tax ID or ID card number: 13 digits whose last one is the check digit.</summary>
@@ -371,6 +414,20 @@ public sealed record TaxInvoice(
                 End();
             }
 
+            void Allowance(decimal amount)
+            {
+                if (amount == 0)
+                {
+                    return;
+                }
+
+                Start("SpecifiedTradeAllowanceCharge");
+                Element("ChargeIndicator", "false");
+                Element("ActualAmount", Amount(amount), ("currencyID", "THB"));
+                Element("TypeCode", "95");
+                End();
+            }
+
             xml.WriteStartDocument();
             xml.WriteStartElement("rsm", "TaxInvoice_CrossIndustryInvoice", Rsm);
             xml.WriteAttributeString("xmlns", "ram", null, Ram);
@@ -407,8 +464,14 @@ public sealed record TaxInvoice(
             Start("ApplicableHeaderTradeSettlement");
             Element("InvoiceCurrencyCode", "THB", ("listID", "ISO 4217 3A"));
             Tax(TaxBasis, Vat);
+            Allowance(DiscountAmount);
             Start("SpecifiedTradeSettlementHeaderMonetarySummation");
             Element("LineTotalAmount", Amount(LineTotal));
+            if (DiscountAmount != 0)
+            {
+                Element("AllowanceTotalAmount", Amount(DiscountAmount));
+            }
+
             Element("TaxBasisTotalAmount", Amount(TaxBasis));
             Element("TaxTotalAmount", Amount(Vat));
             Element("GrandTotalAmount", Amount(GrandTotal));
@@ -439,6 +502,7 @@ public sealed record TaxInvoice(
                 End();
                 Start("SpecifiedLineTradeSettlement");
                 Tax(lineBasis, lineVat);
+                Allowance(line.DiscountAmount);
                 Start("SpecifiedTradeSettlementLineMonetarySummation");
                 Element("TaxTotalAmount", Amount(lineVat));
                 Element("NetLineTotalAmount", Amount(lineBasis), ("currencyID", "THB"));
@@ -456,13 +520,39 @@ public sealed record TaxInvoice(
         return output.ToArray();
     }
 
-    /// <summary>The VAT of each line. Rounded line by line they can miss the VAT of the whole by a satang or so, which the last line takes up.</summary>
+    /// <summary>The VAT of each line after its proportional share of the bill discount, with rounding reconciled to the invoice VAT.</summary>
     internal IReadOnlyList<decimal> LineVats()
     {
-        var vats = Lines.Select(line => Math.Round(PricesIncludeVat ? line.Amount * VatRate / (100 + VatRate) : line.Amount * VatRate / 100, 2, MidpointRounding.AwayFromZero)).ToList();
+        var total = LineTotal;
+        var discount = DiscountAmount;
+        var vats = Lines.Select(line =>
+        {
+            var amount = discount == 0 || total == 0 ? line.Amount : line.Amount - discount * line.Amount / total;
+            return Math.Round(PricesIncludeVat ? amount * VatRate / (100 + VatRate) : amount * VatRate / 100, 2, MidpointRounding.AwayFromZero);
+        }).ToList();
         if (vats.Count > 0)
         {
-            vats[^1] += Vat - vats.Sum();
+            var remainder = Vat - vats.Sum();
+            if (discount == 0)
+            {
+                // Preserve the existing rounding and XML exactly when no bill allowance applies.
+                vats[^1] += remainder;
+            }
+            else
+            {
+                // A free last line must not acquire negative VAT when rounded lines overshoot.
+                for (var i = vats.Count - 1; i >= 0 && remainder != 0; i--)
+                {
+                    if (Lines[i].Amount <= 0)
+                    {
+                        continue;
+                    }
+
+                    var adjustment = Math.Max(remainder, -vats[i]);
+                    vats[i] += adjustment;
+                    remainder -= adjustment;
+                }
+            }
         }
 
         return vats;
