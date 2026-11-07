@@ -74,7 +74,7 @@ public sealed class ETaxTests : IDisposable
         Assert.Equal(correct, invoice.CorrectValue);
         Assert.Equal(243m, invoice.Difference);
         Assert.Equal(260.01m, invoice.GrandTotal);
-        Assert.Equal(invoice.Vat, invoice.LineVats().Sum());
+        AssertBillDiscountTaxes(invoice, xml);
         Assert.Empty(invoice.Problems());
     }
 
@@ -102,6 +102,10 @@ public sealed class ETaxTests : IDisposable
         Assert.Equal(correct, XmlAmount(sums.Element(DcnRam + "LineTotalAmount")!));
         Assert.Equal(difference, XmlAmount(sums.Element(DcnRam + "DifferenceInformationAmount")!));
         Assert.Equal(grand, XmlAmount(sums.Element(DcnRam + "GrandTotalAmount")!));
+        if (includesVat)
+        {
+            AssertBillDiscountTaxes(invoice, xml);
+        }
         if (!includesVat)
         {
             Assert.Equal(["OriginalInformationAmount", "LineTotalAmount", "DifferenceInformationAmount", "TaxBasisTotalAmount", "TaxTotalAmount", "GrandTotalAmount"],
@@ -243,13 +247,13 @@ public sealed class ETaxTests : IDisposable
         Assert.Equal(xml, CosFilters.Decode(file, cos.Resolve));
     }
 
-    // SHA-256 captured from HEAD (Step 2), including the XML declaration and whitespace.
+    // No-discount SHA-256 captured from HEAD (Step 2), including the XML declaration and whitespace.
     [Theory]
-    [InlineData(TaxDocumentType.TaxInvoice, "75333A1F18913D8B9C4425BA5C2C7959C3180AEB8352B34B8B8824E1EBE3A146", "78B3D2E40AF2A99E6BC6835EDF05F041DE76FFBF4E69DDC1B65147511C7E2F42")]
-    [InlineData(TaxDocumentType.InvoiceTaxInvoice, "3730A166665A81CAC215958ABA0EA5825BB5BE48417789B78EFA4B33D0D24DDE", "90BEAAFEFC17F484E5EA15C576432A536118B4C3280DB37AA980AA7183BC24E3")]
-    [InlineData(TaxDocumentType.ReceiptTaxInvoice, "676D7A5602474C04B401D3BCD00024C5C496502DB85CFC596699BBC502140635", "4D6727F4ADB8F209AC7AED7996F83E4C4F4BCAB59B17A2881CB65F78734ECFAF")]
-    [InlineData(TaxDocumentType.DeliveryTaxInvoice, "D5E9626A9E57621F735DD088516A8EFC1452DB128FA6D21D4EDD837166C67A68", "8D26F4BFC1EC15BE9EAECD5EA46F5ADF49F9D2EB91EA505AAFC5B9E5BA779C1B")]
-    public void Existing_invoice_types_keep_their_xml_bytes(TaxDocumentType type, string golden, string discountedGolden)
+    [InlineData(TaxDocumentType.TaxInvoice, "75333A1F18913D8B9C4425BA5C2C7959C3180AEB8352B34B8B8824E1EBE3A146")]
+    [InlineData(TaxDocumentType.InvoiceTaxInvoice, "3730A166665A81CAC215958ABA0EA5825BB5BE48417789B78EFA4B33D0D24DDE")]
+    [InlineData(TaxDocumentType.ReceiptTaxInvoice, "676D7A5602474C04B401D3BCD00024C5C496502DB85CFC596699BBC502140635")]
+    [InlineData(TaxDocumentType.DeliveryTaxInvoice, "D5E9626A9E57621F735DD088516A8EFC1452DB128FA6D21D4EDD837166C67A68")]
+    public void Existing_invoice_types_keep_their_xml_bytes_without_discounts(TaxDocumentType type, string golden)
     {
         var invoice = new TaxInvoice(type, "INV-001", new DateTime(2026, 11, 7),
             new TaxParty("Seller", TaxIdKind.TaxId, "0105536000313", "00000", "Street", "10310",
@@ -258,8 +262,6 @@ public sealed class ETaxTests : IDisposable
             [new("A", 2, "EA", 100), new("B", 1, "", 50)], Note: "Note");
         var created = new DateTimeOffset(2026, 11, 7, 9, 0, 0, TimeSpan.FromHours(7));
         Assert.Equal(golden, Convert.ToHexString(SHA256.HashData(invoice.ToXml(created))));
-        var discounted = invoice with { Lines = [new("A", 2, "EA", 100, new(10, true)), new("B", 1, "", 50, new(5))], Discount = new(20) };
-        Assert.Equal(discountedGolden, Convert.ToHexString(SHA256.HashData(discounted.ToXml(created))));
     }
 
     private static TaxInvoice Adjustment(TaxDocumentType type) => Sample() with
@@ -300,6 +302,7 @@ public sealed class ETaxTests : IDisposable
         var invoice = Sample() with { Lines = [new TaxInvoiceLine("ก", 1, "ชิ้น", 0.33m), new TaxInvoiceLine("ข", 1, "ชิ้น", 0.33m), new TaxInvoiceLine("ค", 1, "ชิ้น", 0.33m)] };
 
         Assert.Equal(0.07m, invoice.Vat);
+        Assert.Equal(new[] { 0.02m, 0.02m, 0.03m }, invoice.LineVats());
         Assert.Equal(invoice.Vat, invoice.LineVats().Sum());
 
         var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
@@ -373,7 +376,7 @@ public sealed class ETaxTests : IDisposable
         Assert.Equal(243m, invoice.TaxBasis);
         Assert.Equal(17.01m, invoice.Vat);
         Assert.Equal(260.01m, invoice.GrandTotal);
-        Assert.Equal(new[] { 11.34m, 5.67m }, invoice.LineVats());
+        Assert.Equal(new[] { 12.60m, 6.30m }, invoice.LineVats());
         Assert.Empty(invoice.Problems());
 
         var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
@@ -386,8 +389,7 @@ public sealed class ETaxTests : IDisposable
             sums.Elements().Select(e => e.Name.LocalName));
         Assert.Equal(new[] { 270m, 27m, 243m, 17.01m, 260.01m }, sums.Elements().Select(XmlAmount));
         Assert.Equal(new[] { 180m, 90m }, xml.Descendants(Ram + "NetLineTotalAmount").Select(XmlAmount));
-        Assert.Equal(invoice.Vat, xml.Descendants(Ram + "SpecifiedLineTradeSettlement")
-            .Select(s => XmlAmount(s.Element(Ram + "ApplicableTradeTax")!.Element(Ram + "CalculatedAmount")!)).Sum());
+        AssertBillDiscountTaxes(invoice, xml);
     }
 
     [Theory]
@@ -407,7 +409,7 @@ public sealed class ETaxTests : IDisposable
         Assert.Equal(810m, invoice.TaxBasis);
         Assert.Equal(56.70m, invoice.Vat);
         Assert.Equal(866.70m, invoice.GrandTotal);
-        Assert.Equal(invoice.Vat, invoice.LineVats().Sum());
+        Assert.Equal(new[] { 63m }, invoice.LineVats());
         Assert.Empty(invoice.Problems());
 
         var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
@@ -416,12 +418,13 @@ public sealed class ETaxTests : IDisposable
         AssertAllowance(xml.Descendants(Ram + "SpecifiedLineTradeSettlement").Single().Element(Ram + "SpecifiedTradeAllowanceCharge")!, 107);
         Assert.Equal(810m, XmlAmount(header.Element(Ram + "ApplicableTradeTax")!.Element(Ram + "BasisAmount")!));
         Assert.Equal(866.70m, XmlAmount(xml.Descendants(Ram + "GrandTotalAmount").Single()));
+        AssertBillDiscountTaxes(invoice, xml);
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Distributed_bill_discounts_reconcile_line_vat_in_both_pricing_modes(bool includesVat)
+    public void Bill_discounts_leave_line_taxes_and_totals_in_both_pricing_modes(bool includesVat)
     {
         var invoice = Sample() with
         {
@@ -431,35 +434,63 @@ public sealed class ETaxTests : IDisposable
 
         Assert.Equal(0.10m, invoice.DiscountAmount);
         Assert.Equal(0.06m, invoice.Vat);
-        Assert.Equal(invoice.Vat, invoice.LineVats().Sum());
+        Assert.Equal(new[] { 0.02m, 0.02m, 0.02m }, invoice.LineVats());
         var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
-        Assert.Equal(invoice.Vat, xml.Descendants(Ram + "SpecifiedTradeSettlementLineMonetarySummation")
-            .Select(s => XmlAmount(s.Element(Ram + "TaxTotalAmount")!)).Sum());
+        AssertBillDiscountTaxes(invoice, xml);
     }
 
-    [Fact]
-    public void Reconciles_rounding_without_negative_vat_on_a_free_last_line()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Bill_discount_does_not_reconcile_line_vat_even_with_a_free_last_line(bool includesVat)
     {
         var invoice = Sample() with
         {
             Lines = [new("A", 1, "EA", 0.08m), new("B", 1, "EA", 0.08m), new("Free", 1, "EA", 0)],
             Discount = new(0.01m),
+            PricesIncludeVat = includesVat,
         };
-        Assert.Equal(new[] { 0.01m, 0m, 0m }, invoice.LineVats());
-        Assert.Equal(invoice.Vat, invoice.LineVats().Sum());
+        Assert.Equal(new[] { 0.01m, 0.01m, 0m }, invoice.LineVats());
+        Assert.Equal(0.01m, invoice.Vat);
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+        AssertBillDiscountTaxes(invoice, xml);
     }
 
     [Theory]
     [InlineData(1, 1.005, 0, false, 1.01, 0)]
     [InlineData(1, 1.005, 0.01, false, 1, 0.01)]
-    [InlineData(3, 0.335, 10, true, 0.90, 0.10)]
-    [InlineData(1, 1, 0.005, false, 1, 0.01)]
+    [InlineData(3, 0.335, 10, true, 0.91, 0.10)]
+    [InlineData(1, 1, 0.005, false, 0.99, 0.01)]
     [InlineData(1, 1.005, 100, true, 0, 1.01)]
-    public void Rounds_after_the_line_discount_away_from_zero(decimal quantity, decimal price, decimal value, bool percent, decimal expected, decimal allowance)
+    public void Rounds_line_gross_and_discount_away_from_zero(decimal quantity, decimal price, decimal value, bool percent, decimal expected, decimal allowance)
     {
         var line = new TaxInvoiceLine("Item", quantity, "EA", price, new(value, percent));
         Assert.Equal(expected, line.Amount);
         Assert.Equal(allowance, line.DiscountAmount);
+        Assert.Equal(line.Gross - line.DiscountAmount, line.Amount);
+    }
+
+    [Theory]
+    [InlineData(3, 0.46, 14.92)]
+    [InlineData(33.33, 5.13, 10.25)]
+    public void Fractional_quantity_discounts_agree_with_xml_line_amounts(decimal percent, decimal allowance, decimal amount)
+    {
+        var line = new TaxInvoiceLine("Item", 1.5m, "EA", 10.25m, new(percent, true));
+        var invoice = Sample() with { Lines = [line] };
+        Assert.Equal(15.38m, line.Gross);
+        Assert.Equal(15.38m, (line with { Discount = null }).Amount);
+        Assert.Equal(allowance, line.DiscountAmount);
+        Assert.Equal(amount, line.Amount);
+        Assert.Equal(line.Gross - line.DiscountAmount, line.Amount);
+        Assert.Empty(invoice.Problems());
+
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+        var settlement = xml.Descendants(Ram + "SpecifiedLineTradeSettlement").Single();
+        AssertAllowance(settlement.Element(Ram + "SpecifiedTradeAllowanceCharge")!, allowance);
+        var xmlAllowance = XmlAmount(settlement.Descendants(Ram + "ActualAmount").Single());
+        var xmlNet = XmlAmount(settlement.Descendants(Ram + "NetLineTotalAmount").Single());
+        Assert.Equal(amount, xmlNet);
+        Assert.Equal(line.Gross, xmlAllowance + xmlNet);
     }
 
     [Theory]
@@ -477,14 +508,16 @@ public sealed class ETaxTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Full_bill_discounts_and_empty_invoices_do_not_divide_by_zero(bool percent)
+    public void Full_bill_discounts_zero_header_totals_but_preserve_line_taxes(bool percent)
     {
         var invoice = Sample() with { Discount = new(percent ? 100 : 1500.50m, percent) };
         Assert.Equal(0m, invoice.TaxBasis);
         Assert.Equal(0m, invoice.Vat);
         Assert.Equal(0m, invoice.GrandTotal);
-        Assert.All(invoice.LineVats(), vat => Assert.Equal(0m, vat));
+        Assert.Equal(new[] { 84.04m, 21m }, invoice.LineVats());
         Assert.Empty(invoice.Problems());
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+        AssertBillDiscountTaxes(invoice, xml);
         Assert.Empty((invoice with { Lines = [], Discount = new(0, percent) }).LineVats());
         Assert.Equal(0m, (invoice with { Lines = [new("Free", 1, "EA", 0)], Discount = new(100, true) }).Vat);
     }
@@ -535,6 +568,60 @@ public sealed class ETaxTests : IDisposable
     {
         var invoice = Sample() with { Lines = [new("Item", 1, "EA", 100, new(50))], Discount = new(50.01m) };
         Assert.Equal(["The discount cannot exceed the invoice total."], invoice.Problems());
+    }
+
+    [Theory]
+    [InlineData(1.005, 1.01, true)]
+    [InlineData(1.004, 1.001, false)]
+    public void Checks_the_line_discount_against_the_rounded_gross(decimal price, decimal discount, bool valid)
+    {
+        var invoice = Sample() with { Lines = [new("Item", 1, "EA", price, new(discount))] };
+        if (valid)
+        {
+            Assert.Empty(invoice.Problems());
+            Assert.Equal(0m, invoice.Lines[0].Amount);
+        }
+        else
+        {
+            Assert.Equal(["The discount cannot exceed the line amount."], invoice.Problems());
+        }
+    }
+
+    private static void AssertBillDiscountTaxes(TaxInvoice invoice, XDocument xml)
+    {
+        var ram = invoice.IsDebitCreditNote ? DcnRam : Ram;
+        var settlements = xml.Descendants(ram + "SpecifiedLineTradeSettlement").ToArray();
+        Assert.Equal(invoice.Lines.Count, settlements.Length);
+        var vats = invoice.LineVats();
+        for (var i = 0; i < settlements.Length; i++)
+        {
+            var amount = invoice.Lines[i].Amount;
+            var vat = Math.Round(invoice.PricesIncludeVat ? amount * invoice.VatRate / (100 + invoice.VatRate)
+                : amount * invoice.VatRate / 100, 2, MidpointRounding.AwayFromZero);
+            var basis = invoice.PricesIncludeVat ? amount - vat : amount;
+            Assert.Equal(vat, vats[i]);
+            var tax = settlements[i].Element(ram + "ApplicableTradeTax")!;
+            Assert.Equal(basis, XmlAmount(tax.Element(ram + "BasisAmount")!));
+            Assert.Equal(vat, XmlAmount(tax.Element(ram + "CalculatedAmount")!));
+            var sums = settlements[i].Element(ram + "SpecifiedTradeSettlementLineMonetarySummation")!;
+            Assert.Equal(vat, XmlAmount(sums.Element(ram + "TaxTotalAmount")!));
+            Assert.Equal(basis, XmlAmount(sums.Element(ram + "NetLineTotalAmount")!));
+            Assert.Equal(basis + vat, XmlAmount(sums.Element(ram + "NetIncludingTaxesLineTotalAmount")!));
+        }
+
+        var discounted = invoice.LineTotal - invoice.DiscountAmount;
+        var headerVat = Math.Round(invoice.PricesIncludeVat ? discounted * invoice.VatRate / (100 + invoice.VatRate)
+            : discounted * invoice.VatRate / 100, 2, MidpointRounding.AwayFromZero);
+        var headerBasis = invoice.PricesIncludeVat ? discounted - headerVat : discounted;
+        Assert.Equal(headerVat, invoice.Vat);
+        Assert.Equal(headerBasis, invoice.TaxBasis);
+        var header = xml.Descendants(ram + "ApplicableHeaderTradeSettlement").Single();
+        var headerTax = header.Element(ram + "ApplicableTradeTax")!;
+        Assert.Equal(headerBasis, XmlAmount(headerTax.Element(ram + "BasisAmount")!));
+        Assert.Equal(headerVat, XmlAmount(headerTax.Element(ram + "CalculatedAmount")!));
+        var headerSums = header.Element(ram + "SpecifiedTradeSettlementHeaderMonetarySummation")!;
+        Assert.Equal(headerBasis, XmlAmount(headerSums.Element(ram + "TaxBasisTotalAmount")!));
+        Assert.Equal(headerVat, XmlAmount(headerSums.Element(ram + "TaxTotalAmount")!));
     }
 
     private static decimal XmlAmount(XElement element) => decimal.Parse(element.Value, System.Globalization.CultureInfo.InvariantCulture);

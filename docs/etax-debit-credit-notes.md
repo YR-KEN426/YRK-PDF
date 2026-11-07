@@ -94,6 +94,7 @@ Schematron (`DCN-Document-001…007`):
 - **ระดับบรรทัด** (สเปก 3.4.5.2): อยู่ใน `SpecifiedLineTradeSettlement` ลำดับ `ApplicableTradeTax`, `SpecifiedTradeAllowanceCharge`, `SpecifiedTradeSettlementLineMonetarySummation`; `NetLineTotalAmount` = ยอดหลังลด
 - **ท้ายบิล** (สเปก 3.3.3): อยู่ใน `ApplicableHeaderTradeSettlement` ลำดับ `InvoiceCurrencyCode`, `ApplicableTradeTax`, `SpecifiedTradeAllowanceCharge`, … , `SpecifiedTradeSettlementHeaderMonetarySummation`
 - `AllowanceTotalAmount` = ผลรวม ActualAmount ของ **ท้ายบิล** (สเปก 8.16: ผลรวมของ 3.3.3 ที่เป็น false ไปอยู่ 3.3.5.4) — ส่วนลดรายบรรทัดอยู่ใน NetLineTotalAmount แล้ว ไม่นับซ้ำ
+- ค่าระดับบรรทัด (BasisAmount, NetLineTotalAmount, VAT ของบรรทัด) เป็นค่าก่อนส่วนลดท้ายบิล; ส่วนลดท้ายบิลมีผลเฉพาะ TaxBasis/TaxTotal/GrandTotal ที่หัวบิล จึงผลรวม VAT รายบรรทัดอาจไม่เท่า VAT หัวบิลเมื่อมีส่วนลดท้ายบิล
 - `LineTotalAmount` (ใบกำกับ) = ผลรวม NetLineTotalAmount; `TaxBasisTotalAmount` = LineTotal − AllowanceTotal
 - ไม่มีส่วนลดท้ายบิล → ไม่เขียน `SpecifiedTradeAllowanceCharge` และ `AllowanceTotalAmount` เลย (ให้ XML เหมือนเดิมทุก byte)
 - ส่วนลดเป็น element ที่ไม่บังคับ (BD) ใน Schematron ไม่มีกฎตรวจ

@@ -136,9 +136,11 @@ public sealed record TaxDiscount(decimal Value, bool IsPercent = false)
 /// <param name="Discount">A discount on the whole line, before VAT is calculated.</param>
 public sealed record TaxInvoiceLine(string Description, decimal Quantity, string Unit, decimal UnitPrice, TaxDiscount? Discount = null)
 {
-    public decimal DiscountAmount => Math.Round(Discount?.Of(Quantity * UnitPrice) ?? 0, 2, MidpointRounding.AwayFromZero);
+    public decimal Gross => Math.Round(Quantity * UnitPrice, 2, MidpointRounding.AwayFromZero);
 
-    public decimal Amount => Math.Round(Quantity * UnitPrice - (Discount?.Of(Quantity * UnitPrice) ?? 0), 2, MidpointRounding.AwayFromZero);
+    public decimal DiscountAmount => Math.Round(Discount?.Of(Gross) ?? 0, 2, MidpointRounding.AwayFromZero);
+
+    public decimal Amount => Gross - DiscountAmount;
 }
 
 /// <summary>The original tax invoice adjusted by a debit or credit note; its value excludes VAT.</summary>
@@ -305,7 +307,7 @@ public sealed record TaxInvoice(
 
         foreach (var line in Lines)
         {
-            CheckDiscount(line.Discount, line.Quantity * line.UnitPrice, "line amount");
+            CheckDiscount(line.Discount, line.Gross, "line amount");
         }
 
         CheckDiscount(Discount, LineTotal, "invoice total");
@@ -653,39 +655,18 @@ public sealed record TaxInvoice(
         return output.ToArray();
     }
 
-    /// <summary>The VAT of each line after its proportional share of the bill discount, with rounding reconciled to the invoice VAT.</summary>
+    /// <summary>The VAT after each line's own discount; reconciled to the invoice VAT only without a bill allowance.</summary>
     internal IReadOnlyList<decimal> LineVats()
     {
-        var total = LineTotal;
-        var discount = DiscountAmount;
         var vats = Lines.Select(line =>
         {
-            var amount = discount == 0 || total == 0 ? line.Amount : line.Amount - discount * line.Amount / total;
+            var amount = line.Amount;
             return Math.Round(PricesIncludeVat ? amount * VatRate / (100 + VatRate) : amount * VatRate / 100, 2, MidpointRounding.AwayFromZero);
         }).ToList();
-        if (vats.Count > 0)
+        if (vats.Count > 0 && DiscountAmount == 0)
         {
-            var remainder = Vat - vats.Sum();
-            if (discount == 0)
-            {
-                // Preserve the existing rounding and XML exactly when no bill allowance applies.
-                vats[^1] += remainder;
-            }
-            else
-            {
-                // A free last line must not acquire negative VAT when rounded lines overshoot.
-                for (var i = vats.Count - 1; i >= 0 && remainder != 0; i--)
-                {
-                    if (Lines[i].Amount <= 0)
-                    {
-                        continue;
-                    }
-
-                    var adjustment = Math.Max(remainder, -vats[i]);
-                    vats[i] += adjustment;
-                    remainder -= adjustment;
-                }
-            }
+            // Preserve the existing rounding and XML exactly when no bill allowance applies.
+            vats[^1] += Vat - vats.Sum();
         }
 
         return vats;

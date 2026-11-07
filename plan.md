@@ -36,7 +36,7 @@ Ken ตัดสินใจ (2026-11-07):
 ### ขั้น 2: Core ส่วนลด (Codex `gpt-6.1-sol` · high)
 - ไฟล์: `src/Yrk.PdfStudio.Core/Pdf/ETax/TaxInvoice.cs`, `tests/Yrk.PdfStudio.Core.Tests/ETaxTests.cs`
 - `TaxInvoiceLine` เพิ่มส่วนลด (`Discount` = ค่า + เป็น % หรือไม่) และ `TaxInvoice` เพิ่มส่วนลดท้ายบิล; `Amount` = ยอดหลังลดของบรรทัด ปัด 2 ตำแหน่ง AwayFromZero เหมือนเดิม
-- ยอดรวม: LineTotal → ส่วนลดท้ายบิล → TaxBasis → VAT (ทั้งแบบราคารวม/ไม่รวม VAT) → GrandTotal; `LineVats()` กระจายส่วนลดท้ายบิลให้ VAT รายบรรทัดรวมได้เท่ายอด VAT
+- ยอดรวม: LineTotal → ส่วนลดท้ายบิล → TaxBasis → VAT (ทั้งแบบราคารวม/ไม่รวม VAT) → GrandTotal; ค่าระดับบรรทัด (BasisAmount, NetLineTotalAmount, VAT รายบรรทัด) คิดก่อนส่วนลดท้ายบิล ส่วนลดท้ายบิลมีผลที่ระดับหัวบิลเท่านั้น; VAT รายบรรทัด = ปัด(อัตรา × ยอดบรรทัด) ถ้าไม่มีส่วนลดท้ายบิลบรรทัดสุดท้ายรับเศษสตางค์ให้รวมเท่า VAT หัวบิล ถ้ามีส่วนลดท้ายบิลไม่ปรับเศษ
 - XML ตาม `docs/etax-debit-credit-notes.md` ข้อ 5: `SpecifiedTradeAllowanceCharge` (ChargeIndicator `false`, ActualAmount THB, TypeCode `95`) ใน `SpecifiedLineTradeSettlement` (หลัง ApplicableTradeTax) และใน `ApplicableHeaderTradeSettlement` (หลัง ApplicableTradeTax); `AllowanceTotalAmount` = ผลรวมส่วนลดท้ายบิลเท่านั้น; NetLineTotalAmount = ยอดหลังลด
 - `Problems()`: ส่วนลดติดลบ, ส่วนลดเกินยอดบรรทัด/เกินยอดรวม, % เกิน 100
 - **ไม่มีส่วนลด → XML ทุก byte เหมือนเดิม** (เทสต์ golden เดิม :195-218 ต้องผ่าน)
