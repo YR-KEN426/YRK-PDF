@@ -24,3 +24,6 @@ third-party-data/
 
 # Design briefs for 2.0.0: kept local until Ken decides (public repo)
 docs/design/
+
+# Download history from build/download-stats.ps1 (local only)
+stats/
