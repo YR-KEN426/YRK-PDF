@@ -213,7 +213,7 @@ internal static class TaxInvoiceRenderer
             $"{invoice.ThaiName} {invoice.Number}",
             created,
             [new PdfAAttachment(TaxInvoice.XmlFileName, xml, "text/xml", "Source", "e-Tax Invoice (ETDA ขมธอ. 3-2560)")],
-            TaxInvoice.XmpExtension).Pdf;
+            invoice.XmpExtension).Pdf;
     }
 
     /// <summary>The address as typed, with the postcode at the end of its last line (unless it is written there already).</summary>

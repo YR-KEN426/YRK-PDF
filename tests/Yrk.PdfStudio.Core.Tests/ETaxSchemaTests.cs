@@ -27,6 +27,34 @@ public sealed class ETaxSchemaTests
         Validate(invoice.ToXml(new DateTimeOffset(2026, 11, 7, 9, 0, 0, TimeSpan.FromHours(7))), directory, "TaxInvoice");
     }
 
+    [Theory]
+    [InlineData(TaxDocumentType.DebitNote, "DBNG02", null, false)]
+    [InlineData(TaxDocumentType.DebitNote, "DBNS99", "Service adjustment", true)]
+    [InlineData(TaxDocumentType.CreditNote, "CDNG04", null, false)]
+    [InlineData(TaxDocumentType.CreditNote, "CDNS99", "Service adjustment", true)]
+    public void Debit_and_credit_notes_match_the_official_schema_when_available(TaxDocumentType type, string reasonCode, string? reasonText, bool discounted)
+    {
+        var directory = Environment.GetEnvironmentVariable("YRK_ETAX_XSD_DIR");
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            // Same optional fixture as the invoice test; schemas stay outside the repository.
+            return;
+        }
+
+        var invoice = new TaxInvoice(
+            type, "ADJ-001", new DateTime(2026, 11, 7),
+            new TaxParty("Seller", TaxIdKind.TaxId, "0105536000313", "00000", "Street", "10310",
+                BuildingNumber: "99/9", Province: "10", District: "1017", Subdistrict: "101701"),
+            new TaxParty("Buyer", TaxIdKind.NationalId, "1104599001276", string.Empty, "Street", "10330"),
+            [new("A", 2, "EA", 100, discounted ? new(10, true) : null), new("B", 1, "EA", 100)],
+            Discount: discounted ? new(20) : null,
+            Reference: new("INV-001", new DateTime(2026, 11, 1), TaxDocumentType.TaxInvoice, 1000),
+            Reason: new(reasonCode, reasonText));
+
+        Assert.Empty(invoice.Problems());
+        Validate(invoice.ToXml(new DateTimeOffset(2026, 11, 7, 9, 0, 0, TimeSpan.FromHours(7))), directory, "DebitCreditNote");
+    }
+
     /// <summary>Validates either TaxInvoice or DebitCreditNote XML using an externally supplied official schema bundle.</summary>
     internal static void Validate(byte[] xml, string directory, string documentKind)
     {

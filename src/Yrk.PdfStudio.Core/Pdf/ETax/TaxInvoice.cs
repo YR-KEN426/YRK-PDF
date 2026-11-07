@@ -12,6 +12,8 @@ public enum TaxDocumentType
     InvoiceTaxInvoice,    // T02 ใบแจ้งหนี้/ใบกำกับภาษี
     ReceiptTaxInvoice,    // T03 ใบเสร็จรับเงิน/ใบกำกับภาษี
     DeliveryTaxInvoice,   // T04 ใบส่งของ/ใบกำกับภาษี
+    DebitNote,            // 80 ใบเพิ่มหนี้
+    CreditNote,           // 81 ใบลดหนี้
 }
 
 /// <summary>How a party is identified for tax (appendix B.16).</summary>
@@ -139,6 +141,12 @@ public sealed record TaxInvoiceLine(string Description, decimal Quantity, string
     public decimal Amount => Math.Round(Quantity * UnitPrice - (Discount?.Of(Quantity * UnitPrice) ?? 0), 2, MidpointRounding.AwayFromZero);
 }
 
+/// <summary>The original tax invoice adjusted by a debit or credit note; its value excludes VAT.</summary>
+public sealed record TaxInvoiceReference(string Number, DateTime IssueDate, TaxDocumentType Type, decimal OriginalValue);
+
+/// <summary>An ETDA purpose code and optional explanation (required for codes ending in 99).</summary>
+public sealed record TaxInvoiceReason(string Code, string? Text = null);
+
 /// <summary>An e-Tax Invoice: what is printed on the PDF and written in its XML (ขมธอ. 3-2560 version 2.0).</summary>
 /// <param name="VatRate">In percent (7 in Thailand today; 0 for zero-rated sales).</param>
 /// <param name="PricesIncludeVat">The unit prices already include VAT (the VAT is then taken out of the total).</param>
@@ -152,13 +160,14 @@ public sealed record TaxInvoice(
     decimal VatRate = 7,
     bool PricesIncludeVat = false,
     string? Note = null,
-    TaxDiscount? Discount = null)
+    TaxDiscount? Discount = null,
+    TaxInvoiceReference? Reference = null,
+    TaxInvoiceReason? Reason = null)
 {
     /// <summary>The name ETDA gives the XML inside the PDF.</summary>
     public const string XmlFileName = "ETDA-invoice.xml";
 
-    /// <summary>The metadata ETDA asks of the PDF/A-3 file (its PdfAConverter template).</summary>
-    public static PdfAExtension XmpExtension { get; } = new(
+    private static readonly PdfAExtension InvoiceXmpExtension = new(
         "Electronic Tax Invoice PDFA Extension Schema",
         "urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2#",
         "rsm",
@@ -167,6 +176,27 @@ public sealed record TaxInvoice(
             new PdfAExtensionProperty("DocumentType", "Tax Invoice", "Type of the document"),
             new PdfAExtensionProperty("Version", "2.0", "Version of the ETDA XML data"),
         ]);
+
+    /// <summary>The metadata ETDA asks of the PDF/A-3 file, with this document's type.</summary>
+    public PdfAExtension XmpExtension => IsDebitCreditNote
+        ? InvoiceXmpExtension with
+        {
+            Properties = InvoiceXmpExtension.Properties.Select(p => p.Name == "DocumentType"
+                ? p with { Value = Type == TaxDocumentType.DebitNote ? "Debit Note" : "Credit Note" }
+                : p).ToArray(),
+        }
+        : InvoiceXmpExtension;
+
+    public bool IsDebitCreditNote => Type is TaxDocumentType.DebitNote or TaxDocumentType.CreditNote;
+
+    /// <summary>The referenced invoice's value before VAT (only for debit and credit notes).</summary>
+    public decimal OriginalValue => Reference?.OriginalValue ?? 0;
+
+    /// <summary>The adjustment after all discounts, before VAT.</summary>
+    public decimal Difference => TaxBasis;
+
+    /// <summary>The corrected invoice value before VAT (only for debit and credit notes).</summary>
+    public decimal CorrectValue => Type == TaxDocumentType.CreditNote ? OriginalValue - Difference : OriginalValue + Difference;
 
     public decimal LineTotal => Lines.Sum(l => l.Amount);
 
@@ -189,6 +219,8 @@ public sealed record TaxInvoice(
         TaxDocumentType.InvoiceTaxInvoice => "T02",
         TaxDocumentType.ReceiptTaxInvoice => "T03",
         TaxDocumentType.DeliveryTaxInvoice => "T04",
+        TaxDocumentType.DebitNote => "80",
+        TaxDocumentType.CreditNote => "81",
         _ => "388",
     };
 
@@ -198,6 +230,8 @@ public sealed record TaxInvoice(
         TaxDocumentType.InvoiceTaxInvoice => "ใบแจ้งหนี้/ใบกำกับภาษี",
         TaxDocumentType.ReceiptTaxInvoice => "ใบเสร็จรับเงิน/ใบกำกับภาษี",
         TaxDocumentType.DeliveryTaxInvoice => "ใบส่งของ/ใบกำกับภาษี",
+        TaxDocumentType.DebitNote => "ใบเพิ่มหนี้",
+        TaxDocumentType.CreditNote => "ใบลดหนี้",
         _ => "ใบกำกับภาษี",
     };
 
@@ -276,6 +310,60 @@ public sealed record TaxInvoice(
 
         CheckDiscount(Discount, LineTotal, "invoice total");
 
+        if (IsDebitCreditNote)
+        {
+            if (Reference is null || string.IsNullOrWhiteSpace(Reference.Number))
+            {
+                problems.Add("Enter the original invoice number.");
+            }
+
+            if (Reference is null || Reference.IssueDate == default)
+            {
+                problems.Add("Enter the original invoice date.");
+            }
+
+            if (Reference is null || Reference.OriginalValue <= 0)
+            {
+                problems.Add("Enter the original invoice value before VAT, above zero.");
+            }
+
+            if (Reference is not null && Reference.Type is not (TaxDocumentType.TaxInvoice or TaxDocumentType.InvoiceTaxInvoice
+                or TaxDocumentType.ReceiptTaxInvoice or TaxDocumentType.DeliveryTaxInvoice))
+            {
+                problems.Add("The original document must be a tax invoice (388, T02, T03 or T04).");
+            }
+
+            if (Type == TaxDocumentType.CreditNote && Reference is not null && Difference > OriginalValue)
+            {
+                problems.Add("The credit note cannot reduce more than the original invoice value.");
+            }
+
+            if (Reason is null || string.IsNullOrWhiteSpace(Reason.Code))
+            {
+                problems.Add("Enter the debit or credit note reason code.");
+            }
+            else if (!IsAllowedReasonCode(Reason.Code))
+            {
+                problems.Add("The reason code is not valid for this document type.");
+            }
+            else if (Reason.Code.EndsWith("99", StringComparison.Ordinal) && string.IsNullOrWhiteSpace(Reason.Text))
+            {
+                problems.Add("Enter the reason text for a code ending in 99.");
+            }
+        }
+        else
+        {
+            if (Reference is not null)
+            {
+                problems.Add("Only debit and credit notes can reference an original invoice.");
+            }
+
+            if (Reason is not null)
+            {
+                problems.Add("Only debit and credit notes can have a reason.");
+            }
+        }
+
         return problems.Distinct().ToList();
 
         void CheckDiscount(TaxDiscount? discount, decimal amount, string scope)
@@ -300,6 +388,14 @@ public sealed record TaxInvoice(
         }
     }
 
+    private bool IsAllowedReasonCode(string code) => Type switch
+    {
+        TaxDocumentType.DebitNote => code is "DBNG01" or "DBNG02" or "DBNG99" or "DBNS01" or "DBNS02" or "DBNS99",
+        TaxDocumentType.CreditNote => code is "CDNG01" or "CDNG02" or "CDNG03" or "CDNG04" or "CDNG05" or "CDNG99"
+            or "CDNS01" or "CDNS02" or "CDNS03" or "CDNS04" or "CDNS99",
+        _ => false,
+    };
+
     /// <summary>A Thai tax ID or ID card number: 13 digits whose last one is the check digit.</summary>
     public static bool IsValidThaiId(string text)
     {
@@ -318,12 +414,13 @@ public sealed record TaxInvoice(
         return (11 - (sum % 11)) % 10 == digits[12];
     }
 
-    /// <summary>The XML of the e-Tax Invoice (TaxInvoice_CrossIndustryInvoice, ขมธอ. 3-2560 version 2.0), UTF-8.</summary>
+    /// <summary>The XML of the invoice or debit/credit note (ขมธอ. 3-2560 version 2.0), UTF-8.</summary>
     /// <param name="created">When the document is made (CreationDateTime).</param>
     public byte[] ToXml(DateTimeOffset created)
     {
-        const string Rsm = "urn:etda:uncefact:data:standard:TaxInvoice_CrossIndustryInvoice:2";
-        const string Ram = "urn:etda:uncefact:data:standard:TaxInvoice_ReusableAggregateBusinessInformationEntity:2";
+        var documentKind = IsDebitCreditNote ? "DebitCreditNote" : "TaxInvoice";
+        var Rsm = $"urn:etda:uncefact:data:standard:{documentKind}_CrossIndustryInvoice:2";
+        var Ram = $"urn:etda:uncefact:data:standard:{documentKind}_ReusableAggregateBusinessInformationEntity:2";
         using var output = new MemoryStream();
         using (var xml = XmlWriter.Create(output, new XmlWriterSettings { Encoding = new UTF8Encoding(false), Indent = true }))
         {
@@ -429,7 +526,7 @@ public sealed record TaxInvoice(
             }
 
             xml.WriteStartDocument();
-            xml.WriteStartElement("rsm", "TaxInvoice_CrossIndustryInvoice", Rsm);
+            xml.WriteStartElement("rsm", $"{documentKind}_CrossIndustryInvoice", Rsm);
             xml.WriteAttributeString("xmlns", "ram", null, Ram);
 
             xml.WriteStartElement("rsm", "ExchangedDocumentContext", Rsm);
@@ -443,6 +540,16 @@ public sealed record TaxInvoice(
             Element("Name", ThaiName);
             Element("TypeCode", TypeCode);
             Element("IssueDateTime", IssueDate.Date.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture));
+            if (IsDebitCreditNote && Reason is not null)
+            {
+                if (!string.IsNullOrWhiteSpace(Reason.Text))
+                {
+                    Element("Purpose", Reason.Text.Trim());
+                }
+
+                Element("PurposeCode", Reason.Code);
+            }
+
             Element("CreationDateTime", created.ToString("yyyy-MM-dd'T'HH:mm:ss.fffzzz", CultureInfo.InvariantCulture));
             if (!string.IsNullOrWhiteSpace(Note))
             {
@@ -458,6 +565,22 @@ public sealed record TaxInvoice(
             Start("ApplicableHeaderTradeAgreement");
             Party("SellerTradeParty", Seller);
             Party("BuyerTradeParty", Buyer);
+            if (IsDebitCreditNote && Reference is not null)
+            {
+                Start("AdditionalReferencedDocument");
+                Element("IssuerAssignedID", Reference.Number.Trim());
+                Element("IssueDateTime", Reference.IssueDate.Date.ToString("yyyy-MM-dd'T'HH:mm:ss", CultureInfo.InvariantCulture));
+                Element("ReferenceTypeCode", Reference.Type switch
+                {
+                    TaxDocumentType.TaxInvoice => "388",
+                    TaxDocumentType.InvoiceTaxInvoice => "T02",
+                    TaxDocumentType.ReceiptTaxInvoice => "T03",
+                    TaxDocumentType.DeliveryTaxInvoice => "T04",
+                    _ => throw new InvalidOperationException("The referenced document must be a tax invoice."),
+                });
+                End();
+            }
+
             End();
             Start("ApplicableHeaderTradeDelivery");
             End();
@@ -466,7 +589,17 @@ public sealed record TaxInvoice(
             Tax(TaxBasis, Vat);
             Allowance(DiscountAmount);
             Start("SpecifiedTradeSettlementHeaderMonetarySummation");
-            Element("LineTotalAmount", Amount(LineTotal));
+            if (IsDebitCreditNote)
+            {
+                Element("OriginalInformationAmount", Amount(OriginalValue));
+            }
+
+            Element("LineTotalAmount", Amount(IsDebitCreditNote ? CorrectValue : LineTotal));
+            if (IsDebitCreditNote)
+            {
+                Element("DifferenceInformationAmount", Amount(Difference));
+            }
+
             if (DiscountAmount != 0)
             {
                 Element("AllowanceTotalAmount", Amount(DiscountAmount));

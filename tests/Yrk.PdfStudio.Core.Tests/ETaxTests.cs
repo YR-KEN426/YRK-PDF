@@ -1,5 +1,8 @@
 using System.Text;
 using System.Xml.Linq;
+using System.Security.Cryptography;
+using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Archive;
 using Yrk.PdfStudio.Core.Pdf.Cos;
 using Yrk.PdfStudio.Core.Pdf.ETax;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
@@ -10,6 +13,7 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class ETaxTests : IDisposable
 {
     private static readonly XNamespace Ram = "urn:etda:uncefact:data:standard:TaxInvoice_ReusableAggregateBusinessInformationEntity:2";
+    private static readonly XNamespace DcnRam = "urn:etda:uncefact:data:standard:DebitCreditNote_ReusableAggregateBusinessInformationEntity:2";
     private readonly PdfiumEngine _engine = new();
     private readonly DirectoryInfo _folder = Directory.CreateTempSubdirectory("yrk-etax-");
 
@@ -25,6 +29,247 @@ public sealed class ETaxTests : IDisposable
     [InlineData("0105536000315", false)]
     [InlineData("010553600031", false)]
     public void Checks_the_digit_of_a_thai_tax_id(string id, bool valid) => Assert.Equal(valid, TaxInvoice.IsValidThaiId(id));
+
+    [Theory]
+    [InlineData(TaxDocumentType.DebitNote, "80", "ใบเพิ่มหนี้", 1243)]
+    [InlineData(TaxDocumentType.CreditNote, "81", "ใบลดหนี้", 757)]
+    public void Writes_debit_and_credit_notes_in_schema_order(TaxDocumentType type, string code, string name, decimal correct)
+    {
+        var invoice = Adjustment(type) with { Note = " Note " };
+        var created = new DateTimeOffset(2026, 11, 7, 9, 0, 0, TimeSpan.FromHours(7));
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(created)));
+        XNamespace rsm = "urn:etda:uncefact:data:standard:DebitCreditNote_CrossIndustryInvoice:2";
+        Assert.Equal(rsm + "DebitCreditNote_CrossIndustryInvoice", xml.Root!.Name);
+        Assert.Equal("rsm", xml.Root.GetPrefixOfNamespace(rsm));
+        Assert.Equal("ram", xml.Root.GetPrefixOfNamespace(DcnRam));
+        Assert.Equal(["ExchangedDocumentContext", "ExchangedDocument", "SupplyChainTradeTransaction"], xml.Root.Elements().Select(e => e.Name.LocalName));
+        Assert.All(xml.Root.Elements(), e => Assert.Equal(rsm, e.Name.Namespace));
+        Assert.All(xml.Root.Elements().SelectMany(e => e.Descendants()), e => Assert.Equal(DcnRam, e.Name.Namespace));
+        var document = xml.Root.Element(rsm + "ExchangedDocument")!;
+        Assert.Equal(["ID", "Name", "TypeCode", "IssueDateTime", "Purpose", "PurposeCode", "CreationDateTime", "IncludedNote"],
+            document.Elements().Select(e => e.Name.LocalName));
+        Assert.Equal(code, invoice.TypeCode);
+        Assert.Equal(name, invoice.ThaiName);
+        Assert.Equal(name, document.Element(DcnRam + "Name")!.Value);
+        Assert.Equal(code, document.Element(DcnRam + "TypeCode")!.Value);
+        Assert.Equal("Price adjustment", document.Element(DcnRam + "Purpose")!.Value);
+        Assert.Equal(invoice.Reason!.Code, document.Element(DcnRam + "PurposeCode")!.Value);
+        Assert.Equal("2026-11-07T00:00:00", document.Element(DcnRam + "IssueDateTime")!.Value);
+        Assert.Equal("2026-11-07T09:00:00.000+07:00", document.Element(DcnRam + "CreationDateTime")!.Value);
+        var agreement = xml.Descendants(DcnRam + "ApplicableHeaderTradeAgreement").Single();
+        Assert.Equal(["SellerTradeParty", "BuyerTradeParty", "AdditionalReferencedDocument"], agreement.Elements().Select(e => e.Name.LocalName));
+        var reference = agreement.Element(DcnRam + "AdditionalReferencedDocument")!;
+        Assert.Equal(["IssuerAssignedID", "IssueDateTime", "ReferenceTypeCode"], reference.Elements().Select(e => e.Name.LocalName));
+        Assert.Equal(["INV-001", "2026-11-01T00:00:00", "388"], reference.Elements().Select(e => e.Value));
+        var header = xml.Descendants(DcnRam + "ApplicableHeaderTradeSettlement").Single();
+        Assert.Equal(["InvoiceCurrencyCode", "ApplicableTradeTax", "SpecifiedTradeAllowanceCharge", "SpecifiedTradeSettlementHeaderMonetarySummation"],
+            header.Elements().Select(e => e.Name.LocalName));
+        var sums = header.Element(DcnRam + "SpecifiedTradeSettlementHeaderMonetarySummation")!;
+        Assert.Equal(["OriginalInformationAmount", "LineTotalAmount", "DifferenceInformationAmount", "AllowanceTotalAmount", "TaxBasisTotalAmount", "TaxTotalAmount", "GrandTotalAmount"],
+            sums.Elements().Select(e => e.Name.LocalName));
+        Assert.Equal(new[] { 1000m, correct, 243m, 27m, 243m, 17.01m, 260.01m }, sums.Elements().Select(XmlAmount));
+        Assert.Equal(243m, XmlAmount(header.Element(DcnRam + "ApplicableTradeTax")!.Element(DcnRam + "BasisAmount")!));
+        Assert.Equal(new[] { 180m, 90m }, xml.Descendants(DcnRam + "NetLineTotalAmount").Select(XmlAmount));
+        Assert.Equal(1000m, invoice.OriginalValue);
+        Assert.Equal(correct, invoice.CorrectValue);
+        Assert.Equal(243m, invoice.Difference);
+        Assert.Equal(260.01m, invoice.GrandTotal);
+        Assert.Equal(invoice.Vat, invoice.LineVats().Sum());
+        Assert.Empty(invoice.Problems());
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.DebitNote, false, 1300, 300, 21, 321)]
+    [InlineData(TaxDocumentType.CreditNote, false, 700, 300, 21, 321)]
+    [InlineData(TaxDocumentType.DebitNote, true, 1810, 810, 56.70, 866.70)]
+    [InlineData(TaxDocumentType.CreditNote, true, 190, 810, 56.70, 866.70)]
+    public void Calculates_adjustments_with_and_without_vat_inclusive_discounts(TaxDocumentType type, bool includesVat, decimal correct, decimal difference, decimal vat, decimal grand)
+    {
+        var invoice = Adjustment(type) with
+        {
+            Lines = includesVat ? [new("A", 1, "EA", 1070, new(10, true))] : [new("A", 1, "EA", 300)],
+            Discount = includesVat ? new(96.30m) : null,
+            PricesIncludeVat = includesVat,
+        };
+        Assert.Equal(correct, invoice.CorrectValue);
+        Assert.Equal(difference, invoice.Difference);
+        Assert.Equal(difference, invoice.TaxBasis);
+        Assert.Equal(vat, invoice.Vat);
+        Assert.Equal(grand, invoice.GrandTotal);
+        Assert.Empty(invoice.Problems());
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+        var sums = xml.Descendants(DcnRam + "SpecifiedTradeSettlementHeaderMonetarySummation").Single();
+        Assert.Equal(correct, XmlAmount(sums.Element(DcnRam + "LineTotalAmount")!));
+        Assert.Equal(difference, XmlAmount(sums.Element(DcnRam + "DifferenceInformationAmount")!));
+        Assert.Equal(grand, XmlAmount(sums.Element(DcnRam + "GrandTotalAmount")!));
+        if (!includesVat)
+        {
+            Assert.Equal(["OriginalInformationAmount", "LineTotalAmount", "DifferenceInformationAmount", "TaxBasisTotalAmount", "TaxTotalAmount", "GrandTotalAmount"],
+                sums.Elements().Select(e => e.Name.LocalName));
+            Assert.Empty(xml.Descendants(DcnRam + "SpecifiedTradeAllowanceCharge"));
+        }
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.TaxInvoice, "388")]
+    [InlineData(TaxDocumentType.InvoiceTaxInvoice, "T02")]
+    [InlineData(TaxDocumentType.ReceiptTaxInvoice, "T03")]
+    [InlineData(TaxDocumentType.DeliveryTaxInvoice, "T04")]
+    public void Both_adjustment_types_can_reference_each_invoice_type(TaxDocumentType originalType, string code)
+    {
+        foreach (var type in new[] { TaxDocumentType.DebitNote, TaxDocumentType.CreditNote })
+        {
+            var invoice = Adjustment(type);
+            invoice = invoice with { Reference = invoice.Reference! with { Type = originalType } };
+            Assert.Empty(invoice.Problems());
+            var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+            Assert.Equal(code, xml.Descendants(DcnRam + "ReferenceTypeCode").Single().Value);
+        }
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.DebitNote, "DBNG01,DBNG02,DBNG99,DBNS01,DBNS02,DBNS99")]
+    [InlineData(TaxDocumentType.CreditNote, "CDNG01,CDNG02,CDNG03,CDNG04,CDNG05,CDNG99,CDNS01,CDNS02,CDNS03,CDNS04,CDNS99")]
+    public void Accepts_each_reason_only_for_its_own_document_type(TaxDocumentType type, string codes)
+    {
+        foreach (var code in codes.Split(','))
+        {
+            var invoice = Adjustment(type) with { Reason = new(code, " Explanation ") };
+            Assert.Empty(invoice.Problems());
+            var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+            Assert.Equal("Explanation", xml.Descendants(DcnRam + "Purpose").Single().Value);
+            Assert.Equal(code, xml.Descendants(DcnRam + "PurposeCode").Single().Value);
+            var other = invoice with { Type = type == TaxDocumentType.DebitNote ? TaxDocumentType.CreditNote : TaxDocumentType.DebitNote };
+            Assert.Equal(["The reason code is not valid for this document type."], other.Problems());
+            foreach (var text in new string?[] { null, "", " " })
+            {
+                var withoutText = invoice with { Reason = new(code, text) };
+                if (code.EndsWith("99", StringComparison.Ordinal))
+                    Assert.Equal(["Enter the reason text for a code ending in 99."], withoutText.Problems());
+                else
+                {
+                    Assert.Empty(withoutText.Problems());
+                    var noPurpose = XDocument.Parse(Encoding.UTF8.GetString(withoutText.ToXml(DateTimeOffset.Now)));
+                    Assert.Empty(noPurpose.Descendants(DcnRam + "Purpose"));
+                    var document = noPurpose.Root!.Elements().Single(e => e.Name.LocalName == "ExchangedDocument");
+                    Assert.Equal(["ID", "Name", "TypeCode", "IssueDateTime", "PurposeCode", "CreationDateTime"], document.Elements().Select(e => e.Name.LocalName));
+                }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.DebitNote)]
+    [InlineData(TaxDocumentType.CreditNote)]
+    public void Reports_each_missing_or_invalid_adjustment_field(TaxDocumentType type)
+    {
+        var invoice = Adjustment(type);
+        var reference = invoice.Reference!;
+        Assert.Equal(["Enter the original invoice number.", "Enter the original invoice date.", "Enter the original invoice value before VAT, above zero."],
+            (invoice with { Reference = null }).Problems());
+        Assert.Equal(["Enter the original invoice number."], (invoice with { Reference = reference with { Number = " " } }).Problems());
+        Assert.Equal(["Enter the original invoice date."], (invoice with { Reference = reference with { IssueDate = default } }).Problems());
+        foreach (var value in new[] { 0m, -1m })
+            Assert.Contains("Enter the original invoice value before VAT, above zero.", (invoice with { Reference = reference with { OriginalValue = value } }).Problems());
+        foreach (var originalType in new[] { TaxDocumentType.DebitNote, TaxDocumentType.CreditNote, (TaxDocumentType)999 })
+            Assert.Equal(["The original document must be a tax invoice (388, T02, T03 or T04)."], (invoice with { Reference = reference with { Type = originalType } }).Problems());
+        Assert.Equal(["Enter the debit or credit note reason code."], (invoice with { Reason = null }).Problems());
+        foreach (var code in new[] { "", " " })
+            Assert.Equal(["Enter the debit or credit note reason code."], (invoice with { Reason = new(code) }).Problems());
+        foreach (var code in new[] { "UNKNOWN", "DBNG03", "DBNS03", "CDNG06", "CDNS05", "dbng01", " DBNG01 " })
+            Assert.Equal(["The reason code is not valid for this document type."], (invoice with { Reason = new(code) }).Problems());
+    }
+
+    [Fact]
+    public void Credit_notes_may_reduce_the_whole_original_value_but_no_more()
+    {
+        var invoice = Adjustment(TaxDocumentType.CreditNote);
+        var full = invoice with { Reference = invoice.Reference! with { OriginalValue = 243 } };
+        Assert.Empty(full.Problems());
+        Assert.Equal(0m, full.CorrectValue);
+        var excess = full with { Reference = full.Reference! with { OriginalValue = 242.99m } };
+        Assert.Equal(["The credit note cannot reduce more than the original invoice value."], excess.Problems());
+        Assert.Empty((excess with { Type = TaxDocumentType.DebitNote, Reason = new("DBNG01") }).Problems());
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.TaxInvoice)]
+    [InlineData(TaxDocumentType.InvoiceTaxInvoice)]
+    [InlineData(TaxDocumentType.ReceiptTaxInvoice)]
+    [InlineData(TaxDocumentType.DeliveryTaxInvoice)]
+    public void Other_document_types_reject_reference_and_reason(TaxDocumentType type)
+    {
+        var invoice = Adjustment(TaxDocumentType.DebitNote) with { Type = type };
+        Assert.Equal(["Only debit and credit notes can reference an original invoice.", "Only debit and credit notes can have a reason."], invoice.Problems());
+        Assert.Equal(["Only debit and credit notes can reference an original invoice."], (invoice with { Reason = null }).Problems());
+        Assert.Equal(["Only debit and credit notes can have a reason."], (invoice with { Reference = null }).Problems());
+        var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(DateTimeOffset.Now)));
+        foreach (var name in new[] { "Purpose", "PurposeCode", "AdditionalReferencedDocument", "OriginalInformationAmount", "DifferenceInformationAmount" })
+            Assert.Empty(xml.Descendants(Ram + name));
+        Assert.Same(Sample().XmpExtension, invoice.XmpExtension);
+        Assert.Equal("Tax Invoice", invoice.XmpExtension.Properties.Single(p => p.Name == "DocumentType").Value);
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.DebitNote, "Debit Note")]
+    [InlineData(TaxDocumentType.CreditNote, "Credit Note")]
+    public async Task Attaches_adjustment_xml_to_pdf_a3_with_its_document_type(TaxDocumentType type, string documentType)
+    {
+        var invoice = Adjustment(type);
+        var created = new DateTimeOffset(2026, 11, 7, 9, 0, 0, TimeSpan.FromHours(7));
+        var xml = invoice.ToXml(created);
+        var extension = invoice.XmpExtension;
+        Assert.Equal("Tax Invoice", Sample().XmpExtension.Properties.Single(p => p.Name == "DocumentType").Value);
+        var source = PdfDrawing.Create([new PdfPageDrawing(200, 200, [])]);
+        var pdf = Sta.Run(() => PdfA.Convert(source, new App.Imaging.WpfPdfAFontSource(), now: created,
+            attachments: [new PdfAAttachment(TaxInvoice.XmlFileName, xml, "text/xml", "Source")], extension: extension).Pdf);
+        var path = Path.Combine(_folder.FullName, $"{type}.pdf");
+        await File.WriteAllBytesAsync(path, pdf);
+        await using (var document = await _engine.OpenAsync(path))
+            Assert.Equal(1, document.PageCount);
+        var cos = CosDocument.Load(pdf);
+        var metadata = (CosStream)cos.Resolve(cos.Catalog["Metadata"])!;
+        var xmp = XDocument.Parse(Encoding.UTF8.GetString(CosFilters.Decode(metadata, cos.Resolve)).Split("<?xpacket")[1].Split("?>", 2)[1]);
+        XNamespace id = "http://www.aiim.org/pdfa/ns/id/";
+        XNamespace rsm = "urn:etda:uncefact:data:standard:Invoice_CrossIndustryInvoice:2#";
+        Assert.Equal("3", xmp.Descendants(id + "part").Single().Value);
+        Assert.Equal("U", xmp.Descendants(id + "conformance").Single().Value);
+        Assert.Equal(documentType, xmp.Descendants(rsm + "DocumentType").Single().Value);
+        Assert.Equal(TaxInvoice.XmlFileName, xmp.Descendants(rsm + "DocumentFileName").Single().Value);
+        Assert.Equal("2.0", xmp.Descendants(rsm + "Version").Single().Value);
+        var spec = (CosDictionary)cos.Resolve(((CosArray)cos.Catalog["AF"]!)[0])!;
+        Assert.Equal("Source", ((CosName)spec["AFRelationship"]!).Value);
+        var file = (CosStream)cos.Resolve(((CosDictionary)spec["EF"]!)["F"])!;
+        Assert.Equal(xml, CosFilters.Decode(file, cos.Resolve));
+    }
+
+    // SHA-256 captured from HEAD (Step 2), including the XML declaration and whitespace.
+    [Theory]
+    [InlineData(TaxDocumentType.TaxInvoice, "75333A1F18913D8B9C4425BA5C2C7959C3180AEB8352B34B8B8824E1EBE3A146", "78B3D2E40AF2A99E6BC6835EDF05F041DE76FFBF4E69DDC1B65147511C7E2F42")]
+    [InlineData(TaxDocumentType.InvoiceTaxInvoice, "3730A166665A81CAC215958ABA0EA5825BB5BE48417789B78EFA4B33D0D24DDE", "90BEAAFEFC17F484E5EA15C576432A536118B4C3280DB37AA980AA7183BC24E3")]
+    [InlineData(TaxDocumentType.ReceiptTaxInvoice, "676D7A5602474C04B401D3BCD00024C5C496502DB85CFC596699BBC502140635", "4D6727F4ADB8F209AC7AED7996F83E4C4F4BCAB59B17A2881CB65F78734ECFAF")]
+    [InlineData(TaxDocumentType.DeliveryTaxInvoice, "D5E9626A9E57621F735DD088516A8EFC1452DB128FA6D21D4EDD837166C67A68", "8D26F4BFC1EC15BE9EAECD5EA46F5ADF49F9D2EB91EA505AAFC5B9E5BA779C1B")]
+    public void Existing_invoice_types_keep_their_xml_bytes(TaxDocumentType type, string golden, string discountedGolden)
+    {
+        var invoice = new TaxInvoice(type, "INV-001", new DateTime(2026, 11, 7),
+            new TaxParty("Seller", TaxIdKind.TaxId, "0105536000313", "00000", "Street", "10310",
+                BuildingNumber: "99/9", Province: "10", District: "1017", Subdistrict: "101701"),
+            new TaxParty("Buyer", TaxIdKind.NationalId, "1104599001276", "", "Street", "10330"),
+            [new("A", 2, "EA", 100), new("B", 1, "", 50)], Note: "Note");
+        var created = new DateTimeOffset(2026, 11, 7, 9, 0, 0, TimeSpan.FromHours(7));
+        Assert.Equal(golden, Convert.ToHexString(SHA256.HashData(invoice.ToXml(created))));
+        var discounted = invoice with { Lines = [new("A", 2, "EA", 100, new(10, true)), new("B", 1, "", 50, new(5))], Discount = new(20) };
+        Assert.Equal(discountedGolden, Convert.ToHexString(SHA256.HashData(discounted.ToXml(created))));
+    }
+
+    private static TaxInvoice Adjustment(TaxDocumentType type) => Sample() with
+    {
+        Type = type, Number = "ADJ-001", IssueDate = new DateTime(2026, 11, 7),
+        Lines = [new("A", 2, "EA", 100, new(20)), new("B", 1, "EA", 100, new(10, true))],
+        Discount = new(27),
+        Reference = new(" INV-001 ", new DateTime(2026, 11, 1, 15, 0, 0), TaxDocumentType.TaxInvoice, 1000),
+        Reason = new(type == TaxDocumentType.DebitNote ? "DBNG02" : "CDNG04", " Price adjustment "),
+    };
 
     [Fact]
     public void Writes_the_etda_xml_with_the_totals()
