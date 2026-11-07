@@ -156,8 +156,9 @@ public partial class ETaxInvoiceDialog : Window
         if (text.Length == 0) return (true, null);
         var percent = text.EndsWith('%');
         if (percent) text = text[..^1].Trim();
+        // A zero discount is no discount, so the PDF keeps its plain totals.
         return ParseNumber(text) is >= 0 and var value
-            ? (true, new TaxDiscount(value, percent)) : (false, null);
+            ? (true, value == 0 ? null : new TaxDiscount(value, percent)) : (false, null);
     }
 
     private static decimal? ParseNumber(string text) => decimal.TryParse(

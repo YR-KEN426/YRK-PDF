@@ -1058,6 +1058,8 @@ public sealed class ETaxTests : IDisposable
     [InlineData(" 10% ", true, 10, true)]
     [InlineData("฿1,000", true, 1000, false)]
     [InlineData("", true, -1, false)]
+    [InlineData("0", true, -1, false)]
+    [InlineData("0%", true, -1, false)]
     [InlineData("abc", false, -1, false)]
     [InlineData("-5", false, -1, false)]
     [InlineData("10%%", false, -1, false)]
