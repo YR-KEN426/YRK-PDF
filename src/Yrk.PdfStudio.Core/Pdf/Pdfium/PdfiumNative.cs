@@ -98,6 +98,25 @@ internal static class PdfiumNative
 
     // --- Page objects (fpdf_edit.h), read for snapping and for exporting --------------------------
 
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr FPDFPageObj_AddMark(IntPtr pageObject, byte[] name);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFPageObjMark_SetStringParam(IntPtr document, IntPtr pageObject, IntPtr mark, byte[] key, byte[] value);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFPageObj_CountMarks(IntPtr pageObject);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr FPDFPageObj_GetMark(IntPtr pageObject, uint index);
+
+    // Both lengths are bytes (including the terminating UTF-16 NUL), not character counts.
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFPageObjMark_GetName(IntPtr mark, [Out] byte[]? buffer, uint bufferLength, out uint outBufferLength);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFPageObjMark_GetParamStringValue(IntPtr mark, byte[] key, [Out] byte[]? buffer, uint bufferLength, out uint outBufferLength);
+
     public const int FPDF_PAGEOBJ_PATH = 2;
     public const int FPDF_PAGEOBJ_IMAGE = 3;
     public const int FPDF_PAGEOBJ_SHADING = 4;

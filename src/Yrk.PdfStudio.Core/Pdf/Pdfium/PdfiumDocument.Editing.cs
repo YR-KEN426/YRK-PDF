@@ -388,6 +388,7 @@ internal sealed partial class PdfiumDocument
             var (a, b, c, d, e, f) = PlacementMatrix(pageIndex, page, bounds, style);
             PdfiumNative.FPDFImageObj_SetMatrix(imageObject, a, b, c, d, e, f);
 
+            PdfiumMarks.Add(_handle, imageObject, style?.Mark);
             PdfiumNative.FPDFPage_InsertObject(page, imageObject);
             inserted = true; // The page owns the object from here on.
             if (PdfiumNative.FPDFPage_GenerateContent(page) == 0)
@@ -498,6 +499,7 @@ internal sealed partial class PdfiumDocument
                 PdfiumNative.FPDFPageObj_SetFillColor(path, color.R, color.G, color.B, PlacementAlpha(color.A, style?.Opacity ?? 1));
                 PdfiumNative.FPDFPath_SetDrawMode(path, shape.EvenOdd ? PdfiumNative.FPDF_FILLMODE_ALTERNATE : PdfiumNative.FPDF_FILLMODE_WINDING, 0);
                 PdfiumNative.FPDFPageObj_Transform(path, a, b, c, d, e, f);
+                PdfiumMarks.Add(_handle, path, style?.Mark);
                 PdfiumNative.FPDFPage_InsertObject(page, path);
                 inserted = true;
             }
@@ -576,6 +578,15 @@ internal sealed partial class PdfiumDocument
                 double cropWidth = right - left, cropHeight = top - bottom;
                 var (a, b, c, d, e, f) = PlacementMatrix(pageIndex, page, bounds, style);
                 PdfiumNative.FPDFPageObj_Transform(form, a / cropWidth, b / cropWidth, c / cropHeight, d / cropHeight, e, f);
+                try
+                {
+                    PdfiumMarks.Add(_handle, form, style?.Mark);
+                }
+                catch
+                {
+                    PdfiumNative.FPDFPageObj_Destroy(form);
+                    throw;
+                }
                 PdfiumNative.FPDFPage_InsertObject(page, form);
                 if (PdfiumNative.FPDFPage_GenerateContent(page) == 0)
                 {

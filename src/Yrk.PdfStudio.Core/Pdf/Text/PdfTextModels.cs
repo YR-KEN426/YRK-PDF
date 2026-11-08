@@ -36,4 +36,5 @@ public sealed record PdfTextBlock(
     double WidthFactor = 1,
     string? LayerId = null,
     double Opacity = 1,
-    bool Behind = false);
+    bool Behind = false,
+    YrkMark? Mark = null);

@@ -4,7 +4,7 @@ namespace Yrk.PdfStudio.Core.Pdf;
 /// Placement about the centre of the displayed bounds. Positive rotation is clockwise on screen;
 /// opacity multiplies the artwork's existing alpha (0 = transparent, 1 = unchanged).
 /// </summary>
-public sealed record PlacementStyle(double RotationDegrees = 0, double Opacity = 1);
+public sealed record PlacementStyle(double RotationDegrees = 0, double Opacity = 1, YrkMark? Mark = null);
 
 /// <summary>
 /// Entry point to a PDF engine. The UI only talks to these interfaces, so the engine behind them

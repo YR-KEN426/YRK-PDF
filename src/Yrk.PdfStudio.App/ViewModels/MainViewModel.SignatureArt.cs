@@ -88,9 +88,16 @@ public sealed partial class MainViewModel
         _ => document.AddImageAsync(item.PageIndex, ImageConversion.ToPdfImage(art.Preview), item.Bounds, style: PlacementStyleOf(item)),
     };
 
-    private static PlacementStyle? PlacementStyleOf(PlacedItemViewModel item)
+    private static PlacementStyle PlacementStyleOf(PlacedItemViewModel item)
     {
         var opacity = item.Art?.Kind == SignatureArtKind.Pdf ? 1 : item.Opacity;
-        return item.Rotation == 0 && opacity == 1 ? null : new PlacementStyle(item.Rotation, opacity);
+        var kind = item.Kind switch
+        {
+            PlacedItemKind.Signature => YrkMarkKind.Signature,
+            PlacedItemKind.Stamp => YrkMarkKind.Stamp,
+            PlacedItemKind.Text => YrkMarkKind.Text,
+            _ => YrkMarkKind.Image,
+        };
+        return new PlacementStyle(item.Rotation, opacity, new YrkMark(kind, item.MarkGroup));
     }
 }

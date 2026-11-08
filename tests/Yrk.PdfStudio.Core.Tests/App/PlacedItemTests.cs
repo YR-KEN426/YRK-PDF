@@ -127,6 +127,10 @@ public sealed class PlacedItemTests
         var saved = app.PathFor("saved.pdf");
         Assert.True(await app.SaveToAsync(saved));
         Assert.Empty(app.Dialogs.Named("ShowError"));
+        var mark = new YrkMark(art is null ? YrkMarkKind.Image : YrkMarkKind.Signature, item.MarkGroup);
+        var objects = await YrkMarkTests.ReadObjectsAsync(File.ReadAllBytes(saved));
+        Assert.NotEmpty(objects);
+        Assert.All(objects, obj => YrkMarkTests.AssertMark(Assert.Single(obj.Marks), mark));
         await using var document = await app.Engine.OpenAsync(saved);
         var graphics = await document.GetPageGraphicsAsync(0);
         var left = graphics.Graphics.Min(g => g.X);
@@ -197,7 +201,7 @@ public sealed class PlacedItemTests
     [InlineData("vector")]
     [InlineData("pdf")]
     [InlineData("stamp")]
-    public async Task Default_placement_passes_no_style_to_core(string kind)
+    public async Task Default_user_placement_passes_its_mark_without_changing_geometry(string kind)
     {
         await using var app = new AppTestHarness();
         Assert.True(await app.OpenAsync(BlankPdf(app.PathFor("source.pdf"))));
@@ -210,7 +214,8 @@ public sealed class PlacedItemTests
             _ => null,
         };
         var stamp = kind == "stamp" ? Sta.Run(() => StampRenderer.RenderCertifiedCopy(new CertifiedCopyOptions(null, false, null))) : null;
-        var item = PlacedItemViewModel.CreateImage(0, PlacedItemKind.Signature, 400, 300, image, art, stamp);
+        var itemKind = kind == "picture" ? PlacedItemKind.Picture : kind == "stamp" ? PlacedItemKind.Stamp : PlacedItemKind.Signature;
+        var item = PlacedItemViewModel.CreateImage(0, itemKind, 400, 300, image, art, stamp);
         item.Bounds = item.ToBounds(80, 100, 120, 60);
         Attach(app, item);
         var calls = new List<object?[]>();
@@ -223,7 +228,11 @@ public sealed class PlacedItemTests
         };
         await (Task)typeof(MainViewModel).GetMethod("CommitOverlaysAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
             .Invoke(app.Model, [document, kind == "stamp"])!;
-        Assert.Null(Assert.Single(calls)[^1]);
+        var style = Assert.IsType<PlacementStyle>(Assert.Single(calls)[^1]);
+        Assert.Equal(0, style.RotationDegrees);
+        Assert.Equal(1, style.Opacity);
+        Assert.Equal(new YrkMark(kind == "picture" ? YrkMarkKind.Image : kind == "stamp" ? YrkMarkKind.Stamp : YrkMarkKind.Signature,
+            item.MarkGroup), style.Mark);
     }
 
     private static async Task<PdfBitmap> SaveStampAsync(RenderedStamp stamp, int pageRotation, double rotation, double opacity)
@@ -238,9 +247,45 @@ public sealed class PlacedItemTests
         Attach(app, item);
         var path = app.PathFor("saved.pdf");
         Assert.True(await app.SaveToAsync(path), string.Join("; ", app.Dialogs.Named("ShowError").Select(c => c.Arguments[0])));
+        var objects = await YrkMarkTests.ReadObjectsAsync(File.ReadAllBytes(path));
+        Assert.Contains(objects, obj => obj.Type == 3);
+        Assert.Contains(objects, obj => obj.Type == 1);
+        Assert.All(objects, obj => YrkMarkTests.AssertMark(Assert.Single(obj.Marks),
+            new YrkMark(obj.Type == 3 ? YrkMarkKind.Stamp : YrkMarkKind.StampText, item.MarkGroup)));
         await using var document = await app.Engine.OpenAsync(path);
         Assert.Contains("ROTATE", await document.GetPageTextAsync(0), StringComparison.Ordinal);
         return await document.RenderPageAsync(0, (int)page.WidthPoints * 2, (int)page.HeightPoints * 2);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(90)]
+    public async Task Saved_multiline_text_uses_one_group_per_placed_item(int rotation)
+    {
+        await using var app = new AppTestHarness();
+        Assert.True(await app.OpenAsync(BlankPdf(app.PathFor("text-source.pdf"), rotation)));
+        var page = app.Model.Pages[0];
+        var first = PlacedItemViewModel.CreateText(0, page.WidthPoints, page.HeightPoints, TextStyle.Default);
+        first.Text = "First line\nSecond line";
+        first.Bounds = first.ToBounds(30, 40, 200, 100);
+        first.Rotation = 15;
+        Attach(app, first);
+        var second = PlacedItemViewModel.CreateText(0, page.WidthPoints, page.HeightPoints, TextStyle.Default);
+        second.Text = "Another item";
+        second.Bounds = second.ToBounds(30, 170, 200, 60);
+        Attach(app, second);
+        Assert.NotEqual(first.MarkGroup, second.MarkGroup);
+        var path = app.PathFor("text-saved.pdf");
+        Assert.True(await app.SaveToAsync(path));
+        var objects = await YrkMarkTests.ReadObjectsAsync(File.ReadAllBytes(path));
+        Assert.NotEmpty(objects);
+        Assert.All(objects, obj =>
+        {
+            var mark = Assert.Single(obj.Marks);
+            var owner = mark.Group == first.MarkGroup.ToString("N") ? first : second;
+            YrkMarkTests.AssertMark(mark, new YrkMark(YrkMarkKind.Text, owner.MarkGroup));
+        });
+        Assert.Equal(2, objects.SelectMany(obj => obj.Marks).Select(mark => mark.Group).Distinct().Count());
     }
 
     [Theory]

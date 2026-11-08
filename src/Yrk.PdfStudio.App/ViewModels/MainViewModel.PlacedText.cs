@@ -65,6 +65,7 @@ public sealed partial class MainViewModel
         var blocks = TextShaper.ToBlocks(lines).Select((block, index) =>
         {
             var item = owners[index];
+            block = block with { Mark = new YrkMark(item.HasStampText ? YrkMarkKind.StampText : YrkMarkKind.Text, item.MarkGroup) };
             if (item.Rotation == 0 && item.Opacity == 1) return block;
             var angle = item.Rotation * Math.PI / 180;
             var centreX = item.Left + item.Width / 2;

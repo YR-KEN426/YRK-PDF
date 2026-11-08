@@ -47,6 +47,9 @@ public sealed class PlacedItemViewModel : ObservableObject
 
     public PlacedItemKind Kind { get; }
 
+    /// <summary>Stable for this placement, including its stamp frame and every line of its words.</summary>
+    internal Guid MarkGroup { get; } = Guid.NewGuid();
+
     public bool IsText => Kind == PlacedItemKind.Text;
 
     public bool IsImage => Kind != PlacedItemKind.Text;

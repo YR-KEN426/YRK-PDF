@@ -87,6 +87,12 @@ public static class PdfTextWriter
                     content.Append(CultureInfo.InvariantCulture, $"/OC /{layer} BDC\n");
                 }
 
+                if (block.Mark is { } mark)
+                {
+                    // Kind, Group and V are PDF strings, so PDFium's string-param reader sees all three.
+                    content.Append($"/YRK <</Kind({mark.Kind})/Group({mark.Group})/V(1)>> BDC\n");
+                }
+
                 WriteBlock(content, page, block, font =>
                 {
                     if (!names.TryGetValue(font, out var name))
@@ -97,6 +103,11 @@ public static class PdfTextWriter
 
                     return (name, fonts[font].Codes);
                 });
+
+                if (block.Mark is not null)
+                {
+                    content.Append("EMC\n");
+                }
 
                 if (layer is not null)
                 {
