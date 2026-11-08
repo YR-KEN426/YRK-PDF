@@ -13,6 +13,7 @@ internal static class PrivateTempDirectory
     {
         Path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "yrk-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path);
+        Yrk.PdfStudio.App.App.LogFolder = System.IO.Path.Combine(Path, "logs");
         Yrk.PdfStudio.App.Services.ReadingPositions.FilePath = System.IO.Path.Combine(Path, "settings", "reading-positions.json");
         AppDomain.CurrentDomain.ProcessExit += (_, _) => DeleteTree(Path);
         Environment.SetEnvironmentVariable("TMP", Path, EnvironmentVariableTarget.Process);

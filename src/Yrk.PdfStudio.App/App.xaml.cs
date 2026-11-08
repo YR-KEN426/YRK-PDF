@@ -96,7 +96,7 @@ public partial class App : Application
     }
 
     /// <summary>%LOCALAPPDATA%\YRK\EasyPdf\logs, for diagnosing problems users report.</summary>
-    public static string LogFolder { get; } = Path.Combine(
+    public static string LogFolder { get; internal set; } = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "logs");
 
     private static void LogError(Exception exception) => LogMessage(exception.ToString());
