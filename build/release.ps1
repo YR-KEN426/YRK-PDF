@@ -144,6 +144,10 @@ try {
         if ($LASTEXITCODE) { throw "Tests failed." }
     }
 
+    # 1.1.8 and 1.1.9 shipped an old guide because this step was run by hand; it now runs with every release.
+    Write-Host "== User guide" -ForegroundColor Cyan
+    & (Join-Path $PSScriptRoot "build-guide.ps1")
+
     Write-Host "== Publish" -ForegroundColor Cyan
     if (Test-Path $publishDir) { Remove-Item $publishDir -Recurse -Force }
     dotnet publish src\Yrk.PdfStudio.App -c Release -r $Runtime --self-contained true --nologo `

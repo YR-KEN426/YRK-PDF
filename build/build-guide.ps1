@@ -24,6 +24,8 @@ foreach ($lang in @("th", "en")) {
     $page = Join-Path $source "~build-$lang.html"
     [IO.File]::WriteAllText($page, $html, $utf8)
     $pdf = Join-Path $target "YRK-PDF-Guide-$lang.pdf"
+    # Without this, an old guide would pass the check below when Edge fails.
+    Remove-Item $pdf -ErrorAction SilentlyContinue
     try {
         $url = ([Uri]$page).AbsoluteUri
         $args = @("--headless", "--disable-gpu", "--no-first-run", "--user-data-dir=`"$profile`"", "--no-pdf-header-footer",
