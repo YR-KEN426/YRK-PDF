@@ -341,7 +341,20 @@ public sealed class SignatureUserTrustTests
         Assert.True(CertificateSelfSigned.IsSelfSigned(certificate));
     }
 
-    private static X509Certificate2 PssCertificate(RSA key, string variant)
+    [Fact]
+    public void PSS_inner_algorithm_must_match_the_outer_one()
+    {
+        // Both encodings are acceptable alone and the signature is valid; only the mismatch (RFC 5280 4.1.1.2) is wrong.
+        using var key = RSA.Create(2048);
+        using var certificate = PssCertificate(key, "standard", innerVariant: "absent hash NULL");
+        var sequence = new AsnReader(certificate.RawData, AsnEncodingRules.DER).ReadSequence();
+        var tbs = sequence.ReadEncodedValue();
+        sequence.ReadEncodedValue();
+        Assert.True(key.VerifyData(tbs.Span, sequence.ReadBitString(out _), HashAlgorithmName.SHA256, RSASignaturePadding.Pss));
+        Assert.False(CertificateSelfSigned.IsSelfSigned(certificate));
+    }
+
+    private static X509Certificate2 PssCertificate(RSA key, string variant, string? innerVariant = null)
     {
         using var original = Request(key, padding: RSASignaturePadding.Pss)
             .CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(7));
@@ -381,7 +394,14 @@ public sealed class SignatureUserTrustTests
         tbs.WriteEncodedValue(originalTbs.ReadEncodedValue().Span); // Version
         tbs.WriteEncodedValue(originalTbs.ReadEncodedValue().Span); // Serial number
         originalTbs.ReadEncodedValue(); // Old signature algorithm
-        tbs.WriteEncodedValue(algorithm.Encode());
+        if (innerVariant is null) tbs.WriteEncodedValue(algorithm.Encode());
+        else
+        {
+            using var other = PssCertificate(key, innerVariant);
+            var otherCertificate = new AsnReader(other.RawData, AsnEncodingRules.DER).ReadSequence();
+            otherCertificate.ReadEncodedValue();
+            tbs.WriteEncodedValue(otherCertificate.ReadEncodedValue().Span);
+        }
         while (originalTbs.HasData) tbs.WriteEncodedValue(originalTbs.ReadEncodedValue().Span);
         tbs.PopSequence();
         var encodedTbs = tbs.Encode();

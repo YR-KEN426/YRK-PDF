@@ -1496,6 +1496,12 @@ public static class PdfSignatureVerifier
             var reader = new AsnReader(certificate.RawData, AsnEncodingRules.DER);
             var sequence = reader.ReadSequence();
             var tbs = sequence.ReadEncodedValue();
+            // RFC 5280 4.1.1.2: the signed algorithm inside tbsCertificate must match the outer one exactly.
+            var tbsFields = new AsnReader(tbs, AsnEncodingRules.DER).ReadSequence();
+            var versionTag = new Asn1Tag(TagClass.ContextSpecific, 0, true);
+            if (tbsFields.PeekTag().HasSameClassAndValue(versionTag)) tbsFields.ReadEncodedValue();
+            tbsFields.ReadInteger();
+            if (!tbsFields.ReadEncodedValue().Span.SequenceEqual(sequence.PeekEncodedValue().Span)) return false;
             var algorithm = sequence.ReadSequence();
             var oid = algorithm.ReadObjectIdentifier();
             var signature = sequence.ReadBitString(out var unusedBits);
