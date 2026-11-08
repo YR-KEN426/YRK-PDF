@@ -52,6 +52,7 @@ public static class RecentFiles
 
     public static void Clear()
     {
+        ReadingPositions.Clear();
         Items.Clear();
         Save();
     }

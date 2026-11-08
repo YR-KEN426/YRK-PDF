@@ -61,6 +61,8 @@ public partial class MainWindow : Window
         base.OnClosing(e);
         if (_closeConfirmed || !Tabs.Any(t => t.IsDirty))
         {
+            if (!e.Cancel)
+                foreach (var tab in Tabs) tab.SaveReadingPosition();
             return;
         }
 

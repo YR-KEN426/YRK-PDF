@@ -352,6 +352,11 @@ public sealed partial class MainViewModel : ObservableObject
 
                 _password = password;
                 LoadDocument(document, restore);
+                if (restore is null)
+                {
+                    var page = ReadingPositions.GetPageIndex(path);
+                    if (page > 0 && page < Pages.Count) GoToPage(page);
+                }
                 if (copyBytes is not null)
                 {
                     _documentModified = true;
@@ -526,6 +531,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
+        SaveReadingPosition();
         ClearSearch();
         CancelPageGesture();
         CancelDigitalPlacement();
@@ -562,6 +568,12 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         ClearVersions(); // Kept when the document is only reopened for a step (see ApplyNowAsync).
+    }
+
+    internal void SaveReadingPosition()
+    {
+        if (_document is not null && Pages.Count > 0)
+            ReadingPositions.Save(_document.FilePath, _currentPageIndex);
     }
 
     private void RaiseDocumentPropertiesChanged()

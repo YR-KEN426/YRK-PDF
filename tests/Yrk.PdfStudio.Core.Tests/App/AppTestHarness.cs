@@ -82,6 +82,8 @@ internal sealed class AppTestHarness : IAsyncDisposable
     }
 
     public Task<bool> OpenAsync(string path) => Invoke<Task<bool>>("OpenDocumentAsync", path, null, null, false, null, null);
+    public object CaptureViewState() => Invoke<object>("CaptureViewState");
+    public Task<bool> OpenWithViewStateAsync(string path, object state) => Invoke<Task<bool>>("OpenDocumentAsync", path, null, state, false, null, null);
     public Task<bool> SaveToAsync(string path) => Invoke<Task<bool>>("SaveToAsync", path);
 
     private T Invoke<T>(string name, params object?[] args) =>
