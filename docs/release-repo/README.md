@@ -43,11 +43,11 @@ key, and the program refuses an update whose signature does not match. The sourc
 ## สนับสนุนผู้พัฒนา / Support
 
 YRK PDF ฟรีสำหรับทุกคน รวมถึงใช้ในบริษัท และจะฟรีทุกความสามารถต่อไป ถ้าโปรแกรมช่วยให้งานของคุณง่ายขึ้น
-สนับสนุนการพัฒนาได้ที่ [GitHub Sponsors](https://github.com/sponsors/YR-KEN426)
+สนับสนุนการพัฒนาได้ที่ [Ko-fi](https://ko-fi.com/yrklab) / [GitHub Sponsors](https://github.com/sponsors/YR-KEN426)
 เงินสนับสนุนใช้เป็นค่าใบรับรองเซ็นโปรแกรม เวลาพัฒนา และค่าใช้จ่ายสำหรับทำ Platform อื่น (Windows on ARM, Android, macOS, iOS) ขอบคุณครับ
 
 YRK PDF is free for everyone, including businesses, and will stay that way. If it saves you time, you can
-support its development through [GitHub Sponsors](https://github.com/sponsors/YR-KEN426): code signing,
+support its development through [Ko-fi](https://ko-fi.com/yrklab) / [GitHub Sponsors](https://github.com/sponsors/YR-KEN426): code signing,
 development time, and the costs of other platforms (Windows on ARM, Android, macOS, iOS). Thank you!
 
 ## How it is made

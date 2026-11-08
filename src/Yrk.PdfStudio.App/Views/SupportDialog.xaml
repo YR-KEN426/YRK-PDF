@@ -11,17 +11,21 @@
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
-        <!-- GitHub Sponsors pink; white text is about 7:1 contrast. -->
+        <!-- GitHub Sponsors pink; white text is about 5:1 contrast. -->
         <SolidColorBrush x:Key="SponsorBrush" Color="#BF3989" />
-        <SolidColorBrush x:Key="SponsorHoverBrush" Color="#A72F78" />
-        <SolidColorBrush x:Key="SponsorPressedBrush" Color="#8E2866" />
+        <!-- Ko-fi blue; white text is about 5.49:1 contrast. -->
+        <SolidColorBrush x:Key="KoFiBrush" Color="#0B6FA4" />
         <Style x:Key="SponsorButton" TargetType="Button">
+            <Style.Resources>
+                <SolidColorBrush x:Key="SupportHoverBrush" Color="#A72F78" />
+                <SolidColorBrush x:Key="SupportPressedBrush" Color="#8E2866" />
+            </Style.Resources>
             <Setter Property="Foreground" Value="White" />
             <Setter Property="Background" Value="{StaticResource SponsorBrush}" />
             <Setter Property="FontSize" Value="15" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="28,11" />
-            <Setter Property="MinWidth" Value="240" />
+            <Setter Property="Padding" Value="20,11" />
+            <Setter Property="MinWidth" Value="200" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -34,15 +38,22 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SponsorHoverBrush}" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SupportHoverBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{StaticResource SponsorPressedBrush}" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SupportPressedBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+        </Style>
+        <Style x:Key="KoFiButton" TargetType="Button" BasedOn="{StaticResource SponsorButton}">
+            <Style.Resources>
+                <SolidColorBrush x:Key="SupportHoverBrush" Color="#095F8C" />
+                <SolidColorBrush x:Key="SupportPressedBrush" Color="#074F75" />
+            </Style.Resources>
+            <Setter Property="Background" Value="{StaticResource KoFiBrush}" />
         </Style>
     </Window.Resources>
     <DockPanel Margin="20">
@@ -56,9 +67,16 @@
                            TextWrapping="Wrap" Margin="0,14,0,0" />
                 <Image Source="/Assets/promptpay.jpg" Height="320" Stretch="Uniform" Margin="0,16,0,0"
                        AutomationProperties.Name="PromptPay QR code (Paotang Pay) for supporting the developer" />
-                <Button Content="GitHub Sponsors" Style="{StaticResource SponsorButton}" HorizontalAlignment="Center"
-                        Margin="0,20,0,0" Click="OnGitHubSponsors" />
-                <TextBlock Text="For supporters outside Thailand. This opens GitHub in your web browser."
+                <Grid Margin="0,20,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Ko-fi" Style="{StaticResource KoFiButton}" Click="OnKoFi" />
+                    <Button Grid.Column="2" Content="GitHub Sponsors" Style="{StaticResource SponsorButton}" Click="OnGitHubSponsors" />
+                </Grid>
+                <TextBlock Text="These buttons open Ko-fi or GitHub Sponsors in your web browser. Ko-fi accepts credit/debit cards and payments in Thai baht."
                            TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,8,0,0" />
             </StackPanel>
         </ScrollViewer>

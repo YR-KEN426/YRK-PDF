@@ -474,7 +474,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the design and roadmap, and
 ## Support
 
 YRK PDF is free for everyone, including businesses, and will stay that way, with every feature. If it saves you
-time, you can support its development through [GitHub Sponsors](https://github.com/sponsors/YR-KEN426).
+time, you can support its development through [Ko-fi](https://ko-fi.com/yrklab) / [GitHub Sponsors](https://github.com/sponsors/YR-KEN426).
 Sponsorship pays for a code-signing certificate, development time and the costs of other platforms
 (Windows on ARM, Android, macOS, iOS). Thank you!
 

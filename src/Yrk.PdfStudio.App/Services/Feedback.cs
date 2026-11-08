@@ -35,6 +35,9 @@ public static class Feedback
     /// <summary>GitHub Sponsors for supporters outside Thailand.</summary>
     public const string GitHubSponsorsUrl = "https://github.com/sponsors/YR-KEN426";
 
+    /// <summary>Ko-fi for support by credit/debit card, including payments in Thai baht.</summary>
+    public const string KoFiUrl = "https://ko-fi.com/yrklab";
+
     public static void Open(string target) =>
         Process.Start(new ProcessStartInfo(target) { UseShellExecute = true });
 

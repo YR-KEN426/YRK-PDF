@@ -27,7 +27,7 @@ The program connects to the internet only in these 5 cases. In every case, your 
 
 In all the cases above, the destination provider (GitHub, the timestamp authority, or the certificate authority) sees your IP address as is normal for an internet connection. Each has its own privacy policy.
 
-Links in the Help menu (manual, FAQ, feedback) open in your browser, not in the program. This privacy policy and the support the developer window open inside the program and use no internet. The GitHub Sponsors button in the support window opens your browser only when you click it.
+Links in the Help menu (manual, FAQ, feedback) open in your browser, not in the program. This privacy policy and the support the developer window open inside the program and use no internet. The GitHub Sponsors and Ko-fi buttons in the support window open your browser only when you click them.
 
 - The email feedback button fills in the program version, Windows version, and language in the email. You can edit or delete them before sending.
 
@@ -61,7 +61,7 @@ Deleting data: Open the data folder from Settings → Privacy and safety → "Op
 - This website is hosted on GitHub Pages, which may collect visit data under GitHub’s policy.
 - The website does not use cookies, trackers, or load resources from other websites.
 - The feedback form uses Google Forms. Information you enter is sent to Google under Google’s policy, and YRK LAB uses it only to reply and improve the program.
-- The support the developer button takes you to GitHub Sponsors or displays a PromptPay QR code. Payments are subject to the provider’s terms.
+- The support the developer button takes you to GitHub Sponsors, Ko-fi or displays a PromptPay QR code. Payments are subject to the provider’s terms.
 
 ## Contact
 

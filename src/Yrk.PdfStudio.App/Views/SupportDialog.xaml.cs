@@ -10,6 +10,9 @@ public partial class SupportDialog : Window
         InitializeComponent();
     }
 
+    private void OnKoFi(object sender, RoutedEventArgs e) =>
+        Feedback.TryOpen(this, Feedback.KoFiUrl);
+
     private void OnGitHubSponsors(object sender, RoutedEventArgs e) =>
         Feedback.TryOpen(this, Feedback.GitHubSponsorsUrl);
 }
