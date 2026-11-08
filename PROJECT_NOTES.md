@@ -72,6 +72,7 @@
 
 1. ตั้งเลขใน `Directory.Build.props` **ก่อน** รันสคริปต์ทุกครั้ง แล้วเขียน `docs/release-notes/<รุ่น>.md`
 2. Ken รัน `build\release.ps1 -GitHubRepo YR-KEN426/yrk-easy-pdf-release -Publish -ReleaseNotes docs\release-notes\<รุ่น>.md` เอง
+   - ตั้งแต่ 1.2.0 สคริปต์ build คู่มือเองหลังเทสต์ แล้ว `Assets/Guide/*.pdf` จะขึ้นว่าแก้ไข ให้ commit คู่กับรุ่นนั้น
 3. หลัง release ขึ้นแล้วให้รัน `build\build-site.ps1` อีกรอบ เพราะสคริปต์ดึงเลขรุ่นและขนาดไฟล์ล่าสุดจาก GitHub แล้ว Ken อัปโหลดหน้าเว็บผ่าน GitHub เอง:
    - `site\index.html` → `docs/`
    - `site\en\index.html` → `docs/en/`
