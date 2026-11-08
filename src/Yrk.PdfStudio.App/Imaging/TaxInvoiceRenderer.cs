@@ -29,8 +29,7 @@ internal static class TaxInvoiceRenderer
     public static byte[] Render(TaxInvoice invoice, DateTimeOffset created)
     {
         var lineDiscounts = invoice.Lines.Any(l => l.Discount is not null);
-        var hasDiscount = lineDiscounts || invoice.Discount is not null;
-        var totals = Totals(invoice, hasDiscount);
+        var totals = Totals(invoice);
         var footerTop = FooterTopFor(totals.Length);
         double[] columns = lineDiscounts
             ? [Margin, Margin + 30, Right - 310, Right - 265, Right - 230, Right - 150, Right - 80, Right]
@@ -231,14 +230,15 @@ internal static class TaxInvoiceRenderer
             invoice.XmpExtension).Pdf;
     }
 
-    private static (string Label, decimal Value)[] Totals(TaxInvoice invoice, bool hasDiscount)
+    internal static (string Label, decimal Value)[] Totals(TaxInvoice invoice)
     {
+        var hasDiscount = invoice.DiscountAmount != 0;
         var vat = invoice.VatRate.ToString("0.##", CultureInfo.InvariantCulture);
         var totals = new List<(string Label, decimal Value)>();
         if (hasDiscount)
         {
-            totals.Add(("รวมเป็นเงิน", invoice.Lines.Sum(l => l.Gross)));
-            totals.Add(("ส่วนลด", invoice.Lines.Sum(l => l.DiscountAmount) + invoice.DiscountAmount));
+            totals.Add(("รวมเป็นเงิน", invoice.LineTotal));
+            totals.Add(("ส่วนลด", invoice.DiscountAmount));
         }
         if (invoice.IsDebitCreditNote)
         {
@@ -254,6 +254,8 @@ internal static class TaxInvoiceRenderer
         }
         else
         {
+            if (invoice.PricesIncludeVat && invoice.Lines.Any(l => l.DiscountAmount != 0))
+                totals.Add(("รวมเป็นเงิน", invoice.LineTotal));
             totals.Add(invoice.PricesIncludeVat
                 ? ("มูลค่าสินค้า/บริการ (ไม่รวมภาษี)", invoice.TaxBasis) : ("รวมเป็นเงิน", invoice.LineTotal));
         }

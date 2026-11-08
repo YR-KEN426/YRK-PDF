@@ -80,11 +80,18 @@ public sealed class ETaxSettings
     }
 
     /// <summary>The number after <paramref name="last"/>: its last run of digits counted up, keeping the zeros ("INV-0009" → "INV-0010").</summary>
-    public static string NextNumber(string? last)
+    public static string NextNumber(string? last, TaxDocumentType type = TaxDocumentType.TaxInvoice)
     {
         if (string.IsNullOrWhiteSpace(last))
         {
-            return "INV" + DateTime.Today.ToString("yyyyMM", System.Globalization.CultureInfo.InvariantCulture) + "-0001";
+            string prefix;
+            switch (type)
+            {
+                case TaxDocumentType.CreditNote: prefix = "CN"; break;
+                case TaxDocumentType.DebitNote: prefix = "DN"; break;
+                default: prefix = "INV"; break;
+            }
+            return prefix + DateTime.Today.ToString("yyyyMM", System.Globalization.CultureInfo.InvariantCulture) + "-0001";
         }
 
         var end = last.Length;

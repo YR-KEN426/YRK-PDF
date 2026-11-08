@@ -1095,6 +1095,31 @@ public sealed class ETaxTests : IDisposable
         settings.SetLastNumber(TaxDocumentType.DebitNote, "DN-0004");
         var dialog = new App.Views.ETaxInvoiceDialog(settings); // Never shown.
         T Field<T>(string name) => (T)dialog.FindName(name);
+        var date = Field<System.Windows.Controls.DatePicker>("ReferenceDateInput");
+        var language = App.Localization.Loc.Language;
+        try
+        {
+            foreach (var (lang, placeholder) in new[] { ("th", "เลือกวันที่"), ("en", "Select a date") })
+            {
+                App.Localization.Loc.Language = lang;
+                date.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.FrameworkElement.LoadedEvent));
+                var textBox = (System.Windows.Controls.Primitives.DatePickerTextBox)date.Template.FindName("PART_TextBox", date);
+                var watermark = (System.Windows.Controls.ContentControl)textBox.Template.FindName("PART_Watermark", textBox);
+                Assert.Equal(placeholder, watermark.Content);
+                date.SelectedDate = new DateTime(2026, 10, 1);
+                date.SelectedDate = null;
+                Assert.Equal(placeholder, watermark.Content);
+            }
+        }
+        finally { App.Localization.Loc.Language = language; }
+        foreach (var (documentType, typeIndex) in new[] { (TaxDocumentType.TaxInvoice, 0), (TaxDocumentType.CreditNote, 5), (TaxDocumentType.DebitNote, 4) })
+        {
+            var fresh = new App.Views.ETaxInvoiceDialog(new App.Services.ETaxSettings { Type = documentType });
+            Assert.Equal(App.Services.ETaxSettings.NextNumber(null, documentType), ((System.Windows.Controls.TextBox)fresh.FindName("NumberInput")).Text);
+            ((System.Windows.Controls.ComboBox)fresh.FindName("TypeInput")).SelectedIndex = (typeIndex + 1) % 6;
+            ((System.Windows.Controls.ComboBox)fresh.FindName("TypeInput")).SelectedIndex = typeIndex;
+            Assert.Equal(App.Services.ETaxSettings.NextNumber(null, documentType), ((System.Windows.Controls.TextBox)fresh.FindName("NumberInput")).Text);
+        }
         void Text(string name, string value) => Field<System.Windows.Controls.TextBox>(name).Text = value;
         TaxInvoice Build() => (TaxInvoice)typeof(App.Views.ETaxInvoiceDialog)
             .GetMethod("Build", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, null)!;
@@ -1201,6 +1226,124 @@ public sealed class ETaxTests : IDisposable
         var spec = (CosDictionary)cos.Resolve(((CosArray)cos.Catalog["AF"]!)[0])!;
         var file = (CosStream)cos.Resolve(((CosDictionary)spec["EF"]!)["F"])!;
         Assert.Equal(invoice.ToXml(created), CosFilters.Decode(file, cos.Resolve));
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.TaxInvoice, "INV")]
+    [InlineData(TaxDocumentType.InvoiceTaxInvoice, "INV")]
+    [InlineData(TaxDocumentType.ReceiptTaxInvoice, "INV")]
+    [InlineData(TaxDocumentType.DeliveryTaxInvoice, "INV")]
+    [InlineData(TaxDocumentType.CreditNote, "CN")]
+    [InlineData(TaxDocumentType.DebitNote, "DN")]
+    public void Default_numbers_follow_the_document_type(TaxDocumentType type, string prefix)
+    {
+        var month = DateTime.Today.ToString("yyyyMM", System.Globalization.CultureInfo.InvariantCulture);
+        foreach (var last in new string?[] { null, "", " " })
+            Assert.Equal(prefix + month + "-0001", App.Services.ETaxSettings.NextNumber(last, type));
+        Assert.Equal("INV" + month + "-0001", App.Services.ETaxSettings.NextNumber(null));
+        Assert.Equal("CUSTOM-0010", App.Services.ETaxSettings.NextNumber("CUSTOM-0009", type));
+    }
+
+    [Theory]
+    [InlineData(TaxDocumentType.DebitNote, -1)]
+    [InlineData(TaxDocumentType.DebitNote, 0)]
+    [InlineData(TaxDocumentType.DebitNote, 1)]
+    [InlineData(TaxDocumentType.CreditNote, -1)]
+    [InlineData(TaxDocumentType.CreditNote, 0)]
+    [InlineData(TaxDocumentType.CreditNote, 1)]
+    public void Original_invoice_date_must_not_follow_the_note(TaxDocumentType type, int days)
+    {
+        var invoice = Adjustment(type);
+        // A later time on the same calendar date remains valid.
+        invoice = invoice with { Reference = invoice.Reference! with { IssueDate = invoice.IssueDate.Date.AddDays(days).AddHours(23) } };
+        var problems = invoice.Problems();
+        if (days > 0)
+            Assert.Equal(["The original invoice date is after this document's date."], problems);
+        else
+            Assert.Empty(problems);
+    }
+
+    public static IEnumerable<object[]> PrintedTotalCases() =>
+        from type in new[] { TaxDocumentType.TaxInvoice, TaxDocumentType.DebitNote, TaxDocumentType.CreditNote }
+        from inclusive in new[] { false, true }
+        from discount in new[] { 0, 1, 2 } // None, line only, line and bill.
+        select new object[] { type, inclusive, discount };
+
+    [Theory]
+    [MemberData(nameof(PrintedTotalCases))]
+    public async Task Printed_totals_separate_line_and_bill_discounts(TaxDocumentType type, bool inclusive, int discount)
+    {
+        var isNote = type is TaxDocumentType.DebitNote or TaxDocumentType.CreditNote;
+        var invoice = Sample() with
+        {
+            Type = type, PricesIncludeVat = inclusive,
+            Lines = [new("Item A", 2, "EA", 1000, discount > 0 ? new(100) : null), new("Item B", 1, "EA", 500)],
+            Discount = discount == 2 ? new(5, true) : null,
+            Reference = isNote ? new("ORIGINAL-123", new(2026, 10, 1), TaxDocumentType.TaxInvoice, 10000) : null,
+            Reason = isNote ? new(type == TaxDocumentType.DebitNote ? "DBNG01" : "CDNG01", "Adjustment") : null,
+        };
+        Assert.Empty(invoice.Problems());
+        var totals = App.Imaging.TaxInvoiceRenderer.Totals(invoice);
+        var values = totals.ToDictionary(t => t.Label, t => t.Value);
+        if (inclusive)
+        {
+            var expectedBasis = discount switch { 0 => 2336.45m, 1 => 2242.99m, _ => 2130.84m };
+            var expectedVat = discount switch { 0 => 163.55m, 1 => 157.01m, _ => 149.16m };
+            Assert.Equal(expectedVat, values["ภาษีมูลค่าเพิ่ม 7%"]);
+            Assert.Equal(discount switch { 0 => 2500m, 1 => 2400m, _ => 2280m }, values["จำนวนเงินรวมทั้งสิ้น"]);
+            if (isNote) Assert.Equal(expectedBasis, values["ผลต่าง"]);
+            else Assert.Equal(expectedBasis, values["มูลค่าสินค้า/บริการ (ไม่รวมภาษี)"]);
+        }
+        Assert.Equal(discount == 2, values.ContainsKey("ส่วนลด"));
+        Assert.Equal(!isNote && discount == 2, values.ContainsKey("หลังหักส่วนลด"));
+        Assert.Equal((!isNote && (!inclusive || discount > 0)) || (isNote && discount == 2), values.ContainsKey("รวมเป็นเงิน"));
+        if (values.ContainsKey("รวมเป็นเงิน")) Assert.Equal(discount > 0 ? 2400m : 2500m, values["รวมเป็นเงิน"]);
+        if (discount == 2)
+        {
+            Assert.Equal(120m, values["ส่วนลด"]);
+            if (!isNote) Assert.Equal(inclusive ? 2280m : invoice.TaxBasis, values["หลังหักส่วนลด"]);
+        }
+        if (isNote)
+        {
+            Assert.Equal(discount == 2 ? 7 : 5, totals.Length);
+            Assert.Equal(new[] { "มูลค่าตามใบกำกับเดิม", "มูลค่าที่ถูกต้อง", "ผลต่าง", "ภาษีมูลค่าเพิ่ม 7%", "จำนวนเงินรวมทั้งสิ้น" },
+                totals.Skip(discount == 2 ? 2 : 0).Select(t => t.Label));
+        }
+        // VAT-inclusive PDF amounts retain the input pricing mode; do not compare them to XML headers.
+        var created = DateTimeOffset.Now;
+        if (!inclusive)
+        {
+            var xml = XDocument.Parse(Encoding.UTF8.GetString(invoice.ToXml(created)));
+            var ns = isNote ? DcnRam : Ram;
+            var header = xml.Descendants(ns + "SpecifiedTradeSettlementHeaderMonetarySummation").Single();
+            decimal Xml(string name) => decimal.Parse(header.Element(ns + name)!.Value, System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Equal(Xml("TaxTotalAmount"), values["ภาษีมูลค่าเพิ่ม 7%"]);
+            Assert.Equal(Xml("GrandTotalAmount"), values["จำนวนเงินรวมทั้งสิ้น"]);
+            if (discount == 2) Assert.Equal(Xml("AllowanceTotalAmount"), values["ส่วนลด"]);
+            if (isNote)
+            {
+                Assert.Equal(Xml("OriginalInformationAmount"), values["มูลค่าตามใบกำกับเดิม"]);
+                Assert.Equal(Xml("LineTotalAmount"), values["มูลค่าที่ถูกต้อง"]);
+                Assert.Equal(Xml("DifferenceInformationAmount"), values["ผลต่าง"]);
+                Assert.Equal(Xml("TaxBasisTotalAmount"), values["ผลต่าง"]);
+            }
+            else
+            {
+                Assert.Equal(Xml("LineTotalAmount"), values["รวมเป็นเงิน"]);
+                Assert.Equal(Xml("TaxBasisTotalAmount"), values[discount == 2 ? "หลังหักส่วนลด" : "รวมเป็นเงิน"]);
+            }
+        }
+        var pdf = Sta.Run(() => App.Imaging.TaxInvoiceRenderer.Render(invoice, created));
+        var path = Path.Combine(_folder.FullName, "printed-totals.pdf");
+        await File.WriteAllBytesAsync(path, pdf);
+        await using var document = await _engine.OpenAsync(path);
+        var text = await document.GetPageTextAsync(0);
+        foreach (var (label, value) in totals)
+        {
+            var number = value.ToString("#,##0.00", System.Globalization.CultureInfo.InvariantCulture);
+            Assert.Matches(System.Text.RegularExpressions.Regex.Escape(label) + @"\s*" + System.Text.RegularExpressions.Regex.Escape(number), text);
+        }
+        Assert.Equal(!isNote && discount == 2, text.Contains("หลังหักส่วนลด", StringComparison.Ordinal));
     }
 
     private static TaxInvoice Sample() => new(

@@ -1440,5 +1440,7 @@
   "Discounts cannot be negative.": "ส่วนลดต้องไม่ติดลบ",
   "A discount percentage cannot exceed 100.": "ส่วนลดเปอร์เซ็นต์ต้องไม่เกิน 100",
   "The discount cannot exceed the line amount.": "ส่วนลดต้องไม่เกินยอดของรายการ",
-  "The discount cannot exceed the invoice total.": "ส่วนลดต้องไม่เกินยอดรวมใบกำกับภาษี"
+  "The discount cannot exceed the invoice total.": "ส่วนลดต้องไม่เกินยอดรวมใบกำกับภาษี",
+  "Select a date": "เลือกวันที่",
+  "The original invoice date is after this document's date.": "วันที่ใบกำกับภาษีเดิมอยู่หลังวันที่ของเอกสารนี้"
 }

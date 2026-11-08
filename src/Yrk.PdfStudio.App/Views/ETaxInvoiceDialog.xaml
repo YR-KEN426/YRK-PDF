@@ -76,7 +76,7 @@
                         </StackPanel>
                         <StackPanel Width="170" Margin="0,0,8,0">
                             <TextBlock Text="Date" Style="{StaticResource Label}" />
-                            <DatePicker x:Name="ReferenceDateInput" AutomationProperties.Name="Original invoice date" SelectedDateChanged="OnChanged" />
+                            <DatePicker x:Name="ReferenceDateInput" AutomationProperties.Name="Original invoice date" SelectedDateChanged="OnChanged" Loaded="OnReferenceDateLoaded" />
                         </StackPanel>
                         <StackPanel Width="170">
                             <TextBlock Text="Value before VAT" Style="{StaticResource Label}" />

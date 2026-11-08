@@ -323,6 +323,10 @@ public sealed record TaxInvoice(
             {
                 problems.Add("Enter the original invoice date.");
             }
+            else if (Reference.IssueDate.Date > IssueDate.Date)
+            {
+                problems.Add("The original invoice date is after this document's date.");
+            }
 
             if (Reference is null || Reference.OriginalValue <= 0)
             {

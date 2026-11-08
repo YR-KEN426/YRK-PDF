@@ -152,6 +152,11 @@ internal static class Sta
             {
                 error = ex;
             }
+            finally
+            {
+                // Tear down any WPF dispatcher this thread created, so no notify window outlives the thread.
+                System.Windows.Threading.Dispatcher.FromThread(Thread.CurrentThread)?.InvokeShutdown();
+            }
         });
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();

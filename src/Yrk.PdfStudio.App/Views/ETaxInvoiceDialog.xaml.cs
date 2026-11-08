@@ -69,7 +69,7 @@ public partial class ETaxInvoiceDialog : Window
         TypeInput.SelectedIndex = Math.Max(0, Array.FindIndex(Types, t => t.Type == settings.Type));
         BuyerKind.ItemsSource = Kinds.Select(k => Loc.T(k.Name)).ToList();
         BuyerKind.SelectedIndex = 0;
-        _suggestedNumber = ETaxSettings.NextNumber(settings.LastNumberFor(settings.Type));
+        _suggestedNumber = ETaxSettings.NextNumber(settings.LastNumberFor(settings.Type), settings.Type);
         NumberInput.Text = _suggestedNumber;
         ReferenceTypeInput.ItemsSource = Types.Take(4).Select(t => t.Name).ToList();
         ReferenceTypeInput.SelectedIndex = Math.Max(0, Array.FindIndex(Types, t => t.Type == settings.LastInvoiceType && ETaxSettings.IsInvoiceType(t.Type)));
@@ -125,12 +125,23 @@ public partial class ETaxInvoiceDialog : Window
 
     private void OnChanged(object sender, RoutedEventArgs e) => Update();
 
+    private void OnReferenceDateLoaded(object sender, RoutedEventArgs e)
+    {
+        ReferenceDateInput.ApplyTemplate();
+        if (ReferenceDateInput.Template.FindName("PART_TextBox", ReferenceDateInput) is System.Windows.Controls.Primitives.DatePickerTextBox textBox)
+        {
+            textBox.ApplyTemplate();
+            if (textBox.Template.FindName("PART_Watermark", textBox) is ContentControl watermark)
+                watermark.Content = Loc.T("Select a date");
+        }
+    }
+
     private void OnTypeChanged(object sender, RoutedEventArgs e)
     {
         if (!_ready) return;
         if (NumberInput.Text == _suggestedNumber)
         {
-            _suggestedNumber = ETaxSettings.NextNumber(_settings.LastNumberFor(SelectedType));
+            _suggestedNumber = ETaxSettings.NextNumber(_settings.LastNumberFor(SelectedType), SelectedType);
             NumberInput.Text = _suggestedNumber;
         }
         ReferencePanel.Visibility = IsDebitCreditNote ? Visibility.Visible : Visibility.Collapsed;
