@@ -21,7 +21,7 @@ public partial class TrustCertificateDialog : Window
             string.Join(", ", certificate.SubjectName.EnumerateRelativeDistinguishedNames()
                 .Where(rdn => !rdn.HasMultipleElements && rdn.GetSingleElementType().Value == "2.5.4.10")
                 .Select(rdn => rdn.GetSingleElementValue())),
-            certificate.NotAfter, TrustedCertificateStore.Fingerprint(certificate));
+            certificate.NotAfter, TrustedCertificateStore.DisplayFingerprint(certificate));
 
     // Even when the trust button has keyboard focus, Enter must not approve trust.
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)

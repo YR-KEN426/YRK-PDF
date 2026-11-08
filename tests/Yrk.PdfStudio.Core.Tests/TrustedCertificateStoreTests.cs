@@ -31,7 +31,13 @@ public sealed class TrustedCertificateStoreTests : IDisposable
         var details = TrustCertificateDialog.Describe(signer);
         Assert.Contains("test@example.test", details);
         Assert.Contains("Test organization", details);
-        Assert.Contains(TrustedCertificateStore.Fingerprint(signer), details);
+        var fingerprint = TrustedCertificateStore.Fingerprint(signer);
+        var displayFingerprint = TrustedCertificateStore.DisplayFingerprint(signer);
+        Assert.Equal(64, fingerprint.Length);
+        Assert.Equal(fingerprint, displayFingerprint.Replace(" ", ""));
+        Assert.Equal(16, displayFingerprint.Split(' ').Length);
+        Assert.All(displayFingerprint.Split(' '), group => Assert.Matches("^[0-9A-F]{4}$", group));
+        Assert.Contains(displayFingerprint, details);
         var store = Store();
         var changes = 0;
         store.Changed += (_, _) => changes++;
@@ -124,6 +130,36 @@ public sealed class TrustedCertificateStoreTests : IDisposable
         Assert.Equal("existing", File.ReadAllText(inside));
         Store().Delete(signer);
         Assert.Equal("outside", File.ReadAllText(outside));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Trust_button_requires_a_verified_self_signature(bool pss)
+    {
+        var padding = pss ? RSASignaturePadding.Pss : RSASignaturePadding.Pkcs1;
+        using var caKey = RSA.Create(2048);
+        var caRequest = new CertificateRequest("CN=Same name trust button test", caKey, HashAlgorithmName.SHA256, padding);
+        caRequest.CertificateExtensions.Add(new X509BasicConstraintsExtension(true, false, 0, true));
+        using var ca = caRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-2), DateTimeOffset.UtcNow.AddDays(8));
+        using var key = RSA.Create(2048);
+        var request = new CertificateRequest(ca.SubjectName, key, HashAlgorithmName.SHA256, padding);
+        request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+        using var selfSigned = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(7));
+        using var issued = request.Create(ca, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(7), [13, 14, 15]);
+        using var sameName = issued.CopyWithPrivateKey(key);
+        Assert.Equal(sameName.SubjectName.RawData, sameName.IssuerName.RawData);
+
+        var source = SignatureFormFillTests.BlankDocument();
+        var options = new PdfVerifyOptions(CheckRevocation: false);
+        var selfSignedInfo = Assert.Single(PdfSignatureVerifier.Verify(await PdfSigner.SignAsync(source, new(selfSigned)), options));
+        var sameNameInfo = Assert.Single(PdfSignatureVerifier.Verify(await PdfSigner.SignAsync(source, new(sameName)), options));
+        Assert.True(selfSignedInfo.IsIntact);
+        Assert.True(sameNameInfo.IsIntact);
+        Assert.Equal(PdfSignerIdentity.Untrusted, selfSignedInfo.Identity);
+        Assert.Equal(PdfSignerIdentity.Untrusted, sameNameInfo.Identity);
+        Assert.True(new SignatureInfoViewModel(selfSignedInfo).CanTrustCertificate);
+        Assert.False(new SignatureInfoViewModel(sameNameInfo).CanTrustCertificate);
     }
 
     [Fact]

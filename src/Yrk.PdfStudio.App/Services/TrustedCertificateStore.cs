@@ -21,6 +21,12 @@ public sealed class TrustedCertificateStore
 
     public static string Fingerprint(X509Certificate2 certificate) => certificate.GetCertHashString(HashAlgorithmName.SHA256);
 
+    public static string DisplayFingerprint(X509Certificate2 certificate)
+    {
+        var hex = Fingerprint(certificate);
+        return string.Join(' ', Enumerable.Range(0, hex.Length / 4).Select(i => hex.Substring(i * 4, 4)));
+    }
+
     private void CheckFolder()
     {
         // Do not follow junctions or symlinks to files outside this store.

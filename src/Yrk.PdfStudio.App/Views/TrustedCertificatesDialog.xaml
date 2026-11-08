@@ -13,10 +13,25 @@
             <Button Content="Delete" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnDelete" />
             <Button Content="Close" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
         </WrapPanel>
-        <ListBox x:Name="CertificateList" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="My trusted certificates">
-            <ListBox.ItemTemplate>
-                <DataTemplate><TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="4,6" /></DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
+        <Grid>
+            <ListBox x:Name="CertificateList" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="My trusted certificates">
+                <ListBox.ItemTemplate>
+                    <DataTemplate><TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="4,6" /></DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Text="No trusted certificates yet. Add one with &quot;Trust this certificate…&quot; in the signature panel or &quot;Import .cer / .crt…&quot;."
+                       TextWrapping="Wrap" Margin="20" VerticalAlignment="Center" IsHitTestVisible="False">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasItems, ElementName=CertificateList}" Value="False">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
     </DockPanel>
 </Window>

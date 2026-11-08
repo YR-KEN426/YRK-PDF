@@ -1,3 +1,4 @@
+using System.Formats.Asn1;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Yrk.PdfStudio.Core.Pdf.Cos;
@@ -18,9 +19,10 @@ public sealed class SignatureUserTrustTests
             DateTimeOffset.UtcNow.AddDays(notAfterDays));
     }
 
-    private static CertificateRequest Request(RSA key, bool ca = false, string name = "CN=User trust test")
+    private static CertificateRequest Request(RSA key, bool ca = false, string name = "CN=User trust test",
+        RSASignaturePadding? padding = null, HashAlgorithmName? hash = null)
     {
-        var request = new CertificateRequest(name, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        var request = new CertificateRequest(name, key, hash ?? HashAlgorithmName.SHA256, padding ?? RSASignaturePadding.Pkcs1);
         request.CertificateExtensions.Add(new X509BasicConstraintsExtension(ca, false, 0, true));
         request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
         return request;
@@ -251,6 +253,161 @@ public sealed class SignatureUserTrustTests
         var result = Verify(await PdfSigner.SignAsync(Source, new(signer)), Trust(signer));
         Assert.Equal(PdfSignerIdentity.TrustedByUser, result.Identity);
         Assert.Equal(PdfSignatureStatus.Valid, result.Status);
+    }
+
+    [Theory]
+    [InlineData("SHA256")]
+    [InlineData("SHA384")]
+    [InlineData("SHA512")]
+    public async Task PSS_self_signed_certificate_is_trusted_by_user(string hashName)
+    {
+        using var key = RSA.Create(2048);
+        using var signer = Request(key, padding: RSASignaturePadding.Pss, hash: new HashAlgorithmName(hashName))
+            .CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(7));
+        Assert.True(CertificateSelfSigned.IsSelfSigned(signer));
+        var result = Verify(await PdfSigner.SignAsync(Source, new(signer)), Trust(signer));
+        Assert.True(result.IsIntact);
+        Assert.Equal(PdfSignerIdentity.TrustedByUser, result.Identity);
+        Assert.Equal(PdfSignatureStatus.Valid, result.Status);
+    }
+
+    [Fact]
+    public async Task PSS_bad_self_signature_is_not_trusted()
+    {
+        using var key = RSA.Create(2048);
+        using var original = Request(key, padding: RSASignaturePadding.Pss)
+            .CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(7));
+        var der = original.RawData;
+        der[^1] ^= 1;
+        using var damaged = X509CertificateLoader.LoadCertificate(der);
+        using var signer = damaged.CopyWithPrivateKey(key);
+        Assert.False(CertificateSelfSigned.IsSelfSigned(signer));
+        var result = Verify(await PdfSigner.SignAsync(Source, new(signer)), Trust(damaged));
+        Assert.True(result.IsIntact);
+        Assert.Equal(PdfSignerIdentity.Untrusted, result.Identity);
+        Assert.Equal(PdfSignatureStatus.IdentityUnknown, result.Status);
+    }
+
+    [Fact]
+    public async Task PSS_certificate_issued_by_same_name_CA_is_not_trusted()
+    {
+        using var caKey = RSA.Create(2048);
+        using var ca = Request(caKey, ca: true, padding: RSASignaturePadding.Pss)
+            .CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-2), DateTimeOffset.UtcNow.AddDays(8));
+        using var key = RSA.Create(2048);
+        using var issued = Request(key, padding: RSASignaturePadding.Pss)
+            .Create(ca, DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(7), [10, 11, 12]);
+        using var signer = issued.CopyWithPrivateKey(key);
+        Assert.Equal(signer.SubjectName.RawData, signer.IssuerName.RawData);
+        Assert.False(CertificateSelfSigned.IsSelfSigned(signer));
+        var result = Verify(await PdfSigner.SignAsync(Source, new(signer)), Trust(ca, signer));
+        Assert.True(result.IsIntact);
+        Assert.Equal(PdfSignerIdentity.Untrusted, result.Identity);
+        Assert.Equal(PdfSignatureStatus.IdentityUnknown, result.Status);
+    }
+
+    [Theory]
+    [InlineData("wrong salt")]
+    [InlineData("wrong MGF hash")]
+    [InlineData("missing parameters")]
+    [InlineData("missing hash")]
+    [InlineData("SHA1")]
+    [InlineData("missing MGF")]
+    [InlineData("wrong MGF algorithm")]
+    [InlineData("missing salt")]
+    [InlineData("wrong trailer")]
+    public void PSS_unsupported_parameters_reject_an_otherwise_valid_self_signature(string variant)
+    {
+        using var key = RSA.Create(2048);
+        using var certificate = PssCertificate(key, variant);
+        // Verify the actual signature independently: only its declared parameters are unacceptable.
+        // Removing the salt or MGF checks must make their respective cases fail this test.
+        var sequence = new AsnReader(certificate.RawData, AsnEncodingRules.DER).ReadSequence();
+        var tbs = sequence.ReadEncodedValue();
+        sequence.ReadEncodedValue();
+        var signature = sequence.ReadBitString(out _);
+        Assert.True(key.VerifyData(tbs.Span, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss));
+        Assert.False(CertificateSelfSigned.IsSelfSigned(certificate));
+    }
+
+    [Theory]
+    [InlineData("standard")]
+    [InlineData("explicit trailer")]
+    [InlineData("absent hash NULL")]
+    public void PSS_supported_parameters_accept_a_valid_self_signature(string variant)
+    {
+        using var key = RSA.Create(2048);
+        using var certificate = PssCertificate(key, variant);
+        Assert.True(CertificateSelfSigned.IsSelfSigned(certificate));
+    }
+
+    private static X509Certificate2 PssCertificate(RSA key, string variant)
+    {
+        using var original = Request(key, padding: RSASignaturePadding.Pss)
+            .CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(7));
+        var algorithm = new AsnWriter(AsnEncodingRules.DER);
+        algorithm.PushSequence();
+        algorithm.WriteObjectIdentifier("1.2.840.113549.1.1.10");
+        if (variant != "missing parameters")
+        {
+            algorithm.PushSequence();
+            if (variant != "missing hash")
+            {
+                var tag = new Asn1Tag(TagClass.ContextSpecific, 0, true);
+                algorithm.PushSequence(tag);
+                WriteHash(variant == "SHA1" ? "1.3.14.3.2.26" : "2.16.840.1.101.3.4.2.1");
+                algorithm.PopSequence(tag);
+            }
+            if (variant != "missing MGF")
+            {
+                var tag = new Asn1Tag(TagClass.ContextSpecific, 1, true);
+                algorithm.PushSequence(tag);
+                algorithm.PushSequence();
+                algorithm.WriteObjectIdentifier(variant == "wrong MGF algorithm" ? "1.2.3.4" : "1.2.840.113549.1.1.8");
+                WriteHash(variant == "wrong MGF hash" ? "2.16.840.1.101.3.4.2.2" : "2.16.840.1.101.3.4.2.1");
+                algorithm.PopSequence();
+                algorithm.PopSequence(tag);
+            }
+            if (variant != "missing salt") WriteInteger(2, variant == "wrong salt" ? 31 : 32);
+            if (variant is "explicit trailer" or "wrong trailer") WriteInteger(3, variant == "wrong trailer" ? 2 : 1);
+            algorithm.PopSequence();
+        }
+        algorithm.PopSequence();
+
+        // Replace both AlgorithmIdentifiers and sign the new TBS using standard PSS (32-byte salt).
+        var originalTbs = new AsnReader(original.RawData, AsnEncodingRules.DER).ReadSequence().ReadSequence();
+        var tbs = new AsnWriter(AsnEncodingRules.DER);
+        tbs.PushSequence();
+        tbs.WriteEncodedValue(originalTbs.ReadEncodedValue().Span); // Version
+        tbs.WriteEncodedValue(originalTbs.ReadEncodedValue().Span); // Serial number
+        originalTbs.ReadEncodedValue(); // Old signature algorithm
+        tbs.WriteEncodedValue(algorithm.Encode());
+        while (originalTbs.HasData) tbs.WriteEncodedValue(originalTbs.ReadEncodedValue().Span);
+        tbs.PopSequence();
+        var encodedTbs = tbs.Encode();
+        var certificate = new AsnWriter(AsnEncodingRules.DER);
+        certificate.PushSequence();
+        certificate.WriteEncodedValue(encodedTbs);
+        certificate.WriteEncodedValue(algorithm.Encode());
+        certificate.WriteBitString(key.SignData(encodedTbs, HashAlgorithmName.SHA256, RSASignaturePadding.Pss));
+        certificate.PopSequence();
+        return X509CertificateLoader.LoadCertificate(certificate.Encode());
+
+        void WriteHash(string oid)
+        {
+            algorithm.PushSequence();
+            algorithm.WriteObjectIdentifier(oid);
+            if (variant != "absent hash NULL") algorithm.WriteNull();
+            algorithm.PopSequence();
+        }
+
+        void WriteInteger(int tagNumber, int value)
+        {
+            var tag = new Asn1Tag(TagClass.ContextSpecific, tagNumber, true);
+            algorithm.PushSequence(tag);
+            algorithm.WriteInteger(value);
+            algorithm.PopSequence(tag);
+        }
     }
 
     [Fact]

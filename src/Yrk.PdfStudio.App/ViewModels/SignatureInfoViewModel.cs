@@ -100,7 +100,7 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
 
     public bool CanTrustCertificate => Info.IsIntact && !Info.ModifiedAfterSigning
         && Info.Identity == PdfSignerIdentity.Untrusted && Info.Certificate is { } certificate
-        && certificate.SubjectName.RawData.AsSpan().SequenceEqual(certificate.IssuerName.RawData);
+        && CertificateSelfSigned.IsSelfSigned(certificate);
 
     public bool HasCertificate => Info.Certificate is not null;
 

@@ -7,6 +7,7 @@
   "Trust this certificate…": "เชื่อถือใบรับรองนี้…",
   "Trust this certificate": "เชื่อถือใบรับรองนี้",
   "My trusted certificates": "ใบรับรองที่ฉันเชื่อถือ",
+  "No trusted certificates yet. Add one with \"Trust this certificate…\" in the signature panel or \"Import .cer / .crt…\".": "ยังไม่มีใบรับรองที่เชื่อถือ เพิ่มได้จากปุ่ม \"เชื่อถือใบรับรองนี้…\" ในแผงลายเซ็น หรือปุ่ม \"นำเข้า .cer / .crt…\"",
   "Certificate details": "ข้อมูลใบรับรอง",
   "Certificate details…": "ข้อมูลใบรับรอง…",
   "Export certificate (.cer)": "ส่งออกใบรับรอง (.cer)",

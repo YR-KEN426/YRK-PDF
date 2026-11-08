@@ -6,6 +6,12 @@ using Yrk.PdfStudio.Core.Pdf.Cos;
 
 namespace Yrk.PdfStudio.Core.Pdf.Signatures;
 
+/// <summary>Checks the certificate's own signature as well as its issuer and subject names.</summary>
+public static class CertificateSelfSigned
+{
+    public static bool IsSelfSigned(X509Certificate2 certificate) => PdfSignatureVerifier.IsSelfSigned(certificate);
+}
+
 /// <summary>Finds the signature fields of a PDF and checks each signature.</summary>
 public static class PdfSignatureVerifier
 {
@@ -1482,7 +1488,7 @@ public static class PdfSignatureVerifier
             .Concat(chain.ChainStatus.Select(s => s.Status))
             .Aggregate(X509ChainStatusFlags.NoError, (all, status) => all | status);
 
-    private static bool IsSelfSigned(X509Certificate2 certificate)
+    internal static bool IsSelfSigned(X509Certificate2 certificate)
     {
         if (!certificate.IssuerName.RawData.AsSpan().SequenceEqual(certificate.SubjectName.RawData)) return false;
         try
@@ -1496,6 +1502,38 @@ public static class PdfSignatureVerifier
             sequence.ThrowIfNotEmpty();
             reader.ThrowIfNotEmpty();
             if (unusedBits != 0) return false;
+
+            if (oid == "1.2.840.113549.1.1.10")
+            {
+                // PSS defaults to SHA-1. Require explicit, supported hash, MGF and salt parameters.
+                var parameters = algorithm.ReadSequence();
+                algorithm.ThrowIfNotEmpty();
+                var hashParameter = parameters.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 0, true));
+                var pssHash = ReadPssHashAlgorithm(hashParameter.ReadSequence());
+                hashParameter.ThrowIfNotEmpty();
+                if (pssHash == default) return false;
+
+                var maskParameter = parameters.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 1, true));
+                var maskAlgorithm = maskParameter.ReadSequence();
+                if (maskAlgorithm.ReadObjectIdentifier() != "1.2.840.113549.1.1.8"
+                    || ReadPssHashAlgorithm(maskAlgorithm.ReadSequence()) != pssHash) return false;
+                maskAlgorithm.ThrowIfNotEmpty();
+                maskParameter.ThrowIfNotEmpty();
+
+                var saltParameter = parameters.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 2, true));
+                var hashLength = pssHash == HashAlgorithmName.SHA256 ? 32 : pssHash == HashAlgorithmName.SHA384 ? 48 : 64;
+                if (saltParameter.ReadInteger() != hashLength) return false;
+                saltParameter.ThrowIfNotEmpty();
+                if (parameters.HasData)
+                {
+                    var trailerParameter = parameters.ReadSequence(new Asn1Tag(TagClass.ContextSpecific, 3, true));
+                    if (trailerParameter.ReadInteger() != 1) return false;
+                    trailerParameter.ThrowIfNotEmpty();
+                }
+                parameters.ThrowIfNotEmpty();
+                using var rsa = certificate.GetRSAPublicKey();
+                return rsa?.VerifyData(tbs.Span, signature, pssHash, RSASignaturePadding.Pss) == true;
+            }
 
             var hash = oid switch
             {
@@ -1521,6 +1559,20 @@ public static class PdfSignatureVerifier
         {
             return false;
         }
+    }
+
+    private static HashAlgorithmName ReadPssHashAlgorithm(AsnReader algorithm)
+    {
+        var hash = algorithm.ReadObjectIdentifier() switch
+        {
+            "2.16.840.1.101.3.4.2.1" => HashAlgorithmName.SHA256,
+            "2.16.840.1.101.3.4.2.2" => HashAlgorithmName.SHA384,
+            "2.16.840.1.101.3.4.2.3" => HashAlgorithmName.SHA512,
+            _ => default,
+        };
+        if (algorithm.HasData) algorithm.ReadNull();
+        algorithm.ThrowIfNotEmpty();
+        return hash;
     }
 
     private static (DateTimeOffset? Time, bool IsTimestamped) ReadTimestamp(SignerInfo signerInfo, PdfVerifyOptions options)
