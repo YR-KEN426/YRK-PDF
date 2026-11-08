@@ -49,6 +49,7 @@
     <li>Or press <kbd>Ctrl</kbd>+<kbd>O</kbd>, or the <span class="path">Open</span> button. The arrow next to it lists recent files.</li>
     <li>Open several files at once: each one gets its own tab.</li>
     <li>Besides PDF, AutoCAD drawings (DWG, DXF) open too.</li>
+    <li>Reopening a file returns to the page you last read. The last 200 files are remembered on this computer only; clearing the recent files list clears this history too.</li>
   </ul>
 
   <h3>Start page</h3>
@@ -238,19 +239,20 @@
   <h2>e-Tax Invoice</h2>
   <p>Makes a Thai tax invoice as PDF/A-3 with the Revenue Department's XML (ETDA standard ขมธอ. 3-2560) inside: the <span class="path">e-Tax Invoice</span> card in the home page's <span class="path">Accounting</span> group, or <span class="path">Tools → e-Tax Invoice…</span></p>
   <ol>
-    <li>Choose the document: tax invoice, invoice/tax invoice, receipt/tax invoice or delivery order/tax invoice.</li>
+    <li>Choose the document: tax invoice, invoice/tax invoice, receipt/tax invoice, delivery order/tax invoice, <span class="path">Debit note (80)</span> or <span class="path">Credit note (81)</span>. Document numbers count separately for each document type.</li>
     <li>Fill in the seller (once; it is remembered), for whom the Revenue Department requires the house number, province, district and subdistrict, and the buyer. A buyer is identified by tax ID and branch, Thai ID card or passport; 13-digit numbers are checked.</li>
-    <li>Type the items in the table. The amount before VAT, the VAT and the total, with the total in Thai words, show as you type. Tick <span class="path">Prices include VAT</span> when the prices you type already include it.</li>
-    <li>Press <span class="path">Create e-Tax Invoice</span> and choose where to save. The next document number counts on by itself.</li>
+    <li>For a debit or credit note, fill in <span class="path">Original invoice number</span>, <span class="path">Original invoice date</span>, <span class="path">Value before VAT</span> and <span class="path">Original invoice type</span>. Choose a <span class="path">Reason</span>; for a code ending in 99, also fill in <span class="path">Reason details</span>. The PDF shows the original value, correct value, difference and VAT on the difference.</li>
+    <li>Type the items in the table. The <span class="path">Discount</span> column is for a discount on each line; <span class="path">Bill discount</span> reduces the whole bill. Enter discounts in baht, such as 50, or as a percentage, such as 10%. The amount before VAT, the VAT and the total, with the total in Thai words, show as you type. Tick <span class="path">Prices include VAT</span> when the prices you type already include it.</li>
+    <li>Press <span class="path">Create e-Tax Invoice</span> and choose where to save. The next document number counts separately for each document type.</li>
   </ol>
-    <p><b>Addresses and postcodes</b></p>
-    <ul>
-      <li>Select <span class="path">Province</span>, <span class="path">District</span> and <span class="path">Subdistrict</span> to fill in <span class="path">Postcode</span> automatically. If a subdistrict has several postcodes, a list appears for you to choose from.</li>
-      <li>Type <span class="path">Postcode</span> first to narrow down the province, district and subdistrict choices. You can always type or edit the postcode yourself; if it does not match the subdistrict, the app only warns you and still lets you use it.</li>
-      <li>The postcode data is stored in the app and works offline. It is from 2018 (B.E. 2561), so it may not reflect changes made since then.</li>
-      <li>For the buyer's address, choose between <span class="path">Thai address (separate fields)</span> and <span class="path">Type the address yourself</span>, for example for a buyer outside Thailand.</li>
-    </ul>
-    <figure><img src="img/th/etax-pdf.jpg" alt=""><figcaption>The invoice made (PDF/A-3 with the XML inside); the invoice itself is in Thai</figcaption></figure>
+  <p><b>Addresses and postcodes</b></p>
+  <ul>
+    <li>Select <span class="path">Province</span>, <span class="path">District</span> and <span class="path">Subdistrict</span> to fill in <span class="path">Postcode</span> automatically. If a subdistrict has several postcodes, a list appears for you to choose from.</li>
+    <li>Type <span class="path">Postcode</span> first to narrow down the province, district and subdistrict choices. You can always type or edit the postcode yourself; if it does not match the subdistrict, the app only warns you and still lets you use it.</li>
+    <li>The postcode data is stored in the app and works offline. It is from 2018 (B.E. 2561), so it may not reflect changes made since then.</li>
+    <li>For the buyer's address, choose between <span class="path">Thai address (separate fields)</span> and <span class="path">Type the address yourself</span>, for example for a buyer outside Thailand.</li>
+  </ul>
+  <figure><img src="img/th/etax-pdf.jpg" alt=""><figcaption>The invoice made (PDF/A-3 with the XML inside); the invoice itself is in Thai</figcaption></figure>
   <p><b>Sending it to the buyer:</b></p>
   <ul>
     <li><b>e-Tax Invoice &amp; e-Receipt:</b> sign the file with your company's digital ID (<span class="path">Digital signature</span>), then send it the way you registered with the Revenue Department.</li>
@@ -391,7 +393,7 @@
     <li>Website: yr-ken426.github.io/yrk-easy-pdf-release</li>
   </ul>
   <h3>Support the developer</h3>
-  <p><span class="path">Help → Support the developer…</span> opens an in-program window with the PromptPay QR code. Opening it needs no internet. For supporters outside Thailand, the GitHub Sponsors button opens a web browser only when pressed. The program is fully usable for free without supporting it.</p>
+  <p><span class="path">Help → Support the developer…</span> opens an in-program window. <span class="path">Ko-fi</span> and <span class="path">GitHub Sponsors</span> open a web browser only when pressed. Ko-fi accepts credit/debit cards and payments in Thai baht. The program is fully usable for free without supporting it.</p>
   <p style="margin-top:24px;color:var(--muted)">YRK PDF is made by YRK LAB — Your Reliable Kit · Free software under the Apache-2.0 license</p>
 </section>
 
