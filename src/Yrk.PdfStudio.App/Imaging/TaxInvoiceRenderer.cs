@@ -30,6 +30,9 @@ internal static class TaxInvoiceRenderer
     {
         var lineDiscounts = invoice.Lines.Any(l => l.Discount is not null);
         var totals = Totals(invoice);
+        var labelWidth = totals.Select((total, i) => TextShaper.Shape(total.Label, Font,
+            bold: i == totals.Length - 1, italic: false, Body).Width).Max();
+        var totalsLeft = Math.Min(Columns[3], Columns[5] - labelWidth - 8);
         var footerTop = FooterTopFor(totals.Length);
         double[] columns = lineDiscounts
             ? [Margin, Margin + 30, Right - 310, Right - 265, Right - 230, Right - 150, Right - 80, Right]
@@ -189,23 +192,23 @@ internal static class TaxInvoiceRenderer
             var last = t == totals.Length - 1;
             if (last)
             {
-                pages[pageIndex].Add(new PdfStroke(Columns[3], ty2, Right, ty2 + 20, Fill: 0.92));
+                pages[pageIndex].Add(new PdfStroke(totalsLeft, ty2, Right, ty2 + 20, Fill: 0.92));
             }
 
             Write(pageIndex, totals[t].Label, Columns[5] - 4, ty2 + 3, bold: last, align: 1);
             Write(pageIndex, Number(totals[t].Value), Right - 4, ty2 + 3, bold: last, align: 1);
             ty2 += 20;
-            pages[pageIndex].Add(new PdfStroke(Columns[3], ty2, Right, ty2));
+            pages[pageIndex].Add(new PdfStroke(totalsLeft, ty2, Right, ty2));
         }
 
-        pages[pageIndex].Add(new PdfStroke(Columns[3], tableBottom, Columns[3], ty2));
+        pages[pageIndex].Add(new PdfStroke(totalsLeft, tableBottom, totalsLeft, ty2));
         pages[pageIndex].Add(new PdfStroke(Columns[5], tableBottom, Columns[5], ty2));
         pages[pageIndex].Add(new PdfStroke(Right, tableBottom, Right, ty2));
-        pages[pageIndex].Add(new PdfStroke(Margin, tableBottom + 40, Columns[3] - 10, tableBottom + 40 + 20, Fill: 0.95));
-        Write(pageIndex, $"({AmountInWords.Thai(invoice.GrandTotal)})", (Margin + Columns[3] - 10) / 2, tableBottom + 43, bold: true, align: 0.5);
+        pages[pageIndex].Add(new PdfStroke(Margin, tableBottom + 40, totalsLeft - 10, tableBottom + 40 + 20, Fill: 0.95));
+        Write(pageIndex, $"({AmountInWords.Thai(invoice.GrandTotal)})", (Margin + totalsLeft - 10) / 2, tableBottom + 43, bold: true, align: 0.5);
         if (!string.IsNullOrWhiteSpace(invoice.Note))
         {
-            Write(pageIndex, "หมายเหตุ: " + invoice.Note.Trim(), Margin, tableBottom + 66, wrap: Columns[3] - Margin - 10);
+            Write(pageIndex, "หมายเหตุ: " + invoice.Note.Trim(), Margin, tableBottom + 66, wrap: totalsLeft - Margin - 10);
         }
 
         var signY = PageHeight - Margin - 30;

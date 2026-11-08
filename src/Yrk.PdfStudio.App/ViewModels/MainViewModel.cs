@@ -351,12 +351,15 @@ public sealed partial class MainViewModel : ObservableObject
                 }
 
                 _password = password;
-                LoadDocument(document, restore);
                 if (restore is null)
                 {
                     var page = ReadingPositions.GetPageIndex(path);
-                    if (page > 0 && page < Pages.Count) GoToPage(page);
+                    if (page > 0 && page < document.PageSizes.Count)
+                    {
+                        restore = new ViewState(ZoomMode.FitWidth, 0, 0, page, page, 0);
+                    }
                 }
+                LoadDocument(document, restore);
                 if (copyBytes is not null)
                 {
                     _documentModified = true;

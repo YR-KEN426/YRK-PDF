@@ -90,8 +90,22 @@ public sealed class ReadingPositionsTests : IDisposable
         app.Model.GoToPage(4);
         await app.Model.CloseTabAsync(keepAlive: true);
         Assert.Equal(4, ReadingPositions.GetPageIndex(path));
+        var scrolls = new List<double>();
+        app.Model.ScrollRequested += (_, offset) => scrolls.Add(offset);
         Assert.True(await app.OpenAsync(path));
         Assert.Equal(4, app.Model.CurrentPageIndex);
+        Assert.Equal("5", app.Model.PageInput);
+        Assert.Single(scrolls);
+
+        // First layout resizes before the view has applied the requested scroll.
+        app.Model.UpdateViewport(0, 900, 700);
+        Assert.Equal(4, app.Model.CurrentPageIndex);
+        Assert.Equal("5", app.Model.PageInput);
+        Assert.Equal(2, scrolls.Count);
+        Assert.NotEqual(scrolls[0], scrolls[1]);
+        app.Model.UpdateViewport(scrolls[^1], 900, 700);
+        Assert.Equal(4, app.Model.CurrentPageIndex);
+        Assert.Equal("5", app.Model.PageInput);
 
         app.Model.GoToPage(1);
         var state = app.CaptureViewState();

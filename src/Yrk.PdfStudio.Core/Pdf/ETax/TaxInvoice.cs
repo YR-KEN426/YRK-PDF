@@ -424,6 +424,10 @@ public sealed record TaxInvoice(
     /// <param name="created">When the document is made (CreationDateTime).</param>
     public byte[] ToXml(DateTimeOffset created)
     {
+        var lineVats = LineVats();
+        var lineBases = XmlLineBases(lineVats);
+        var lineTotal = lineBases.Sum();
+        var allowance = XmlAllowanceAmount(lineTotal);
         var documentKind = IsDebitCreditNote ? "DebitCreditNote" : "TaxInvoice";
         var Rsm = $"urn:etda:uncefact:data:standard:{documentKind}_CrossIndustryInvoice:2";
         var Ram = $"urn:etda:uncefact:data:standard:{documentKind}_ReusableAggregateBusinessInformationEntity:2";
@@ -519,11 +523,6 @@ public sealed record TaxInvoice(
 
             void Allowance(decimal amount)
             {
-                if (amount == 0)
-                {
-                    return;
-                }
-
                 Start("SpecifiedTradeAllowanceCharge");
                 Element("ChargeIndicator", "false");
                 Element("ActualAmount", Amount(amount), ("currencyID", "THB"));
@@ -593,14 +592,17 @@ public sealed record TaxInvoice(
             Start("ApplicableHeaderTradeSettlement");
             Element("InvoiceCurrencyCode", "THB", ("listID", "ISO 4217 3A"));
             Tax(TaxBasis, Vat);
-            Allowance(DiscountAmount);
+            if (DiscountAmount != 0)
+            {
+                Allowance(allowance);
+            }
             Start("SpecifiedTradeSettlementHeaderMonetarySummation");
             if (IsDebitCreditNote)
             {
                 Element("OriginalInformationAmount", Amount(OriginalValue));
             }
 
-            Element("LineTotalAmount", Amount(IsDebitCreditNote ? CorrectValue : LineTotal));
+            Element("LineTotalAmount", Amount(IsDebitCreditNote ? CorrectValue : lineTotal));
             if (IsDebitCreditNote)
             {
                 Element("DifferenceInformationAmount", Amount(Difference));
@@ -608,7 +610,7 @@ public sealed record TaxInvoice(
 
             if (DiscountAmount != 0)
             {
-                Element("AllowanceTotalAmount", Amount(DiscountAmount));
+                Element("AllowanceTotalAmount", Amount(allowance));
             }
 
             Element("TaxBasisTotalAmount", Amount(TaxBasis));
@@ -617,12 +619,11 @@ public sealed record TaxInvoice(
             End();
             End();
 
-            var lineVats = LineVats();
             for (var i = 0; i < Lines.Count; i++)
             {
                 var line = Lines[i];
                 var lineVat = lineVats[i];
-                var lineBasis = PricesIncludeVat ? line.Amount - lineVat : line.Amount;
+                var lineBasis = lineBases[i];
                 Start("IncludedSupplyChainTradeLineItem");
                 Start("AssociatedDocumentLineDocument");
                 Element("LineID", (i + 1).ToString(CultureInfo.InvariantCulture));
@@ -641,7 +642,10 @@ public sealed record TaxInvoice(
                 End();
                 Start("SpecifiedLineTradeSettlement");
                 Tax(lineBasis, lineVat);
-                Allowance(line.DiscountAmount);
+                if (line.DiscountAmount != 0)
+                {
+                    Allowance(XmlLineAllowanceAmount(line, lineBasis));
+                }
                 Start("SpecifiedTradeSettlementLineMonetarySummation");
                 Element("TaxTotalAmount", Amount(lineVat));
                 Element("NetLineTotalAmount", Amount(lineBasis), ("currencyID", "THB"));
@@ -659,6 +663,16 @@ public sealed record TaxInvoice(
         return output.ToArray();
     }
 
+    // XML amounts exclude VAT; the public totals retain the pricing mode used by the PDF.
+    internal IReadOnlyList<decimal> XmlLineBases(IReadOnlyList<decimal> lineVats) =>
+        Lines.Select((line, i) => PricesIncludeVat ? line.Amount - lineVats[i] : line.Amount).ToArray();
+
+    internal decimal XmlAllowanceAmount(decimal lineTotal) => PricesIncludeVat ? lineTotal - TaxBasis : DiscountAmount;
+
+    internal decimal XmlLineAllowanceAmount(TaxInvoiceLine line, decimal lineBasis) => PricesIncludeVat
+        ? line.Gross - Math.Round(line.Gross * VatRate / (100 + VatRate), 2, MidpointRounding.AwayFromZero) - lineBasis
+        : line.DiscountAmount;
+
     /// <summary>The VAT after each line's own discount; reconciled to the invoice VAT only without a bill allowance.</summary>
     internal IReadOnlyList<decimal> LineVats()
     {
@@ -669,8 +683,13 @@ public sealed record TaxInvoice(
         }).ToList();
         if (vats.Count > 0 && DiscountAmount == 0)
         {
-            // Preserve the existing rounding and XML exactly when no bill allowance applies.
-            vats[^1] += Vat - vats.Sum();
+            // A free line cannot absorb a negative remainder; prefer the later line on ties.
+            var largest = 0;
+            for (var i = 1; i < Lines.Count; i++)
+            {
+                if (Lines[i].Amount >= Lines[largest].Amount) largest = i;
+            }
+            vats[largest] += Vat - vats.Sum();
         }
 
         return vats;
