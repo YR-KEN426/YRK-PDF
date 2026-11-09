@@ -13,7 +13,22 @@ public sealed class PackageIdentity
     internal delegate int NameQuery(ref uint length, StringBuilder? name);
 
     private static readonly Lazy<PackageIdentity> ProcessIdentity = new(() =>
-        new PackageIdentity(GetCurrentPackageFullName, GetCurrentPackageFamilyName));
+        CreateOrUnpackaged(GetCurrentPackageFullName, GetCurrentPackageFamilyName));
+
+    /// <summary>
+    /// Runs before any window, so an unexpected Windows answer must not stop the app from starting.
+    /// Treat it as unpackaged: GitHub copies keep updating, and Store builds stay off through YRK_STORE.
+    /// </summary>
+    internal static PackageIdentity CreateOrUnpackaged(NameQuery fullName, NameQuery familyName)
+    {
+        try { return new PackageIdentity(fullName, familyName); }
+        catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or OverflowException
+            or EntryPointNotFoundException or DllNotFoundException)
+        {
+            return new PackageIdentity(static (ref uint _, StringBuilder? _) => NoPackage,
+                static (ref uint _, StringBuilder? _) => NoPackage);
+        }
+    }
     private readonly Lazy<string?> _familyName;
 
     public static PackageIdentity Current => ProcessIdentity.Value;

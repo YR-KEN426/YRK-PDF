@@ -68,6 +68,16 @@ public sealed class PackageIdentityTests
 
     [Theory]
     [InlineData(5)]
+    [InlineData(87)]
+    public void Startup_identity_never_crashes_on_an_unexpected_native_error(int error)
+    {
+        // Current runs before any window: a crash there would stop every GitHub copy from starting.
+        var identity = PackageIdentity.CreateOrUnpackaged((ref uint length, StringBuilder? buffer) => error, Query(null));
+        Assert.False(identity.HasIdentity);
+    }
+
+    [Theory]
+    [InlineData(5)]
     [InlineData(PackageIdentity.NoPackage)]
     [InlineData(PackageIdentity.InsufficientBuffer)]
     public void Failed_second_call_does_not_enable_the_regular_updater(int error)

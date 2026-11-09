@@ -429,6 +429,33 @@ public sealed class BackupTests : IDisposable
     }
 
     [Fact]
+    public void Backup_file_in_a_reparse_folder_chosen_by_the_user_works()
+    {
+        // OneDrive's Desktop and Documents are reparse points; the user's own backup location must not be refused.
+        var real = Directory.CreateDirectory(Path.Combine(_root, "cloud-real")).FullName;
+        var linked = Path.Combine(_root, "cloud-link");
+        var start = new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{linked}\" \"{real}\"")
+        {
+            UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
+        };
+        using (var process = Process.Start(start)!)
+        {
+            var output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
+            process.WaitForExit();
+            Assert.True(process.ExitCode == 0, output);
+        }
+        try
+        {
+            Put(Source, "settings.json", "{\"a\":1}"u8.ToArray());
+            var archive = Path.Combine(linked, "backup.yrkbackup");
+            new BackupWriter(new Protector(1)).Write(archive, Source, Password, "1.2.0-test");
+            new BackupReader(new Protector(1)).Import(archive, Target, Temp, Password, true);
+            Assert.Equal("{\"a\":1}"u8.ToArray(), File.ReadAllBytes(Path.Combine(Target, "settings.json")));
+        }
+        finally { Directory.Delete(linked); } // Remove the junction itself, never its target.
+    }
+
+    [Fact]
     public void ZIP_symlinks_are_rejected_before_data_is_written()
     {
         var bytes = MakeZip([("DigitalIDs/id.pfx", Payload)]);

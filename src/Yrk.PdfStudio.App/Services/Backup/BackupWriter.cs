@@ -63,7 +63,7 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
             aes.Encrypt(header.AsSpan(7 + BackupFormat.SaltBytes, BackupFormat.NonceBytes),
                 zipBytes.GetBuffer().AsSpan(0, (int)zipBytes.Length),
                 encrypted.AsSpan(BackupFormat.HeaderBytes, (int)zipBytes.Length), encrypted.AsSpan(encrypted.Length - BackupFormat.TagBytes), header);
-            BackupFormat.AtomicWrite(Path.GetFullPath(backupPath), encrypted);
+            BackupFormat.AtomicWrite(Path.GetFullPath(backupPath), encrypted, checkLinks: false);
             return manifest;
         }
         catch (Exception ex) when (BackupFormat.IsInputError(ex)) { throw new IOException(Loc.T(BackupFormat.WriteError)); }

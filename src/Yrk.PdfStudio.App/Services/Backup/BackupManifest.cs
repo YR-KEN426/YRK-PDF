@@ -142,9 +142,11 @@ public static class BackupFormat
         }
     }
 
-    internal static byte[] ReadBounded(string path, int maximum)
+    // checkLinks: false only for the backup file the user picked. OneDrive folders (Desktop, Documents)
+    // are reparse points, and a link the user chose is no attack on the app's own data folder.
+    internal static byte[] ReadBounded(string path, int maximum, bool checkLinks = true)
     {
-        CheckNoLinks(path);
+        if (checkLinks) CheckNoLinks(path);
         using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
         if (input.Length > maximum) throw Invalid();
         var bytes = new byte[checked((int)input.Length)];
@@ -181,9 +183,9 @@ public static class BackupFormat
         if (stream.TryGetBuffer(out var buffer)) CryptographicOperations.ZeroMemory(buffer.AsSpan());
     }
 
-    internal static void AtomicWrite(string path, ReadOnlySpan<byte> bytes, bool overwrite = false)
+    internal static void AtomicWrite(string path, ReadOnlySpan<byte> bytes, bool overwrite = false, bool checkLinks = true)
     {
-        CheckNoLinks(path);
+        if (checkLinks) CheckNoLinks(path);
         var folder = Path.GetDirectoryName(path)!;
         Directory.CreateDirectory(folder);
         var temporary = Path.Combine(folder, ".yrk-backup-" + Guid.NewGuid().ToString("N") + ".tmp");
@@ -194,7 +196,7 @@ public static class BackupFormat
                 output.Write(bytes);
                 output.Flush(flushToDisk: true);
             }
-            CheckNoLinks(path);
+            if (checkLinks) CheckNoLinks(path);
             File.Move(temporary, path, overwrite);
         }
         finally { File.Delete(temporary); }

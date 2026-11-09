@@ -124,7 +124,7 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
 
     private static byte[] Decrypt(string path, ReadOnlySpan<char> password)
     {
-        var encrypted = BackupFormat.ReadBounded(path, BackupFormat.MaxBackupFileBytes);
+        var encrypted = BackupFormat.ReadBounded(path, BackupFormat.MaxBackupFileBytes, checkLinks: false);
         byte[]? key = null;
         byte[]? plain = null;
         try
