@@ -93,6 +93,8 @@
   .handoff-copy { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
   .mobile-handoff-enabled .sticky .wrap { flex-wrap: wrap; }
   .mobile-handoff-enabled .sticky .handoff-button { font-size: 14px; padding: 10px 14px; }
+  /* On phones the handoff line already names Windows 10 / 11; hide the desktop size/zip line to avoid saying it twice. */
+  .mobile-handoff-enabled #hero-cta .meta:not(.mobile-handoff) { display: none; }
 
   /* Header: sits over the hero's background */
   .top { position: relative; z-index: 5; }
