@@ -257,6 +257,7 @@
     <div class="support-layout">
       <div class="support-online">
         <h4>Support online</h4>
+        <p class="support-description">Pay by card from any country. Pick whichever suits you.</p>
         <div class="support-buttons">
           <a class="support-button support-kofi" href="https://ko-fi.com/yrklab" rel="noopener">
             <svg class="support-logo" aria-hidden="true" width="241" height="194" viewBox="0 0 241 194" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -291,7 +292,7 @@
       </div>
       <div class="support-thailand">
         <h4>In Thailand</h4>
-        <p class="support-description">scan the PromptPay code with any banking app, any amount.</p>
+        <p class="support-description">Scan the PromptPay code with any banking app, any amount.</p>
         <p class="qr"><img src="{{img:promptpay.jpg}}" width="210" height="276" alt="PromptPay QR code (Paotang Pay) to support the developer"></p>
       </div>
     </div>
@@ -428,12 +429,75 @@
 </div>
 
 <script>
+  // Offer a Windows handoff on non-Windows phones/tablets without loading any services.
+  (function () {
+    var ua = navigator.userAgent, data = navigator.userAgentData;
+    var windows = /Windows/i.test(ua) || (data && data.platform === "Windows");
+    var mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(ua) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) || (data && data.mobile);
+    if (windows || !mobile) return;
+    var strings = ["Send link to your computer","For Windows 10 / 11 · ","Direct download (.exe)","Link copied. Send it to your Windows computer.","Copy this link to open on your Windows computer"];
+    var url = "https://yr-ken426.github.io/yrk-easy-pdf-release/en/";
+    var notice = document.createElement("p"), direct = document.createElement("a");
+    notice.className = "mobile-handoff meta";
+    notice.append(document.createTextNode(strings[1]));
+    direct.href = document.querySelector("#hero-cta .btn").href;
+    direct.textContent = strings[2];
+    notice.append(direct);
+    var status = document.createElement("p");
+    status.className = "handoff-status";
+    status.setAttribute("role", "status");
+    document.getElementById("hero-cta").append(notice, status);
+    async function copyLink() {
+      try {
+        await navigator.clipboard.writeText(url);
+        status.textContent = strings[3];
+      } catch (_) {
+        // Fall back when Clipboard API permission or a secure context is unavailable.
+        var field = document.createElement("textarea");
+        field.value = url;
+        field.setAttribute("readonly", "");
+        field.setAttribute("aria-label", strings[4]);
+        field.className = "handoff-copy";
+        document.body.append(field);
+        field.select();
+        field.setSelectionRange(0, url.length);
+        var ok = false;
+        try { ok = document.execCommand("copy"); } catch (_) {}
+        field.remove();
+        if (ok) status.textContent = strings[3];
+        else window.prompt(strings[4], url);
+      }
+    }
+    document.querySelectorAll('a.btn[href$="/YRK.EasyPdf-win-Setup.exe"]').forEach(function (link) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = link.className + " handoff-button";
+      button.textContent = strings[0];
+      if (link.hasAttribute("tabindex")) button.tabIndex = link.tabIndex;
+      button.addEventListener("click", async function () {
+        if (navigator.share) {
+          try { await navigator.share({ title: "YRK PDF", url: url }); return; }
+          catch (error) { if (error.name === "AbortError") return; }
+        }
+        await copyLink();
+      });
+      link.replaceWith(button);
+    });
+    document.documentElement.classList.add("mobile-handoff-enabled");
+  })();
+
   // The bar at the bottom appears once the big download button has scrolled out of view, and goes again at the
   // last section, which has its own button: otherwise it would cover the footer.
   (function () {
     var bar = document.getElementById("sticky"), cta = document.getElementById("hero-cta"), end = document.querySelector(".final");
     var past = false, atEnd = false;
-    function update() { bar.classList.toggle("show", past && !atEnd); }
+    function update() {
+      var shown = past && !atEnd;
+      bar.classList.toggle("show", shown);
+      bar.setAttribute("aria-hidden", String(!shown));
+      bar.querySelector(".btn").tabIndex = shown ? 0 : -1;
+    }
     if (!("IntersectionObserver" in window) || !bar || !cta || !end) return;
     new IntersectionObserver(function (entries) {
       past = !entries[0].isIntersecting && entries[0].boundingClientRect.top < 0;
