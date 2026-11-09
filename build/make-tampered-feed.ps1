@@ -2,7 +2,7 @@
 .SYNOPSIS
 Creates two deliberately invalid update feeds for local rejection tests.
 .DESCRIPTION
-Copies a feed without changing its source, then tampers with Update.exe in one
+Copies a feed without changing its source, then tampers with Update.exe (stored as Squirrel.exe) in one
 full package and the full-file signature in the other copy. No keys or network
 are used. Reparse points are refused rather than followed. Requires PowerShell 5.1.
 .EXAMPLE
@@ -168,10 +168,12 @@ try {
     $tamperedPackage = Join-Path $updateOutput $packageName
     $zip = [IO.Compression.ZipFile]::Open($tamperedPackage, [IO.Compression.ZipArchiveMode]::Update)
     try {
+        # Velopack ships the updater in the package as Squirrel.exe and installs it as Update.exe.
         $entries = @($zip.Entries | Where-Object {
-            ($_.FullName -split '[/\\]')[-1] -ieq 'Update.exe'
+            @('Update.exe', 'Squirrel.exe') -icontains ($_.FullName -split '[/\\]')[-1]
         })
-        if ($entries.Count -ne 1) { throw 'Package must contain exactly one Update.exe entry.' }
+        if ($entries.Count -ne 1) { throw 'Package must contain exactly one updater entry (Squirrel.exe or Update.exe).' }
+        Write-Host "Tampering with $($entries[0].FullName)"
         $entry = $entries[0]
         $stream = $entry.Open()
         try {
