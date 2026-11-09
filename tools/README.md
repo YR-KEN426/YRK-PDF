@@ -46,6 +46,8 @@ App และ services ใช้ `Environment.GetFolderPath(LocalApplicationData
 dotnet run --project tools/WindowRenderer --no-build -- TrustCertificateDialog th "$env:TEMP\yrk-certificate-th.png"
 ```
 
+ใช้ `--xaml <ไฟล์.xaml> <th|en> <out.png>` เรนเดอร์ชิ้นส่วน XAML (เช่น แถบเครื่องมือที่คัดลอกจาก MainWindow) ด้วยสไตล์ของ App ได้ โดยไม่ต้องสร้าง MainWindow
+
 Snapshot ตรวจ metadata ก่อน/หลัง จึงตรวจไม่พบการเปลี่ยนแล้วคืน metadata เดิมทั้งหมดระหว่างรัน
 
 อาร์กิวเมนต์ผิดหรือหน้าต่างนอก allowlist ที่ไม่ระบุ flag คืน 2; เรนเดอร์ผิดพลาดคืน 1;

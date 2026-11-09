@@ -81,7 +81,7 @@ public sealed partial class MainViewModel
     public string StatusMessage
     {
         get => _statusMessage;
-        private set => SetProperty(ref _statusMessage, Loc.T(value));
+        internal set => SetProperty(ref _statusMessage, Loc.T(value));
     }
 
     /// <summary>Asks to save unsaved changes. Returns false when the user cancels (or saving fails).</summary>

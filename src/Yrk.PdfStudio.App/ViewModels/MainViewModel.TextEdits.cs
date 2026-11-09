@@ -57,9 +57,25 @@ public sealed partial class MainViewModel
         AttachTextEdit(edit);
         ActiveTextEdit = edit;
         edit.IsEditing = true;
-        StatusMessage = exact
-            ? "Edit the text, then press Enter or click outside it."
+        // The Edit tab's toolbar already says how to finish; the status line only reports a font substitute.
+        _textEditStatus = exact
+            ? string.Empty
             : Loc.F("The document's font {0} is not installed: {1} is used instead. Change the font or size on the toolbar if needed.", line.FontName, family);
+        StatusMessage = _textEditStatus;
+    }
+
+    private string _textEditStatus = string.Empty;
+
+    /// <summary>Leaving the Edit tab: a message that belonged to editing text must not stay in other modes.</summary>
+    public void ClearTextEditStatus()
+    {
+        if (StatusMessage == Loc.T("Click on a line of text to edit it") ||
+            (_textEditStatus.Length > 0 && StatusMessage == _textEditStatus))
+        {
+            StatusMessage = string.Empty;
+        }
+
+        _textEditStatus = string.Empty;
     }
 
     /// <summary>

@@ -1244,6 +1244,7 @@ public partial class MainWindow : Window
 
     private void OnEditTabUnchecked(object sender, RoutedEventArgs e)
     {
+        _viewModel.ClearTextEditStatus();
         if (_viewModel.CurrentTool == AnnotationTool.EditText)
         {
             _viewModel.CurrentTool = AnnotationTool.Select;

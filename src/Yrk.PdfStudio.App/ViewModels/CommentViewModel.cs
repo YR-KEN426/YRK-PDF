@@ -78,7 +78,7 @@ public sealed class CommentViewModel : ObservableObject
     {
         get
         {
-            var date = ParsePdfDate(Annotation.Modified)?.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+            var date = ParsePdfDate(Annotation.Modified)?.ToLocalTime().ToString("g", Loc.FormatCulture);
             return string.Join(" · ", new[] { Annotation.Author, date }.Where(s => !string.IsNullOrWhiteSpace(s)));
         }
     }

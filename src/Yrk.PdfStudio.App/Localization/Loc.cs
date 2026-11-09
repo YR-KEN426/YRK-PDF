@@ -48,7 +48,13 @@ public static class Loc
 
     /// <summary>A composite format ("Saved {0}") in the current language, filled in.</summary>
     public static string F(string englishFormat, params object?[] args) =>
-        string.Format(CultureInfo.CurrentCulture, T(englishFormat), args);
+        string.Format(FormatCulture, T(englishFormat), args);
+
+    /// <summary>
+    /// The culture for dates and numbers in texts: Thai Windows writes the year in the Buddhist era, so
+    /// the English screens use a Western one (en-GB) whatever the Windows region is.
+    /// </summary>
+    public static CultureInfo FormatCulture => IsThai ? CultureInfo.CurrentCulture : CultureInfo.GetCultureInfo("en-GB");
 
     /// <summary>Whether a text has a translation in the current language (English always has).</summary>
     public static bool TryTranslate(string english, out string text)

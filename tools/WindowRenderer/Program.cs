@@ -28,16 +28,17 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        var allowAny = args.Contains("--allow-any-window", StringComparer.Ordinal);
-        var positional = args.Where(arg => arg != "--allow-any-window").ToArray();
-        if (positional.Length != 3 || args.Length != (allowAny ? 4 : 3)
+        var xamlMode = args.Contains("--xaml", StringComparer.Ordinal);
+        var allowAny = args.Contains("--allow-any-window", StringComparer.Ordinal) || xamlMode;
+        var positional = args.Where(arg => arg is not ("--allow-any-window" or "--xaml")).ToArray();
+        if (positional.Length != 3 || args.Length != 3 + (args.Contains("--allow-any-window", StringComparer.Ordinal) ? 1 : 0) + (xamlMode ? 1 : 0)
             || positional[1] is not ("th" or "en"))
         {
             Console.Error.WriteLine("Usage: WindowRenderer [--allow-any-window] <Views window class> <th|en> <output.png>");
             return 2;
         }
 
-        var name = positional[0].Contains('.') ? positional[0] : "Yrk.PdfStudio.App.Views." + positional[0];
+        var name = xamlMode ? "XAML:" + Path.GetFullPath(positional[0]) : positional[0].Contains('.') ? positional[0] : "Yrk.PdfStudio.App.Views." + positional[0];
         if (!allowAny && !ReadOnlyWindows.Contains(name))
         {
             Console.Error.WriteLine($"FAIL: {name} is not in the reviewed read-only allowlist; use --allow-any-window to opt in.");
@@ -156,12 +157,13 @@ internal static class Program
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(language);
         Loc.Language = language;
         UiTranslator.Start();
+        var xamlPath = name.StartsWith("XAML:", StringComparison.Ordinal) ? name[5..] : null;
         var fullName = name.Contains('.') ? name : "Yrk.PdfStudio.App.Views." + name;
-        var type = assembly.GetType(fullName, throwOnError: true)!;
-        if (type.Namespace != "Yrk.PdfStudio.App.Views" || !typeof(Window).IsAssignableFrom(type))
+        var type = xamlPath is null ? assembly.GetType(fullName, throwOnError: true)! : typeof(Window);
+        if (xamlPath is null && (type.Namespace != "Yrk.PdfStudio.App.Views" || !typeof(Window).IsAssignableFrom(type)))
             throw new ArgumentException("Choose a Window class in App.Views.");
         var isCertificate = fullName == "Yrk.PdfStudio.App.Views.TrustCertificateDialog";
-        if (!isCertificate && type.GetConstructor(Type.EmptyTypes) is null)
+        if (xamlPath is null && !isCertificate && type.GetConstructor(Type.EmptyTypes) is null)
             throw new ArgumentException($"{name} needs constructor arguments; this tool supports parameterless windows only.");
         Window? window = null;
         try
@@ -173,9 +175,24 @@ internal static class Program
                 RSASignaturePadding.Pkcs1).CreateSelfSigned(
                     new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
                     new DateTimeOffset(2036, 1, 1, 0, 0, 0, TimeSpan.Zero));
-            window = (Window)(isCertificate
-                ? Activator.CreateInstance(type, certificate!)!
-                : Activator.CreateInstance(type)!);
+            if (xamlPath is not null)
+            {
+                // A loose XAML fragment (e.g. a toolbar copied from MainWindow) shown with the App styles.
+                using var stream = File.OpenRead(xamlPath);
+                window = new Window
+                {
+                    SizeToContent = SizeToContent.WidthAndHeight,
+                    WindowStyle = WindowStyle.None,
+                    Background = Brushes.White,
+                    Content = System.Windows.Markup.XamlReader.Load(stream)
+                };
+            }
+            else
+            {
+                window = (Window)(isCertificate
+                    ? Activator.CreateInstance(type, certificate!)!
+                    : Activator.CreateInstance(type)!);
+            }
             window.WindowStartupLocation = WindowStartupLocation.Manual;
             window.Left = -32000;
             window.Top = -32000;

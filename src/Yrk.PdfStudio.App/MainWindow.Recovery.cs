@@ -17,7 +17,7 @@ public partial class MainWindow
         }
 
         // Thai Windows writes the year in the Buddhist era; the English screens keep the Western year.
-        var culture = Loc.IsThai ? System.Globalization.CultureInfo.CurrentCulture : System.Globalization.CultureInfo.GetCultureInfo("en-GB");
+        var culture = Loc.FormatCulture;
         var list = string.Join("\n", entries.Select(e => Loc.F("• {0} (changes of {1})", e.Name, e.SavedAt.ToString("g", culture))));
         var dialogs = new DialogService();
         if (!dialogs.AskYesNo(Loc.F(

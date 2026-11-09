@@ -892,19 +892,28 @@
                     <WrapPanel Orientation="Horizontal" Visibility="{Binding IsChecked, ElementName=PagesTab, Converter={StaticResource BoolToVisibility}}">
                         <Button Style="{StaticResource ToolbarButton}" Click="OnRotateLeft"
                                 ToolTip="Rotate left (selected pages, or the current page)" AutomationProperties.Name="Rotate left">
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE7AD;" RenderTransformOrigin="0.5,0.5">
-                                <TextBlock.RenderTransform>
-                                    <ScaleTransform ScaleX="-1" />
-                                </TextBlock.RenderTransform>
-                            </TextBlock>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE7AD;" RenderTransformOrigin="0.5,0.5">
+                                    <TextBlock.RenderTransform>
+                                        <ScaleTransform ScaleX="-1" />
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                                <TextBlock Text="Rotate left" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </Button>
                         <Button Style="{StaticResource ToolbarButton}" Click="OnRotateRight"
                                 ToolTip="Rotate right (selected pages, or the current page)" AutomationProperties.Name="Rotate right">
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE7AD;" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE7AD;" />
+                                <TextBlock Text="Rotate right" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </Button>
                         <Button Style="{StaticResource ToolbarButton}" Click="OnDeletePages"
                                 ToolTip="Delete pages" AutomationProperties.Name="Delete pages">
-                            <TextBlock Style="{StaticResource IconText}" Text="&#xE74D;" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{StaticResource IconText}" Text="&#xE74D;" />
+                                <TextBlock Text="Delete" Margin="6,0,2,0" VerticalAlignment="Center" />
+                            </StackPanel>
                         </Button>
                         <Button Style="{StaticResource ToolbarButton}" Click="OnInsertPages"
                                 ToolTip="Insert pages from another PDF after the selected page" AutomationProperties.Name="Insert pages">
