@@ -1448,5 +1448,10 @@
   "The discount cannot exceed the line amount.": "ส่วนลดต้องไม่เกินยอดของรายการ",
   "The discount cannot exceed the invoice total.": "ส่วนลดต้องไม่เกินยอดรวมใบกำกับภาษี",
   "Select a date": "เลือกวันที่",
-  "The original invoice date is after this document's date.": "วันที่ใบกำกับภาษีเดิมอยู่หลังวันที่ของเอกสารนี้"
+  "The original invoice date is after this document's date.": "วันที่ใบกำกับภาษีเดิมอยู่หลังวันที่ของเอกสารนี้",
+  "Updates are managed through Microsoft Store.": "อัปเดตผ่าน Microsoft Store",
+  "1. Updates: updates are managed through Microsoft Store.": "1. การอัปเดต: อัปเดตผ่าน Microsoft Store",
+  "Windows returned an empty package name.": "Windows ส่งคืนชื่อแพ็กเกจว่าง",
+  "Windows returned no package family name.": "Windows ไม่ส่งคืนชื่อกลุ่มแพ็กเกจ",
+  "LocalAppData is unavailable.": "ไม่สามารถเข้าถึงโฟลเดอร์ LocalAppData ได้"
 }

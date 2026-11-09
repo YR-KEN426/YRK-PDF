@@ -15,6 +15,10 @@
     <SatelliteResourceLanguages>en;th</SatelliteResourceLanguages>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(YrkStore)' == 'true'">
+    <DefineConstants>$(DefineConstants);YRK_STORE</DefineConstants>
+  </PropertyGroup>
+
   <!-- Tesseract's package copies both x64 and x86 libraries; a published build needs only its own. -->
   <Target Name="RemoveOtherArchitectureNatives" AfterTargets="Publish" Condition="'$(RuntimeIdentifier)' != ''">
     <RemoveDir Condition="'$(RuntimeIdentifier)' == 'win-x64'" Directories="$(PublishDir)x86" />
@@ -38,7 +42,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Yrk.PdfStudio.Core.Tests" />
     <!-- Where installed copies look for updates, set by build\release.ps1 (-p:YrkUpdateUrl=…); empty turns updates off. -->
-    <AssemblyMetadata Include="YrkUpdateUrl" Value="$(YrkUpdateUrl)" />
+    <AssemblyMetadata Include="YrkUpdateUrl" Value="$(YrkUpdateUrl)" Condition="'$(YrkStore)' != 'true'" />
   </ItemGroup>
 
   <ItemGroup>

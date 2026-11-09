@@ -19,6 +19,11 @@ public partial class AboutDialog : Window
         AutoCheckBox.IsChecked = model.CheckAutomatically;
         AutoCheckBox.IsEnabled = model.CanUpdate;
         CheckButton.IsEnabled = model.CanUpdate;
+        if (model.UsesStoreUpdates)
+        {
+            AutoCheckBox.Visibility = Visibility.Collapsed;
+            CheckButton.Visibility = Visibility.Collapsed;
+        }
         AutoCheckBox.Checked += (_, _) => _model.CheckAutomatically = true;
         AutoCheckBox.Unchecked += (_, _) => _model.CheckAutomatically = false;
         if (model.IsUpdateReady)
@@ -32,7 +37,7 @@ public partial class AboutDialog : Window
     }
 
     private void ShowRestartButton() =>
-        RestartButton.Visibility = _model.IsUpdateReady ? Visibility.Visible : Visibility.Collapsed;
+        RestartButton.Visibility = !_model.UsesStoreUpdates && _model.IsUpdateReady ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>
     /// The program's own notice, the summary of open-source components, the program's license, and every

@@ -4,3 +4,4 @@
 *.dwg binary
 *.dxf -text
 *.ttf binary
+src/Yrk.PdfStudio.App/Assets/Privacy/*.txt text eol=lf

@@ -9,9 +9,6 @@ namespace Yrk.PdfStudio.App.Views;
 /// <summary>What the app does and does not do with the user's data, and where it keeps its own.</summary>
 public partial class PrivacyDialog : Window
 {
-    private static readonly string DataFolder = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf");
-
     private readonly MainViewModel.AboutModel _about;
 
     public PrivacyDialog(MainViewModel.AboutModel about)
@@ -26,7 +23,9 @@ public partial class PrivacyDialog : Window
 
     /// <summary>The update line says exactly what this copy does.</summary>
     private void ShowUpdateLine() =>
-        UpdatesText.Text = !_about.CanUpdate
+        UpdatesText.Text = _about.UsesStoreUpdates
+            ? Loc.T("1. Updates: updates are managed through Microsoft Store.")
+            : !_about.CanUpdate
             ? Loc.T("1. Updates: this copy has no update address, so it never checks.")
             : _about.CheckAutomatically
                 ? Loc.T("1. Updates: shortly after the app starts, it asks its download page on GitHub whether a newer version exists, over an encrypted connection. Nothing about you or your files is sent; like any website, GitHub sees your internet address.")
@@ -49,7 +48,10 @@ public partial class PrivacyDialog : Window
 
     private void OnOpenFolder(object sender, RoutedEventArgs e)
     {
-        Directory.CreateDirectory(DataFolder);
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{DataFolder}\"") { UseShellExecute = false });
+        foreach (var folder in PackageIdentity.Current.GetDataFolders())
+        {
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = false });
+        }
     }
 }

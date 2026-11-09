@@ -22,15 +22,23 @@ public sealed class AppUpdater
     private readonly VerifiedUpdateSource? _source;
     private readonly TimeSpan _checkTimeout;
     private readonly TimeSpan _downloadIdleTimeout;
+    private readonly bool _updatesDisabled;
     private sealed record DownloadPackage(long Size, string Version);
     private DownloadPackage? _downloadingPackage;
 
     public AppUpdater(TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null)
+        : this(PackageIdentity.Current, checkTimeout, downloadIdleTimeout)
+    {
+    }
+
+    internal AppUpdater(PackageIdentity identity, TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null)
     {
         _checkTimeout = checkTimeout ?? TimeSpan.FromSeconds(60);
         _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromMinutes(5);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_checkTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_downloadIdleTimeout, TimeSpan.Zero);
+        _updatesDisabled = identity.UsesStoreUpdates;
+        if (_updatesDisabled) return; // Even a feed override must never enable Velopack in a package.
         FeedUrl = Environment.GetEnvironmentVariable(FeedVariable) is { Length: > 0 } overridden
             ? overridden
             : typeof(AppUpdater).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "YrkUpdateUrl")?.Value;
@@ -54,20 +62,22 @@ public sealed class AppUpdater
     }
 
     internal AppUpdater(YrkUpdateManager manager, VerifiedUpdateSource source,
-        TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null)
+        TimeSpan? checkTimeout = null, TimeSpan? downloadIdleTimeout = null, PackageIdentity? identity = null)
     {
         _checkTimeout = checkTimeout ?? TimeSpan.FromSeconds(60);
         _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromMinutes(5);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_checkTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_downloadIdleTimeout, TimeSpan.Zero);
+        _updatesDisabled = (identity ?? PackageIdentity.Current).UsesStoreUpdates;
+        if (_updatesDisabled) return;
         _manager = manager;
         _source = source;
     }
 
     public string? FeedUrl { get; }
     /// <summary>True for installed and portable copies built with a feed.</summary>
-    public bool IsAvailable => _manager is { IsInstalled: true };
-    public bool IsPortable => _manager is { IsPortable: true };
+    public bool IsAvailable => !_updatesDisabled && _manager is { IsInstalled: true };
+    public bool IsPortable => !_updatesDisabled && _manager is { IsPortable: true };
     public string CurrentVersion =>
         _manager is { IsInstalled: true } manager && manager.CurrentVersion is { } version
             ? version.ToString()
@@ -88,7 +98,7 @@ public sealed class AppUpdater
     public async Task<UpdateInfo?> CheckAndDownloadAsync(Action<int>? progress = null, CancellationToken cancellationToken = default,
         Action<long, string>? downloadStarting = null)
     {
-        if (_manager is not { IsInstalled: true } manager) return null;
+        if (_updatesDisabled || _manager is not { IsInstalled: true } manager) return null;
         Ready = null;
         var update = await manager.CheckForUpdatesAsync().WaitAsync(_checkTimeout, cancellationToken).ConfigureAwait(false);
         if (update is null) return null;
@@ -143,6 +153,7 @@ public sealed class AppUpdater
     /// <summary>Closes the app, installs the downloaded update and starts the new version.</summary>
     public async Task ApplyAndRestartAsync()
     {
+        if (_updatesDisabled) return;
         if (_manager is not null && Ready is not null)
         {
             var update = Ready;

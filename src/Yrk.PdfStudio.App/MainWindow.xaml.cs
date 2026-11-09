@@ -1550,7 +1550,8 @@ public partial class MainWindow : Window
         }
 
         menu.Items.Add(language);
-        menu.Items.Add(new MenuItem { Header = "Updates…", Command = _viewModel.ShowAboutCommand });
+        if (!Services.PackageIdentity.Current.UsesStoreUpdates)
+            menu.Items.Add(new MenuItem { Header = "Updates…", Command = _viewModel.ShowAboutCommand });
         menu.Items.Add(new MenuItem { Header = "Privacy and safety…", Command = _viewModel.ShowPrivacyCommand });
         menu.IsOpen = true;
     }

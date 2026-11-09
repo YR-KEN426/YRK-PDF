@@ -321,7 +321,11 @@ public sealed partial class MainViewModel
 
         public bool CanUpdate => owner._updater.IsAvailable;
 
-        public string UpdateSource => owner._updater.IsAvailable
+        public bool UsesStoreUpdates => PackageIdentity.Current.UsesStoreUpdates;
+
+        public string UpdateSource => UsesStoreUpdates
+            ? Loc.T("Updates are managed through Microsoft Store.")
+            : owner._updater.IsAvailable
             ? Loc.T(owner._updater.IsPortable ? "Portable copy · updates from " : "Updates from ") + owner._updater.FeedUrl
             : Loc.T(string.IsNullOrWhiteSpace(owner._updater.FeedUrl) ? "Updates are not set up in this build." : "Development build: updates are off.");
 

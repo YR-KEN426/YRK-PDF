@@ -11,12 +11,77 @@ using Yrk.PdfStudio.Core.Security;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
+[CollectionDefinition("Update environment", DisableParallelization = true)]
+public sealed class UpdateEnvironmentCollection;
+
+[Collection("Update environment")]
 public sealed class AppUpdaterTests
 {
     private const string Id = "YRK.EasyPdf";
     private const string Version = "1.1.0";
     private const string Name = Id + "-" + Version + "-full.nupkg";
     private static readonly IVelopackLogger Log = new NullVelopackLogger();
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Store_policy_blocks_installed_manager_for_identity_or_store_flag(bool packaged)
+    {
+        using var fixture = new UpdateFixture();
+        var source = fixture.CreateSource(fixture.PublicKey);
+        var manager = new YrkUpdateManager(source, fixture.CreateLocator());
+        Assert.True(manager.IsInstalled); // The test must exercise a manager that could otherwise update.
+        var identity = PackageIdentityTests.CreateIdentity(packaged);
+        var updater = new AppUpdater(manager, source, identity: identity);
+
+        if (!packaged && !PackageIdentity.IsStoreBuild)
+        {
+            Assert.True(updater.IsAvailable);
+            Assert.NotNull(await updater.CheckAndDownloadAsync());
+            Assert.Equal(1, fixture.Inner.Downloads);
+            return;
+        }
+
+        Assert.False(updater.IsAvailable);
+        Assert.False(updater.IsPortable);
+        Assert.Null(await updater.CheckAndDownloadAsync(
+            progress: _ => Assert.Fail("No progress is allowed"),
+            downloadStarting: (_, _) => Assert.Fail("No download is allowed")));
+        await updater.ApplyAndRestartAsync();
+        Assert.Null(updater.Ready);
+        Assert.Equal(0L, updater.DownloadingPackageSize);
+        Assert.Null(updater.DownloadingVersion);
+        Assert.Equal(0, fixture.Inner.FeedReads);
+        Assert.Equal(0, fixture.Inner.Downloads);
+        Assert.False(File.Exists(fixture.Complete));
+        Assert.Equal("original updater", File.ReadAllText(fixture.UpdateExe));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Store_policy_ignores_environment_feed_even_in_regular_build_with_identity(bool packaged)
+    {
+        using var fixture = new UpdateFixture();
+        var previous = Environment.GetEnvironmentVariable(AppUpdater.FeedVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(AppUpdater.FeedVariable, fixture.Feed);
+            var updater = new AppUpdater(PackageIdentityTests.CreateIdentity(packaged));
+            if (!packaged && !PackageIdentity.IsStoreBuild)
+                Assert.Equal(fixture.Feed, updater.FeedUrl);
+            else
+                Assert.Null(updater.FeedUrl);
+            Assert.False(updater.IsAvailable);
+            Assert.Null(await updater.CheckAndDownloadAsync());
+            await updater.ApplyAndRestartAsync();
+            Assert.Equal(0, fixture.Inner.Downloads);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(AppUpdater.FeedVariable, previous);
+        }
+    }
 
     [Fact]
     public async Task Caller_cancellation_deletes_partial_and_package_clears_metadata_and_can_retry()
@@ -255,6 +320,7 @@ public sealed class AppUpdaterTests
 
     private sealed class TrackingSource(IUpdateSource inner) : IUpdateSource
     {
+        internal int FeedReads { get; private set; }
         internal int Downloads { get; private set; }
         internal VelopackAsset? LastDownloaded { get; private set; }
         internal Action? BeforeDownload { get; set; }
@@ -263,8 +329,11 @@ public sealed class AppUpdaterTests
         internal VelopackAssetFeed? Feed { get; set; }
         internal Task<VelopackAssetFeed>? PendingFeed { get; set; }
         public Task<VelopackAssetFeed> GetReleaseFeed(IVelopackLogger logger, string? appId, string channel,
-            Guid? stagingId = null, VelopackAsset? latestLocalRelease = null) =>
-            PendingFeed ?? (Feed is not null ? Task.FromResult(Feed) : inner.GetReleaseFeed(logger, appId, channel, stagingId, latestLocalRelease));
+            Guid? stagingId = null, VelopackAsset? latestLocalRelease = null)
+        {
+            FeedReads++;
+            return PendingFeed ?? (Feed is not null ? Task.FromResult(Feed) : inner.GetReleaseFeed(logger, appId, channel, stagingId, latestLocalRelease));
+        }
 
         public async Task DownloadReleaseEntry(IVelopackLogger logger, VelopackAsset releaseEntry, string localFile,
             Action<int> progress, CancellationToken cancelToken)
