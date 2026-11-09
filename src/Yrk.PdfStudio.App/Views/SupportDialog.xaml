@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Support the developer"
-        Width="600"
+        Width="700"
         SizeToContent="Height"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
@@ -11,50 +11,54 @@
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
-        <!-- GitHub Sponsors pink; white text is about 5:1 contrast. -->
-        <SolidColorBrush x:Key="SponsorBrush" Color="#BF3989" />
-        <!-- Ko-fi blue; white text is about 5.49:1 contrast. -->
-        <SolidColorBrush x:Key="KoFiBrush" Color="#0B6FA4" />
-        <Style x:Key="SponsorButton" TargetType="Button">
-            <Style.Resources>
-                <SolidColorBrush x:Key="SupportHoverBrush" Color="#A72F78" />
-                <SolidColorBrush x:Key="SupportPressedBrush" Color="#8E2866" />
-            </Style.Resources>
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Background" Value="{StaticResource SponsorBrush}" />
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Padding" Value="20,11" />
-            <Setter Property="MinWidth" Value="200" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                <TextBlock Text="♥" FontFamily="Segoe UI Symbol" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                <ContentPresenter VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SupportHoverBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SupportPressedBrush}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="KoFiButton" TargetType="Button" BasedOn="{StaticResource SponsorButton}">
-            <Style.Resources>
-                <SolidColorBrush x:Key="SupportHoverBrush" Color="#095F8C" />
-                <SolidColorBrush x:Key="SupportPressedBrush" Color="#074F75" />
-            </Style.Resources>
-            <Setter Property="Background" Value="{StaticResource KoFiBrush}" />
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="SupportBrands.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <!-- GitHub Sponsors pink; white text is about 5:1 contrast. -->
+            <SolidColorBrush x:Key="SponsorBrush" Color="#BF3989" />
+            <!-- WCAG sRGB relative luminance, both text lines #202020 at full opacity:
+                 Ko-fi normal #72A5F2 = 6.50:1; hover #6699E6 = 5.64:1; pressed #5A8DDA = 4.85:1. -->
+            <SolidColorBrush x:Key="KoFiBrush" Color="#72A5F2" />
+            <Style x:Key="SponsorButton" TargetType="Button">
+                <Style.Resources>
+                    <SolidColorBrush x:Key="SupportHoverBrush" Color="#A72F78" />
+                    <SolidColorBrush x:Key="SupportPressedBrush" Color="#8E2866" />
+                </Style.Resources>
+                <Setter Property="Foreground" Value="White" />
+                <Setter Property="Background" Value="{StaticResource SponsorBrush}" />
+                <Setter Property="FontSize" Value="16" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Padding" Value="18,12" />
+                <Setter Property="MinWidth" Value="200" />
+                <Setter Property="Cursor" Value="Hand" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="Chrome" Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SupportHoverBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SupportPressedBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="KoFiButton" TargetType="Button" BasedOn="{StaticResource SponsorButton}">
+                <Style.Resources>
+                    <SolidColorBrush x:Key="SupportHoverBrush" Color="#6699E6" />
+                    <SolidColorBrush x:Key="SupportPressedBrush" Color="#5A8DDA" />
+                </Style.Resources>
+                <Setter Property="Foreground" Value="#202020" />
+                <Setter Property="Background" Value="{StaticResource KoFiBrush}" />
+            </Style>
+        </ResourceDictionary>
     </Window.Resources>
     <DockPanel Margin="20">
         <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
@@ -65,19 +69,58 @@
                 <TextBlock Text="Support the developer" FontSize="17" FontWeight="SemiBold" />
                 <TextBlock Text="Thank you for using YRK PDF. The program is free, with no ads and no tracking. Your support helps development continue."
                            TextWrapping="Wrap" Margin="0,14,0,0" />
-                <Image Source="/Assets/promptpay.jpg" Height="320" Stretch="Uniform" Margin="0,16,0,0"
-                       AutomationProperties.Name="PromptPay QR code (Paotang Pay) for supporting the developer" />
-                <Grid Margin="0,20,0,0">
+                <Grid Height="260" Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="260" />
+                        <ColumnDefinition Width="20" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <Button Grid.Column="0" Content="Ko-fi" Style="{StaticResource KoFiButton}" Click="OnKoFi" />
-                    <Button Grid.Column="2" Content="GitHub Sponsors" Style="{StaticResource SponsorButton}" Click="OnGitHubSponsors" />
+                    <Image Grid.Column="0" Source="/Assets/promptpay.jpg" Height="260" Stretch="Uniform"
+                           AutomationProperties.Name="PromptPay QR code (Paotang Pay) for supporting the developer" />
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="124" />
+                            <RowDefinition Height="12" />
+                            <RowDefinition Height="124" />
+                        </Grid.RowDefinitions>
+                        <Button Grid.Row="0" Height="124" HorizontalContentAlignment="Stretch"
+                                Style="{StaticResource KoFiButton}" Click="OnKoFi"
+                                AutomationProperties.Name="Ko-fi: Credit/debit cards, Thai baht">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{StaticResource KoFiLogo}" Height="44" Stretch="Uniform"
+                                       AutomationProperties.Name="" Focusable="False" />
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock Text="Ko-fi" FontSize="16" FontWeight="SemiBold" />
+                                    <TextBlock Text="Credit/debit cards, Thai baht" FontSize="13" FontWeight="Normal" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                        <Button Grid.Row="2" Height="124" HorizontalContentAlignment="Stretch"
+                                Style="{StaticResource SponsorButton}" Click="OnGitHubSponsors"
+                                AutomationProperties.Name="GitHub Sponsors: Monthly or one-time">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="56" />
+                                    <ColumnDefinition Width="14" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{StaticResource GitHubLogo}" Height="44" Stretch="Uniform"
+                                       AutomationProperties.Name="" Focusable="False" />
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                    <TextBlock Text="GitHub Sponsors" FontSize="16" FontWeight="SemiBold" />
+                                    <TextBlock Text="Monthly or one-time" FontSize="13" FontWeight="Normal" Margin="0,4,0,0" />
+                                </StackPanel>
+                            </Grid>
+                        </Button>
+                    </Grid>
                 </Grid>
-                <TextBlock Text="These buttons open Ko-fi or GitHub Sponsors in your web browser. Ko-fi accepts credit/debit cards and payments in Thai baht."
-                           TextWrapping="Wrap" TextAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,8,0,0" />
+                <TextBlock Text="These buttons open your web browser."
+                           TextAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,8,0,0" />
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

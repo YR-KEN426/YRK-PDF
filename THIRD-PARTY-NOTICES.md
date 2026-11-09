@@ -24,6 +24,11 @@ The installer also asks Windows to install the **Microsoft Visual C++ Redistribu
 OCR libraries) when it is missing. It is Microsoft's own installer under Microsoft's license; it is not
 part of the portable package.
 
+## Support service trademarks
+
+GitHub and the Invertocat logo are trademarks of GitHub, Inc. The Ko-fi name and logo are
+trademarks of Ko-fi Labs Limited. They are used only to link to the developer's pages on these services.
+
 ## Maintaining this list
 
 - Run a release build and compare the files in the publish folder with this table before each release;
