@@ -61,7 +61,7 @@ public partial class MainWindow
         new("pdfa", "convert", "\uE81C",
             Loc.T("PDF/A for archiving"), Loc.T("The long-term archive format many offices ask for")),
         new("etax", "accounting", "\uE8C7",
-            Loc.T("e-Tax Invoice"), Loc.T("Make a tax invoice as PDF/A-3 with the Revenue Department's XML"), NeedsDocument: false),
+            Loc.T("e-Tax Invoice"), Loc.T("Tax invoices, debit notes and credit notes as PDF/A-3 with the Revenue Department's XML"), NeedsDocument: false),
         new("amount", "accounting", "\uE8EF",
             Loc.T("Amount in words"), Loc.T("Turn 12,500.50 into words in Thai and English"), NeedsDocument: false),
 

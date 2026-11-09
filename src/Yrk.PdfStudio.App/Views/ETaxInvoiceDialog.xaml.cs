@@ -139,6 +139,12 @@ public partial class ETaxInvoiceDialog : Window
     private void OnTypeChanged(object sender, RoutedEventArgs e)
     {
         if (!_ready) return;
+        OkButton.Content = Loc.T(SelectedType switch
+        {
+            TaxDocumentType.DebitNote => "Create debit note",
+            TaxDocumentType.CreditNote => "Create credit note",
+            _ => "Create e-Tax Invoice",
+        });
         if (NumberInput.Text == _suggestedNumber)
         {
             _suggestedNumber = ETaxSettings.NextNumber(_settings.LastNumberFor(SelectedType), SelectedType);

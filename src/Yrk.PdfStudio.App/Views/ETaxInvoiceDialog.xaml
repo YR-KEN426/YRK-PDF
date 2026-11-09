@@ -23,7 +23,7 @@
     </Window.Resources>
     <DockPanel Margin="20,16,20,16">
         <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Make an e-Tax Invoice" FontSize="16" FontWeight="SemiBold" />
+            <TextBlock Text="Make an e-Tax document (tax invoice, debit note, credit note)" FontSize="16" FontWeight="SemiBold" />
             <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,6"
                        Text="The PDF is made as PDF/A-3 with the Revenue Department's XML (ETDA standard) inside. Sign it with your digital ID afterwards, then email it to the buyer." />
             <TextBlock Text="YRK PDF e-Tax status" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,2" />
