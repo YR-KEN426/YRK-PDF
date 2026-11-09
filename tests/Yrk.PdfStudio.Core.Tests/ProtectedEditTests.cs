@@ -21,7 +21,7 @@ public sealed class ProtectedEditTests : IDisposable
         using var key = RSA.Create(2048);
         var request = new CertificateRequest("CN=Protected Signer", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using var certificate = request.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddYears(1));
-        return X509CertificateLoader.LoadPkcs12(certificate.Export(X509ContentType.Pfx), null);
+        return X509CertificateLoader.LoadPkcs12(certificate.Export(X509ContentType.Pfx), null, X509KeyStorageFlags.EphemeralKeySet);
     });
 
     private readonly PdfiumEngine _engine = new();

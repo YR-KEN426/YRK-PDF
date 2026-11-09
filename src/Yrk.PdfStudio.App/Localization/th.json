@@ -1,4 +1,7 @@
 {
+  "The backup could not be read. The password is incorrect or the file is damaged.": "ไม่สามารถอ่านไฟล์สำรองได้ รหัสผ่านไม่ถูกต้องหรือไฟล์เสียหาย",
+  "The backup could not be created.": "ไม่สามารถสร้างไฟล์สำรองได้",
+  "The backup could not be imported.": "ไม่สามารถนำเข้าไฟล์สำรองได้",
   "Drag to rotate. Hold Shift to snap to 15°.": "ลากเพื่อหมุน กด Shift ค้างเพื่อติดทีละ 15°",
   "Rotate 90° clockwise": "หมุนตามเข็มนาฬิกา 90°",
   "Rotate": "หมุน",

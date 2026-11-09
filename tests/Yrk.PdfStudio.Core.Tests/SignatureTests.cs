@@ -334,7 +334,7 @@ public sealed class SignatureTests : IDisposable
     public void Creates_a_digital_id_that_can_sign()
     {
         var pfx = DigitalIdFactory.CreateSelfSigned("Test ID", "test@example.com", "YRK", "pass");
-        using var certificate = X509CertificateLoader.LoadPkcs12(pfx, "pass");
+        using var certificate = X509CertificateLoader.LoadPkcs12(pfx, "pass", X509KeyStorageFlags.EphemeralKeySet);
 
         Assert.True(certificate.HasPrivateKey);
         Assert.Contains("CN=Test ID", certificate.Subject, StringComparison.Ordinal);

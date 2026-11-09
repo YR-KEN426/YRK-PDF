@@ -73,6 +73,16 @@
 - เขียนไฟล์แบบ temp แล้ว Move; ไม่เก็บรหัสไว้ในหน่วยความจำนานกว่าที่ต้องใช้
 - ทดสอบ: ส่งออก→นำเข้าในโฟลเดอร์ temp ได้ข้อมูลเหมือนเดิม; รหัสผิด, ไฟล์ถูกแก้ 1 ไบต์, zip มี `..\`, ไฟล์ใหญ่เกิน → ถูกปฏิเสธทุกกรณีโดยไม่เขียนอะไรลงโฟลเดอร์ข้อมูล
 
+ผลขั้น 4 (2026-11-10):
+- API: `BackupWriter.Write(backupPath, dataDirectory, ReadOnlySpan<char> password, appVersion)` และ `BackupReader.Import(backupPath, dataDirectory, tempDirectory, ReadOnlySpan<char> password, replaceSettings = false)`; ใช้ `IBackupSignatureProtection` แทน DPAPI ในเทสต์ได้
+- AES-256-GCM, salt 16 / nonce 12 / tag 16 ไบต์; หัว 39 ไบต์รวมรอบ PBKDF2 แบบ little-endian และใช้หัวทั้งหมดเป็น AAD; ส่งออก 600,000 รอบ อ่านยอมรับ 600,000–10,000,000 รอบ
+- จำกัดข้อมูล 1,024 ไฟล์ + manifest 1 ไฟล์, ต่อไฟล์ 16 MiB, รวมหลังแตก (รวม manifest) 64 MiB, manifest 1 MiB, ไฟล์สำรองเข้าหน่วยความจำ 80 MiB; ตรวจขณะแตกและตรวจจำนวน central-directory ก่อนสร้างรายการ ZIP; รับเฉพาะ ZIP ของรูปแบบ v1 ไม่รับ ZIP64/หลายดิสก์/คำอธิบายท้าย archive
+- Allowlist: `settings.json`, `stamps.json`, `etax.json`, `Signatures/<id>.yrksig` (ถอด/เข้า DPAPI ใหม่), `DigitalIDs/*.pfx` และ `*.p12` (ไบต์เดิม), `TrustedCertificates/<SHA-256>.cer` (DER สาธารณะที่ hash ตรงชื่อ)
+- ไม่สำรอง `Recovery/`, `logs/`, `tessdata/`, `recent.json`, `reading-positions.json`, `Backups/`, cache และไฟล์นอก allowlist; ไม่สำรอง `digital-sign.json` เพราะ `LastId` เก็บพาธ Digital ID และอ้างถึงลายเซ็นเดิม
+- JSON เดิมข้ามหากไม่มี flag; เมื่อมี flag `settings.json`/`etax.json` แทนที่ ส่วน `stamps.json` รวม MyStamps โดยคงของเดิมและต่อท้ายชื่อซ้ำ `(นำเข้า)`; ลายเซ็น/Digital ID เก็บทั้งคู่ ใบรับรองซ้ำทุกไบต์ข้าม หากชื่อ hash เดียวกันแต่เนื้อหาต่างให้ปฏิเสธก่อนเขียน
+- จุดปรับจากรายการไฟล์เดิม: แก้ validation ของ `SignatureStore.Delete` ให้ลบ ID ที่ต่อท้าย `(นำเข้า)` ได้; เทสต์เดิม 2 จุดใช้ `EphemeralKeySet` เพื่อไม่เขียนกุญแจ PFX ลงบัญชี Windows; การสำรองก่อนนำเข้าอัตโนมัติยังเป็นหน้าที่ caller ในขั้น 5
+- ผลตรวจ: เทสต์ทั้งชุด 1,255 ข้อผ่าน (เทสต์สำรอง 64 ข้อ), คำแปลยังขาด 11 ข้อเดิม ไม่มีข้อความใหม่ตกหล่น; commit เป็นแบบ atomic ต่อไฟล์ กรณีระบบไฟล์ล้มเหลวระหว่างช่วงเขียนจริงอาจนำเข้าได้บางไฟล์
+
 ### ขั้น 5: หน้าต่างสำรอง/นำเข้า (Codex `gpt-6.1-sol` · medium)
 - `Views/BackupDialog.xaml`, `Views/ImportDialog.xaml` + ปุ่มในหน้าต่างความเป็นส่วนตัว (`PrivacyDialog`)
 - นำเข้า: ก่อนเขียนจริง สำรองข้อมูลปัจจุบันลง `%LocalAppData%\YRK\EasyPdf\Backups\before-import-*.yrkbackup` อัตโนมัติ (ใช้รหัสเดียวกับไฟล์ที่นำเข้า)
@@ -126,7 +136,7 @@
 - [x] ขั้น 2: เครื่องมือทดสอบใน `tools/`
 - [x] ขั้น 2b: แก้เล็กในโปรแกรม (รีวิว UX ข้อ 1, 9)
 - [x] ขั้น 3: ตรวจรุ่น MSIX + `YrkStore`
-- [ ] ขั้น 4: Core ไฟล์สำรอง
+- [x] ขั้น 4: Core ไฟล์สำรอง
 - [ ] ขั้น 5: หน้าต่างสำรอง/นำเข้า
 - [ ] ขั้น 6: Core แก้ชิ้นที่บันทึกแล้ว
 - [ ] ขั้น 7: แท็บแก้ไข คลิกชิ้นที่บันทึกแล้ว

@@ -72,7 +72,7 @@ public sealed class SignatureStore : ISignatureStore
 
     public void Delete(string id)
     {
-        if (id.Any(c => !char.IsAsciiHexDigit(c)))
+        if (!Backup.BackupFormat.IsSignatureId(id))
         {
             throw new ArgumentException("Invalid signature id.", nameof(id));
         }
