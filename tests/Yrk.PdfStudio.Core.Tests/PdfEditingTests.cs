@@ -177,14 +177,14 @@ public sealed class PdfEditingTests : IDisposable
     [InlineData("image", "D0CE4C081CF9B6BE9B183A1B7C3C09A37F28F11932A015BF740A834B91FF247F")]
     [InlineData("vector", "41A1182ECB2C26852858A1E3CE1E05894B9E3AE0CCA3ED652EB12D7B0518FA7A")]
     [InlineData("pdf", "01DF74B2952F02253ACB5695B4E4A20B0889102E7F3A961D27CE40282470775C")]
-    public async Task Default_placement_preserves_every_legacy_byte(string kind, string legacyHash)
+    public async Task Default_placement_styles_are_identical_and_use_transparency_groups(string kind, string legacyHash)
     {
         var source = CreatePlacementPage("blank.pdf");
         EncryptForByteComparison(source);
         var pdf = File.ReadAllBytes(CreatePlacementPage("art.pdf", content: "1 0 0 rg 0 0 400 300 re f"));
         var bounds = new NormalizedRect(0.25, 0.3, 0.4, 0.2);
         byte[]? omitted = null;
-        // Hashes captured with the pre-style implementation. No bytes are normalized or excluded.
+        // PDF-page placement keeps its legacy encoding; images/ink now use isolated groups.
         foreach (var mode in new[] { "omitted", "null", "default" })
         {
             await using (var document = await _engine.OpenAsync(source))
@@ -207,7 +207,13 @@ public sealed class PdfEditingTests : IDisposable
             }
 
             var bytes = File.ReadAllBytes(PathFor($"{mode}.pdf"));
-            Assert.Equal(legacyHash, Convert.ToHexString(SHA256.HashData(bytes)));
+            if (kind == "pdf") Assert.Equal(legacyHash, Convert.ToHexString(SHA256.HashData(bytes)));
+            else
+            {
+                var cos = Yrk.PdfStudio.Core.Pdf.Cos.CosDocument.Load(bytes);
+                Assert.Contains(cos.ObjectIds.Select(cos.GetObject).OfType<Yrk.PdfStudio.Core.Pdf.Cos.CosStream>(),
+                    s => (s.Dictionary["Group"] as Yrk.PdfStudio.Core.Pdf.Cos.CosDictionary)?["I"] is Yrk.PdfStudio.Core.Pdf.Cos.CosBoolean { Value: true });
+            }
             if (omitted is null) omitted = bytes;
             else Assert.Equal(omitted, bytes);
         }

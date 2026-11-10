@@ -149,6 +149,19 @@ internal static class PdfiumNative
     public static extern int FPDFPageObj_GetMatrix(IntPtr pageObject, out FsMatrix matrix);
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFPageObj_SetMatrix(IntPtr pageObject, ref FsMatrix matrix);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFPage_RemoveObject(IntPtr page, IntPtr pageObject);
+
+    // For an isolated transparency form these are the group's /ca and /CA (verified by spike).
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDFPageObj_SetStrokeColor(IntPtr pageObject, uint r, uint g, uint b, uint a);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int FPDF_GetSignatureCount(IntPtr document);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     public static extern int FPDFFormObj_CountObjects(IntPtr formObject);
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

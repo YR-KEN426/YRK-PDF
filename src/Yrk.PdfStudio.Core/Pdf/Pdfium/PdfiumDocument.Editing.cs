@@ -47,7 +47,7 @@ internal sealed partial class PdfiumDocument
             () =>
             {
                 _revision++;
-                AddImage(pageIndex, image, bounds, style);
+                AddGroupedImage(pageIndex, image, bounds, style);
                 return true;
             },
             PdfWorkPriority.Interactive,
@@ -68,7 +68,7 @@ internal sealed partial class PdfiumDocument
             () =>
             {
                 _revision++;
-                AddVector(pageIndex, art, bounds, style);
+                AddGroupedVector(pageIndex, art, bounds, style);
                 return true;
             },
             PdfWorkPriority.Interactive,
@@ -89,6 +89,8 @@ internal sealed partial class PdfiumDocument
             {
                 _revision++;
                 AddPdfPage(pageIndex, pdf, sourceCrop, bounds, style);
+                if (style?.Mark is { } mark)
+                    MigrateLegacy(pageIndex, ReadItems(pageIndex).Single(i => i.Item.Group == mark.Group), legacy: false);
                 return true;
             },
             PdfWorkPriority.Interactive,
@@ -340,71 +342,6 @@ internal sealed partial class PdfiumDocument
 
     // --- Images ----------------------------------------------------------------------------
 
-    private unsafe void AddImage(int pageIndex, PdfImage image, NormalizedRect bounds, PlacementStyle? style)
-    {
-        var page = GetPage(pageIndex);
-        var imageObject = PdfiumNative.FPDFPageObj_NewImageObj(_handle);
-        if (imageObject == IntPtr.Zero)
-        {
-            throw new PdfException("The image could not be created.");
-        }
-
-        var inserted = false;
-        try
-        {
-            var opacity = style?.Opacity ?? 1;
-            var buffer = image.Pixels;
-            if (opacity != 1)
-            {
-                // BGRA is straight alpha. Keep RGB and the caller's shared pixel buffer intact.
-                buffer = (byte[])buffer.Clone();
-                for (var i = 3; i < image.Width * image.Height * 4; i += 4)
-                {
-                    buffer[i] = PlacementAlpha(buffer[i], opacity);
-                }
-            }
-
-            fixed (byte* pixels = buffer)
-            {
-                var bitmap = PdfiumNative.FPDFBitmap_CreateEx(image.Width, image.Height, PdfiumNative.FPDFBitmap_BGRA, (IntPtr)pixels, image.Width * 4);
-                if (bitmap == IntPtr.Zero)
-                {
-                    throw new PdfException("Not enough memory to add the image.");
-                }
-
-                try
-                {
-                    if (PdfiumNative.FPDFImageObj_SetBitmap(IntPtr.Zero, 0, imageObject, bitmap) == 0)
-                    {
-                        throw new PdfException("The image could not be added.");
-                    }
-                }
-                finally
-                {
-                    PdfiumNative.FPDFBitmap_Destroy(bitmap);
-                }
-            }
-
-            var (a, b, c, d, e, f) = PlacementMatrix(pageIndex, page, bounds, style);
-            PdfiumNative.FPDFImageObj_SetMatrix(imageObject, a, b, c, d, e, f);
-
-            PdfiumMarks.Add(_handle, imageObject, style?.Mark);
-            PdfiumNative.FPDFPage_InsertObject(page, imageObject);
-            inserted = true; // The page owns the object from here on.
-            if (PdfiumNative.FPDFPage_GenerateContent(page) == 0)
-            {
-                throw new PdfException("The page content could not be updated.");
-            }
-        }
-        finally
-        {
-            if (!inserted)
-            {
-                PdfiumNative.FPDFPageObj_Destroy(imageObject);
-            }
-        }
-    }
-
     /// <summary>
     /// The matrix that maps the unit square (y up) onto the target rectangle as displayed, so content stays
     /// upright on rotated pages: origin = bottom-left, x axis = bottom edge, y axis = left edge.
@@ -457,66 +394,6 @@ internal sealed partial class PdfiumDocument
     }
 
     // --- Vector artwork --------------------------------------------------------------------
-
-    private void AddVector(int pageIndex, PdfVectorArt art, NormalizedRect bounds, PlacementStyle? style)
-    {
-        var page = GetPage(pageIndex);
-        var (a, b, c, d, e, f) = PlacementMatrix(pageIndex, page, bounds, style);
-        foreach (var shape in art.Paths.Where(p => p.Commands.Count > 0))
-        {
-            // Built in the unit square (y up), then placed with the same matrix as an image.
-            var path = PdfiumNative.FPDFPageObj_CreateNewPath(0, 0);
-            if (path == IntPtr.Zero)
-            {
-                throw new PdfException("The drawing could not be created.");
-            }
-
-            var inserted = false;
-            try
-            {
-                float X(double x) => (float)(x / art.Width);
-                float Y(double y) => (float)(1 - (y / art.Height));
-                foreach (var command in shape.Commands)
-                {
-                    switch (command.Op)
-                    {
-                        case PdfPathOp.MoveTo:
-                            PdfiumNative.FPDFPath_MoveTo(path, X(command.X1), Y(command.Y1));
-                            break;
-                        case PdfPathOp.LineTo:
-                            PdfiumNative.FPDFPath_LineTo(path, X(command.X1), Y(command.Y1));
-                            break;
-                        case PdfPathOp.CubicTo:
-                            PdfiumNative.FPDFPath_BezierTo(path, X(command.X1), Y(command.Y1), X(command.X2), Y(command.Y2), X(command.X3), Y(command.Y3));
-                            break;
-                        case PdfPathOp.Close:
-                            PdfiumNative.FPDFPath_Close(path);
-                            break;
-                    }
-                }
-
-                var color = shape.Color;
-                PdfiumNative.FPDFPageObj_SetFillColor(path, color.R, color.G, color.B, PlacementAlpha(color.A, style?.Opacity ?? 1));
-                PdfiumNative.FPDFPath_SetDrawMode(path, shape.EvenOdd ? PdfiumNative.FPDF_FILLMODE_ALTERNATE : PdfiumNative.FPDF_FILLMODE_WINDING, 0);
-                PdfiumNative.FPDFPageObj_Transform(path, a, b, c, d, e, f);
-                PdfiumMarks.Add(_handle, path, style?.Mark);
-                PdfiumNative.FPDFPage_InsertObject(page, path);
-                inserted = true;
-            }
-            finally
-            {
-                if (!inserted)
-                {
-                    PdfiumNative.FPDFPageObj_Destroy(path);
-                }
-            }
-        }
-
-        if (PdfiumNative.FPDFPage_GenerateContent(page) == 0)
-        {
-            throw new PdfException("The page content could not be updated.");
-        }
-    }
 
     private unsafe void AddPdfPage(int pageIndex, byte[] pdf, NormalizedRect sourceCrop, NormalizedRect bounds, PlacementStyle? style)
     {

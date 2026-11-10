@@ -122,6 +122,25 @@ public interface IPdfDocument : IAsyncDisposable
     Task AddVectorAsync(int pageIndex, PdfVectorArt art, NormalizedRect bounds, CancellationToken cancellationToken = default, PlacementStyle? style = null);
 
     /// <summary>
+    /// Lists marked groups and unmarked image occurrences. EditError explains layouts that cannot
+    /// be edited safely. References belong to this document and expire on changes or saving.
+    /// Signed-file edits require explicit acknowledgement in PdfItemEditOptions after a caller warning.
+    /// </summary>
+    Task<IReadOnlyList<PdfPageItem>> GetPageItemsAsync(int pageIndex, CancellationToken cancellationToken = default);
+
+    /// <summary>Moves an item by a page-relative displayed delta. Untagged images are delete-only.</summary>
+    Task MovePageItemAsync(PdfPageItemRef item, NormalizedPoint delta, CancellationToken cancellationToken = default, PdfItemEditOptions? options = null);
+
+    /// <summary>Rotates about the displayed bounds' centre; positive degrees are clockwise.</summary>
+    Task RotatePageItemAsync(PdfPageItemRef item, double degrees, CancellationToken cancellationToken = default, PdfItemEditOptions? options = null);
+
+    /// <summary>0…1 group alpha (native edits have 8-bit precision). For legacy items 1 means the saved, already attenuated artwork.</summary>
+    Task SetPageItemOpacityAsync(PdfPageItemRef item, double opacity, CancellationToken cancellationToken = default, PdfItemEditOptions? options = null);
+
+    /// <summary>Removes the entire marked group, or one untagged image occurrence.</summary>
+    Task RemovePageItemAsync(PdfPageItemRef item, CancellationToken cancellationToken = default, PdfItemEditOptions? options = null);
+
+    /// <summary>
     /// Places the first page of another PDF into this page as vector content (a form XObject), scaled to a
     /// page-relative rectangle. Only <paramref name="sourceCrop"/> of that page (relative, top-left origin)
     /// is shown. Used for signatures supplied as PDF. Rotation is supported; opacity must be 1.

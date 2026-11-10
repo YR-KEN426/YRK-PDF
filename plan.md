@@ -147,7 +147,7 @@
   - Claude ตรวจขั้น 1–4 ผ่าน (2026-11-10) แก้หลังตรวจ `afd3e51`: `PackageIdentity.Current` ไม่ทำให้โปรแกรมเปิดไม่ขึ้นเมื่อ Windows ตอบผิดปกติ, ไฟล์สำรองที่ผู้ใช้เลือกอยู่ในโฟลเดอร์ OneDrive ได้ (โฟลเดอร์ข้อมูลยังตรวจ reparse point); เทสต์ 1258 ข้อผ่าน
   - หยุดตรงนี้ตาม Ken (2026-11-10) ทำต่อที่ขั้น 5–6; ขั้น 5 ห้ามใช้ `checkLinks: false` กับโฟลเดอร์ข้อมูลหรือไฟล์ before-import ใน `Backups\`
 - [x] ขั้น 5: หน้าต่างสำรอง/นำเข้า (เทสต์ 1287 ผ่าน; before-import ใช้ checkDestinationLinks เต็ม + Inspect ยืนยันก่อน Import)
-- [ ] ขั้น 6: Core แก้ชิ้นที่บันทึกแล้ว
+- [x] ขั้น 6: Core แก้ชิ้นที่บันทึกแล้ว (เทสต์ 1311 ผ่าน; ตัวสร้างกลุ่มกลาง `PlacedGroupBuilder` ใช้ร่วมกับขั้น 8; API `GetPageItemsAsync`/`Move`/`Rotate`/`SetPageItemOpacity`/`RemovePageItemAsync`; ของ 1.2.0 = `OpacityMode.FadeOnly`; ไฟล์เซ็นต้องส่ง acknowledge ใน `PdfItemEditOptions`; ปฏิเสธ: clipping, สมาชิกกลุ่มถูกคั่น, Form ซับซ้อน)
 - [ ] ขั้น 7: แท็บแก้ไข คลิกชิ้นที่บันทึกแล้ว
 - [ ] ขั้น 8: ความทึบเส้นลายเซ็นซ้อน
 - [ ] ขั้น 9: MSIX + WACK ในเครื่อง (ถ้า Ken เลือก)

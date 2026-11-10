@@ -19,7 +19,7 @@ internal sealed partial class PdfiumDocument : IPdfDocument
     private static readonly PdfPageSize FallbackPageSize = new(612, 792);
 
     private readonly PdfiumEngine _engine;
-    private readonly Stream _stream;
+    private Stream _stream;
     private readonly PdfiumNative.GetBlockCallback _getBlock; // Must stay alive while PDFium holds the pointer.
     private readonly IntPtr _fileAccess;
     private readonly LinkedList<(int Index, IntPtr Page)> _pageCache = new();

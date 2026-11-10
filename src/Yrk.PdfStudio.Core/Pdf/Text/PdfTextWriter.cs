@@ -30,7 +30,7 @@ public static class PdfTextWriter
 
         var update = new CosIncrementalUpdate(document);
         AddText(document, update, blocks);
-        return update.Build().Bytes;
+        return PlacedGroupBuilder.GroupText(update.Build().Bytes, blocks, password);
     }
 
     internal static void AddText(CosDocument document, CosIncrementalUpdate update, IReadOnlyList<PdfTextBlock> blocks)
@@ -62,7 +62,7 @@ public static class PdfTextWriter
                 var content = block.Behind ? underneath : onTop;
 
                 // See-through text gets a graphics state with its opacity (one per opacity on the page).
-                var opacity = Math.Clamp(block.Opacity, 0, 1);
+                var opacity = block.Mark is null ? Math.Clamp(block.Opacity, 0, 1) : 1;
                 string? state = null;
                 if (opacity < 1 && !states.TryGetValue(opacity, out state))
                 {
