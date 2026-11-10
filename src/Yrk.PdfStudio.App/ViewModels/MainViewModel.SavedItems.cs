@@ -33,6 +33,10 @@ public sealed partial class MainViewModel
                 && y >= i.Bounds.Y && y <= i.Bounds.Y + i.Bounds.Height);
             SelectItem(null);
             if (hit is null) return false;
+            // Let the page's EditText gesture open the existing line editor (including
+            // alignment controls), just as it does for text without a YRK mark.
+            if (CurrentTool == AnnotationTool.EditText && hit is { HasYrkMark: true, Kind: YrkMarkKind.Text })
+                return false;
             if (hit.EditError is not null)
             {
                 _dialogs.ShowInfo(Loc.T("This item cannot be edited or deleted safely because its layout is unsupported (clipping, separated group members, or a complex form)."));

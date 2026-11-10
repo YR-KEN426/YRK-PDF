@@ -752,6 +752,9 @@ public sealed partial class MainViewModel
         }
 
         EndPlacement();
+        // A private version candidate can still fail to save, copy or reopen. Its overlays
+        // stay pending in the open document until OpenVersionAsync successfully replaces it.
+        var commitToOpenDocument = ReferenceEquals(document, _document);
         foreach (var item in _placedItems.ToList())
         {
             if (keepText && item.IsText)
@@ -765,8 +768,11 @@ public sealed partial class MainViewModel
                 if (!item.FrameCommitted)
                 {
                     await document.AddImageAsync(item.PageIndex, ImageConversion.ToPdfImage(item.Stamp!.Frame!), item.Bounds, style: PlacementStyleOf(item));
-                    item.FrameCommitted = true;
-                    _documentModified = true;
+                    if (commitToOpenDocument)
+                    {
+                        item.FrameCommitted = true;
+                        _documentModified = true;
+                    }
                 }
 
                 continue;
@@ -781,16 +787,24 @@ public sealed partial class MainViewModel
                 await document.AddImageAsync(item.PageIndex, ItemRenderer.Render(item), item.Bounds, style: PlacementStyleOf(item));
             }
 
-            DetachItem(item); // Now part of the page: never add it twice, even if a later step fails.
-            _documentModified = true;
+            if (commitToOpenDocument)
+            {
+                DetachItem(item); // Now part of the open page: never add it twice if a later step fails.
+                _documentModified = true;
+            }
         }
 
         if (_fieldEdits.Count > 0)
         {
             await document.ApplyFormEditsAsync(_fieldEdits.Values.ToList());
-            _fieldEdits.Clear();
-            _documentModified = true;
+            if (commitToOpenDocument)
+            {
+                _fieldEdits.Clear();
+                _documentModified = true;
+            }
         }
+
+        if (!commitToOpenDocument) return;
 
         // Overlay undo steps refer to items that are now page content.
         _undo.Clear();
