@@ -25,7 +25,8 @@ public sealed partial class MainViewModel
     /// <param name="done">Shown when it worked.</param>
     /// <param name="failed">The error message, with {0} for the reason.</param>
     /// <param name="needed">Whether there is anything to apply, asked after the open editors were finished.</param>
-    private async Task ApplyNowAsync(string busy, string done, string failed, Func<bool> needed)
+    private async Task ApplyNowAsync(string busy, string done, string failed, Func<bool> needed,
+        Func<IPdfDocument, Task>? changeSavedItem = null)
     {
         if (_document is not { } document || IsBusy)
         {
@@ -45,15 +46,23 @@ public sealed partial class MainViewModel
         string? copy = null;
         DocumentVersion? before = null;
         DocumentVersion? after = null;
+        IPdfDocument? candidate = null;
         try
         {
             try
             {
+                if (changeSavedItem is not null)
+                {
+                    // Work on a private copy: even a partially rejected native edit cannot change the open document.
+                    candidate = await _engine.OpenBytesAsync(await document.SaveToBytesAsync(), document.FilePath, document.OpenPassword);
+                    await changeSavedItem(candidate);
+                }
+                var outputDocument = candidate ?? document;
                 if (document.IsEncrypted)
                 {
                     if (_versions.Count == 0 && _documentModified)
                         before = new(null, await document.SaveToBytesAsync());
-                    after = new(null, await WriteChangesToBytesAsync(document));
+                    after = new(null, await WriteChangesToBytesAsync(outputDocument));
                 }
                 else
                 {
@@ -64,12 +73,12 @@ public sealed partial class MainViewModel
                         before = new(NewVersionPath(), null);
                         await document.SaveAsync(before.Path!);
                     }
-                    await WriteChangesAsync(document, copy);
+                    await WriteChangesAsync(outputDocument, copy);
                     after = new(NewVersionPath(), null);
                     File.Copy(copy, after.Path!);
                 }
             }
-            catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
+            catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
             {
                 if (copy is not null) TryDelete(copy);
                 DeleteVersionFile(before);
@@ -100,6 +109,7 @@ public sealed partial class MainViewModel
         }
         finally
         {
+            if (candidate is not null) await candidate.DisposeAsync();
             IsBusy = false;
             if (StatusMessage == Loc.T(busy))
             {

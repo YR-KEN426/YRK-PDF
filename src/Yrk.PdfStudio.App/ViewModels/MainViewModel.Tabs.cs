@@ -53,7 +53,11 @@ public sealed partial class MainViewModel
 
     private void SubscribeToLanguage()
     {
-        _onLanguageChanged = (_, _) => OnPropertyChanged(string.Empty); // Recompute every translated text.
+        _onLanguageChanged = (_, _) =>
+        {
+            OnPropertyChanged(string.Empty); // Recompute every translated text.
+            _selectedItem?.RefreshLanguage();
+        };
         Loc.LanguageChanged += _onLanguageChanged;
         _onUpdateReady = (_, _) =>
         {

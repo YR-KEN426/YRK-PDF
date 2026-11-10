@@ -74,7 +74,14 @@ public sealed partial class MainViewModel
     public bool IsBusy
     {
         get => _isBusy;
-        private set => SetProperty(ref _isBusy, value);
+        private set
+        {
+            if (SetProperty(ref _isBusy, value))
+            {
+                UndoCommand?.NotifyCanExecuteChanged();
+                RedoCommand?.NotifyCanExecuteChanged();
+            }
+        }
     }
 
     /// <summary>The status bar text. Fixed English texts are translated here; built ones use <see cref="Loc.F"/>.</summary>
@@ -159,6 +166,7 @@ public sealed partial class MainViewModel
 
     public void SelectItem(PlacedItemViewModel? item)
     {
+        ++_savedItemSelectionRequest;
         if (_selectedItem == item)
         {
             return;
@@ -167,6 +175,8 @@ public sealed partial class MainViewModel
         if (_selectedItem is not null)
         {
             _selectedItem.IsSelected = false;
+            if (_selectedItem.IsSaved && _selectedItem.PageIndex < Pages.Count)
+                Pages[_selectedItem.PageIndex].Items.Remove(_selectedItem);
         }
 
         _selectedItem = item;
@@ -186,11 +196,24 @@ public sealed partial class MainViewModel
         _dragStartOpacity = item.Opacity;
     }
 
-    public void MoveItem(PlacedItemViewModel item, double deltaX, double deltaY) =>
+    public void MoveItem(PlacedItemViewModel item, double deltaX, double deltaY)
+    {
+        if (item.IsSaved && !item.CanTransform || IsBusy) return;
+        if (item.IsSaved)
+        {
+            var b = item.Bounds;
+            var x = b.X + deltaX / item.PageWidth;
+            var y = b.Y + deltaY / item.PageHeight;
+            item.Bounds = b with { X = b.Width <= 1 ? Math.Clamp(x, 0, 1 - b.Width) : x,
+                Y = b.Height <= 1 ? Math.Clamp(y, 0, 1 - b.Height) : y };
+            return;
+        }
         item.Bounds = item.ToBounds(item.Left + deltaX, item.Top + deltaY, item.Width, item.Height);
+    }
 
     public void ResizeItem(PlacedItemViewModel item, double deltaX, double deltaY)
     {
+        if (item.IsSaved) return; // Step 6 has no resize API.
         if (item.Rotation == 0)
         {
             var width = item.Width + deltaX;
@@ -218,9 +241,10 @@ public sealed partial class MainViewModel
 
     public void RotateItem90(PlacedItemViewModel item)
     {
+        if (item.IsSaved && !item.CanTransform || IsBusy) return;
         BeginItemDrag(item);
         item.Rotation += 90;
-        KeepOnPage(item);
+        if (!item.IsSaved) KeepOnPage(item);
         EndItemDrag(item);
     }
 
@@ -230,14 +254,22 @@ public sealed partial class MainViewModel
     /// <summary>Updates a rotation gesture; its caller records the whole gesture with Begin/EndItemDrag.</summary>
     public void RotateItem(PlacedItemViewModel item, double degrees, bool snap)
     {
+        if (item.IsSaved && !item.CanTransform || IsBusy) return;
         item.Rotation = snap ? Math.Round(degrees / 15, MidpointRounding.AwayFromZero) * 15 : degrees;
         // Fit from the gesture's starting box, so a temporary shrink at 45° is undone back at 0°.
         item.Bounds = _dragStartBounds;
-        KeepOnPage(item);
+        if (!item.IsSaved) KeepOnPage(item);
     }
 
     public void ChangeItemOpacity(PlacedItemViewModel item, double opacity)
     {
+        if (item.IsSaved)
+        {
+            if (IsBusy || !item.CanAdjustOpacity || !double.IsFinite(opacity)) return;
+            var requested = Math.Clamp(opacity, 0.1, 1);
+            if (item.Opacity != requested) SavedItemEditTask = EditSavedItemAsync(item, opacity: requested);
+            return;
+        }
         var before = item.Opacity;
         item.Opacity = opacity;
         var after = item.Opacity;
@@ -246,6 +278,18 @@ public sealed partial class MainViewModel
 
     public void EndItemDrag(PlacedItemViewModel item)
     {
+        if (item.IsSaved)
+        {
+            var delta = new NormalizedPoint(item.Bounds.X - _dragStartBounds.X, item.Bounds.Y - _dragStartBounds.Y);
+            var rotation = item.Rotation - _dragStartRotation;
+            var opacity = item.Opacity != _dragStartOpacity ? item.Opacity : (double?)null;
+            item.Bounds = _dragStartBounds;
+            item.Rotation = _dragStartRotation;
+            item.Opacity = _dragStartOpacity;
+            if (delta != default || rotation != 0 || opacity is not null)
+                SavedItemEditTask = EditSavedItemAsync(item, delta, rotation, opacity);
+            return;
+        }
         var before = _dragStartBounds;
         var after = item.Bounds;
         var rotationBefore = _dragStartRotation;
@@ -340,8 +384,8 @@ public sealed partial class MainViewModel
         CertifiedCopyCommand = new RelayCommand(CertifiedCopy);
         StampCommand = new RelayCommand(Stamp);
         DeleteSelectedCommand = new RelayCommand(DeleteSelected);
-        UndoCommand = new RelayCommand(_undo.Undo, () => _undo.CanUndo);
-        RedoCommand = new RelayCommand(_undo.Redo, () => _undo.CanRedo);
+        UndoCommand = new RelayCommand(_undo.Undo, () => !IsBusy && _undo.CanUndo);
+        RedoCommand = new RelayCommand(_undo.Redo, () => !IsBusy && _undo.CanRedo);
         CancelCommand = new RelayCommand(() =>
         {
             EndPlacement();
@@ -494,6 +538,11 @@ public sealed partial class MainViewModel
             return;
         }
 
+        if (item.IsSaved)
+        {
+            SavedItemEditTask = EditSavedItemAsync(item, delete: true);
+            return;
+        }
         DetachItem(item);
         _undo.Push(() => AttachItem(item), () => DetachItem(item));
     }
@@ -668,6 +717,8 @@ public sealed partial class MainViewModel
 
     private void ClearEdits()
     {
+        if (!_keepVersions) _savedItemSignatureAcknowledgedFor = null;
+        ++_savedItemSelectionRequest;
         EndPlacement();
         SelectItem(null);
         foreach (var page in Pages)

@@ -30,7 +30,7 @@ public static class PdfTextWriter
 
         var update = new CosIncrementalUpdate(document);
         AddText(document, update, blocks);
-        return PlacedGroupBuilder.GroupText(update.Build().Bytes, blocks, password);
+        return PlacedGroupBuilder.GroupText(update.Build().Bytes, blocks, password, document);
     }
 
     internal static void AddText(CosDocument document, CosIncrementalUpdate update, IReadOnlyList<PdfTextBlock> blocks)

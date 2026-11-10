@@ -753,7 +753,7 @@ public partial class MainWindow : Window
 
     private FrameworkElement? _gesturePage;
 
-    private void OnPageMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private async void OnPageMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         var page = (FrameworkElement)sender;
         if (page.DataContext is not PageViewModel pageViewModel || page.ActualWidth <= 0 || page.ActualHeight <= 0)
@@ -778,8 +778,23 @@ public partial class MainWindow : Window
         }
 
         _viewModel.OnPageClicked(pageViewModel, point.X, point.Y); // Deselects placed items.
+        if (EditTab.IsChecked == true && !_viewModel.IsPlacing
+            && _viewModel.CurrentTool is AnnotationTool.Select or AnnotationTool.EditText)
+        {
+            e.Handled = true;
+            var model = _viewModel;
+            if (await model.TrySelectSavedItemAsync(pageViewModel, point.X, point.Y)) return;
+            if (model != _viewModel || EditTab.IsChecked != true || !model.Pages.Contains(pageViewModel)) return;
+        }
         if (_viewModel.BeginPageGesture(pageViewModel, point))
         {
+            // Item enumeration is asynchronous: a quick click may already have ended.
+            if (Mouse.LeftButton != MouseButtonState.Pressed)
+            {
+                e.Handled = true;
+                await _viewModel.EndPageGesture(point);
+                return;
+            }
             _gesturePage = page;
             page.CaptureMouse();
             e.Handled = true;
@@ -1244,6 +1259,7 @@ public partial class MainWindow : Window
 
     private void OnEditTabUnchecked(object sender, RoutedEventArgs e)
     {
+        _viewModel.ClearSavedItemSelection();
         _viewModel.ClearTextEditStatus();
         if (_viewModel.CurrentTool == AnnotationTool.EditText)
         {

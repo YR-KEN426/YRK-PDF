@@ -18,25 +18,26 @@ internal sealed class AppTestHarness : IAsyncDisposable
     public string? FailedWritePath { get; private set; }
     public bool PartialFileExistedAtFailure { get; private set; }
 
-    public AppTestHarness(bool failWriteMidway = false)
+    public AppTestHarness(bool failWriteMidway = false, Func<IPdfDocument, IPdfDocument>? wrapOpenedDocument = null)
     {
         var store = DispatchProxy.Create<ISignatureStore, SignatureSecurityTests.TestProxy>();
         ((SignatureSecurityTests.TestProxy)(object)store).Handle = (method, _) => method.Name == "LoadAll"
             ? Array.Empty<SavedSignature>() : throw new InvalidOperationException(method.Name);
-        var modelEngine = failWriteMidway
+        var modelEngine = failWriteMidway || wrapOpenedDocument is not null
             ? Forward<IPdfEngine>((method, args) =>
             {
                 var result = ForwardCall(Engine, method, args);
-                return result is Task<IPdfDocument> opening ? WrapDocumentAsync(opening) : result;
+                return result is Task<IPdfDocument> opening ? WrapDocumentAsync(opening, wrapOpenedDocument) : result;
             })
             : Engine;
         TrustedCertificates = new TrustedCertificateStore(PathFor("trusted-certificates"), File.Delete);
         Model = new MainViewModel(modelEngine, Dialogs.Service, store, TrustedCertificates);
     }
 
-    private async Task<IPdfDocument> WrapDocumentAsync(Task<IPdfDocument> opening)
+    private async Task<IPdfDocument> WrapDocumentAsync(Task<IPdfDocument> opening, Func<IPdfDocument, IPdfDocument>? wrapOpenedDocument)
     {
         var document = await opening;
+        if (wrapOpenedDocument is not null) return wrapOpenedDocument(document);
         return Forward<IPdfDocument>((method, args) =>
             method.Name == nameof(IPdfDocument.SaveAsync)
                 ? FailWriteAsync((string)args![0]!, (CancellationToken)args[1]!)
@@ -98,7 +99,13 @@ internal sealed class AppTestHarness : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        try { await Model.CloseTabAsync(); }
+        try
+        {
+            // A freshly reopened version may still be reading signatures from this test's PDF.
+            if (typeof(MainViewModel).GetField("_signatureLoadTask", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(Model) is Task signatures) await signatures;
+            await Model.CloseTabAsync();
+        }
         finally
         {
             Engine.Dispose();

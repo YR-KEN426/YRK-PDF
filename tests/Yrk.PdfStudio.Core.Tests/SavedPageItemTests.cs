@@ -138,6 +138,72 @@ public sealed class SavedPageItemTests : IDisposable
         Assert.DoesNotContain("StampText", await reopened.GetPageTextAsync(0));
     }
 
+    [Fact]
+    public async Task Attaching_separated_stamp_words_clones_shared_forms_and_resources()
+    {
+        var stamp = new YrkMark(YrkMarkKind.Stamp, Guid.NewGuid());
+        await using var frames = await Open(Blank());
+        await frames.AddImageAsync(0, Red(), new(.1, .1, .3, .2), style: new(Mark: stamp));
+        await frames.AddImageAsync(0, Red(), new(.7, .7, .2, .2), style: new(Mark: new(YrkMarkKind.Image, Guid.NewGuid())));
+        var cos = CosDocument.Load(await frames.SaveDecryptedAsync());
+        var update = new CosIncrementalUpdate(cos);
+        // Both pages invoke the very same stamp form, image, mask and alpha resources.
+        var second = update.Add(cos.GetPages()[0].Dictionary.Clone());
+        var pagesRef = Assert.IsType<CosReference>(cos.Catalog["Pages"]);
+        var pages = Assert.IsType<CosDictionary>(cos.Resolve(pagesRef)).Clone();
+        pages["Kids"] = new CosArray([new CosReference(cos.GetPages()[0].Id), second]);
+        pages["Count"] = new CosInteger(2);
+        update.Replace(pagesRef.Id, pages);
+        var shared = update.Build().Bytes;
+        var original = CosDocument.Load(shared);
+        await using var before = await Open(shared);
+        var otherPage = await before.RenderPageAsync(1, 400, 400);
+        var blocks = Sta.Run(() => TextShaper.ToBlocks([(0, new NormalizedPoint(.15, .15), new PdfColor(0, 0, 0),
+            TextShaper.Shape("SHARED-STAMP", "Leelawadee UI", false, false, 12))]))
+            .Select(b => b with { Mark = new(YrkMarkKind.StampText, Guid.ParseExact(stamp.Group, "N")) }).ToArray();
+        var result = PdfTextWriter.AddText(shared, blocks);
+        var written = CosDocument.Load(result);
+        foreach (var id in original.ObjectIds.Where(id => id != original.GetPages()[0].Id))
+            Assert.Equal(Serialize(original.GetObject(id)), Serialize(written.GetObject(id)));
+        await using var after = await Open(result);
+        Assert.All(await after.GetPageItemsAsync(0), i => Assert.Null(i.EditError));
+        Assert.Contains("SHARED-STAMP", await after.GetPageTextAsync(0));
+        Assert.DoesNotContain("SHARED-STAMP", await after.GetPageTextAsync(1));
+        Assert.Equal(otherPage.Pixels, (await after.RenderPageAsync(1, 400, 400)).Pixels);
+        await after.SetPageItemOpacityAsync((await Item(after, stamp.Group)).Reference, .3);
+        await after.MovePageItemAsync((await Item(after, stamp.Group)).Reference, new(.1, .1));
+        await after.RemovePageItemAsync((await Item(after, stamp.Group)).Reference);
+        var path = PathFor("shared-stamp.pdf"); await after.SaveAsync(path);
+        await using var reopened = await _engine.OpenAsync(path);
+        Assert.Equal(otherPage.Pixels, (await reopened.RenderPageAsync(1, 400, 400)).Pixels);
+        Assert.Equal(ImageHashes(shared), ImageHashes(File.ReadAllBytes(path)));
+
+        static byte[] Serialize(CosObject? value)
+        {
+            using var output = new MemoryStream(); new CosWriter(output).Write(value!); return output.ToArray();
+        }
+    }
+
+    [Fact]
+    public async Task New_stamp_words_do_not_absorb_existing_separated_members()
+    {
+        var group = Guid.NewGuid();
+        await using var frames = await Open(Blank());
+        await frames.AddImageAsync(0, Red(), new(.1, .1, .3, .2), style: new(Mark: new(YrkMarkKind.Stamp, group)));
+        await frames.AddImageAsync(0, Red(), new(.7, .7, .2, .2), style: new(Mark: new(YrkMarkKind.Image, Guid.NewGuid())));
+        var blocks = Sta.Run(() => TextShaper.ToBlocks([(0, new NormalizedPoint(.15, .15), new PdfColor(0, 0, 0),
+            TextShaper.Shape("UNSAFE-STAMP", "Leelawadee UI", false, false, 12))]))
+            .Select(b => b with { Mark = new(YrkMarkKind.StampText, group) }).ToArray();
+        var original = CosDocument.Load(await frames.SaveDecryptedAsync());
+        var update = new CosIncrementalUpdate(original);
+        // Deliberately bypass grouping to reproduce a pre-existing unsupported stream.
+        PdfTextWriter.AddText(original, update, blocks);
+        var unsafeFile = update.Build().Bytes;
+        await using var document = await Open(unsafeFile);
+        Assert.NotNull((await Item(document, group.ToString("N"))).EditError);
+        Assert.Throws<PdfException>(() => PdfTextWriter.AddText(unsafeFile, blocks));
+    }
+
     // Reproduces 1.2.0's real PDFium image insertion: BGRA alpha is multiplied BEFORE SetBitmap.
     // It deliberately does not call the production placement path, which now constructs a Form.
     private static Task<byte[]> LegacyImage(YrkMark mark) => PdfiumWorker.Shared.InvokeAsync(() =>

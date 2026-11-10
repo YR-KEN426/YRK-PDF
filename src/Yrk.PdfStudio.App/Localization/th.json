@@ -1499,5 +1499,13 @@
   "1. Updates: updates are managed through Microsoft Store.": "1. การอัปเดต: อัปเดตผ่าน Microsoft Store",
   "Windows returned an empty package name.": "Windows ส่งคืนชื่อแพ็กเกจว่าง",
   "Windows returned no package family name.": "Windows ไม่ส่งคืนชื่อกลุ่มแพ็กเกจ",
-  "LocalAppData is unavailable.": "ไม่สามารถเข้าถึงโฟลเดอร์ LocalAppData ได้"
+  "LocalAppData is unavailable.": "ไม่สามารถเข้าถึงโฟลเดอร์ LocalAppData ได้",
+  "This item has its opacity saved already; it can only be made fainter.": "ชิ้นนี้บันทึกความทึบไว้แล้ว ปรับได้แค่จางลง",
+  "This item cannot be edited or deleted safely because its layout is unsupported (clipping, separated group members, or a complex form).": "ไม่สามารถแก้ไขหรือลบชิ้นนี้ได้อย่างปลอดภัย เพราะรูปแบบไม่รองรับ (มีการตัดขอบ สมาชิกกลุ่มถูกคั่น หรืออยู่ในฟอร์มซับซ้อน)",
+  "The saved items on this page could not be read safely.": "ไม่สามารถอ่านรายการชิ้นที่บันทึกไว้บนหน้านี้ได้อย่างปลอดภัย",
+  "Editing this item will make digital signatures show that the document was changed after signing. Continue?": "การแก้ไขชิ้นนี้จะทำให้ลายเซ็นดิจิทัลแสดงว่าเอกสารถูกแก้ไขหลังเซ็น ต้องการทำต่อหรือไม่?",
+  "Editing saved item…": "กำลังแก้ไขชิ้นที่บันทึกไว้…",
+  "Saved item changed. Undo (Ctrl+Z) brings it back.": "แก้ไขชิ้นที่บันทึกไว้แล้ว กดเลิกทำ (Ctrl+Z) เพื่อย้อนกลับ",
+  "Couldn't edit this saved item safely.\n\n{0}": "ไม่สามารถแก้ไขชิ้นที่บันทึกไว้นี้ได้อย่างปลอดภัย\n\n{0}",
+  "The item changed or its layout is unsupported. Select it again; no item changes were applied.": "ชิ้นนี้เปลี่ยนไปหรือมีรูปแบบที่ไม่รองรับ โปรดเลือกชิ้นนี้ใหม่ ยังไม่ได้แก้ไขชิ้นใด"
 }

@@ -56,9 +56,21 @@ public sealed class PlacedItemViewModel : ObservableObject
 
     public bool ShowTextPreview => IsText && !_isEditing;
 
-    public bool ShowResizeHandle => IsImage && _isSelected;
+    public bool ShowResizeHandle => IsImage && _isSelected && !IsSaved;
 
-    public bool CanAdjustOpacity => IsImage && Art?.Kind != Services.SignatureArtKind.Pdf;
+    public bool ShowRotationHandle => _isSelected && CanTransform;
+
+    public bool CanTransform => SavedItem is { HasYrkMark: true, EditError: null, OpacityMode: not PdfItemOpacityMode.DeleteOnly } || !IsSaved && IsImage;
+    public bool CanMove => !IsSaved || CanTransform;
+
+    public bool CanAdjustOpacity => CanTransform && Art?.Kind != Services.SignatureArtKind.Pdf;
+
+    public PdfPageItem? SavedItem { get; private init; }
+    public bool IsSaved => SavedItem is not null;
+    public string? OpacityNote => SavedItem?.OpacityMode == PdfItemOpacityMode.FadeOnly
+        ? Loc.T("This item has its opacity saved already; it can only be made fainter.") : null;
+
+    internal void RefreshLanguage() => OnPropertyChanged(nameof(OpacityNote));
 
     public double Rotation
     {
@@ -175,6 +187,7 @@ public sealed class PlacedItemViewModel : ObservableObject
             if (SetProperty(ref _isSelected, value))
             {
                 OnPropertyChanged(nameof(ShowResizeHandle));
+                OnPropertyChanged(nameof(ShowRotationHandle));
             }
         }
     }
@@ -199,6 +212,10 @@ public sealed class PlacedItemViewModel : ObservableObject
 
     public static PlacedItemViewModel CreateText(int pageIndex, double pageWidth, double pageHeight, TextStyle style) =>
         new(pageIndex, PlacedItemKind.Text, pageWidth, pageHeight, null, string.Empty, style);
+
+    public static PlacedItemViewModel CreateSaved(PdfPageItem item, double pageWidth, double pageHeight) =>
+        new(item.Reference.PageIndex, PlacedItemKind.Picture, pageWidth, pageHeight, null, string.Empty, TextStyle.Default)
+        { SavedItem = item, Bounds = item.Bounds, _opacity = item.OpacityMode == PdfItemOpacityMode.FadeOnly ? 1 : item.Opacity };
 
     /// <summary>Converts a rectangle in page points to page-relative bounds, kept inside the page.</summary>
     public NormalizedRect ToBounds(double left, double top, double width, double height)

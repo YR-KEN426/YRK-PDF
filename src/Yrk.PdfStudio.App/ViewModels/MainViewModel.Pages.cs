@@ -450,6 +450,7 @@ public sealed partial class MainViewModel
 
     private void RebuildPages(int focusPage)
     {
+        ClearSavedItemSelection();
         if (_document is not { } document)
         {
             return;

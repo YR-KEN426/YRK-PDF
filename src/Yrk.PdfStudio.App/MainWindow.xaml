@@ -197,6 +197,7 @@
                                FontWeight="{Binding FontWeight}" FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" Visibility="{Binding ShowTextPreview, Converter={StaticResource BoolToVisibility}}" />
                 </Grid>
                 <Thumb Style="{StaticResource MoveThumb}"
+                       IsHitTestVisible="{Binding CanMove}"
                        DragStarted="OnItemDragStarted" DragDelta="OnItemMoveDelta" DragCompleted="OnItemDragCompleted"
                        PreviewMouseRightButtonUp="OnItemRightClick" PreviewMouseLeftButtonDown="OnItemMouseDown" ToolTip="Drag to move. Double-click text to edit." />
                 <Canvas Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}">
@@ -213,10 +214,10 @@
                        DragStarted="OnItemDragStarted" DragDelta="OnItemResizeDelta" DragCompleted="OnItemDragCompleted"
                        Visibility="{Binding ShowResizeHandle, Converter={StaticResource BoolToVisibility}}" ToolTip="Drag to resize" />
                 <Rectangle Width="0.8" Height="18" Fill="{StaticResource AccentBrush}" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-18,0,0"
-                           IsHitTestVisible="False" Visibility="{Binding ShowResizeHandle, Converter={StaticResource BoolToVisibility}}" />
+                           IsHitTestVisible="False" Visibility="{Binding ShowRotationHandle, Converter={StaticResource BoolToVisibility}}" />
                 <Thumb Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,-26,0,0" Cursor="Hand"
                        DragStarted="OnItemRotationStarted" DragDelta="OnItemRotationDelta" DragCompleted="OnItemRotationCompleted"
-                       Visibility="{Binding ShowResizeHandle, Converter={StaticResource BoolToVisibility}}"
+                       Visibility="{Binding ShowRotationHandle, Converter={StaticResource BoolToVisibility}}"
                        ToolTip="Drag to rotate. Hold Shift to snap to 15°." AutomationProperties.Name="Rotate">
                     <Thumb.Template>
                         <ControlTemplate TargetType="Thumb">
@@ -240,7 +241,7 @@
                         </TransformGroup>
                     </StackPanel.RenderTransform>
                     <Button Content="↻ 90°" Padding="2,0" Height="18" Margin="0,0,2,0" Click="OnItemRotate90"
-                            Visibility="{Binding IsImage, Converter={StaticResource BoolToVisibility}}"
+                            Visibility="{Binding CanTransform, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Rotate 90° clockwise" AutomationProperties.Name="Rotate 90° clockwise" />
                     <ToggleButton x:Name="OpacityButton" Content="◐" Padding="3,0" Height="18" Margin="0,0,2,0"
                                   Visibility="{Binding CanAdjustOpacity, Converter={StaticResource BoolToVisibility}}"
@@ -250,6 +251,7 @@
                         <Border Background="White" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Padding="6">
                             <StackPanel>
                                 <TextBlock Text="Opacity" />
+                                <TextBlock Text="{Binding OpacityNote}" TextWrapping="Wrap" MaxWidth="230" Margin="0,3" />
                                 <Slider Width="120" Minimum="0.1" Maximum="1" TickFrequency="0.1"
                                         Value="{Binding Opacity, Mode=OneWay}" ValueChanged="OnItemOpacityChanged"
                                         Thumb.DragStarted="OnItemOpacityDragStarted" Thumb.DragCompleted="OnItemOpacityDragCompleted"

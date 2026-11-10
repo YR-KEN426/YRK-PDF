@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using Yrk.PdfStudio.App;
 using Yrk.PdfStudio.App.ViewModels;
 using Yrk.PdfStudio.App.Services;
+using Yrk.PdfStudio.Core.Pdf;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
@@ -122,6 +123,36 @@ public sealed class MainWindowLayoutTests
                 presenter.Measure(new Size(400, 300));
                 Settle();
                 Assert.Equal(Visibility.Collapsed, FindVisualChild<ToggleButton>(presenter)!.Visibility);
+
+                var saved = PlacedItemViewModel.CreateSaved(new(new(Guid.NewGuid(), 0, 0, 0),
+                    new(.1, .1, .25, .2), true, YrkMarkKind.Image, Guid.NewGuid().ToString("N"), .4, PdfItemOpacityMode.FadeOnly), 400, 300);
+                harness.Model.SelectItem(saved);
+                presenter.Content = saved;
+                presenter.Measure(new Size(400, 300));
+                Settle();
+                Assert.Equal(Visibility.Visible, FindVisualChild<ToggleButton>(presenter)!.Visibility);
+                popup = FindVisualChild<Popup>(presenter)!;
+                popup.Child.Measure(new Size(250, 150));
+                Settle();
+                slider = FindVisualChild<Slider>(popup.Child)!;
+                Assert.Equal(1, slider.Value);
+                Assert.Equal(1, slider.Maximum);
+                var note = Assert.IsType<StackPanel>(Assert.IsType<Border>(popup.Child).Child).Children.OfType<TextBlock>()
+                    .Single(t => t.Text == saved.OpacityNote);
+                Assert.False(string.IsNullOrWhiteSpace(note.Text));
+                Assert.False(saved.ShowResizeHandle);
+                Assert.True(saved.ShowRotationHandle);
+
+                var unmarked = PlacedItemViewModel.CreateSaved(saved.SavedItem! with
+                    { HasYrkMark = false, Group = null, OpacityMode = PdfItemOpacityMode.DeleteOnly }, 400, 300);
+                harness.Model.SelectItem(unmarked);
+                presenter.Content = unmarked;
+                presenter.Measure(new Size(400, 300));
+                Settle();
+                Assert.Equal(Visibility.Collapsed, FindVisualChild<ToggleButton>(presenter)!.Visibility);
+                Assert.Equal(Visibility.Collapsed, FindVisualChild<Button>(presenter)!.Visibility); // 90° button.
+                Assert.False(unmarked.ShowRotationHandle);
+                Assert.True(unmarked.IsSelected); // The existing dashed frame and Delete button remain.
                 return true;
             }
             finally

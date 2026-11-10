@@ -40,7 +40,7 @@ internal static class PlacedGroupBuilder
             (m.C * m.F - m.D * m.E) / det, (m.B * m.E - m.A * m.F) / det);
     }
 
-    internal static byte[] GroupText(byte[] bytes, IReadOnlyList<Text.PdfTextBlock> blocks, string? password)
+    internal static byte[] GroupText(byte[] bytes, IReadOnlyList<Text.PdfTextBlock> blocks, string? password, CosDocument original)
     {
         foreach (var batch in blocks.Where(b => b.Mark is not null).GroupBy(b => (b.PageIndex, b.Mark!.Group)))
         {
@@ -54,16 +54,22 @@ internal static class PlacedGroupBuilder
             var selected = units.Where(u => u.Mark?.Group == batch.Key.Group).ToList();
             if (selected.Count == 0 || selected.Any(u => u.Error is not null))
                 throw new PdfException("The marked text cannot be grouped safely.");
-            if (units.IndexOf(selected[^1]) - units.IndexOf(selected[0]) + 1 != selected.Count)
-                throw new PdfException("The stamp and its text are separated by other painted content.");
             var wrappers = selected.Where(u => u.Grouped).ToList();
             if (wrappers.Count > 0)
             {
-                if (wrappers.Count != 1 || selected.Any(u => !u.Grouped && u.Mark?.Kind != YrkMarkKind.StampText))
+                if (batch.First().Mark!.Kind != YrkMarkKind.StampText || wrappers.Count != 1
+                    || selected.Any(u => !u.Grouped && u.Mark?.Kind != YrkMarkKind.StampText))
                     throw new PdfException("Text can only be attached to one existing stamp group.");
                 var wrapper = wrappers[0];
                 if (wrapper.Mark?.Kind != YrkMarkKind.Stamp || wrapper.XObject is null)
                     throw new PdfException("StampText requires a stamp frame in the same group.");
+                // Only newly authored words may cross later placements. Existing loose members or
+                // repeated occurrences must not be silently absorbed and have their paint order changed.
+                var originalMembers = PlacedContent.Read(original,
+                    new CosPageEdit(original, original.GetPages()[batch.Key.PageIndex]))
+                    .Where(u => u.Mark?.Group == batch.Key.Group).ToList();
+                if (originalMembers.Count != 1 || !originalMembers[0].Grouped || originalMembers[0].Error is not null)
+                    throw new PdfException("New StampText requires one safely isolated existing stamp group.");
                 var xobjects = (CosDictionary)document.Resolve(edit.Resources["XObject"])!;
                 var form = document.Resolve(xobjects[wrapper.XObject]) as CosStream
                     ?? throw new PdfException("The stamp group is not a readable form.");
@@ -84,6 +90,11 @@ internal static class PlacedGroupBuilder
                         }
                     resources[category] = merged;
                 }
+                // During authoring, PdfTextWriter appends the new words after ALL pending frames.
+                // Attach those isolated StampText snapshots inside their own frame, at that frame's
+                // drawing position, even when later placements separate them in the temporary stream.
+                // Do not migrate arbitrary interleaved legacy groups: the reader and the branch below
+                // still require contiguous members. The existing form/resources remain untouched.
                 byte[] children = [.. "q\n"u8, .. CosFilters.Decode(form, document.Resolve), .. "\nQ\n"u8,
                     .. selected.Where(u => !u.Grouped).SelectMany(u => u.Snapshot)];
                 var dictionary = form.Dictionary.Clone();
@@ -97,6 +108,8 @@ internal static class PlacedGroupBuilder
             }
             else
             {
+                if (units.IndexOf(selected[^1]) - units.IndexOf(selected[0]) + 1 != selected.Count)
+                    throw new PdfException("The stamp and its text are separated by other painted content.");
                 if (selected.Any(u => u.Mark?.Kind != batch.First().Mark!.Kind))
                     throw new PdfException("New StampText cannot be attached to a legacy frame. Migrate the stamp through the placed-item API first.");
                 var first = selected[0];

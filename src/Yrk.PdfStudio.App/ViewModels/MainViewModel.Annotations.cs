@@ -65,6 +65,7 @@ public sealed partial class MainViewModel
             var leftTextEditing = _currentTool == AnnotationTool.EditText && value != AnnotationTool.EditText;
             if (SetProperty(ref _currentTool, value))
             {
+                ClearSavedItemSelection();
                 if (leftTextEditing)
                 {
                     _ = ApplyTextEditsNowAsync(); // Another tool finishes the changed lines.

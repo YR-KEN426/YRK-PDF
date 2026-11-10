@@ -148,7 +148,7 @@
   - หยุดตรงนี้ตาม Ken (2026-11-10) ทำต่อที่ขั้น 5–6; ขั้น 5 ห้ามใช้ `checkLinks: false` กับโฟลเดอร์ข้อมูลหรือไฟล์ before-import ใน `Backups\`
 - [x] ขั้น 5: หน้าต่างสำรอง/นำเข้า (เทสต์ 1287 ผ่าน; before-import ใช้ checkDestinationLinks เต็ม + Inspect ยืนยันก่อน Import)
 - [x] ขั้น 6: Core แก้ชิ้นที่บันทึกแล้ว (เทสต์ 1311 ผ่าน; ตัวสร้างกลุ่มกลาง `PlacedGroupBuilder` ใช้ร่วมกับขั้น 8; API `GetPageItemsAsync`/`Move`/`Rotate`/`SetPageItemOpacity`/`RemovePageItemAsync`; ของ 1.2.0 = `OpacityMode.FadeOnly`; ไฟล์เซ็นต้องส่ง acknowledge ใน `PdfItemEditOptions`; ปฏิเสธ: clipping, สมาชิกกลุ่มถูกคั่น, Form ซับซ้อน)
-- [ ] ขั้น 7: แท็บแก้ไข คลิกชิ้นที่บันทึกแล้ว
+- [x] ขั้น 7: แท็บแก้ไข คลิกชิ้นที่บันทึกแล้ว (เทสต์ 1354 ผ่าน; ชิ้นที่ API ปฏิเสธ (EditError) เลือกไม่ได้; ไม่มีตัวจับย่อขนาดเพราะ Core ยังไม่มี API; แก้ตรายาง+ชิ้นอื่นบันทึกครั้งเดียวให้ยังแก้ได้; ภาพจับหน้าจอ: เทสต์ App ที่ตั้ง `YRK_SHOT_DIR`)
 - [ ] ขั้น 8: ความทึบเส้นลายเซ็นซ้อน
 - [ ] ขั้น 9: MSIX + WACK ในเครื่อง (ถ้า Ken เลือก)
 - [ ] ขั้น 10: เลขรุ่น, release notes, คู่มือ
