@@ -162,7 +162,14 @@ internal sealed partial class PdfiumDocument
             groups.Add((group, kind, IsGrouped(obj), PdfiumMarks.GetString(mark, "Fade") == "1", [obj], i));
         }
         var doc = CurrentCos();
-        var units = PlacedContent.Read(doc, new CosPageEdit(doc, doc.GetPages()[pageIndex]));
+        var pageEdit = new CosPageEdit(doc, doc.GetPages()[pageIndex]);
+        var units = PlacedContent.Read(doc, pageEdit);
+        // NormalizeItemPage merges the streams before GenerateContent. PDFium does not
+        // regenerate BI/sh faithfully, even when they belong to a different item. Refuse
+        // the entire page before migration or native mutation (including deletion).
+        var pageError = ContentTokenizer.Parse(pageEdit.ReadContent()).Any(o => o.Operator is "BI" or "sh")
+            ? "Inline images and shadings cannot be regenerated safely; placed-item editing is unavailable on this page."
+            : null;
         var result = new List<ItemObjects>();
         foreach (var group in groups)
         {
@@ -200,6 +207,7 @@ internal sealed partial class PdfiumDocument
                 if (kinds.Length > 1 && kinds.Any(k => k is not ("Stamp" or "StampText")))
                     error = "This YRK group contains conflicting item kinds.";
             }
+            error = pageError ?? error;
             var mode = !marked ? PdfItemOpacityMode.DeleteOnly
                 : group.Grouped && !group.Fade ? PdfItemOpacityMode.Group : PdfItemOpacityMode.FadeOnly;
             var opacity = group.Grouped && PdfiumNative.FPDFPageObj_GetFillColor(group.Objects[0], out _, out _, out _, out var alpha) != 0
