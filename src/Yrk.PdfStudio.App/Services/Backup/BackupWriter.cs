@@ -10,7 +10,8 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
     private readonly IBackupSignatureProtection _signatures = signatures ?? new DpapiBackupSignatureProtection();
 
     /// <summary>Exports only known user stores. The destination must be new; no existing file is overwritten.</summary>
-    public BackupManifest Write(string backupPath, string dataDirectory, ReadOnlySpan<char> password, string appVersion)
+    public BackupManifest Write(string backupPath, string dataDirectory, ReadOnlySpan<char> password, string appVersion,
+        BackupSelection selection = BackupSelection.All, bool checkDestinationLinks = false)
     {
         using var zipBytes = new MemoryStream();
         byte[]? key = null;
@@ -26,6 +27,7 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
             {
                 foreach (var path in Sources(dataDirectory))
                 {
+                    if ((selection & Category(path)) == 0) continue;
                     BackupFormat.CheckPath(path);
                     if (!names.Add(path) || files.Count >= BackupFormat.MaxFileCount) throw BackupFormat.Invalid();
                     var bytes = BackupFormat.ReadBounded(BackupFormat.Under(dataDirectory, path), BackupFormat.MaxFileBytes);
@@ -63,7 +65,7 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
             aes.Encrypt(header.AsSpan(7 + BackupFormat.SaltBytes, BackupFormat.NonceBytes),
                 zipBytes.GetBuffer().AsSpan(0, (int)zipBytes.Length),
                 encrypted.AsSpan(BackupFormat.HeaderBytes, (int)zipBytes.Length), encrypted.AsSpan(encrypted.Length - BackupFormat.TagBytes), header);
-            BackupFormat.AtomicWrite(Path.GetFullPath(backupPath), encrypted, checkLinks: false);
+            BackupFormat.AtomicWrite(Path.GetFullPath(backupPath), encrypted, checkLinks: checkDestinationLinks);
             return manifest;
         }
         catch (Exception ex) when (BackupFormat.IsInputError(ex)) { throw new IOException(Loc.T(BackupFormat.WriteError)); }
@@ -74,7 +76,17 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
         }
     }
 
-    private static IEnumerable<string> Sources(string root)
+    internal static BackupSelection Category(string path) => path switch
+    {
+        "settings.json" => BackupSelection.Settings,
+        "stamps.json" => BackupSelection.Stamps,
+        "etax.json" => BackupSelection.ETax,
+        _ when path.StartsWith("Signatures/", StringComparison.Ordinal) => BackupSelection.Signatures,
+        _ when path.StartsWith("DigitalIDs/", StringComparison.Ordinal) => BackupSelection.DigitalIds,
+        _ => BackupSelection.TrustedCertificates
+    };
+
+    internal static IEnumerable<string> Sources(string root)
     {
         foreach (var name in BackupFormat.Settings)
             if (File.Exists(BackupFormat.Under(root, name))) yield return name;

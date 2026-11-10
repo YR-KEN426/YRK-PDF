@@ -16,6 +16,22 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
 {
     private readonly IBackupSignatureProtection _signatures = signatures ?? new DpapiBackupSignatureProtection();
 
+    /// <summary>Authenticates and validates all entries in memory; never writes to disk.</summary>
+    public BackupManifest Inspect(string backupPath, ReadOnlySpan<char> password, bool checkLinks = false)
+    {
+        byte[]? bytes = null;
+        try
+        {
+            bytes = Decrypt(backupPath, password, checkLinks);
+            CheckZipDirectory(bytes);
+            using var memory = new MemoryStream(bytes, writable: false);
+            using var zip = new ZipArchive(memory, ZipArchiveMode.Read);
+            return Extract(zip, null);
+        }
+        catch (Exception ex) when (BackupFormat.IsInputError(ex)) { throw BackupFormat.Invalid(); }
+        finally { if (bytes is not null) CryptographicOperations.ZeroMemory(bytes); }
+    }
+
     /// <summary>
     /// Authenticates, extracts, hashes and prepares every file before touching dataDirectory.
     /// Existing settings are skipped unless replaceSettings is true. Stamps then merge, keeping both designs.
@@ -122,9 +138,9 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
         if (actualCount != count) throw BackupFormat.Invalid();
     }
 
-    private static byte[] Decrypt(string path, ReadOnlySpan<char> password)
+    private static byte[] Decrypt(string path, ReadOnlySpan<char> password, bool checkLinks = false)
     {
-        var encrypted = BackupFormat.ReadBounded(path, BackupFormat.MaxBackupFileBytes, checkLinks: false);
+        var encrypted = BackupFormat.ReadBounded(path, BackupFormat.MaxBackupFileBytes, checkLinks: checkLinks);
         byte[]? key = null;
         byte[]? plain = null;
         try
@@ -150,7 +166,7 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
         }
     }
 
-    private static BackupManifest Extract(ZipArchive zip, string staging)
+    private static BackupManifest Extract(ZipArchive zip, string? staging)
     {
         if (zip.Entries.Count > BackupFormat.MaxFileCount + 1) throw BackupFormat.Invalid();
         var entries = new Dictionary<string, ZipArchiveEntry>(StringComparer.OrdinalIgnoreCase);
@@ -187,6 +203,20 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
             if (!listed.Add(file.Path) || !entries.TryGetValue(file.Path, out var entry) || entry.FullName != file.Path
                 || file.Size < 0 || file.Size > BackupFormat.MaxFileBytes || file.Size != entry.Length
                 || file.Sha256.Length != 64 || !file.Sha256.All(char.IsAsciiHexDigit)) throw BackupFormat.Invalid();
+            if (staging is null)
+            {
+                using var content = new MemoryStream();
+                try
+                {
+                    using var source = entry.Open();
+                    var size = BackupFormat.CopyBounded(source, content, BackupFormat.MaxFileBytes, ref total);
+                    if (size != file.Size || !CryptographicOperations.FixedTimeEquals(
+                        SHA256.HashData(content.GetBuffer().AsSpan(0, (int)content.Length)), Convert.FromHexString(file.Sha256)))
+                        throw BackupFormat.Invalid();
+                }
+                finally { BackupFormat.Clear(content); }
+                continue;
+            }
             var target = BackupFormat.Under(staging, file.Path);
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             using (var source = entry.Open())

@@ -17,8 +17,20 @@ internal static class Program
     private static readonly HashSet<string> ReadOnlyWindows = new(StringComparer.Ordinal)
     {
         "Yrk.PdfStudio.App.Views.SupportDialog",
+        "Yrk.PdfStudio.App.Views.BackupDialog",
+        "Yrk.PdfStudio.App.Views.ImportDialog",
+        "Yrk.PdfStudio.App.Views.PrivacyDialog",
         "Yrk.PdfStudio.App.Views.TrustCertificateDialog",
         "Yrk.PdfStudio.App.Views.TrustedCertificatesDialog"
+    };
+
+    // These reviewed parameterless constructors initialize controls only. Do not even enumerate
+    // personal stores for their previews: the renderer can run with no access to those stores.
+    private static readonly HashSet<string> UiOnlyWindows = new(StringComparer.Ordinal)
+    {
+        "Yrk.PdfStudio.App.Views.BackupDialog",
+        "Yrk.PdfStudio.App.Views.ImportDialog",
+        "Yrk.PdfStudio.App.Views.PrivacyDialog"
     };
 
     private sealed record FileSnapshot(long Length, DateTime LastWriteTimeUtc);
@@ -47,7 +59,7 @@ internal static class Program
 
         string dataFolder;
         string output;
-        FolderSnapshot before;
+        FolderSnapshot? before;
         try
         {
             dataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf");
@@ -56,7 +68,7 @@ internal static class Program
                 || output.StartsWith(dataFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("PNG output must be outside the App data folder.");
             // Read metadata only. Never create the folder, copy files or restore user data.
-            before = Snapshot(dataFolder);
+            before = UiOnlyWindows.Contains(name) ? null : Snapshot(dataFolder);
         }
         catch (Exception ex)
         {
@@ -79,7 +91,7 @@ internal static class Program
         {
             try
             {
-                var differences = Compare(before, Snapshot(dataFolder));
+                var differences = before is null ? [] : Compare(before, Snapshot(dataFolder));
                 if (differences.Count != 0)
                 {
                     Console.Error.WriteLine("FAIL: data folder changed");

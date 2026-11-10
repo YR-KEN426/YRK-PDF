@@ -523,6 +523,29 @@ public sealed class BackupTests : IDisposable
             Assert.True(BackupFormat.IsSignatureId(Path.GetFileNameWithoutExtension(name)));
     }
 
+    [Theory]
+    [InlineData("path")]
+    [InlineData("hash")]
+    [InlineData("size")]
+    [InlineData("count")]
+    public void Inspect_rejects_unsafe_authenticated_archives_without_disk_writes(string fault)
+    {
+        var path = fault == "path" ? "../outside.pfx" : "DigitalIDs/id.pfx";
+        var zip = fault switch
+        {
+            "hash" => MakeZip([(path, Payload)], [new(path, Payload.Length, new string('0', 64))]),
+            "size" => MakeZip([(path, Payload)], declaredSize: BackupFormat.MaxFileBytes + 1),
+            "count" => MakeZip(Enumerable.Range(0, BackupFormat.MaxFileCount + 1)
+                .Select(i => ($"DigitalIDs/{i}.pfx", Array.Empty<byte>())).ToArray()),
+            _ => MakeZip([(path, Payload)])
+        };
+        Encrypt(zip);
+        var before = Directory.GetFileSystemEntries(_root, "*", SearchOption.AllDirectories).Order().ToArray();
+        var error = Assert.Throws<InvalidDataException>(() => new BackupReader().Inspect(Archive, Password));
+        Assert.Equal(Loc.T(BackupFormat.ReadError), error.Message);
+        Assert.Null(error.InnerException);
+        Assert.Equal(before, Directory.GetFileSystemEntries(_root, "*", SearchOption.AllDirectories).Order());
+    }
     private static byte[] MakeZip((string Name, byte[] Data)[] files, BackupFile[]? manifestFiles = null, long? declaredSize = null)
     {
         var manifest = new BackupManifest("test", DateTimeOffset.UtcNow, manifestFiles ?? files.Select(f =>

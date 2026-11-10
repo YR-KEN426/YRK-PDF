@@ -9,23 +9,27 @@ namespace Yrk.PdfStudio.App.Views;
 /// <summary>What the app does and does not do with the user's data, and where it keeps its own.</summary>
 public partial class PrivacyDialog : Window
 {
-    private readonly MainViewModel.AboutModel _about;
+    private readonly MainViewModel.AboutModel? _about;
+    private bool _ready;
 
-    public PrivacyDialog(MainViewModel.AboutModel about)
+    /// <summary>UI-only preview; no settings, recent files or user stores are loaded.</summary>
+    public PrivacyDialog() : this(null) { }
+
+    public PrivacyDialog(MainViewModel.AboutModel? about)
     {
         _about = about;
         InitializeComponent();
-        AutoUpdateBox.IsChecked = about.CheckAutomatically;
-        AutoUpdateBox.Visibility = about.CanUpdate ? Visibility.Visible : Visibility.Collapsed;
+        AutoUpdateBox.IsChecked = about?.CheckAutomatically ?? false;
+        AutoUpdateBox.Visibility = about?.CanUpdate == true ? Visibility.Visible : Visibility.Collapsed;
         ShowUpdateLine();
-        ClearRecentButton.IsEnabled = RecentFiles.Items.Count > 0;
+        _ready = true;
     }
 
     /// <summary>The update line says exactly what this copy does.</summary>
     private void ShowUpdateLine() =>
-        UpdatesText.Text = _about.UsesStoreUpdates
+        UpdatesText.Text = _about?.UsesStoreUpdates == true
             ? Loc.T("1. Updates: updates are managed through Microsoft Store.")
-            : !_about.CanUpdate
+            : _about?.CanUpdate != true
             ? Loc.T("1. Updates: this copy has no update address, so it never checks.")
             : _about.CheckAutomatically
                 ? Loc.T("1. Updates: shortly after the app starts, it asks its download page on GitHub whether a newer version exists, over an encrypted connection. Nothing about you or your files is sent; like any website, GitHub sees your internet address.")
@@ -33,6 +37,7 @@ public partial class PrivacyDialog : Window
 
     private void OnAutoUpdateChanged(object sender, RoutedEventArgs e)
     {
+        if (!_ready || _about is null) return;
         _about.CheckAutomatically = AutoUpdateBox.IsChecked == true;
         ShowUpdateLine();
     }
@@ -45,6 +50,9 @@ public partial class PrivacyDialog : Window
 
     private void OnReadPrivacyPolicy(object sender, RoutedEventArgs e) =>
         new PrivacyPolicyDialog { Owner = this }.ShowDialog();
+
+    private void OnBackup(object sender, RoutedEventArgs e) => new BackupDialog { Owner = this }.ShowDialog();
+    private void OnImport(object sender, RoutedEventArgs e) => new ImportDialog { Owner = this }.ShowDialog();
 
     private void OnOpenFolder(object sender, RoutedEventArgs e)
     {
