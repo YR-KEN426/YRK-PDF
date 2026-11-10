@@ -5,6 +5,8 @@ using System.Text;
 
 namespace Yrk.PdfStudio.App.Services;
 
+public enum PackageIdentityState { Unknown, Unpackaged, Packaged }
+
 /// <summary>Windows package identity, independent of the build flag and the update feed.</summary>
 public sealed class PackageIdentity
 {
@@ -17,7 +19,7 @@ public sealed class PackageIdentity
 
     /// <summary>
     /// Runs before any window, so an unexpected Windows answer must not stop the app from starting.
-    /// Treat it as unpackaged: GitHub copies keep updating, and Store builds stay off through YRK_STORE.
+    /// Keep startup working, but disable Velopack until Windows can positively confirm an unpackaged process.
     /// </summary>
     internal static PackageIdentity CreateOrUnpackaged(NameQuery fullName, NameQuery familyName)
     {
@@ -25,8 +27,7 @@ public sealed class PackageIdentity
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException or OverflowException
             or EntryPointNotFoundException or DllNotFoundException)
         {
-            return new PackageIdentity(static (ref uint _, StringBuilder? _) => NoPackage,
-                static (ref uint _, StringBuilder? _) => NoPackage);
+            return new PackageIdentity();
         }
     }
     private readonly Lazy<string?> _familyName;
@@ -46,13 +47,22 @@ public sealed class PackageIdentity
     }
 
     public bool HasIdentity => FullName is not null;
+    public PackageIdentityState State { get; }
     public string? FullName { get; }
     public bool UsesStoreUpdates => IsStoreBuild || HasIdentity;
+    public bool CanUseVelopack => !IsStoreBuild && State == PackageIdentityState.Unpackaged;
+
+    private PackageIdentity()
+    {
+        State = PackageIdentityState.Unknown;
+        _familyName = new(() => null);
+    }
 
     // Inject the native calls per instance; tests never change the process-wide identity.
     internal PackageIdentity(NameQuery fullName, NameQuery familyName)
     {
         FullName = ReadName(fullName);
+        State = FullName is null ? PackageIdentityState.Unpackaged : PackageIdentityState.Packaged;
         _familyName = new(() => HasIdentity ? ReadName(familyName) : null);
     }
 

@@ -23,6 +23,53 @@ public sealed class AppUpdaterTests
     private static readonly IVelopackLogger Log = new NullVelopackLogger();
 
     [Theory]
+    [InlineData("access")]
+    [InlineData("parameter")]
+    [InlineData("second")]
+    [InlineData("empty")]
+    [InlineData("overflow")]
+    [InlineData("dll")]
+    [InlineData("entry")]
+    public async Task Abnormal_startup_identity_never_enables_or_calls_velopack(string fault)
+    {
+        PackageIdentity.NameQuery query = (ref uint length, StringBuilder? buffer) =>
+        {
+            if (fault == "dll") throw new DllNotFoundException();
+            if (fault == "entry") throw new EntryPointNotFoundException();
+            if (fault == "access") return 5;
+            if (fault == "parameter") return 87;
+            if (buffer is not null) return fault == "second" ? 5 : 0;
+            length = fault == "overflow" ? uint.MaxValue : 32;
+            return PackageIdentity.InsufficientBuffer;
+        };
+        var identity = PackageIdentity.CreateOrUnpackaged(query, PackageIdentityTests.Query(null));
+        Assert.False(identity.HasIdentity); // Startup continues with no known identity.
+        Assert.Equal(PackageIdentityState.Unknown, identity.State);
+        Assert.False(identity.CanUseVelopack); // Also gates Velopack's startup hooks in Program.Main.
+        using var fixture = new UpdateFixture();
+        var source = fixture.CreateSource(fixture.PublicKey);
+        var manager = new YrkUpdateManager(source, fixture.CreateLocator());
+        Assert.True(manager.IsInstalled);
+        var updater = new AppUpdater(manager, source, identity: identity);
+        Assert.False(updater.IsAvailable);
+        Assert.Null(await updater.CheckAndDownloadAsync(
+            progress: _ => Assert.Fail("Must not download"),
+            downloadStarting: (_, _) => Assert.Fail("Must not download")));
+        await updater.ApplyAndRestartAsync();
+        Assert.Equal(0, fixture.Inner.FeedReads);
+        Assert.Equal(0, fixture.Inner.Downloads);
+        Assert.Equal("original updater", File.ReadAllText(fixture.UpdateExe));
+
+        var previous = Environment.GetEnvironmentVariable(AppUpdater.FeedVariable);
+        try
+        {
+            Environment.SetEnvironmentVariable(AppUpdater.FeedVariable, fixture.Feed);
+            Assert.Null(new AppUpdater(identity).FeedUrl);
+        }
+        finally { Environment.SetEnvironmentVariable(AppUpdater.FeedVariable, previous); }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Store_policy_blocks_installed_manager_for_identity_or_store_flag(bool packaged)

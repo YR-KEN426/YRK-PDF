@@ -37,7 +37,7 @@ public sealed class AppUpdater
         _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromMinutes(5);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_checkTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_downloadIdleTimeout, TimeSpan.Zero);
-        _updatesDisabled = identity.UsesStoreUpdates;
+        _updatesDisabled = !identity.CanUseVelopack;
         if (_updatesDisabled) return; // Even a feed override must never enable Velopack in a package.
         FeedUrl = Environment.GetEnvironmentVariable(FeedVariable) is { Length: > 0 } overridden
             ? overridden
@@ -68,7 +68,7 @@ public sealed class AppUpdater
         _downloadIdleTimeout = downloadIdleTimeout ?? TimeSpan.FromMinutes(5);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_checkTimeout, TimeSpan.Zero);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(_downloadIdleTimeout, TimeSpan.Zero);
-        _updatesDisabled = (identity ?? PackageIdentity.Current).UsesStoreUpdates;
+        _updatesDisabled = !(identity ?? PackageIdentity.Current).CanUseVelopack;
         if (_updatesDisabled) return;
         _manager = manager;
         _source = source;
@@ -204,6 +204,8 @@ public sealed class UpdateVerificationException(string message, Exception? inner
 /// <summary>Small per-user preferences, kept in %LOCALAPPDATA%\YRK\EasyPdf\settings.json.</summary>
 public sealed class AppSettings
 {
+    private static volatile bool s_saveSuspended;
+    internal static void SuspendSavingUntilRestart() => s_saveSuspended = true;
     private static readonly string FilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "settings.json");
 
@@ -230,12 +232,14 @@ public sealed class AppSettings
         }
     }
 
-    public void Save()
+    public void Save(string? path = null)
     {
+        if (s_saveSuspended) return;
+        path ??= FilePath;
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(this));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

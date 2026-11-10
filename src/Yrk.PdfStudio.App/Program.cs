@@ -8,9 +8,10 @@ public static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        if (!AppRestart.WaitForPreviousInstance(ref args)) return;
         // Must run first: when the installer or updater starts the app with a hook argument, Velopack
         // handles it (registering "Open with", for example) and exits before any window appears.
-        if (!PackageIdentity.Current.UsesStoreUpdates)
+        if (PackageIdentity.Current.CanUseVelopack)
         {
             VelopackApp.Build()
                 // Updates are installed only when the user clicks "Restart to update", after the signature check.
