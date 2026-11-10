@@ -79,6 +79,16 @@ public sealed class SignatureArt
     /// <exception cref="FormatException">The data is damaged.</exception>
     public static SignatureArt Deserialize(byte[] data)
     {
+        try { return Read(data); }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or IndexOutOfRangeException
+            or OverflowException or NotSupportedException or IOException)
+        {
+            throw new FormatException("The saved signature is damaged.", ex);
+        }
+    }
+
+    private static SignatureArt Read(byte[] data)
+    {
         if (!data.AsSpan().StartsWith(Magic))
         {
             return FromImage(DecodePng(data));
@@ -94,13 +104,16 @@ public sealed class SignatureArt
             throw new FormatException("The saved signature is damaged.", ex);
         }
 
+        if (stored.Preview is null || !Enum.TryParse<SignatureArtKind>(stored.Kind, out var kind)
+            || !Enum.IsDefined(kind)) throw new FormatException("The saved signature is damaged.");
         var preview = DecodePng(Convert.FromBase64String(stored.Preview));
-        return Enum.Parse<SignatureArtKind>(stored.Kind) switch
+        return kind switch
         {
             SignatureArtKind.Vector when stored.Vector is { } vector => new SignatureArt(SignatureArtKind.Vector, preview, VectorArtBuilder.Deserialize(vector), null, null),
             SignatureArtKind.Pdf when stored.Pdf is { } pdf && stored.Crop is [var x, var y, var w, var h] =>
                 new SignatureArt(SignatureArtKind.Pdf, preview, null, Convert.FromBase64String(pdf), new NormalizedRect(x, y, w, h)),
-            _ => FromImage(preview),
+            SignatureArtKind.Image => FromImage(preview),
+            _ => throw new FormatException("The saved signature is damaged."),
         };
     }
 
@@ -116,9 +129,19 @@ public sealed class SignatureArt
     private static BitmapSource DecodePng(byte[] png)
     {
         using var stream = new MemoryStream(png);
-        var decoder = new PngBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+        var decoder = new PngBitmapDecoder(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.None);
         var frame = decoder.Frames[0];
-        frame.Freeze();
-        return frame;
+        // Bound decoded pixels before allocating or asking WIC to materialize a compressed image.
+        var stride = checked(((long)frame.PixelWidth * frame.Format.BitsPerPixel + 7) / 8);
+        var size = checked(stride * frame.PixelHeight);
+        if (frame.PixelWidth <= 0 || frame.PixelHeight <= 0
+            || (long)frame.PixelWidth * frame.PixelHeight * 4 > 64 * 1024 * 1024
+            || size > 64 * 1024 * 1024) throw new FormatException("The saved signature image is too large.");
+        var pixels = new byte[(int)size];
+        frame.CopyPixels(pixels, (int)stride, 0);
+        var image = BitmapSource.Create(frame.PixelWidth, frame.PixelHeight, frame.DpiX, frame.DpiY,
+            frame.Format, frame.Palette, pixels, (int)stride);
+        image.Freeze();
+        return image;
     }
 }

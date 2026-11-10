@@ -60,7 +60,7 @@ public static class BackupFormat
 
     internal static InvalidDataException Invalid() => new(Loc.T(ReadError));
     internal static bool IsInputError(Exception ex) => ex is InvalidDataException or IOException or UnauthorizedAccessException
-        or CryptographicException or JsonException or ArgumentException or NotSupportedException or OverflowException or InvalidOperationException;
+        or CryptographicException or JsonException or ArgumentException or FormatException or NotSupportedException or OverflowException or InvalidOperationException;
 
     internal static byte[] Header()
     {

@@ -21,7 +21,60 @@ public sealed class BackupTests : IDisposable
     private string Archive => Path.Combine(_root, "backup.yrkbackup");
     private const string SignatureId = "0123456789abcdef0123456789abcdef";
     private const string SignaturePath = "Signatures/" + SignatureId + ".yrksig";
-    private static readonly byte[] Payload = Encoding.UTF8.GetBytes("portable signature test data กขค");
+    private static readonly byte[] Payload = SignaturePng();
+
+    internal static byte[] SignaturePng(int width = 1, int height = 1)
+    {
+        var image = System.Windows.Media.Imaging.BitmapSource.Create(width, height, 96, 96,
+            System.Windows.Media.PixelFormats.Bgra32, null, new byte[checked(width * height * 4)], width * 4);
+        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(image));
+        using var output = new MemoryStream();
+        encoder.Save(output);
+        return output.ToArray();
+    }
+
+    internal static byte[] DamagedSignature(string fault)
+    {
+        if (fault == "png") return [1, 2, 3];
+        if (fault == "dimensions") return SignaturePng(4097, 4097);
+        var png = Convert.ToBase64String(SignaturePng());
+        return [.. "YRKSIG2\n"u8, .. JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            Kind = fault == "kind" ? "Unknown" : fault == "vector" ? "Vector" : "Image",
+            Vector = fault == "vector" ? "1" : null,
+            Preview = fault == "null" ? null : fault == "base64" ? "%%%" : png,
+        })];
+    }
+
+    [Theory]
+    [InlineData("png")]
+    [InlineData("dimensions")]
+    [InlineData("kind")]
+    [InlineData("vector")]
+    [InlineData("null")]
+    [InlineData("base64")]
+    public void Damaged_signature_rejects_entire_archive_before_commit(string fault)
+    {
+        Encrypt(MakeZip([("settings.json", "{}"u8.ToArray()), (SignaturePath, DamagedSignature(fault))]));
+        Reject(Password);
+    }
+
+    [Theory]
+    [InlineData("kind")]
+    [InlineData("vector")]
+    [InlineData("null")]
+    [InlineData("dimensions")]
+    public void Signature_store_skips_damaged_art_and_keeps_valid_entries(string fault)
+    {
+        var protection = new Protector(1);
+        Put(Source, SignaturePath, protection.Protect(DamagedSignature(fault)));
+        var messages = new List<string>();
+        var store = new SignatureStore(Path.Combine(Source, "Signatures"), protection, messages.Add);
+        var valid = store.Save(SignatureArt.Deserialize(SignaturePng()));
+        Assert.Equal(valid.Id, Assert.Single(store.LoadAll()).Id);
+        Assert.Single(messages);
+    }
 
     // This portable test substitute never invokes this machine's DPAPI.
     private sealed class Protector(byte account) : IBackupSignatureProtection
@@ -510,7 +563,7 @@ public sealed class BackupTests : IDisposable
     public void Planned_collision_names_and_reimported_signature_names_remain_unique()
     {
         Encrypt(MakeZip([("DigitalIDs/id.pfx", Payload), ("DigitalIDs/id (นำเข้า).pfx", [9]),
-            (SignaturePath, Payload), ("Signatures/" + SignatureId + " (นำเข้า).yrksig", [8])]));
+            (SignaturePath, Payload), ("Signatures/" + SignatureId + " (นำเข้า).yrksig", Payload)]));
         Put(Target, "DigitalIDs/id.pfx", [7]);
         Put(Target, SignaturePath, [1, 6]);
         var result = Import();

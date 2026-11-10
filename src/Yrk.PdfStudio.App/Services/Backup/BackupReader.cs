@@ -288,6 +288,7 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
                 byte[]? protectedBytes = null;
                 try
                 {
+                    _ = SignatureArt.Deserialize(portable);
                     protectedBytes = _signatures.Protect(portable);
                     if (protectedBytes.Length > BackupFormat.MaxFileBytes) throw BackupFormat.Invalid();
                     BackupFormat.AtomicWrite(staged, protectedBytes, overwrite: true);
