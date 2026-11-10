@@ -74,7 +74,16 @@ public sealed partial class MainViewModel
                 {
                     foreach (var item in items.Where(i => !i.IsText || i.Text.Trim().Length > 0))
                     {
-                        await copy.AddImageAsync(item.PageIndex, ItemRenderer.Render(item), item.Bounds);
+                        if (item.Art is { } art)
+                        {
+                            // Keep signature ink in the same opacity group as a normal save.
+                            await WriteSignatureAsync(copy, item, art);
+                        }
+                        else
+                        {
+                            await copy.AddImageAsync(item.PageIndex, ItemRenderer.Render(item), item.Bounds,
+                                style: item.Kind == PlacedItemKind.Signature ? PlacementStyleOf(item) : null);
+                        }
                     }
 
                     if (fields.Count > 0)
