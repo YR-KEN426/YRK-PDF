@@ -1059,6 +1059,9 @@
   "Size in points": "ขนาดเป็นพอยต์",
   "Bold": "ตัวหนา",
   "Italic": "ตัวเอียง",
+  "Align left": "ชิดซ้าย",
+  "Align center": "กึ่งกลาง",
+  "Align right": "ชิดขวา",
   "The document's font {0} is not installed: {1} is used instead. Change the font or size on the toolbar if needed.": "เครื่องนี้ไม่มีฟอนต์ {0} ของเอกสาร จึงใช้ {1} แทนและปรับขนาดให้ใกล้เคียง เปลี่ยนฟอนต์หรือขนาดได้ที่แถบเครื่องมือ",
 
   // Create form fields

@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Media;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.Core.Pdf;
@@ -139,6 +140,35 @@ public sealed partial class MainViewModel
         OnEditsChanged();
     }
 
+    /// <summary>Alignment belongs only to existing lines, and is a separate undoable edit.</summary>
+    internal void ChangeTextEditAlignment(TextAlignment alignment)
+    {
+        if (TextStyleBar.Target is not TextEditViewModel edit || edit.Alignment == alignment)
+        {
+            return;
+        }
+
+        var before = edit.Alignment;
+        SetAlignment(alignment);
+        _undo.Push(() => SetAlignment(before), () => SetAlignment(alignment));
+
+        void SetAlignment(TextAlignment value)
+        {
+            edit.Alignment = value;
+            if (edit.IsChanged || edit.IsEditing)
+            {
+                if (!_textEdits.Contains(edit)) AttachTextEdit(edit);
+            }
+            else
+            {
+                DetachTextEdit(edit);
+            }
+
+            TextStyleBar.Refresh();
+            OnEditsChanged();
+        }
+    }
+
     /// <summary>
     /// Called by the view when editing a line ends (Enter or focus leaves); Escape passes <paramref name="cancel"/>.
     /// Enter passes <paramref name="apply"/>: the changed lines are written into the page now. When the focus only
@@ -157,7 +187,7 @@ public sealed partial class MainViewModel
     {
         edit.IsEditing = false;
         var before = edit.Text;
-        var after = cancel ? before : text.Trim();
+        var after = cancel ? before : text.TrimEnd();
         if (after == before)
         {
             if (!edit.IsChanged)
@@ -207,7 +237,7 @@ public sealed partial class MainViewModel
             return pdf;
         }
 
-        var replaced = changed.Where(e => e.Text.Length > 0).ToList();
+        var replaced = changed.Where(e => !string.IsNullOrWhiteSpace(e.Text)).ToList();
         IReadOnlyList<PdfTextBlock> blocks;
         try
         {
@@ -227,13 +257,58 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>The new text shaped and placed on the old line's baseline.</summary>
-    private static (int PageIndex, NormalizedPoint TopLeft, PdfColor Color, TextShaper.ShapedLine Line) Layout(TextEditViewModel edit, string family)
+    internal static (int PageIndex, NormalizedPoint TopLeft, PdfColor Color, TextShaper.ShapedLine Line) Layout(TextEditViewModel edit, string family, string? previewText = null)
     {
-        var shaped = TextShaper.Shape(edit.Text, family, edit.IsBold, edit.IsItalic, edit.FontSize);
+        var text = (previewText ?? edit.Text).TrimEnd();
+        var content = text.TrimStart();
+        var leading = text[..(text.Length - content.Length)];
+        var leadingWidth = leading.Length == 0 ? 0
+            : TextShaper.Shape(leading, family, edit.IsBold, edit.IsItalic, edit.FontSize).Width;
+        var shaped = TextShaper.Shape(content, family, edit.IsBold, edit.IsItalic, edit.FontSize);
+        // Bounds from PDFium describe ink, not advance widths (which include side bearings).
+        // Align that same visible edge, otherwise even a short Thai word can miss it by several points.
+        var ink = TextEditInkBounds(shaped);
         var baseline = edit.Line.BaselineStart;
-        var topLeft = new NormalizedPoint(baseline.X, baseline.Y - (shaped.Baseline / edit.Page.HeightPoints));
+        var x = CalculateTextEditX(edit.Line.Bounds, baseline.X, edit.Alignment,
+            ink.Width / edit.Page.WidthPoints, leadingWidth / edit.Page.WidthPoints);
+        if (edit.Alignment is TextAlignment.Center or TextAlignment.Right)
+        {
+            x -= ink.Left / edit.Page.WidthPoints;
+        }
+        var topLeft = new NormalizedPoint(x, baseline.Y - (shaped.Baseline / edit.Page.HeightPoints));
         return (edit.Page.Index, topLeft, new PdfColor(edit.Color.R, edit.Color.G, edit.Color.B), shaped);
     }
+
+    internal static Rect TextEditInkBounds(TextShaper.ShapedLine shaped)
+    {
+        var ink = Rect.Empty;
+        foreach (var run in shaped.Runs)
+        {
+            var pen = run.X;
+            foreach (var glyph in run.Glyphs)
+            {
+                var box = run.Typeface.GetGlyphOutline(glyph.Id, run.FontSize, run.FontSize).Bounds;
+                if (!box.IsEmpty)
+                {
+                    box.Offset(pen + glyph.OffsetX, run.Baseline - glyph.OffsetY);
+                    ink.Union(box);
+                }
+
+                pen += glyph.Advance;
+            }
+        }
+
+        return ink.IsEmpty ? new Rect(0, 0, shaped.Width, shaped.Height) : ink;
+    }
+
+    /// <summary>All distances are page-relative. Long text overflows in the chosen direction; no clamping.</summary>
+    internal static double CalculateTextEditX(NormalizedRect bounds, double baselineX, TextAlignment alignment,
+        double textWidth, double leadingWidth) => (alignment switch
+        {
+            TextAlignment.Center => bounds.X + ((bounds.Width - textWidth) / 2),
+            TextAlignment.Right => bounds.X + bounds.Width - textWidth,
+            _ => baselineX,
+        }) + leadingWidth;
 
     private bool BlockedByTextEdits()
     {

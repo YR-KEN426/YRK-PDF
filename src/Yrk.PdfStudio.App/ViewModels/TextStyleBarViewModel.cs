@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Windows;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -28,6 +29,26 @@ public sealed class TextStyleBarViewModel : ObservableObject
     };
 
     public bool IsFormField => Target is FormFieldViewModel;
+
+    public bool IsTextEdit => Target is TextEditViewModel;
+
+    public bool IsAlignedLeft
+    {
+        get => Target is TextEditViewModel { Alignment: TextAlignment.Left };
+        set { if (value) _owner.ChangeTextEditAlignment(TextAlignment.Left); }
+    }
+
+    public bool IsAlignedCenter
+    {
+        get => Target is TextEditViewModel { Alignment: TextAlignment.Center };
+        set { if (value) _owner.ChangeTextEditAlignment(TextAlignment.Center); }
+    }
+
+    public bool IsAlignedRight
+    {
+        get => Target is TextEditViewModel { Alignment: TextAlignment.Right };
+        set { if (value) _owner.ChangeTextEditAlignment(TextAlignment.Right); }
+    }
 
     /// <summary>Form fields can also fit the text to the box ("Auto").</summary>
     public IReadOnlyList<string> SizeChoices => Target is FormFieldViewModel ? FieldSizes : PlainSizes;

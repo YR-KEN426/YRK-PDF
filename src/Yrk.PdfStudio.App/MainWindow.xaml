@@ -1389,11 +1389,26 @@
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate DataType="{x:Type vm:TextEditViewModel}">
                                                     <Grid MinHeight="{Binding Height}">
+                                                        <Grid.Resources>
+                                                            <vm:TextEditPositionConverter x:Key="TextEditPosition" />
+                                                        </Grid.Resources>
                                                         <!-- Covers the old line until the change is written into the page (Enter, a click outside, or Save). -->
                                                         <Border Background="White" Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Left" VerticalAlignment="Top" />
-                                                        <TextBlock Text="{Binding Text}" Background="White" VerticalAlignment="Center" MinWidth="{Binding Width}"
+                                                        <TextBlock Text="{Binding Text}" TextAlignment="{Binding Alignment}" Background="White" VerticalAlignment="Center" MinWidth="{Binding Width}"
                                                                    FontFamily="{Binding FontFamily}" FontSize="{Binding FontSize}" FontWeight="{Binding FontWeight}"
                                                                    FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}">
+                                                            <TextBlock.RenderTransform>
+                                                                <MultiBinding Converter="{StaticResource TextEditPosition}">
+                                                                    <Binding />
+                                                                    <Binding Path="Text" RelativeSource="{RelativeSource Self}" />
+                                                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource Self}" />
+                                                                    <Binding Path="Alignment" />
+                                                                    <Binding Path="FontFamilyName" />
+                                                                    <Binding Path="FontSize" />
+                                                                    <Binding Path="IsBold" />
+                                                                    <Binding Path="IsItalic" />
+                                                                </MultiBinding>
+                                                            </TextBlock.RenderTransform>
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
                                                                     <Style.Triggers>
@@ -1404,13 +1419,26 @@
                                                                 </Style>
                                                             </TextBlock.Style>
                                                         </TextBlock>
-                                                        <TextBox Text="{Binding Text, Mode=OneWay}" Background="White" Padding="0" Margin="0" MinWidth="{Binding Width}"
+                                                        <TextBox Text="{Binding Text, Mode=OneWay}" TextAlignment="{Binding Alignment}" Background="White" Padding="0" Margin="0" MinWidth="{Binding Width}"
                                                                  BorderThickness="0.5" BorderBrush="{StaticResource AccentBrush}" VerticalContentAlignment="Center"
                                                                  FontFamily="{Binding FontFamily}" FontSize="{Binding FontSize}" FontWeight="{Binding FontWeight}"
                                                                  FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" AutomationProperties.Name="Line text"
                                                                  Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}"
                                                                  IsVisibleChanged="OnLineEditorVisibleChanged" Loaded="OnLineEditorLoaded" PreviewKeyDown="OnLineEditorKeyDown"
-                                                                 LostKeyboardFocus="OnLineEditorLostFocus" ContextMenu="{StaticResource TypingMenu}" />
+                                                                 LostKeyboardFocus="OnLineEditorLostFocus" ContextMenu="{StaticResource TypingMenu}">
+                                                            <TextBox.RenderTransform>
+                                                                <MultiBinding Converter="{StaticResource TextEditPosition}" ConverterParameter="Editor">
+                                                                    <Binding />
+                                                                    <Binding Path="Text" RelativeSource="{RelativeSource Self}" />
+                                                                    <Binding Path="ActualWidth" RelativeSource="{RelativeSource Self}" />
+                                                                    <Binding Path="Alignment" />
+                                                                    <Binding Path="FontFamilyName" />
+                                                                    <Binding Path="FontSize" />
+                                                                    <Binding Path="IsBold" />
+                                                                    <Binding Path="IsItalic" />
+                                                                </MultiBinding>
+                                                            </TextBox.RenderTransform>
+                                                        </TextBox>
                                                     </Grid>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
@@ -1641,6 +1669,21 @@
                                   ToolTip="Italic" AutomationProperties.Name="Italic">
                         <TextBlock Text="I" FontStyle="Italic" FontFamily="Georgia" Width="14" TextAlignment="Center" />
                     </ToggleButton>
+                    <StackPanel Orientation="Horizontal" Margin="4,0,0,0"
+                                Visibility="{Binding IsTextEdit, Converter={StaticResource BoolToVisibility}}">
+                        <RadioButton Style="{StaticResource ToolbarToggle}" IsChecked="{Binding IsAlignedLeft}" Focusable="False"
+                                      ToolTip="Align left" AutomationProperties.Name="Align left">
+                            <TextBlock Text="&#xE8E4;" FontFamily="Segoe MDL2 Assets" />
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource ToolbarToggle}" IsChecked="{Binding IsAlignedCenter}" Focusable="False"
+                                      ToolTip="Align center" AutomationProperties.Name="Align center">
+                            <TextBlock Text="&#xE8E3;" FontFamily="Segoe MDL2 Assets" />
+                        </RadioButton>
+                        <RadioButton Style="{StaticResource ToolbarToggle}" IsChecked="{Binding IsAlignedRight}" Focusable="False"
+                                      ToolTip="Align right" AutomationProperties.Name="Align right">
+                            <TextBlock Text="&#xE8E2;" FontFamily="Segoe MDL2 Assets" />
+                        </RadioButton>
+                    </StackPanel>
                     <ComboBox ItemsSource="{x:Static vm:TextStyles.Colors}" SelectedItem="{Binding Color}" Width="52" Margin="4,0,0,0"
                               VerticalAlignment="Center" ToolTip="Text colour" AutomationProperties.Name="Text colour">
                         <ComboBox.ItemTemplate>
