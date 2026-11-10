@@ -16,6 +16,88 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed partial class SavedItemEditingTests
 {
+    [Fact]
+    public async Task Candidate_version_success_commits_pending_items_once_and_preserves_undo_save_and_reopen()
+    {
+        await using var app = new AppTestHarness();
+        var source = await PlacedSource(app);
+        var bytes = File.ReadAllBytes(source);
+        var baseline = await Render(app);
+        var original = (await Items(app))[0];
+        var art = Sta.Run(() => StampRenderer.RenderCertifiedCopy(new CertifiedCopyOptions("PENDING-STAMP", false, null)));
+        var stamp = PlacedItemViewModel.CreateImage(0, PlacedItemKind.Stamp, 400, 400, art.Image, stamp: art);
+        stamp.Bounds = new(.1, .5, .35, .18);
+        var picture = PlacedItemViewModel.CreateImage(0, PlacedItemKind.Picture, 400, 400, Image());
+        picture.Bounds = new(.5, .5, .1, .1);
+        Attach(app, stamp); Attach(app, picture);
+        app.Model.AddTextCommand.Execute(null);
+        app.Model.OnPageClicked(app.Model.Pages[0], .55, .7);
+        var text = Assert.Single(app.Model.Pages[0].Items, i => i.IsText);
+        app.Model.CommitText(text, "PENDING-TEXT");
+        var pending = (List<PlacedItemViewModel>)typeof(MainViewModel)
+            .GetField("_placedItems", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(app.Model)!;
+        Assert.Equal(new[] { stamp, picture, text }, pending);
+        Assert.False(stamp.FrameCommitted);
+        Assert.True(app.Model.UndoCommand.CanExecute(null));
+
+        // Exercise ApplyNowAsync's real successful candidate/write/version/reopen pipeline.
+        await Select(app, original);
+        app.Model.RotateItem90(Frame(app));
+        await EditFinished(app);
+        await AssertAppliedAsync();
+        Assert.True(app.Model.IsDirty);
+        Assert.Equal(bytes, File.ReadAllBytes(source));
+        var applied = await Render(app);
+
+        Assert.True(app.Model.UndoCommand.CanExecute(null));
+        app.Model.UndoCommand.Execute(null); await Idle(app);
+        Assert.Equal(baseline.Pixels, (await Render(app)).Pixels);
+        var undone = await Items(app);
+        Assert.Equal(2, undone.Count);
+        Assert.Equal(original.Bounds, Assert.Single(undone, i => i.Group == original.Group).Bounds);
+        Assert.Empty(pending);
+        Assert.DoesNotContain(app.Model.Pages[0].Items, i => !i.IsSaved);
+        Assert.False(app.Model.UndoCommand.CanExecute(null));
+        Assert.True(app.Model.RedoCommand.CanExecute(null));
+
+        app.Model.RedoCommand.Execute(null); await Idle(app);
+        await AssertAppliedAsync();
+        Assert.Equal(applied.Pixels, (await Render(app)).Pixels);
+        var saved = app.PathFor("candidate-success.pdf");
+        Assert.True(await app.SaveToAsync(saved));
+        // Read the saved file independently: counting overlays alone can hide duplicate PDF content.
+        await using (var reopened = await app.Engine.OpenAsync(saved))
+        {
+            var items = await reopened.GetPageItemsAsync(0);
+            Assert.Equal(5, items.Count);
+            Assert.All(items, i => Assert.True(i.HasYrkMark));
+            Assert.Equal(5, items.Select(i => i.Group).Distinct().Count());
+            Assert.Equal(applied.Pixels, (await reopened.RenderPageAsync(0, 400, 400)).Pixels);
+        }
+        Assert.True(await app.OpenAsync(saved));
+        await AssertAppliedAsync();
+        Assert.Equal(bytes, File.ReadAllBytes(source));
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+
+        async Task AssertAppliedAsync()
+        {
+            Assert.Empty(pending);
+            Assert.DoesNotContain(app.Model.Pages[0].Items, i => !i.IsSaved);
+            Assert.False(stamp.FrameCommitted);
+            var items = await Items(app);
+            Assert.Equal(5, items.Count);
+            Assert.All(items, i => { Assert.True(i.HasYrkMark); Assert.Null(i.EditError); });
+            var rotated = Assert.Single(items, i => i.Group == original.Group);
+            Assert.InRange(Math.Abs(rotated.Bounds.Width - original.Bounds.Height), 0, .002);
+            Assert.InRange(Math.Abs(rotated.Bounds.Height - original.Bounds.Width), 0, .002);
+            Assert.Single(items, i => i.Group == stamp.MarkGroup.ToString("N"));
+            Assert.Single(items, i => i.Group == picture.MarkGroup.ToString("N"));
+            Assert.Single(items, i => i.Group == text.MarkGroup.ToString("N"));
+            Assert.Single(await Document(app).FindTextAsync(0, "PENDING-STAMP", PdfSearchOptions.None));
+            Assert.Single(await Document(app).FindTextAsync(0, "PENDING-TEXT", PdfSearchOptions.None));
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
