@@ -19,6 +19,7 @@ public sealed class BackupImportCoordinator
     private readonly BackupReader _reader;
     private readonly WriteBeforeImport _write;
     private readonly ImportBackup _import;
+    public bool SafetyBackupCreated { get; private set; }
 
     public BackupImportCoordinator(BackupReader? reader = null, BackupWriter? writer = null,
         WriteBeforeImport? write = null, ImportBackup? import = null)
@@ -32,6 +33,7 @@ public sealed class BackupImportCoordinator
 
     public BackupImportResult Import(string path, string data, string temp, ReadOnlySpan<char> password, bool replace, string version)
     {
+        SafetyBackupCreated = false;
         _reader.Inspect(path, password); // Wrong password/damaged archive must not create even a safety backup.
         try
         {
@@ -51,6 +53,7 @@ public sealed class BackupImportCoordinator
                     || file.Length > BackupFormat.MaxBackupFileBytes) throw new IOException();
                 // Full authentication, hashes and bounds, with strict link checks on this internal file.
                 _reader.Inspect(backup, password, checkLinks: true);
+                SafetyBackupCreated = true;
             }
         }
         catch (Exception ex) when (BackupFormat.IsInputError(ex)) { throw new IOException(Loc.T(SafetyError)); }

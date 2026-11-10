@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using Microsoft.Win32;
+using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.App.Services.Backup;
 
 namespace Yrk.PdfStudio.App.Views;
@@ -9,9 +10,18 @@ public partial class ImportDialog : Window
 {
     private bool _busy;
     private bool _inspected;
+    private readonly BackupImportCoordinator _coordinator;
+    private readonly string _data;
+    private readonly string _temp;
+    public bool RestartRequested { get; private set; }
 
-    public ImportDialog()
+    public ImportDialog() : this(new(), BackupDialogSupport.DataDirectory, Path.GetTempPath()) { }
+
+    internal ImportDialog(BackupImportCoordinator coordinator, string data, string temp)
     {
+        _coordinator = coordinator;
+        _data = data;
+        _temp = temp;
         InitializeComponent();
         Closing += (_, e) => { if (_busy) e.Cancel = true; };
         Closed += (_, _) => PasswordInput.Clear();
@@ -76,10 +86,15 @@ public partial class ImportDialog : Window
         using var secure = PasswordInput.SecurePassword;
         try
         {
-            await BackupDialogSupport.RunAsync(secure, secret => new BackupImportCoordinator().Import(path,
-                BackupDialogSupport.DataDirectory, Path.GetTempPath(), secret, replace, BackupDialogSupport.AppVersion));
+            await BackupDialogSupport.RunAsync(secure, secret => _coordinator.Import(path,
+                _data, _temp, secret, replace, BackupDialogSupport.AppVersion));
             PasswordInput.Clear();
-            Status.Text = Loc.T("Data imported. Restart YRK PDF to load the imported settings and stores.");
+            AppSettings.SuspendSavingUntilRestart();
+            StampSettings.SuspendSavingUntilRestart();
+            ETaxSettings.SuspendSavingUntilRestart();
+            SignatureStore.SuspendSavingUntilRestart();
+            Status.Text = Loc.T("Data imported. Setting changes will not be saved until you restart YRK PDF.");
+            RestartButton.Visibility = Visibility.Visible;
         }
         catch (Exception ex) when (BackupDialogSupport.IsExpected(ex))
         {
@@ -88,7 +103,9 @@ public partial class ImportDialog : Window
                 ? Loc.T("The backup could not be read. The password is incorrect or the file is damaged.")
                 : ex.Message == Loc.T(BackupImportCoordinator.SafetyError)
                     ? Loc.T(BackupImportCoordinator.SafetyError)
-                    : Loc.T("The backup could not be imported. Some files may have been imported. Your safety backup is in the app's Backups folder.");
+                    : _coordinator.SafetyBackupCreated
+                        ? Loc.T("The backup could not be imported. Some files may have been imported. Your safety backup is in the app's Backups folder.")
+                        : Loc.T("The backup could not be imported. Some files may have been imported.");
         }
         finally { _inspected = false; SetBusy(false); }
     }
@@ -96,7 +113,14 @@ public partial class ImportDialog : Window
     private void SetBusy(bool value)
     {
         _busy = value;
-        Inputs.IsEnabled = CloseButton.IsEnabled = !value;
+        Inputs.IsEnabled = CloseButton.IsEnabled = RestartButton.IsEnabled = !value;
         ImportButton.IsEnabled = !value && _inspected;
+    }
+
+    private void OnRestart(object sender, RoutedEventArgs e)
+    {
+        if (_busy || RestartButton.Visibility != Visibility.Visible) return;
+        RestartRequested = true;
+        Close();
     }
 }

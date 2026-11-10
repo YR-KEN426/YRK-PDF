@@ -8,6 +8,8 @@ namespace Yrk.PdfStudio.App.Services;
 /// <summary>The user's own rubber stamps (a company stamp, "รับเงินแล้ว โดย ...") and the one used last.</summary>
 public sealed class StampSettings
 {
+    private static volatile bool s_saveSuspended;
+    internal static void SuspendSavingUntilRestart() => s_saveSuspended = true;
     private static readonly string DefaultPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "stamps.json");
 
@@ -39,6 +41,7 @@ public sealed class StampSettings
 
     public void Save(string? path = null)
     {
+        if (s_saveSuspended) return;
         path ??= DefaultPath;
         try
         {

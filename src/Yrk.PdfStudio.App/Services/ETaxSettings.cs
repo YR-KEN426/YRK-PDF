@@ -8,6 +8,8 @@ namespace Yrk.PdfStudio.App.Services;
 /// <summary>The seller's details and the last document number, so the next e-Tax Invoice starts filled in.</summary>
 public sealed class ETaxSettings
 {
+    private static volatile bool s_saveSuspended;
+    internal static void SuspendSavingUntilRestart() => s_saveSuspended = true;
     private static readonly string DefaultPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "etax.json");
 
@@ -67,6 +69,7 @@ public sealed class ETaxSettings
 
     public void Save(string? path = null)
     {
+        if (s_saveSuspended) return;
         path ??= DefaultPath;
         try
         {

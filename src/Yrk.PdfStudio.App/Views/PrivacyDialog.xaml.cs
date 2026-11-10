@@ -52,7 +52,15 @@ public partial class PrivacyDialog : Window
         new PrivacyPolicyDialog { Owner = this }.ShowDialog();
 
     private void OnBackup(object sender, RoutedEventArgs e) => new BackupDialog { Owner = this }.ShowDialog();
-    private void OnImport(object sender, RoutedEventArgs e) => new ImportDialog { Owner = this }.ShowDialog();
+    private async void OnImport(object sender, RoutedEventArgs e)
+    {
+        var dialog = new ImportDialog { Owner = this };
+        dialog.ShowDialog();
+        if (!dialog.RestartRequested) return;
+        var main = Owner as MainWindow;
+        Close(); // End both modal dialogs before asking about documents in the main window.
+        if (main is not null) await main.RestartAfterImportAsync();
+    }
 
     private void OnOpenFolder(object sender, RoutedEventArgs e)
     {

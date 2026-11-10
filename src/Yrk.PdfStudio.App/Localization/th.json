@@ -1,4 +1,8 @@
 {
+  "Restart now": "เปิดโปรแกรมใหม่ตอนนี้",
+  "Data imported. Setting changes will not be saved until you restart YRK PDF.": "นำเข้าข้อมูลแล้ว การตั้งค่าที่เปลี่ยนหลังจากนี้จะไม่บันทึกจนกว่าจะเปิด YRK PDF ใหม่",
+  "The backup could not be imported. Some files may have been imported.": "นำเข้าไฟล์สำรองไม่สำเร็จ อาจนำเข้าบางไฟล์แล้ว",
+  "YRK PDF could not restart. Close and reopen it when you are ready.": "เปิด YRK PDF ใหม่ไม่สำเร็จ กรุณาปิดแล้วเปิดโปรแกรมใหม่เมื่อพร้อม",
   "Back up data": "สำรองข้อมูล",
   "Back up data…": "สำรองข้อมูล…",
   "Import data": "นำเข้าข้อมูล",
