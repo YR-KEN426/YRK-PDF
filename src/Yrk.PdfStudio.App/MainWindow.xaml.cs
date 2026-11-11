@@ -195,7 +195,7 @@ public partial class MainWindow : Window
     /// closing the program. Only the start page on its own has no tab.
     /// </summary>
     private void UpdateTabStrip() =>
-        TabStripBar.Visibility = Tabs.Count > 1 || Tabs.Any(t => t.HasDocument) ? Visibility.Visible : Visibility.Collapsed;
+        TabStripBar.Visibility = Tabs.Count > 1 || Tabs.Any(t => t.ShowsDocument) ? Visibility.Visible : Visibility.Collapsed;
 
     /// <summary>Files of closed tabs, the last closed on top, for Ctrl+Shift+T (as in a browser).</summary>
     private readonly List<string> _closedFiles = [];
@@ -412,7 +412,8 @@ public partial class MainWindow : Window
             Dispatcher.BeginInvoke(UpdateRulers, System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
-        if (e.PropertyName is nameof(MainViewModel.HasDocument) or "")
+        if (e.PropertyName is nameof(MainViewModel.HasDocument) or nameof(MainViewModel.ShowsDocument)
+            or nameof(MainViewModel.IsReopeningDocument) or "")
         {
             UpdateTabStrip();
         }

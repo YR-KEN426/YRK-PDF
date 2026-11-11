@@ -499,7 +499,7 @@
 
         <!-- Secondary toolbar: Comment / Fill & Sign / Pages tabs -->
         <Border Grid.Row="1" Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1"
-                Visibility="{Binding HasDocument, Converter={StaticResource BoolToVisibility}}">
+                Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}">
             <!-- Tools wrap to a second line when the window is narrow, so they never cover the status text or Undo/Redo. -->
             <Grid Margin="6,0" MinHeight="50">
                 <Grid.ColumnDefinitions>
@@ -963,7 +963,7 @@
                 <Border.Visibility>
                     <MultiBinding Converter="{x:Static conv:AllTrueToVisibilityConverter.Instance}">
                         <Binding Path="IsSidebarOpen" />
-                        <Binding Path="HasDocument" />
+                        <Binding Path="ShowsDocument" />
                     </MultiBinding>
                 </Border.Visibility>
                 <TabControl BorderThickness="0" Background="Transparent" Padding="0">

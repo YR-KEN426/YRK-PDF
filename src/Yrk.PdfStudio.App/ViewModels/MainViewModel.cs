@@ -134,17 +134,36 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool HasDocument => _document is not null;
 
+    public bool ShowsDocument => HasDocument || IsReopeningDocument;
+
+    private string? _reopeningFileName;
     private bool _isReopeningDocument;
     /// <summary>Keeps Home hidden while the current document is released and replaced.</summary>
     public bool IsReopeningDocument
     {
         get => _isReopeningDocument;
-        private set => SetProperty(ref _isReopeningDocument, value);
+        private set
+        {
+            if (_isReopeningDocument == value) return;
+            if (!value)
+            {
+                if (_document is null) ClearDocumentView();
+                _reopeningFileName = null;
+            }
+            SetProperty(ref _isReopeningDocument, value);
+            OnPropertyChanged(nameof(ShowsDocument));
+            OnPropertyChanged(nameof(WindowTitle));
+            OnPropertyChanged(nameof(TabTitle));
+        }
     }
 
-    public string WindowTitle => _document is null
-        ? AppName
-        : $"{(IsDirty ? "• " : string.Empty)}{(_convertedFrom is { } drawing ? Path.GetFileName(drawing) : Path.GetFileName(_document.FilePath))} - {AppName}";
+    private string? DisplayFileName => _document is not null
+        ? Path.GetFileName(_convertedFrom ?? _document.FilePath)
+        : IsReopeningDocument ? _reopeningFileName : null;
+
+    public string WindowTitle => DisplayFileName is { } name
+        ? $"{(IsDirty ? "• " : string.Empty)}{name} - {AppName}"
+        : AppName;
 
     public ObservableCollection<PageViewModel> Pages
     {
@@ -478,7 +497,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Called by the view when a thumbnail scrolls into view.</summary>
     public void RequestThumbnail(PageViewModel page)
     {
-        if (_document is null || page.Thumbnail is not null || page.PendingThumbnail is not null)
+        if (_document is null || !Pages.Contains(page) || page.Thumbnail is not null || page.PendingThumbnail is not null)
         {
             return;
         }
@@ -491,7 +510,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         page.PendingThumbnail?.Cancel();
         page.PendingThumbnail = null;
-        page.Thumbnail = null;
+        if (!IsReopeningDocument) page.Thumbnail = null;
     }
 
     private async Task OpenWithDialogAsync()
@@ -514,6 +533,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         Pages = new ObservableCollection<PageViewModel>(pages);
+        Bookmarks = []; // The replacement is ready; do not keep its predecessor's outline if loading fails.
         _currentPageIndex = restore is null ? 0 : Math.Clamp(restore.PageIndex, 0, Math.Max(0, pages.Count - 1));
         _zoomMode = restore?.ZoomMode ?? ZoomMode.FitWidth;
         ApplyZoom(_zoomMode == ZoomMode.Custom ? restore!.Zoom : ComputeFitZoom(_zoomMode), keepAnchor: false);
@@ -556,6 +576,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
+        if (IsReopeningDocument) _reopeningFileName = DisplayFileName;
         SaveReadingPosition();
         ClearSearch();
         CancelPageGesture();
@@ -570,19 +591,14 @@ public sealed partial class MainViewModel : ObservableObject
         foreach (var page in Pages)
         {
             page.CancelPendingRender();
+            page.CancelPendingDetail();
             page.PendingThumbnail?.Cancel();
+            page.PendingThumbnail = null;
         }
 
         _document = null;
         _convertedFrom = null;
-        Pages = [];
-        Bookmarks = [];
-        _pageTops = [];
-        _totalHeight = 0;
-        _currentPageIndex = 0;
-        _navigationTarget = null;
-        _requestedScrollOffset = null;
-        _pendingRestore = null;
+        if (!IsReopeningDocument) ClearDocumentView();
         RaiseDocumentPropertiesChanged();
 
         await document.DisposeAsync();
@@ -595,6 +611,19 @@ public sealed partial class MainViewModel : ObservableObject
         ClearVersions(); // Kept when the document is only reopened for a step (see ApplyNowAsync).
     }
 
+    private void ClearDocumentView()
+    {
+        Pages = [];
+        Bookmarks = [];
+        _pageTops = [];
+        _totalHeight = 0;
+        _currentPageIndex = 0;
+        _navigationTarget = null;
+        _requestedScrollOffset = null;
+        _pendingRestore = null;
+        RaiseDocumentPropertiesChanged();
+    }
+
     internal void SaveReadingPosition()
     {
         if (_document is not null && Pages.Count > 0)
@@ -604,6 +633,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void RaiseDocumentPropertiesChanged()
     {
         OnPropertyChanged(nameof(HasDocument));
+        OnPropertyChanged(nameof(ShowsDocument));
         OnPropertyChanged(nameof(IsDirty));
         OnPropertyChanged(nameof(CanSave));
         OnPropertyChanged(nameof(WindowTitle));
@@ -793,6 +823,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void RequestRender(PageViewModel page)
     {
+        if (_document is null || !Pages.Contains(page)) return;
         var (pixelWidth, pixelHeight) = GetRenderSize(page.DisplayWidth, page.DisplayHeight);
         if ((page.Image is not null && page.RenderedPixelWidth == pixelWidth) || page.PendingPixelWidth == pixelWidth)
         {
@@ -827,7 +858,7 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     public void UpdateDetail(PageViewModel page, Rect visible)
     {
-        if (_document is not { } document || visible.IsEmpty || visible.Width < 1 || visible.Height < 1)
+        if (_document is not { } document || !Pages.Contains(page) || visible.IsEmpty || visible.Width < 1 || visible.Height < 1)
         {
             return;
         }

@@ -18,9 +18,9 @@ public sealed partial class MainViewModel
     public event EventHandler? CloseTabRequested;
 
     /// <summary>File name for the tab, with a dot while there are unsaved changes.</summary>
-    public string TabTitle => _document is null
+    public string TabTitle => DisplayFileName is not { } name
         ? Loc.T("New tab")
-        : (IsDirty ? "• " : string.Empty) + Path.GetFileName(_convertedFrom ?? _document.FilePath);
+        : (IsDirty ? "• " : string.Empty) + name;
 
     /// <summary>The file this tab shows (the drawing for converted DWG/DXF), to avoid opening it twice.</summary>
     public string? DocumentPath => _convertedFrom ?? _document?.FilePath;

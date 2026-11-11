@@ -266,10 +266,15 @@ public sealed class PageViewModel : ObservableObject
         DetailRect = rect;
     }
 
-    internal void ClearDetail()
+    internal void CancelPendingDetail()
     {
         _pendingDetail?.Cancel();
         _pendingDetail = null;
+    }
+
+    internal void ClearDetail()
+    {
+        CancelPendingDetail();
         DetailImage = null;
     }
 

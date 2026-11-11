@@ -110,6 +110,7 @@ public sealed partial class MainViewModel
                 TryDelete(editsPath);
             }
 
+            IsReopeningDocument = true; // Keep Home hidden until the transformed file is open (reset in finally).
             await ReleaseDocumentAsync();
             var savedPath = targetPath;
             try
@@ -134,6 +135,7 @@ public sealed partial class MainViewModel
         }
         finally
         {
+            IsReopeningDocument = false;
             _operation.Dispose();
             _operation = null;
             OnPropertyChanged(nameof(IsOperationRunning));
