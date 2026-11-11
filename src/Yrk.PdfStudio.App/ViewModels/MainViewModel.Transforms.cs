@@ -56,6 +56,7 @@ public sealed partial class MainViewModel
         var editsPath = Path.Combine(folder, $"~{Path.GetFileNameWithoutExtension(document.FilePath)}.{Guid.NewGuid():N}.yrk-saving");
         var tempPath = Path.Combine(folder, $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-writing");
         string? error = null;
+        var reopening = false;
         try
         {
             try
@@ -110,7 +111,8 @@ public sealed partial class MainViewModel
                 TryDelete(editsPath);
             }
 
-            IsReopeningDocument = true; // Keep Home hidden until the transformed file is open (reset in finally).
+            reopening = true;
+            BeginDocumentReopen(); // Each overlapping operation releases only its own reopen scope.
             await ReleaseDocumentAsync();
             var savedPath = targetPath;
             try
@@ -135,7 +137,7 @@ public sealed partial class MainViewModel
         }
         finally
         {
-            IsReopeningDocument = false;
+            if (reopening) EndDocumentReopen();
             _operation.Dispose();
             _operation = null;
             OnPropertyChanged(nameof(IsOperationRunning));

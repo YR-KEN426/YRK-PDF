@@ -38,18 +38,13 @@ public sealed partial class MainViewModel
         CancelItemOpacityChange(); // Duplicate mouse-up/DragCompleted/capture-loss events do nothing.
         if (cancel || after == change.Before) return;
         if (item.IsSaved)
-            SavedItemEditTask = CommitAsync();
+            // Enter the saved-edit guard now, before waiting for the preview copy to dispose.
+            SavedItemEditTask = EditSavedItemAsync(item, opacity: after,
+                previewTask: change.PreviewTask, expectedDocument: change.Document);
         else
         {
             item.Opacity = after;
             _undo.Push(() => item.Opacity = change.Before, () => item.Opacity = after);
-        }
-
-        async Task CommitAsync()
-        {
-            await change.PreviewTask; // Dispose the preview copy before reopening the real document.
-            if (_document == change.Document && _selectedItem == item)
-                await EditSavedItemAsync(item, opacity: after);
         }
     }
 

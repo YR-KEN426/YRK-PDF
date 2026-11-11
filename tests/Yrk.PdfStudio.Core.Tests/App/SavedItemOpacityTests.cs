@@ -17,6 +17,56 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed partial class SavedItemEditingTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Released_opacity_locks_before_preview_wait_and_commits_original_item_before_save(bool changeSelection)
+    {
+        await using var app = new AppTestHarness();
+        var source = await PlacedSource(app);
+        var originalBytes = File.ReadAllBytes(source);
+        await Select(app);
+        var frame = Frame(app);
+        var group = frame.SavedItem!.Group;
+        app.Model.BeginItemOpacityChange(frame);
+        app.Model.ChangeItemOpacity(frame, .3);
+        await app.Model.ItemOpacityPreviewTask;
+        // Hold the last preview's disposal deterministically at the mouse-up boundary.
+        var change = typeof(MainViewModel).GetField("_itemOpacityChange", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(app.Model)!;
+        var previewDone = new TaskCompletionSource();
+        change.GetType().GetProperty("PreviewTask")!.SetValue(change, previewDone.Task);
+        app.Model.EndItemOpacityChange(frame);
+        var commit = EditFinished(app);
+        try
+        {
+            Assert.False(commit.IsCompleted);
+            Assert.True(app.Model.IsBusy);
+            if (changeSelection)
+            {
+                // Even direct deselection while waiting must not silently abandon the captured item.
+                app.Model.SelectItem(null);
+                await app.Model.TrySelectSavedItemAsync(app.Model.Pages[0], .8, .8);
+            }
+            await app.Model.SaveCommand.ExecuteAsync(null); // Ctrl+S is blocked until commit completes.
+            Assert.False(await app.SaveToAsync(app.PathFor("too-early.pdf")));
+            Assert.False(File.Exists(app.PathFor("too-early.pdf")));
+            Assert.Equal(originalBytes, File.ReadAllBytes(source));
+        }
+        finally
+        {
+            previewDone.TrySetResult();
+            await commit;
+        }
+        Assert.False(app.Model.IsBusy);
+        Assert.InRange((await Items(app)).Single(i => i.Group == group).Opacity, .299, .303);
+        Assert.True(app.Model.IsDirty);
+        await app.Model.SaveCommand.ExecuteAsync(null);
+        Assert.False(app.Model.IsDirty);
+        Assert.True(await app.OpenAsync(source));
+        Assert.InRange((await Items(app)).Single(i => i.Group == group).Opacity, .299, .303);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+    }
+
+    [Theory]
     [InlineData("press", false)]
     [InlineData("thumb", false)]
     [InlineData("track", false)]

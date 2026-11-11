@@ -137,24 +137,29 @@ public sealed partial class MainViewModel : ObservableObject
     public bool ShowsDocument => HasDocument || IsReopeningDocument;
 
     private string? _reopeningFileName;
-    private bool _isReopeningDocument;
+    private int _documentReopenDepth;
     /// <summary>Keeps Home hidden while the current document is released and replaced.</summary>
-    public bool IsReopeningDocument
+    public bool IsReopeningDocument => _documentReopenDepth > 0;
+
+    private void BeginDocumentReopen()
     {
-        get => _isReopeningDocument;
-        private set
-        {
-            if (_isReopeningDocument == value) return;
-            if (!value)
-            {
-                if (_document is null) ClearDocumentView();
-                _reopeningFileName = null;
-            }
-            SetProperty(ref _isReopeningDocument, value);
-            OnPropertyChanged(nameof(ShowsDocument));
-            OnPropertyChanged(nameof(WindowTitle));
-            OnPropertyChanged(nameof(TabTitle));
-        }
+        if (_documentReopenDepth++ == 0) RaiseReopeningPropertiesChanged();
+    }
+
+    private void EndDocumentReopen()
+    {
+        if (--_documentReopenDepth != 0) return;
+        if (_document is null) ClearDocumentView();
+        _reopeningFileName = null;
+        RaiseReopeningPropertiesChanged();
+    }
+
+    private void RaiseReopeningPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(IsReopeningDocument));
+        OnPropertyChanged(nameof(ShowsDocument));
+        OnPropertyChanged(nameof(WindowTitle));
+        OnPropertyChanged(nameof(TabTitle));
     }
 
     private string? DisplayFileName => _document is not null
@@ -359,15 +364,15 @@ public sealed partial class MainViewModel : ObservableObject
     /// <param name="copyPath">A working copy of <paramref name="path"/> to read instead (see <see cref="ApplyNewFieldsAsync"/>).</param>
     private async Task<bool> OpenDocumentAsync(string path, string? password, ViewState? restore, bool keepEdits, string? copyPath = null, byte[]? copyBytes = null)
     {
-        var wasReopening = IsReopeningDocument;
-        IsReopeningDocument = wasReopening || HasDocument;
+        var reopening = HasDocument || IsReopeningDocument;
         try
         {
+            if (reopening) BeginDocumentReopen();
             return await OpenDocumentCoreAsync(path, password, restore, keepEdits, copyPath, copyBytes);
         }
         finally
         {
-            IsReopeningDocument = wasReopening;
+            if (reopening) EndDocumentReopen();
         }
     }
 

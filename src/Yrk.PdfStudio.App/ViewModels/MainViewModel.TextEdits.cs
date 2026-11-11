@@ -14,7 +14,7 @@ public sealed partial class MainViewModel
 {
     private readonly List<TextEditViewModel> _textEdits = [];
     private sealed record TextEditFrame(int PageIndex, NormalizedRect CurrentBounds, NormalizedRect Bounds,
-        double BaselineX, TextAlignment Alignment);
+        double BaselineX, TextAlignment Alignment, string LeadingWhitespace);
     private List<TextEditFrame> _textEditFrames = [];
 
     private List<TextEditFrame> CaptureTextEditFrames()
@@ -29,7 +29,8 @@ public sealed partial class MainViewModel
             var bounds = new NormalizedRect(layout.TopLeft.X + ink.X / edit.Page.WidthPoints,
                 layout.TopLeft.Y + ink.Y / edit.Page.HeightPoints,
                 ink.Width / edit.Page.WidthPoints, ink.Height / edit.Page.HeightPoints);
-            frames.Add(new(edit.Page.Index, bounds, edit.AlignmentBounds, edit.AlignmentBaselineX, edit.Alignment));
+            var leading = edit.Text[..(edit.Text.Length - edit.Text.TrimStart().Length)];
+            frames.Add(new(edit.Page.Index, bounds, edit.AlignmentBounds, edit.AlignmentBaselineX, edit.Alignment, leading));
         }
         return frames;
     }
@@ -74,11 +75,11 @@ public sealed partial class MainViewModel
         // The document's own font when it is installed; otherwise a substitute, sized to look as tall.
         var family = ResolveFamily(line.FontName, out var exact);
         var size = exact ? line.FontSize : MatchSize(line, family, page.HeightPoints);
-        var edit = new TextEditViewModel(page, line, family, size);
         var frame = _textEditFrames.FirstOrDefault(f => f.PageIndex == page.Index
             && Math.Abs(f.CurrentBounds.X - line.Bounds.X) * page.WidthPoints < 1
             && Math.Abs(f.CurrentBounds.Y - line.Bounds.Y) * page.HeightPoints < 1
             && Math.Abs(f.CurrentBounds.Width - line.Bounds.Width) * page.WidthPoints < 1);
+        var edit = new TextEditViewModel(page, line, family, size, frame?.LeadingWhitespace);
         if (frame is not null)
         {
             edit.AlignmentBounds = frame.Bounds;

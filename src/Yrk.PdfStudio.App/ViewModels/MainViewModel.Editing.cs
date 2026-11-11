@@ -884,6 +884,7 @@ public sealed partial class MainViewModel
         var tempPath = Path.Combine(
             Path.GetDirectoryName(Path.GetFullPath(targetPath))!,
             $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-saving");
+        var reopening = false;
         try
         {
             try
@@ -899,7 +900,8 @@ public sealed partial class MainViewModel
             }
 
             // From here the complete new file exists, so the user's work can no longer be lost.
-            IsReopeningDocument = true;
+            reopening = true;
+            BeginDocumentReopen();
             await ReleaseDocumentAsync();
             var savedPath = targetPath;
             try
@@ -925,7 +927,7 @@ public sealed partial class MainViewModel
         }
         finally
         {
-            IsReopeningDocument = false;
+            if (reopening) EndDocumentReopen();
             IsBusy = false;
             if (StatusMessage == Loc.T("Saving…"))
             {

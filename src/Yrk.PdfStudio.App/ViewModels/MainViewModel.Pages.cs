@@ -469,6 +469,8 @@ public sealed partial class MainViewModel
         var pages = document.PageSizes.Select((size, index) => new PageViewModel(index, size)).ToList();
         _maxPageWidthPoints = pages.Count == 0 ? 0 : pages.Max(page => page.WidthPoints);
         Pages = new ObservableCollection<PageViewModel>(pages);
+        // Page tools discard text editors. Their old page numbers/coordinates must go too.
+        _textEditFrames.Clear();
         var focus = Math.Clamp(focusPage, 0, Math.Max(0, pages.Count - 1));
         _currentPageIndex = focus;
         ApplyZoom(_zoomMode == ZoomMode.Custom ? _zoom : ComputeFitZoom(_zoomMode), keepAnchor: false);

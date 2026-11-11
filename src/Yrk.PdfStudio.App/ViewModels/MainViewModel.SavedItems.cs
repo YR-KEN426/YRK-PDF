@@ -62,7 +62,8 @@ public sealed partial class MainViewModel
     }
 
     private Task EditSavedItemAsync(PlacedItemViewModel frame, NormalizedPoint delta = default,
-        double rotation = 0, double? opacity = null, bool delete = false)
+        double rotation = 0, double? opacity = null, bool delete = false,
+        Task? previewTask = null, IPdfDocument? expectedDocument = null)
     {
         if (frame.SavedItem is not { EditError: null } item || IsBusy || _savedItemEditInProgress
             || frame != _selectedItem
@@ -76,6 +77,12 @@ public sealed partial class MainViewModel
             IsBusy = true;
             try
             {
+                if (previewTask is not null) await previewTask;
+                if (expectedDocument is not null && _document != expectedDocument)
+                {
+                    StatusMessage = Loc.T("The item changed or its layout is unsupported. Select it again; no item changes were applied.");
+                    return;
+                }
                 if (_document is not { } initial) return;
                 if (!(await initial.GetPageItemsAsync(item.Reference.PageIndex)).Any(i => i.Reference == item.Reference))
                 {

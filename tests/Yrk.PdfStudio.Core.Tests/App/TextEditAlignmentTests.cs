@@ -11,7 +11,7 @@ using Yrk.PdfStudio.Core.Pdf.Text;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
-public sealed class TextEditAlignmentTests
+public sealed partial class TextEditAlignmentTests
 {
     private const double PageWidth = 595;
     private const double PageHeight = 842;

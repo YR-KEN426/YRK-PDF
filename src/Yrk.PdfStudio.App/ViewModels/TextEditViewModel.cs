@@ -29,7 +29,8 @@ public sealed class TextEditViewModel : ObservableObject
     private TextAlignment _initialAlignment = TextAlignment.Left;
 
     /// <param name="fontSize">The size to start with: the line's, or one matched to a substitute font.</param>
-    public TextEditViewModel(PageViewModel page, PdfTextLine line, string fontFamily, double fontSize)
+    public TextEditViewModel(PageViewModel page, PdfTextLine line, string fontFamily, double fontSize,
+        string? leadingWhitespace = null)
     {
         Page = page;
         Line = line;
@@ -39,8 +40,9 @@ public sealed class TextEditViewModel : ObservableObject
         _fontSize = _initialSize = fontSize;
         _isBold = line.IsBold;
         _isItalic = line.IsItalic;
-        OriginalText = line.Text;
-        _text = line.Text;
+        // PDF stores only ink; a pending version also remembers the user's leading spaces.
+        OriginalText = leadingWhitespace is null ? line.Text : leadingWhitespace + line.Text.TrimStart();
+        _text = OriginalText;
         _color = OriginalColor = Color.FromRgb(line.Color.R, line.Color.G, line.Color.B);
     }
 
