@@ -5,6 +5,7 @@ obj/
 *.user
 *.suo
 artifacts/
+msix-test/
 publish/
 TestResults/
 .claude/released-version.txt
