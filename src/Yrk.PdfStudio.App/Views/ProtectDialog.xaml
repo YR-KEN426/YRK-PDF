@@ -14,7 +14,7 @@
         <Style TargetType="CheckBox">
             <Setter Property="Margin" Value="0,3" />
         </Style>
-        <Style TargetType="PasswordBox">
+        <Style TargetType="PasswordBox" BasedOn="{StaticResource RevealPasswordStyle}">
             <Setter Property="Padding" Value="6,4" />
         </Style>
     </Window.Resources>

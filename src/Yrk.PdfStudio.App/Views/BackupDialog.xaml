@@ -16,9 +16,9 @@
             <CheckBox x:Name="SettingsBox" Content="General settings" IsChecked="True" Margin="0,4" />
             <TextBlock Text="Recent files, reading positions, recovery copies, logs and OCR files are excluded." TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,10,0,14" />
             <TextBlock Text="Backup password (at least 12 characters)" />
-            <PasswordBox x:Name="PasswordInput" AutomationProperties.Name="Backup password" Margin="0,5,0,10" Padding="6" MaxLength="1024" />
+            <PasswordBox Style="{StaticResource RevealPasswordStyle}" x:Name="PasswordInput" AutomationProperties.Name="Backup password" Margin="0,5,0,10" Padding="6" MaxLength="1024" />
             <TextBlock Text="Confirm backup password" />
-            <PasswordBox x:Name="ConfirmInput" AutomationProperties.Name="Confirm backup password" Margin="0,5,0,12" Padding="6" MaxLength="1024" />
+            <PasswordBox Style="{StaticResource RevealPasswordStyle}" x:Name="ConfirmInput" AutomationProperties.Name="Confirm backup password" Margin="0,5,0,12" Padding="6" MaxLength="1024" />
         </StackPanel>
         <Border Background="#FFF4DC" BorderBrush="#CF9B36" BorderThickness="1" CornerRadius="6" Padding="12">
             <StackPanel>

@@ -13,7 +13,7 @@
                 <TextBox x:Name="FileInput" IsReadOnly="True" AutomationProperties.Name="Backup file" VerticalContentAlignment="Center" />
             </DockPanel>
             <TextBlock Text="Backup password" Margin="0,14,0,5" />
-            <PasswordBox x:Name="PasswordInput" AutomationProperties.Name="Backup password" Padding="6" MaxLength="1024" PasswordChanged="OnPasswordChanged" />
+            <PasswordBox Style="{StaticResource RevealPasswordStyle}" x:Name="PasswordInput" AutomationProperties.Name="Backup password" Padding="6" MaxLength="1024" PasswordChanged="OnPasswordChanged" />
             <Button Content="Check contents" Style="{StaticResource SecondaryButton}" Click="OnInspect" HorizontalAlignment="Left" Margin="0,12,0,12" />
             <TextBlock Text="Backup contents" FontWeight="SemiBold" />
             <ListBox x:Name="Contents" Height="148" Margin="0,6,0,12" AutomationProperties.Name="Backup contents" />

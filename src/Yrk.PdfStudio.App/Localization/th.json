@@ -1,4 +1,5 @@
 {
+  "Show password": "แสดงรหัส",
   "Restart now": "เปิดโปรแกรมใหม่ตอนนี้",
   "Data imported. Setting changes will not be saved until you restart YRK PDF.": "นำเข้าข้อมูลแล้ว การตั้งค่าที่เปลี่ยนหลังจากนี้จะไม่บันทึกจนกว่าจะเปิด YRK PDF ใหม่",
   "The backup could not be imported. Some files may have been imported.": "นำเข้าไฟล์สำรองไม่สำเร็จ อาจนำเข้าบางไฟล์แล้ว",

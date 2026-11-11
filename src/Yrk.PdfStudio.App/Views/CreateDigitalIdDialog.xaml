@@ -22,9 +22,9 @@
         <TextBlock Text="Organization (optional)" Margin="0,10,0,4" />
         <TextBox x:Name="OrganizationInput" Padding="6,4" AutomationProperties.Name="Organization" />
         <TextBlock Text="Password (protects the ID; asked each time you sign)" Margin="0,10,0,4" />
-        <PasswordBox x:Name="PasswordInput" Padding="6,5" AutomationProperties.Name="Password" />
+        <PasswordBox Style="{StaticResource RevealPasswordStyle}" x:Name="PasswordInput" Padding="6,5" AutomationProperties.Name="Password" />
         <TextBlock Text="Confirm password" Margin="0,10,0,4" />
-        <PasswordBox x:Name="ConfirmInput" Padding="6,5" AutomationProperties.Name="Confirm password" />
+        <PasswordBox Style="{StaticResource RevealPasswordStyle}" x:Name="ConfirmInput" Padding="6,5" AutomationProperties.Name="Confirm password" />
 
         <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
 
