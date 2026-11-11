@@ -109,7 +109,8 @@
 | เรื่อง | ผลกับ YRK | ต้องทำ |
 |---|---|---|
 | **runFullTrust** | แอป WPF แบบ full trust "needs to declare the runFullTrust restricted capability" เป็นเรื่องปกติของแอป desktop ที่ลง Store | ใส่ใน manifest และอธิบายใน Partner Center ว่าเป็นแอป desktop WPF |
-| **ไฟล์ native ของ PDFium, Tesseract** | WACK ตรวจว่าไฟล์ native เปิด DEP/ASLR และไม่มีส่วนที่เขียนและรันได้พร้อมกัน ไฟล์เหล่านี้เป็นของคนอื่น build | รัน WACK กับแพ็กเกจจริง **ยังไม่ยืนยัน**ว่า `pdfium.dll` และ DLL ของ Tesseract ผ่าน |
+| **ไฟล์ native ของ PDFium, Tesseract** | WACK ตรวจว่าไฟล์ native เปิด DEP/ASLR และไม่มีส่วนที่เขียนและรันได้พร้อมกัน ไฟล์เหล่านี้เป็นของคนอื่น build | รัน WACK กับแพ็กเกจจริงแล้ว 2026-11-11: ผ่าน (ดูแถว "ผล WACK จริง") |
+| **ผล WACK จริง (2026-11-11, 1.2.1 test MSIX)** | `build/make-test-msix.ps1` (YrkStore, self-signed) รันบนบัญชีทดสอบ: WACK ประเภท Centennial 24 ข้อ **OVERALL PASS** รวม Install signed executable files, Banned file analyzer, Platform appropriate files, Debug configuration, Special use capabilities, DPIAwareness; ข้อเดียวที่ FAIL คือ "Blocked executables" ซึ่งเป็นข้อ **optional** (มีการอ้างถึง Process.Start/CreateProcess/ShellExecute ใน YrkEasyPdf.dll, .NET/WPF runtime, PdfSharp, tesseract50.dll) ปกติของแอป desktop full trust ไม่บล็อกการส่ง; ชุด Centennial นี้ไม่มีข้อตรวจ DEP/ASLR แยก | ไม่ต้องแก้ ตอนส่ง Partner Center ถ้าถูกถามให้อธิบายว่าเปิดลิงก์เว็บ/โฟลเดอร์ด้วย ShellExecute |
 | **x64 เท่านั้น** | ทำได้ แพ็กเกจ x64 ห้ามมีไฟล์ ARM ไฟล์ x86 ปนได้แต่ไม่ควรมี | ตรวจว่า publish ไม่มีโฟลเดอร์ `arm64` หรือ `x86` (`Yrk.PdfStudio.App.csproj:19` ลบ x86 ให้แล้ว ส่วน arm64 ยังไม่ได้เช็ก) |
 | **Debug build** | ต้องเป็น Release เท่านั้น | ใช้คำสั่ง publish เดิมแบบ Release |
 | **ห้ามมี .pfx/.snk ในแพ็กเกจ** | ต้องไม่มีไฟล์ทดสอบหรือกุญแจหลุดเข้าไป | ตรวจรายชื่อไฟล์ก่อนส่ง |
