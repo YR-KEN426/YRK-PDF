@@ -34,6 +34,7 @@
   "Backup file": "ไฟล์สำรอง",
   "Check contents": "ตรวจรายการ",
   "Backup contents": "รายการในไฟล์สำรอง",
+  "The saved signature image is too large.": "รูปลายเซ็นที่บันทึกไว้มีขนาดใหญ่เกินไป",
   "Replace existing settings (including stamps)": "แทนที่การตั้งค่าเดิม (รวมตรายาง)",
   "Without this option, existing settings are kept. Duplicate signature images and Digital IDs are kept as separate copies. Stamps are merged only when this option is selected.": "หากไม่เลือก จะเก็บการตั้งค่าเดิมไว้ ลายเซ็นรูปภาพและ Digital ID ที่ชื่อซ้ำจะเก็บไว้ทั้งคู่ ตรายางจะรวมกันเมื่อเลือกตัวเลือกนี้เท่านั้น",
   "Your current data is backed up first": "สำรองข้อมูลปัจจุบันก่อนนำเข้า",
