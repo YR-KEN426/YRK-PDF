@@ -134,6 +134,14 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool HasDocument => _document is not null;
 
+    private bool _isReopeningDocument;
+    /// <summary>Keeps Home hidden while the current document is released and replaced.</summary>
+    public bool IsReopeningDocument
+    {
+        get => _isReopeningDocument;
+        private set => SetProperty(ref _isReopeningDocument, value);
+    }
+
     public string WindowTitle => _document is null
         ? AppName
         : $"{(IsDirty ? "• " : string.Empty)}{(_convertedFrom is { } drawing ? Path.GetFileName(drawing) : Path.GetFileName(_document.FilePath))} - {AppName}";
@@ -331,6 +339,20 @@ public sealed partial class MainViewModel : ObservableObject
     /// </summary>
     /// <param name="copyPath">A working copy of <paramref name="path"/> to read instead (see <see cref="ApplyNewFieldsAsync"/>).</param>
     private async Task<bool> OpenDocumentAsync(string path, string? password, ViewState? restore, bool keepEdits, string? copyPath = null, byte[]? copyBytes = null)
+    {
+        var wasReopening = IsReopeningDocument;
+        IsReopeningDocument = wasReopening || HasDocument;
+        try
+        {
+            return await OpenDocumentCoreAsync(path, password, restore, keepEdits, copyPath, copyBytes);
+        }
+        finally
+        {
+            IsReopeningDocument = wasReopening;
+        }
+    }
+
+    private async Task<bool> OpenDocumentCoreAsync(string path, string? password, ViewState? restore, bool keepEdits, string? copyPath, byte[]? copyBytes)
     {
         while (true)
         {

@@ -899,6 +899,7 @@ public sealed partial class MainViewModel
             }
 
             // From here the complete new file exists, so the user's work can no longer be lost.
+            IsReopeningDocument = true;
             await ReleaseDocumentAsync();
             var savedPath = targetPath;
             try
@@ -924,6 +925,7 @@ public sealed partial class MainViewModel
         }
         finally
         {
+            IsReopeningDocument = false;
             IsBusy = false;
             if (StatusMessage == Loc.T("Saving…"))
             {
