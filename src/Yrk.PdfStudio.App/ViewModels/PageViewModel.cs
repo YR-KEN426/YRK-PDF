@@ -15,6 +15,7 @@ public sealed class PageViewModel : ObservableObject
     private double _displayHeight;
     private ImageSource? _image;
     private ImageSource? _thumbnail;
+    private ImageSource? _opacityPreview;
     private CancellationTokenSource? _pendingRender;
 
     public PageViewModel(int index, PdfPageSize size)
@@ -62,6 +63,11 @@ public sealed class PageViewModel : ObservableObject
         get => _image;
         private set => SetProperty(ref _image, value);
     }
+
+    /// <summary>Temporary page render from a private copy while dragging saved-item opacity.</summary>
+    public ImageSource? OpacityPreview => _opacityPreview;
+
+    internal void SetOpacityPreview(ImageSource? image) => SetProperty(ref _opacityPreview, image, nameof(OpacityPreview));
 
     public double ThumbnailWidth { get; }
 

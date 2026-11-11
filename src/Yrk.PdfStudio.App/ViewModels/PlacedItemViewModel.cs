@@ -215,7 +215,7 @@ public sealed class PlacedItemViewModel : ObservableObject
 
     public static PlacedItemViewModel CreateSaved(PdfPageItem item, double pageWidth, double pageHeight) =>
         new(item.Reference.PageIndex, PlacedItemKind.Picture, pageWidth, pageHeight, null, string.Empty, TextStyle.Default)
-        { SavedItem = item, Bounds = item.Bounds, _opacity = item.OpacityMode == PdfItemOpacityMode.FadeOnly ? 1 : item.Opacity };
+        { SavedItem = item, Bounds = item.Bounds, _opacity = item.Opacity };
 
     /// <summary>Converts a rectangle in page points to page-relative bounds, kept inside the page.</summary>
     public NormalizedRect ToBounds(double left, double top, double width, double height)

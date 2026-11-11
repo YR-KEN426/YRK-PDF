@@ -172,6 +172,8 @@ public sealed partial class MainViewModel
             return;
         }
 
+        CancelItemOpacityChange();
+
         if (_selectedItem is not null)
         {
             _selectedItem.IsSelected = false;
@@ -263,9 +265,15 @@ public sealed partial class MainViewModel
 
     public void ChangeItemOpacity(PlacedItemViewModel item, double opacity)
     {
+        if (!double.IsFinite(opacity) || IsBusy || !item.CanAdjustOpacity) return;
+        if (_itemOpacityChange is { } change && change.Frame == item)
+        {
+            item.Opacity = opacity;
+            if (item.IsSaved) RequestItemOpacityPreview(change);
+            return;
+        }
         if (item.IsSaved)
         {
-            if (IsBusy || !item.CanAdjustOpacity || !double.IsFinite(opacity)) return;
             var requested = Math.Clamp(opacity, 0.1, 1);
             if (item.Opacity != requested) SavedItemEditTask = EditSavedItemAsync(item, opacity: requested);
             return;

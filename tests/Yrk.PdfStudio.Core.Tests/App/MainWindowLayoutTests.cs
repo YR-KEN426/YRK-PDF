@@ -135,7 +135,8 @@ public sealed class MainWindowLayoutTests
                 popup.Child.Measure(new Size(250, 150));
                 Settle();
                 slider = FindVisualChild<Slider>(popup.Child)!;
-                Assert.Equal(1, slider.Value);
+                Assert.Equal(.4, slider.Value);
+                Assert.True(slider.IsMoveToPointEnabled);
                 Assert.Equal(1, slider.Maximum);
                 var note = Assert.IsType<StackPanel>(Assert.IsType<Border>(popup.Child).Child).Children.OfType<TextBlock>()
                     .Single(t => t.Text == saved.OpacityNote);

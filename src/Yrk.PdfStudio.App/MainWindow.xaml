@@ -253,7 +253,10 @@
                                 <TextBlock Text="Opacity" />
                                 <TextBlock Text="{Binding OpacityNote}" TextWrapping="Wrap" MaxWidth="230" Margin="0,3" />
                                 <Slider Width="120" Minimum="0.1" Maximum="1" TickFrequency="0.1"
+                                        IsMoveToPointEnabled="True"
                                         Value="{Binding Opacity, Mode=OneWay}" ValueChanged="OnItemOpacityChanged"
+                                        PreviewMouseLeftButtonDown="OnItemOpacityMouseDown" PreviewMouseLeftButtonUp="OnItemOpacityMouseUp"
+                                        LostMouseCapture="OnItemOpacityLostCapture"
                                         Thumb.DragStarted="OnItemOpacityDragStarted" Thumb.DragCompleted="OnItemOpacityDragCompleted"
                                         ToolTip="Opacity" AutomationProperties.Name="Opacity" />
                                 <TextBlock Text="{Binding Opacity, StringFormat={}{0:0%}}" HorizontalAlignment="Center" />
@@ -1327,6 +1330,7 @@
                                     <Image Source="{Binding DetailImage}" Stretch="Fill" Canvas.Left="{Binding DetailRect.X}" Canvas.Top="{Binding DetailRect.Y}"
                                            Width="{Binding DetailRect.Width}" Height="{Binding DetailRect.Height}" />
                                 </Canvas>
+                                <Image Source="{Binding OpacityPreview}" Stretch="Fill" IsHitTestVisible="False" />
                                 <Viewbox Stretch="Fill" Opacity="0.4" IsHitTestVisible="False"
                                          Visibility="{Binding HasHighlights, Converter={StaticResource BoolToVisibility}}">
                                     <ItemsControl ItemsSource="{Binding Highlights}" Width="1000" Height="1000">

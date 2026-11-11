@@ -361,7 +361,7 @@ public sealed partial class SavedItemEditingTests
 
     [Theory]
     [InlineData(false)] [InlineData(true)]
-    public async Task Legacy_items_show_the_note_and_each_selection_can_only_fade_its_current_baseline(bool encrypted)
+    public async Task Legacy_items_display_absolute_opacity_and_can_restore_the_original_saved_artwork(bool encrypted)
     {
         await using var app = new AppTestHarness();
         var bytes = await LegacyImageAsync();
@@ -369,6 +369,7 @@ public sealed partial class SavedItemEditingTests
         var path = app.PathFor("legacy.pdf"); File.WriteAllBytes(path, bytes);
         if (encrypted) app.Dialogs.Answer("PromptPassword", "user");
         Assert.True(await app.OpenAsync(path));
+        var baseline = await Render(app);
         if (encrypted) app.Dialogs.Answer("ConfirmPassword", "user", "user");
         await Select(app); var frame = Frame(app);
         Assert.Equal(PdfItemOpacityMode.FadeOnly, frame.SavedItem!.OpacityMode);
@@ -377,18 +378,29 @@ public sealed partial class SavedItemEditingTests
         app.Model.ChangeItemOpacity(frame, 1.5); await EditFinished(app);
         Assert.False(app.Model.IsDirty); Assert.Equal(1, Frame(app).Opacity);
         app.Model.ChangeItemOpacity(frame, .5); await EditFinished(app);
-        Assert.Equal(1, Frame(app).Opacity); // Current artwork is the next selection's 100% baseline.
+        Assert.InRange(Frame(app).Opacity, .499, .503);
         var firstFade = await Render(app);
+        await Select(app); // Reselection must retain the alpha of our wrapper.
+        Assert.InRange(Frame(app).Opacity, .499, .503);
+        app.Model.ChangeItemOpacity(Frame(app), .1); await EditFinished(app);
+        Assert.InRange(Frame(app).Opacity, .099, .103);
+        Assert.InRange((await Items(app))[0].Opacity, .099, .103);
+        var faded = await Render(app);
+        Assert.NotEqual(firstFade.Pixels, faded.Pixels);
+        app.Model.ChangeItemOpacity(Frame(app), .6); await EditFinished(app);
+        Assert.InRange(Frame(app).Opacity, .599, .603);
+        Assert.InRange((await Items(app))[0].Opacity, .599, .603);
+        var increased = await Render(app);
         app.Model.ChangeItemOpacity(Frame(app), 2); await EditFinished(app);
-        Assert.Equal(firstFade.Pixels, (await Render(app)).Pixels);
-        app.Model.ChangeItemOpacity(Frame(app), .5); await EditFinished(app);
-        Assert.InRange((await Items(app))[0].Opacity, .249, .253);
+        Assert.Equal(1, Frame(app).Opacity);
+        Assert.Equal(baseline.Pixels, (await Render(app)).Pixels);
         app.Model.UndoCommand.Execute(null); await Idle(app);
-        Assert.Equal(firstFade.Pixels, (await Render(app)).Pixels);
+        Assert.Equal(increased.Pixels, (await Render(app)).Pixels);
         app.Model.RedoCommand.Execute(null); await Idle(app);
         var target = app.PathFor("legacy-edited.pdf"); Assert.True(await app.SaveToAsync(target));
         await using var reopened = await app.Engine.OpenAsync(target, encrypted ? "user" : null);
-        Assert.InRange((await reopened.GetPageItemsAsync(0))[0].Opacity, .249, .253);
+        Assert.Equal(1, (await reopened.GetPageItemsAsync(0))[0].Opacity);
+        Assert.Equal(baseline.Pixels, (await reopened.RenderPageAsync(0, 400, 400)).Pixels);
         if (encrypted)
         {
             Assert.Equal(2, app.Dialogs.Named("ConfirmPassword").Length);

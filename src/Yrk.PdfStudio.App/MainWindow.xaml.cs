@@ -1142,24 +1142,43 @@ public partial class MainWindow : Window
         if (ItemOf(sender) is { } item)
         {
             _opacityDragItem = item;
-            _viewModel.BeginItemDrag(item);
+            _viewModel.BeginItemOpacityChange(item);
         }
         e.Handled = true;
     }
 
     private void OnItemOpacityDragCompleted(object sender, DragCompletedEventArgs e)
     {
-        if (_opacityDragItem is { } item) _viewModel.EndItemDrag(item);
+        if (_opacityDragItem is { } item) _viewModel.EndItemOpacityChange(item, e.Canceled);
         _opacityDragItem = null;
         e.Handled = true;
+    }
+
+    private void OnItemOpacityMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (ItemOf(sender) is not { } item) return;
+        _opacityDragItem = item;
+        _viewModel.BeginItemOpacityChange(item);
+    }
+
+    private void OnItemOpacityMouseUp(object sender, MouseButtonEventArgs e) => FinishItemOpacityChange();
+
+    private void OnItemOpacityLostCapture(object sender, MouseEventArgs e)
+    {
+        if (Mouse.LeftButton == MouseButtonState.Released) FinishItemOpacityChange();
+    }
+
+    private void FinishItemOpacityChange()
+    {
+        if (_opacityDragItem is { } item) _viewModel.EndItemOpacityChange(item);
+        _opacityDragItem = null;
     }
 
     private void OnItemOpacityChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (sender is Slider { IsLoaded: true } && ItemOf(sender) is { } item && item.Opacity != e.NewValue)
         {
-            if (_opacityDragItem == item) item.Opacity = e.NewValue;
-            else _viewModel.ChangeItemOpacity(item, e.NewValue);
+            _viewModel.ChangeItemOpacity(item, e.NewValue);
         }
     }
 

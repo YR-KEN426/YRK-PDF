@@ -9,6 +9,7 @@ public sealed partial class MainViewModel
     private string? _savedItemSignatureAcknowledgedFor;
     private int _savedItemSelectionRequest;
     private int _savedItemModeGeneration;
+    private bool _savedItemEditInProgress;
     internal Task SavedItemEditTask { get; private set; } = Task.CompletedTask;
 
     public void ClearSavedItemSelection()
@@ -63,13 +64,15 @@ public sealed partial class MainViewModel
     private Task EditSavedItemAsync(PlacedItemViewModel frame, NormalizedPoint delta = default,
         double rotation = 0, double? opacity = null, bool delete = false)
     {
-        if (frame.SavedItem is not { EditError: null } item || IsBusy
+        if (frame.SavedItem is not { EditError: null } item || IsBusy || _savedItemEditInProgress
+            || frame != _selectedItem
             || (!delete && !frame.CanTransform)) return Task.CompletedTask;
         return EditAsync();
 
         async Task EditAsync()
         {
             var mode = _savedItemModeGeneration;
+            _savedItemEditInProgress = true; // Keep the guard through reopen and modal dialogs, too.
             IsBusy = true;
             try
             {
@@ -107,8 +110,9 @@ public sealed partial class MainViewModel
                                 if (delta != default) await candidate.MovePageItemAsync((await ResolveAsync()).Reference, delta, options: options);
                                 if (rotation != 0) await candidate.RotatePageItemAsync((await ResolveAsync()).Reference, rotation, options: options);
                                 if (opacity is { } alpha)
+                                    // Core sets the wrapper alpha absolutely, also for migrated FadeOnly artwork.
                                     await candidate.SetPageItemOpacityAsync((await ResolveAsync()).Reference,
-                                        item.OpacityMode == PdfItemOpacityMode.FadeOnly ? item.Opacity * Math.Clamp(alpha, 0, 1) : alpha, options: options);
+                                        alpha, options: options);
                             }
                         }
                         catch (Exception ex) when (ex is PdfException or InvalidOperationException or NotSupportedException or ArgumentException)
@@ -132,7 +136,7 @@ public sealed partial class MainViewModel
                 ClearSavedItemSelection();
                 StatusMessage = "The saved items on this page could not be read safely.";
             }
-            finally { IsBusy = false; }
+            finally { IsBusy = false; _savedItemEditInProgress = false; }
         }
     }
 }
