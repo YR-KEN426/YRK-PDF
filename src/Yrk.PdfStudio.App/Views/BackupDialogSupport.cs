@@ -13,7 +13,7 @@ internal static class BackupDialogSupport
     internal static bool IsInsideData(string path) => Path.GetFullPath(path).StartsWith(
         DataDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     internal static bool IsExpected(Exception ex) => ex is IOException or UnauthorizedAccessException
-        or CryptographicException or ArgumentException or InvalidOperationException or NotSupportedException;
+        or InvalidDataException or CryptographicException or ArgumentException or InvalidOperationException or NotSupportedException;
 
     internal delegate T PasswordAction<T>(ReadOnlySpan<char> password);
     internal static Task<T> RunAsync<T>(SecureString password, PasswordAction<T> action) => Task.Run(() =>

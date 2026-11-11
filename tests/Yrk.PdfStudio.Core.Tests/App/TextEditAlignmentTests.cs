@@ -20,6 +20,66 @@ public sealed class TextEditAlignmentTests
     private const string Replacement = "ทนาย";
 
     [Theory]
+    [InlineData(TextAlignment.Center)]
+    [InlineData(TextAlignment.Right)]
+    public async Task Enter_then_reopen_keeps_original_frame_until_saved(TextAlignment alignment)
+    {
+        await using var app = new AppTestHarness();
+        var edit = await Begin(app, CreateSource(app));
+        var original = edit.Line.Bounds;
+        Sta.Run(() => { app.Model.EndTextEdit(edit, Replacement, cancel: false, apply: true); return true; });
+        await Idle();
+        var left = await ReadBounds(Document(app), Replacement);
+        Assert.True(left.Width < original.Width / 2);
+        await Reopen(left);
+        Assert.Equal(original, app.Model.ActiveTextEdit!.AlignmentBounds);
+        if (alignment == TextAlignment.Center) app.Model.TextStyleBar.IsAlignedCenter = true;
+        else app.Model.TextStyleBar.IsAlignedRight = true;
+        Sta.Run(() => { app.Model.EndTextEdit(app.Model.ActiveTextEdit!, Replacement, cancel: false, apply: true); return true; });
+        await Idle();
+        var aligned = await ReadBounds(Document(app), Replacement);
+        var fraction = alignment == TextAlignment.Center ? .5 : 1;
+        Assert.InRange(Math.Abs(aligned.X + aligned.Width * fraction - original.X - original.Width * fraction) * PageWidth, 0, 1);
+        Assert.True(aligned.X > left.X + .01);
+        await Reopen(aligned);
+        Assert.Equal(alignment, app.Model.ActiveTextEdit!.Alignment);
+        Assert.False(app.Model.ActiveTextEdit.IsChanged);
+        app.Model.EndTextEdit(app.Model.ActiveTextEdit, Replacement, cancel: false);
+        app.Model.UndoCommand.Execute(null);
+        await Idle();
+        Assert.InRange(Math.Abs((await ReadBounds(Document(app), Replacement)).X - left.X) * PageWidth, 0, 1);
+        app.Model.RedoCommand.Execute(null);
+        await Idle();
+        await Reopen(await ReadBounds(Document(app), Replacement));
+        Assert.Equal(original, app.Model.ActiveTextEdit!.AlignmentBounds);
+        app.Model.EndTextEdit(app.Model.ActiveTextEdit, Replacement, cancel: false);
+        var output = app.PathFor("repeated.pdf");
+        Assert.True(await app.SaveToAsync(output));
+        Assert.True(await app.OpenAsync(output));
+        var saved = await ReadBounds(Document(app), Replacement);
+        await Reopen(saved);
+        Assert.Equal(app.Model.ActiveTextEdit!.Line.Bounds, app.Model.ActiveTextEdit.AlignmentBounds);
+        Assert.InRange(Math.Abs(saved.X - aligned.X) * PageWidth, 0, 1);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+
+        async Task Reopen(NormalizedRect bounds)
+        {
+            var task = Sta.Run(() => (Task)typeof(MainViewModel).GetMethod("BeginTextEditAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(app.Model, [app.Model.Pages[0], Center(bounds)])!);
+            await task;
+        }
+        async Task Idle()
+        {
+            var limit = DateTime.UtcNow.AddSeconds(30);
+            while (app.Model.IsBusy)
+            {
+                Assert.True(DateTime.UtcNow < limit);
+                await Task.Delay(10);
+            }
+        }
+    }
+
+    [Theory]
     [InlineData(TextAlignment.Left)]
     [InlineData(TextAlignment.Center)]
     [InlineData(TextAlignment.Right)]
@@ -299,13 +359,15 @@ public sealed class TextEditAlignmentTests
         return new(x, y, rects.Max(r => r.X + r.Width) - x, rects.Max(r => r.Y + r.Height) - y);
     }
 
-    private static string CreateSource(AppTestHarness app)
+    internal static string CreateSource(AppTestHarness app, bool unsupported = false)
     {
         var builder = new CosNewDocument();
         var root = builder.Reserve(); var pages = builder.Reserve(); var page = builder.Reserve();
         builder.Set(page, new CosDictionary().Set("Type", new CosName("Page")).Set("Parent", pages)
             .Set("MediaBox", new CosArray([new CosInteger(0), new CosInteger(0), new CosInteger(595), new CosInteger(842)]))
-            .Set("Resources", new CosDictionary()));
+            .Set("Resources", new CosDictionary())
+            .Set("Contents", builder.Add(new CosStream(new CosDictionary(), unsupported
+                ? "q 595 0 0 842 0 0 cm BI /W 1 /H 1 /BPC 8 /CS /RGB /F /AHx ID 000000> EI Q"u8.ToArray() : []))));
         builder.Set(pages, new CosDictionary().Set("Type", new CosName("Pages")).Set("Kids", new CosArray([page])).Set("Count", new CosInteger(1)));
         builder.Set(root, new CosDictionary().Set("Type", new CosName("Catalog")).Set("Pages", pages));
         var blocks = Sta.Run(() =>

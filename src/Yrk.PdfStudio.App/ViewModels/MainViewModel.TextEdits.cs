@@ -13,6 +13,26 @@ namespace Yrk.PdfStudio.App.ViewModels;
 public sealed partial class MainViewModel
 {
     private readonly List<TextEditViewModel> _textEdits = [];
+    private sealed record TextEditFrame(int PageIndex, NormalizedRect CurrentBounds, NormalizedRect Bounds,
+        double BaselineX, TextAlignment Alignment);
+    private List<TextEditFrame> _textEditFrames = [];
+
+    private List<TextEditFrame> CaptureTextEditFrames()
+    {
+        var frames = _textEditFrames.ToList();
+        foreach (var edit in _textEdits.Where(e => e.IsChanged))
+        {
+            frames.RemoveAll(f => f.PageIndex == edit.Page.Index && f.Bounds == edit.AlignmentBounds);
+            if (string.IsNullOrWhiteSpace(edit.Text)) continue;
+            var layout = Layout(edit, edit.FontFamilyName);
+            var ink = TextEditInkBounds(layout.Line);
+            var bounds = new NormalizedRect(layout.TopLeft.X + ink.X / edit.Page.WidthPoints,
+                layout.TopLeft.Y + ink.Y / edit.Page.HeightPoints,
+                ink.Width / edit.Page.WidthPoints, ink.Height / edit.Page.HeightPoints);
+            frames.Add(new(edit.Page.Index, bounds, edit.AlignmentBounds, edit.AlignmentBaselineX, edit.Alignment));
+        }
+        return frames;
+    }
     private static readonly Lazy<Dictionary<string, string>> InstalledFamilies = new(() =>
         Fonts.SystemFontFamilies
             .Select(f => f.Source)
@@ -55,6 +75,16 @@ public sealed partial class MainViewModel
         var family = ResolveFamily(line.FontName, out var exact);
         var size = exact ? line.FontSize : MatchSize(line, family, page.HeightPoints);
         var edit = new TextEditViewModel(page, line, family, size);
+        var frame = _textEditFrames.FirstOrDefault(f => f.PageIndex == page.Index
+            && Math.Abs(f.CurrentBounds.X - line.Bounds.X) * page.WidthPoints < 1
+            && Math.Abs(f.CurrentBounds.Y - line.Bounds.Y) * page.HeightPoints < 1
+            && Math.Abs(f.CurrentBounds.Width - line.Bounds.Width) * page.WidthPoints < 1);
+        if (frame is not null)
+        {
+            edit.AlignmentBounds = frame.Bounds;
+            edit.AlignmentBaselineX = frame.BaselineX;
+            edit.RestoreAlignment(frame.Alignment);
+        }
         AttachTextEdit(edit);
         ActiveTextEdit = edit;
         edit.IsEditing = true;
@@ -253,7 +283,15 @@ public sealed partial class MainViewModel
             e.Page.Index,
             e.Line.Bounds,
             replaced.IndexOf(e) is >= 0 and var i ? blocks[i] : null)).ToList();
-        return PdfTextEditor.Apply(pdf, edits, _document?.OpenPassword);
+        try
+        {
+            return PdfTextEditor.Apply(pdf, edits, _document?.OpenPassword);
+        }
+        catch (PdfException ex) when (System.Text.RegularExpressions.Regex.Match(ex.Message,
+            @"^The text on page ([0-9, ]+) cannot be edited: it uses a font without exact measurements, or it overlaps an image\. Use a white box and Add text instead\.$") is { Success: true } match)
+        {
+            throw new PdfException(Loc.F("The text on page {0} cannot be edited: it uses a font without exact measurements, or it overlaps an image. Use a white box and Add text instead.", match.Groups[1].Value));
+        }
     }
 
     /// <summary>The new text shaped and placed on the old line's baseline.</summary>
@@ -269,7 +307,7 @@ public sealed partial class MainViewModel
         // Align that same visible edge, otherwise even a short Thai word can miss it by several points.
         var ink = TextEditInkBounds(shaped);
         var baseline = edit.Line.BaselineStart;
-        var x = CalculateTextEditX(edit.Line.Bounds, baseline.X, edit.Alignment,
+        var x = CalculateTextEditX(edit.AlignmentBounds, edit.AlignmentBaselineX, edit.Alignment,
             ink.Width / edit.Page.WidthPoints, leadingWidth / edit.Page.WidthPoints);
         if (edit.Alignment is TextAlignment.Center or TextAlignment.Right)
         {

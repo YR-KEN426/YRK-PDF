@@ -2,11 +2,15 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Windows.Automation;
+using System.Windows.Controls.Primitives;
 using Yrk.PdfStudio.App;
 using Yrk.PdfStudio.App.Localization;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.App.Services.Backup;
 using Yrk.PdfStudio.App.Views;
+using Yrk.PdfStudio.App.ViewModels;
+using Yrk.PdfStudio.Core.Pdf;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
@@ -25,6 +29,112 @@ public sealed class ImportRestartTests
         public byte[] Protect(byte[] data) => data.ToArray();
         public byte[] Unprotect(byte[] data) => data.ToArray();
     }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("th")]
+    public void Unsupported_text_error_uses_the_selected_language(string language) => RunUi(root =>
+    {
+        Loc.Language = language;
+        var app = new AppTestHarness();
+        try
+        {
+            Assert.True(Await(app.OpenAsync(TextEditAlignmentTests.CreateSource(app, unsupported: true))));
+            var document = (IPdfDocument)typeof(MainViewModel).GetField("_document", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(app.Model)!;
+            var bounds = Await(document.FindTextAsync(0, "ทนาย", PdfSearchOptions.None))[0].Rects[0];
+            Await((Task)typeof(MainViewModel).GetMethod("BeginTextEditAsync", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .Invoke(app.Model, [app.Model.Pages[0], new NormalizedPoint(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2)])!);
+            app.Model.EndTextEdit(app.Model.ActiveTextEdit!, "replacement", cancel: false, apply: true);
+            PumpUntil(() => !app.Model.IsBusy);
+            var error = Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!.ToString()!;
+            var expected = Loc.F("The text on page {0} cannot be edited: it uses a font without exact measurements, or it overlaps an image. Use a white box and Add text instead.", "1");
+            Assert.Contains(expected, error);
+            Assert.Equal(language == "th", expected.Contains("แก้ไขข้อความ"));
+        }
+        finally { Await(app.DisposeAsync().AsTask()); }
+    });
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("th")]
+    public void Item_tooltip_delete_name_and_import_option_are_translated(string language) => RunUi(root =>
+    {
+        Loc.Language = language;
+        var app = new AppTestHarness();
+        var window = new MainWindow(app.Model, () => throw new NotSupportedException());
+        var dialog = new ImportDialog(new(), Path.Combine(root, "data"), Path.Combine(root, "temp"));
+        try
+        {
+            var template = (DataTemplate)window.Resources["PlacedItemTemplate"];
+            foreach (var kind in new[] { PlacedItemKind.Text, PlacedItemKind.Picture, PlacedItemKind.Stamp })
+            {
+                var item = kind == PlacedItemKind.Text
+                    ? PlacedItemViewModel.CreateText(0, 400, 300, TextStyle.Default)
+                    : PlacedItemViewModel.CreateImage(0, kind, 400, 300, System.Windows.Media.Imaging.BitmapSource.Create(
+                        1, 1, 96, 96, System.Windows.Media.PixelFormats.Bgra32, null, new byte[4], 4));
+                var grid = (Grid)template.LoadContent();
+                grid.DataContext = item;
+                grid.Measure(new Size(400, 300));
+                grid.Arrange(new Rect(0, 0, 400, 300));
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                var thumb = grid.Children.OfType<Thumb>().First();
+                var tip = Assert.IsType<StackPanel>(thumb.ToolTip);
+                // ToolTipService supplies this inherited context when the popup opens.
+                tip.DataContext = thumb.DataContext;
+                tip.Measure(new Size(400, 100));
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                Translate(tip);
+                Assert.Equal(Loc.T(kind == PlacedItemKind.Text ? "Drag to move. Double-click text to edit." : "Drag to move"),
+                    Assert.Single(tip.Children.OfType<TextBlock>(), t => t.Visibility == Visibility.Visible).Text);
+                Translate(grid);
+                var delete = grid.Children.OfType<StackPanel>().Single().Children.OfType<Button>().Last();
+                Assert.Equal(Loc.T("Remove (Delete)"), AutomationProperties.GetName(delete));
+            }
+            Translate(dialog);
+            Assert.Equal(Loc.T("Replace existing settings (including stamps)"), ((CheckBox)dialog.FindName("ReplaceBox")).Content);
+        }
+        finally { dialog.Close(); window.Close(); app.DisposeAsync().AsTask().GetAwaiter().GetResult(); }
+
+        static void Translate(DependencyObject root) => typeof(UiTranslator).GetMethod("TranslateNow", BindingFlags.NonPublic | BindingFlags.Static)!.Invoke(null, [root]);
+    });
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("th")]
+    public void Wrong_password_is_reported_inline_and_inspection_can_be_retried(string language) => RunUi(root =>
+    {
+        Loc.Language = language;
+        var source = Path.Combine(root, "source");
+        Put(source, "settings.json", "{}");
+        var archive = Path.Combine(root, "test.yrkbackup");
+        new BackupWriter().Write(archive, source, Password, "test");
+        var data = Path.Combine(root, "data");
+        var dialog = new ImportDialog(new BackupImportCoordinator(), data, Path.Combine(root, "temp"));
+        try
+        {
+            ((TextBox)dialog.FindName("FileInput")).Text = archive;
+            ((PasswordBox)dialog.FindName("PasswordInput")).Password = "wrong-password";
+            Inspect();
+            Assert.Equal(Loc.T("The backup could not be read. The password is incorrect or the file is damaged."), ((TextBlock)dialog.FindName("Status")).Text);
+            Assert.False(((Button)dialog.FindName("ImportButton")).IsEnabled);
+            Assert.True(((Button)dialog.FindName("CloseButton")).IsEnabled);
+            Assert.True(((StackPanel)dialog.FindName("Inputs")).IsEnabled);
+            Assert.Empty(((ListBox)dialog.FindName("Contents")).Items);
+            Assert.False(Directory.Exists(data));
+            ((PasswordBox)dialog.FindName("PasswordInput")).Password = Password;
+            Inspect();
+            Assert.True(((Button)dialog.FindName("ImportButton")).IsEnabled);
+            Assert.Equal(Loc.T("Contents checked. You can now import this backup."), ((TextBlock)dialog.FindName("Status")).Text);
+            Assert.False(Directory.Exists(data));
+        }
+        finally { dialog.Close(); }
+
+        void Inspect()
+        {
+            typeof(ImportDialog).GetMethod("OnInspect", BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(dialog, [dialog, new RoutedEventArgs()]);
+            PumpUntil(() => !(bool)typeof(ImportDialog).GetField("_busy", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(dialog)!);
+        }
+    });
 
     [Theory]
     [InlineData("settings")]

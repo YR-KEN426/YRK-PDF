@@ -26,12 +26,15 @@ public sealed class TextEditViewModel : ObservableObject
     private bool _isItalic;
     private Color _color;
     private TextAlignment _alignment = TextAlignment.Left;
+    private TextAlignment _initialAlignment = TextAlignment.Left;
 
     /// <param name="fontSize">The size to start with: the line's, or one matched to a substitute font.</param>
     public TextEditViewModel(PageViewModel page, PdfTextLine line, string fontFamily, double fontSize)
     {
         Page = page;
         Line = line;
+        AlignmentBounds = line.Bounds;
+        AlignmentBaselineX = line.BaselineStart.X;
         _fontFamilyName = _initialFamily = fontFamily;
         _fontSize = _initialSize = fontSize;
         _isBold = line.IsBold;
@@ -44,6 +47,11 @@ public sealed class TextEditViewModel : ObservableObject
     public PageViewModel Page { get; }
 
     public PdfTextLine Line { get; }
+
+    // The deletion area remains Line.Bounds, even when a pending edit keeps an older alignment frame.
+    internal NormalizedRect AlignmentBounds { get; set; }
+    internal double AlignmentBaselineX { get; set; }
+    internal void RestoreAlignment(TextAlignment alignment) => _alignment = _initialAlignment = alignment;
 
     public string OriginalText { get; }
 
@@ -138,11 +146,11 @@ public sealed class TextEditViewModel : ObservableObject
         }
     }
 
-    public double Left => (Line.Bounds.X * Page.WidthPoints) - Padding;
+    public double Left => (AlignmentBounds.X * Page.WidthPoints) - Padding;
 
     public double Top => (Line.Bounds.Y * Page.HeightPoints) - Padding;
 
-    public double Width => (Line.Bounds.Width * Page.WidthPoints) + (2 * Padding);
+    public double Width => (AlignmentBounds.Width * Page.WidthPoints) + (2 * Padding);
 
     public double Height => (Line.Bounds.Height * Page.HeightPoints) + (2 * Padding);
 
@@ -166,7 +174,7 @@ public sealed class TextEditViewModel : ObservableObject
         || _isBold != Line.IsBold
         || _isItalic != Line.IsItalic
         || _color != OriginalColor
-        || _alignment != TextAlignment.Left;
+        || _alignment != _initialAlignment;
 
     public string Text
     {

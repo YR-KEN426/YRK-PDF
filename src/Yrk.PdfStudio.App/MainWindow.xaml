@@ -199,7 +199,14 @@
                 <Thumb Style="{StaticResource MoveThumb}"
                        IsHitTestVisible="{Binding CanMove}"
                        DragStarted="OnItemDragStarted" DragDelta="OnItemMoveDelta" DragCompleted="OnItemDragCompleted"
-                       PreviewMouseRightButtonUp="OnItemRightClick" PreviewMouseLeftButtonDown="OnItemMouseDown" ToolTip="Drag to move. Double-click text to edit." />
+                       PreviewMouseRightButtonUp="OnItemRightClick" PreviewMouseLeftButtonDown="OnItemMouseDown">
+                    <Thumb.ToolTip>
+                        <StackPanel>
+                            <TextBlock Text="Drag to move" Visibility="{Binding IsImage, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Text="Drag to move. Double-click text to edit." Visibility="{Binding IsText, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </Thumb.ToolTip>
+                </Thumb>
                 <Canvas Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibility}}">
                     <TextBox Text="{Binding Text, UpdateSourceTrigger=Explicit}" FontSize="{Binding FontSize}"
                              FontFamily="{Binding FontFamily}" FontWeight="{Binding FontWeight}" FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" Padding="0" BorderThickness="0.6" MinWidth="40"
@@ -264,7 +271,7 @@
                         </Border>
                     </Popup>
                     <Button Width="18" Height="18" Padding="0"
-                            Background="{StaticResource AccentBrush}" BorderThickness="0" Cursor="Hand" ToolTip="Remove (Delete)"
+                            Background="{StaticResource AccentBrush}" BorderThickness="0" Cursor="Hand" ToolTip="Remove (Delete)" AutomationProperties.Name="Remove (Delete)"
                             Command="{Binding DataContext.DeleteSelectedCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             Visibility="{Binding IsSelected, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE711;" FontSize="6" Foreground="White" />

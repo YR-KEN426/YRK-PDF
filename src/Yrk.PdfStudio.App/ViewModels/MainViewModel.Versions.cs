@@ -13,7 +13,10 @@ namespace Yrk.PdfStudio.App.ViewModels;
 public sealed partial class MainViewModel
 {
     /// <summary>The document after each step; [0] is before the first one (null: the file itself, unchanged).</summary>
-    private sealed record DocumentVersion(string? Path, byte[]? Bytes);
+    private sealed record DocumentVersion(string? Path, byte[]? Bytes)
+    {
+        public List<TextEditFrame> TextFrames { get; init; } = [];
+    }
     private readonly List<DocumentVersion?> _versions = [];
     private int _version;
     private bool _keepVersions;
@@ -43,6 +46,7 @@ public sealed partial class MainViewModel
         IsBusy = true;
         StatusMessage = busy;
         var restore = CaptureViewState();
+        List<TextEditFrame> textFrames;
         string? copy = null;
         DocumentVersion? before = null;
         DocumentVersion? after = null;
@@ -51,6 +55,7 @@ public sealed partial class MainViewModel
         {
             try
             {
+                textFrames = CaptureTextEditFrames();
                 if (changeSavedItem is not null)
                 {
                     // Work on a private copy: even a partially rejected native edit cannot change the open document.
@@ -99,9 +104,11 @@ public sealed partial class MainViewModel
                 _versions.RemoveAt(i);
             }
 
+            if (after is not null) after = after with { TextFrames = textFrames };
             _versions.Add(after);
             if (await OpenVersionAsync(document.FilePath, copy, restore, after?.Bytes))
             {
+                _textEditFrames = textFrames;
                 _version = _versions.Count - 1;
                 RebuildVersionSteps();
                 StatusMessage = done;
@@ -147,6 +154,7 @@ public sealed partial class MainViewModel
 
             if (await OpenVersionAsync(document.FilePath, copy, CaptureViewState(), _versions[index]?.Bytes))
             {
+                _textEditFrames = _versions[index]?.TextFrames.ToList() ?? [];
                 _version = index;
                 StatusMessage = string.Empty; // The message of the step no longer fits.
             }
@@ -216,6 +224,7 @@ public sealed partial class MainViewModel
         }
 
         _versions.Clear();
+        _textEditFrames.Clear();
         _version = 0;
     }
 
