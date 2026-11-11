@@ -1,0 +1,89 @@
+// TEMPORARY (not committed): writes PDFs for manual/UI-automation testing when YRK_UI_FIXTURES is set.
+using System.Runtime.InteropServices;
+using System.Text;
+using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Cos;
+using Yrk.PdfStudio.Core.Pdf.Pdfium;
+
+namespace Yrk.PdfStudio.Core.Tests;
+
+public sealed class ZzUiFixtureGenerator
+{
+    private static PdfImage Box(byte r, byte g, byte b) =>
+        new(2, 2, Enumerable.Range(0, 4).SelectMany(_ => new byte[] { b, g, r, 255 }).ToArray());
+    private static PdfVectorPath Rect(double x, double y, double w, double h) => new(
+        [PdfPathCommand.Move(x, y), PdfPathCommand.Line(x + w, y), PdfPathCommand.Line(x + w, y + h), PdfPathCommand.Line(x, y + h), PdfPathCommand.Closing], new(20, 40, 160));
+
+    private static byte[] TextPage()
+    {
+        var b = new CosNewDocument();
+        var root = b.Reserve(); var pages = b.Reserve();
+        var font = b.Add(new CosDictionary().Set("Type", new CosName("Font")).Set("Subtype", new CosName("Type1"))
+            .Set("BaseFont", new CosName("Helvetica")));
+        // A4. Centered lines at x=297.5: widths from Helvetica metrics are approximated by centering by hand.
+        var content = "BT /F1 14 Tf 1 0 0 1 72 760 Tm (YRK UI test document) Tj ET\n"
+            + "BT /F1 12 Tf 1 0 0 1 72 700 Tm (Please acknowledge and proceed accordingly.) Tj ET\n"
+            + "BT /F1 12 Tf 1 0 0 1 240 600 Tm (\\(Mr. Test Signer\\)) Tj ET\n"
+            + "BT /F1 12 Tf 1 0 0 1 215 570 Tm (Authorized Attorney-in-fact) Tj ET\n";
+        var stream = b.Add(new CosStream(new CosDictionary(), Encoding.ASCII.GetBytes(content)));
+        var page = b.Add(new CosDictionary().Set("Type", new CosName("Page")).Set("Parent", pages)
+            .Set("MediaBox", CosArray.FromNumbers(0, 0, 595, 842))
+            .Set("Resources", new CosDictionary().Set("Font", new CosDictionary().Set("F1", font)))
+            .Set("Contents", stream));
+        b.Set(pages, new CosDictionary().Set("Type", new CosName("Pages")).Set("Kids", new CosArray([page])).Set("Count", new CosInteger(1)));
+        b.Set(root, new CosDictionary().Set("Type", new CosName("Catalog")).Set("Pages", pages));
+        return b.Build(root);
+    }
+
+    [Fact]
+    public async Task Write_ui_fixtures()
+    {
+        var dir = Environment.GetEnvironmentVariable("YRK_UI_FIXTURES");
+        if (string.IsNullOrEmpty(dir)) return;
+        Directory.CreateDirectory(dir);
+        await File.WriteAllBytesAsync(Path.Combine(dir, "text.pdf"), TextPage());
+
+        using var engine = new PdfiumEngine();
+        await using (var d = await engine.OpenBytesAsync(TextPage(), Path.Combine(dir, "tmp-new.pdf"), null))
+        {
+            await d.AddImageAsync(0, Box(220, 30, 30), new(.15, .35, .25, .1),
+                style: new(Opacity: .6, Mark: new(YrkMarkKind.Stamp, Guid.NewGuid())));
+            var cross = new PdfVectorArt(100, 100, [Rect(0, 40, 100, 20), Rect(40, 0, 20, 100)]);
+            await d.AddVectorAsync(0, cross, new(.6, .35, .15, .1),
+                style: new(Opacity: .5, Mark: new(YrkMarkKind.Signature, Guid.NewGuid())));
+            await d.SaveAsync(Path.Combine(dir, "new-items.pdf"));
+        }
+
+        await File.WriteAllBytesAsync(Path.Combine(dir, "legacy-120.pdf"), await LegacyImage());
+    }
+
+    // Same as SavedPageItemTests.LegacyImage: 1.2.0 multiplied alpha into pixels before SetBitmap.
+    private static Task<byte[]> LegacyImage() => PdfiumWorker.Shared.InvokeAsync(() =>
+    {
+        var d = PdfiumNative.FPDF_CreateNewDocument();
+        var p = PdfiumNative.FPDFPage_New(d, 0, 595, 842);
+        try
+        {
+            var pixels = Box(220, 30, 30).Pixels;
+            for (var n = 3; n < pixels.Length; n += 4) pixels[n] = (byte)Math.Round(pixels[n] * .5, MidpointRounding.AwayFromZero);
+            var pin = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+            try
+            {
+                var bitmap = PdfiumNative.FPDFBitmap_CreateEx(2, 2, PdfiumNative.FPDFBitmap_BGRA, pin.AddrOfPinnedObject(), 8);
+                try
+                {
+                    var image = PdfiumNative.FPDFPageObj_NewImageObj(d);
+                    PdfiumNative.FPDFImageObj_SetBitmap(IntPtr.Zero, 0, image, bitmap);
+                    PdfiumNative.FPDFImageObj_SetMatrix(image, 160, 0, 0, 100, 100, 600);
+                    PdfiumMarks.Add(d, image, new YrkMark(YrkMarkKind.Stamp, Guid.NewGuid()));
+                    PdfiumNative.FPDFPage_InsertObject(p, image);
+                    PdfiumNative.FPDFPage_GenerateContent(p);
+                    return PdfiumIo.WriteToBytes(d, PdfiumNative.FPDF_NO_INCREMENTAL);
+                }
+                finally { PdfiumNative.FPDFBitmap_Destroy(bitmap); }
+            }
+            finally { pin.Free(); }
+        }
+        finally { PdfiumNative.FPDF_ClosePage(p); PdfiumNative.FPDF_CloseDocument(d); }
+    }, PdfWorkPriority.Interactive, CancellationToken.None);
+}
