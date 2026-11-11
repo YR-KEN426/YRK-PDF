@@ -18,7 +18,7 @@
             <TextBlock Text="Backup contents" FontWeight="SemiBold" />
             <ListBox x:Name="Contents" Height="148" Margin="0,6,0,12" AutomationProperties.Name="Backup contents" />
             <CheckBox x:Name="ReplaceBox" Content="Replace existing settings (including stamps)" Margin="0,4" />
-            <TextBlock Text="Without this option, existing JSON settings are kept. Duplicate signature images and Digital IDs are kept as separate copies. Stamps are merged only when this option is selected." TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,6,0,12" />
+            <TextBlock Text="Without this option, existing settings are kept. Duplicate signature images and Digital IDs are kept as separate copies. Stamps are merged only when this option is selected." TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,6,0,12" />
         </StackPanel>
         <Border Background="#FFF4DC" BorderBrush="#CF9B36" BorderThickness="1" CornerRadius="6" Padding="12">
             <StackPanel>
