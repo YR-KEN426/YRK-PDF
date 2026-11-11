@@ -255,14 +255,15 @@
                                   ToolTip="Opacity" AutomationProperties.Name="Opacity" />
                     <Popup PlacementTarget="{Binding ElementName=OpacityButton}" Placement="Bottom" StaysOpen="False"
                            IsOpen="{Binding IsChecked, ElementName=OpacityButton, Mode=TwoWay}">
-                        <Border Background="White" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Padding="6">
+                        <Border Background="White" BorderBrush="{StaticResource AccentBrush}" BorderThickness="1" Padding="6"
+                                PreviewMouseLeftButtonDown="OnItemOpacityMouseDown" MouseLeftButtonDown="OnItemOpacityPopupMouseDown">
                             <StackPanel>
                                 <TextBlock Text="Opacity" />
                                 <TextBlock Text="{Binding OpacityNote}" TextWrapping="Wrap" MaxWidth="230" Margin="0,3" />
                                 <Slider Width="120" Minimum="0.1" Maximum="1" TickFrequency="0.1"
                                         IsMoveToPointEnabled="True"
                                         Value="{Binding Opacity, Mode=OneWay}" ValueChanged="OnItemOpacityChanged"
-                                        PreviewMouseLeftButtonDown="OnItemOpacityMouseDown" PreviewMouseLeftButtonUp="OnItemOpacityMouseUp"
+                                        PreviewMouseLeftButtonUp="OnItemOpacityMouseUp"
                                         LostMouseCapture="OnItemOpacityLostCapture"
                                         Thumb.DragStarted="OnItemOpacityDragStarted" Thumb.DragCompleted="OnItemOpacityDragCompleted"
                                         ToolTip="Opacity" AutomationProperties.Name="Opacity" />

@@ -1156,10 +1156,15 @@ public partial class MainWindow : Window
 
     private void OnItemOpacityMouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (ItemOf(sender) is not { } item) return;
+        // Begin before Slider's move-to-point class handler changes Value.
+        if (FindAncestor<Slider>(e.OriginalSource as DependencyObject) is null || ItemOf(sender) is not { } item) return;
         _opacityDragItem = item;
         _viewModel.BeginItemOpacityChange(item);
     }
+
+    // Popup input routes through its logical parent to the page, which would deselect the item.
+    // Stop bubbling after Slider/Thumb process the press; leave preview input unhandled.
+    private void OnItemOpacityPopupMouseDown(object sender, MouseButtonEventArgs e) => e.Handled = true;
 
     private void OnItemOpacityMouseUp(object sender, MouseButtonEventArgs e) => FinishItemOpacityChange();
 

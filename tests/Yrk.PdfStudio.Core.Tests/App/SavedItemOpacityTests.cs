@@ -17,9 +17,13 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed partial class SavedItemEditingTests
 {
     [Theory]
-    [InlineData("thumb")]
-    [InlineData("track")]
-    public void Opacity_slider_ValueChanged_previews_then_commits_once_on_release(string gesture)
+    [InlineData("press", false)]
+    [InlineData("thumb", false)]
+    [InlineData("track", false)]
+    [InlineData("press", true)]
+    [InlineData("thumb", true)]
+    [InlineData("track", true)]
+    public void Opacity_slider_routed_mouse_down_keeps_popup_and_selection_then_commits_once(string gesture, bool legacy)
     {
         Sta.Run(() =>
         {
@@ -38,7 +42,12 @@ public sealed partial class SavedItemEditingTests
             Popup? popup = null;
             try
             {
-                var source = Await(PlacedSource(app));
+                var source = legacy ? app.PathFor("legacy.pdf") : Await(PlacedSource(app));
+                if (legacy)
+                {
+                    File.WriteAllBytes(source, Await(LegacyImageAsync()));
+                    Assert.True(Await(app.OpenAsync(source)));
+                }
                 var sourceBytes = File.ReadAllBytes(source);
                 var baseline = Await(Render(app));
                 Await(Select(app));
@@ -53,15 +62,65 @@ public sealed partial class SavedItemEditingTests
                 Await(Select(app)); frame = Frame(app); reference = frame.SavedItem!.Reference;
                 var slider = OpenSlider();
                 Assert.True(slider.IsMoveToPointEnabled);
+                Assert.False(app.Model.IsBusy);
+                // WPF decides whether a press is on the thumb via IsMouseOver, not OriginalSource.
+                // Simulate hover locally so RaiseEvent never needs to move the user's real pointer.
+                if (gesture != "track")
+                {
+                    var thumb = Descendants<Thumb>(slider).Single();
+                    var writeFlag = typeof(UIElement).GetMethod("WriteFlag", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                    var flag = Enum.Parse(writeFlag.GetParameters()[0].ParameterType, "IsMouseOverCache");
+                    writeFlag.Invoke(thumb, [flag, true]);
+                    Assert.True(thumb.IsMouseOver);
+                }
 
-                // Track clicks change Value before Thumb.DragStarted. Use the production handler
-                // without consulting or moving the user's real pointer.
-                Handler("OnItemOpacityMouseDown", slider,
-                    new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left));
+                var page = app.Model.Pages[0];
+                var previewDowns = 0;
+                var downs = 0;
+                slider.AddHandler(UIElement.PreviewMouseLeftButtonDownEvent,
+                    new MouseButtonEventHandler((_, _) => ++previewDowns), handledEventsToo: true);
+                slider.AddHandler(UIElement.MouseLeftButtonDownEvent,
+                    new MouseButtonEventHandler((_, _) => ++downs), handledEventsToo: true);
+
+                // Exercise WPF routing through the loaded popup and its logical page ancestors.
+                // A direct call to OnItemOpacityMouseDown misses the page's deselection handler.
+                MouseEvent(Mouse.PreviewMouseDownEvent);
+                MouseEvent(Mouse.MouseDownEvent);
+                Settle(window);
+                Assert.True(frame.IsSelected && popup!.IsOpen,
+                    $"Mouse-down cleared selection or closed popup: selected={frame.IsSelected}, open={popup!.IsOpen}");
+                Assert.Equal(1, previewDowns);
+                Assert.Equal(1, downs);
+                Assert.Same(page, app.Model.Pages[0]);
+                Assert.Same(frame, Frame(app));
+                Assert.False(app.Model.IsBusy);
+                if (gesture != "track") Assert.Null(page.OpacityPreview);
+                Assert.Empty(Versions());
+                if (gesture == "press")
+                {
+                    Assert.Equal(1, frame.Opacity);
+                    Assert.Equal(1, slider.Value);
+                    MouseEvent(Mouse.PreviewMouseUpEvent);
+                    MouseEvent(Mouse.MouseUpEvent);
+                    Settle(window);
+                    Assert.True(frame.IsSelected);
+                    Assert.True(popup.IsOpen);
+                    Assert.Empty(Versions());
+                    Assert.False(app.Model.IsDirty);
+                    Assert.Equal(sourceBytes, File.ReadAllBytes(source));
+                    Assert.Empty(app.Dialogs.Named("ShowError"));
+                    Assert.Empty(app.Dialogs.Named("ShowInfo"));
+                    return true;
+                }
                 slider.Value = .9;
                 if (gesture == "thumb") slider.RaiseEvent(new DragStartedEventArgs(0, 0) { RoutedEvent = Thumb.DragStartedEvent });
                 foreach (var value in new[] { .8, .6, .4, .3 }) slider.Value = value;
                 Await(app.Model.ItemOpacityPreviewTask);
+                Settle(window);
+                Assert.True(frame.IsSelected);
+                Assert.True(popup.IsOpen);
+                Assert.Same(page, app.Model.Pages[0]);
+                Assert.False(app.Model.IsBusy);
                 Assert.Equal(.3, frame.Opacity);
                 Assert.Same(document, Document(app));
                 Assert.Equal(reference, Await(Items(app))[0].Reference);
@@ -73,12 +132,13 @@ public sealed partial class SavedItemEditingTests
                 var pixels = new byte[preview.PixelWidth * preview.PixelHeight * 4];
                 preview.CopyPixels(pixels, preview.PixelWidth * 4, 0);
                 // The red item's centre fades against white; the other red item stays opaque.
-                Assert.InRange(pixels[((int)(preview.PixelHeight * .17) * preview.PixelWidth + (int)(preview.PixelWidth * .2)) * 4], 175, 182);
-                Assert.Equal(0, pixels[((int)(preview.PixelHeight * .8) * preview.PixelWidth + (int)(preview.PixelWidth * .8)) * 4]);
+                Assert.InRange(pixels[((int)(preview.PixelHeight * .17) * preview.PixelWidth + (int)(preview.PixelWidth * .2)) * 4],
+                    legacy ? 213 : 175, legacy ? 220 : 182);
+                if (!legacy) Assert.Equal(0, pixels[((int)(preview.PixelHeight * .8) * preview.PixelWidth + (int)(preview.PixelWidth * .8)) * 4]);
 
                 if (gesture == "thumb") slider.RaiseEvent(new DragCompletedEventArgs(0, 0, false) { RoutedEvent = Thumb.DragCompletedEvent });
-                Handler("OnItemOpacityMouseUp", slider,
-                    new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left));
+                MouseEvent(Mouse.PreviewMouseUpEvent);
+                MouseEvent(Mouse.MouseUpEvent);
                 Await(EditFinished(app));
                 Assert.Null(app.Model.Pages[0].OpacityPreview);
                 Assert.InRange(Frame(app).Opacity, .299, .303);
@@ -116,10 +176,15 @@ public sealed partial class SavedItemEditingTests
                     Settle(window);
                     var result = Descendants<Slider>(popup.Child).Single();
                     Assert.True(result.IsLoaded);
+                    Assert.NotNull(PresentationSource.FromVisual(result));
+                    Assert.Same(popup, LogicalTreeHelper.GetParent(popup.Child));
                     return result;
                 }
-                void Handler(string name, object sender, object args) => typeof(MainWindow)
-                    .GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance)!.Invoke(window, [sender, args]);
+                // Generic mouse events make WPF re-raise PreviewMouseLeftButtonDown / MouseLeftButtonDown
+                // on each ancestor (the button-specific events themselves are direct).
+                void MouseEvent(RoutedEvent routedEvent) => slider.RaiseEvent(
+                    new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)
+                        { RoutedEvent = routedEvent });
             }
             finally
             {
