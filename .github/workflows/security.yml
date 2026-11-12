@@ -74,10 +74,9 @@ jobs:
             }
           }
           Assert-NoAuditProblems $report
+          # A clean project is listed with only its path (no "frameworks"), so do not require frameworks here.
           foreach ($project in $report.projects) {
-            if ([string]::IsNullOrWhiteSpace($project.path) -or $null -eq $project.frameworks -or @($project.frameworks).Count -eq 0) {
-              throw 'NuGet did not audit every reported project successfully.'
-            }
+            if ([string]::IsNullOrWhiteSpace($project.path)) { throw 'The vulnerability report lists a project without a path.' }
           }
           Write-Output 'The vulnerability audit completed with no vulnerable packages.'
 
