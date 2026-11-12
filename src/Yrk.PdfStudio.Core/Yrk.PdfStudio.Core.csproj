@@ -18,7 +18,7 @@
   <ItemGroup>
     <!-- Prebuilt PDFium binaries (BSD-3/Apache-2.0) for win-x64, win-x86 and win-arm64. -->
     <PackageReference Include="ACadSharp" Version="3.8.0" />
-    <PackageReference Include="bblanchon.PDFium.Win32" Version="157.0.8100" />
+    <PackageReference Include="bblanchon.PDFium.Win32" Version="159.0.8152" />
     <!--
       PDFsharp (compression). Pinned to 6.2.4, the last MIT release: 6.5.0 and later are AGPL-3.0 with a
       runtime license check, which would oblige YRK PDF to publish its source. Do not upgrade.
