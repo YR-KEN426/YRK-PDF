@@ -101,7 +101,7 @@ jobs:
       - name: Scan history for secrets
         run: |
           $gitleaks = Join-Path $env:RUNNER_TEMP 'gitleaks/gitleaks.exe'
-          $scanArguments = @('git', '--redact', '--no-banner', '--verbose')
+          $scanArguments = @('git', '--redact', '--no-banner')
           if (Test-Path -LiteralPath '.gitleaks.toml' -PathType Leaf) {
             $scanArguments += @('--config', '.gitleaks.toml')
           }
@@ -165,8 +165,9 @@ jobs:
           $sarif = Get-Content -LiteralPath $sarifPath -Raw | ConvertFrom-Json -ErrorAction Stop
           if ($sarif.version -ne '2.1.0' -or $null -eq $sarif.runs -or @($sarif.runs).Count -eq 0) { throw 'BinSkim produced invalid SARIF.' }
           "sarif-path=$sarifPath" >> $env:GITHUB_OUTPUT
-          # Only documented nonfatal bits (0xF8000000) may be ignored.
-          if (($scanExitCode -band 0x07FFFFFF) -ne 0) {
+          # Ignore the documented nonfatal bits (0xF8000000) except TargetNotValidToAnalyze
+          # (0x20000000) fails too, because every file passed here is our own binary and must be analyzed.
+          if (($scanExitCode -band 0x27FFFFFF) -ne 0) {
             throw "BinSkim failed to execute completely (exit code $scanExitCode)."
           }
           Write-Output "BinSkim completed (exit code $scanExitCode); findings are reported through SARIF."
