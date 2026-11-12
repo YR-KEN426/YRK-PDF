@@ -8,4 +8,14 @@
     <Copyright>© 2026 YRK LAB</Copyright>
     <Version>1.2.1</Version>
   </PropertyGroup>
+  <!-- .NET analyzers (pre-Store audit, layer 1): recommended rules plus every security rule, as warnings only.
+       latest-all is avoided on purpose: thousands of style warnings would bury the security ones. -->
+  <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <AnalysisModeSecurity>All</AnalysisModeSecurity>
+  </PropertyGroup>
+  <!-- Test method names use underscores (Method_Case_Result) by convention. -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Yrk.PdfStudio.Core.Tests'">
+    <NoWarn>$(NoWarn);CA1707</NoWarn>
+  </PropertyGroup>
 </Project>
