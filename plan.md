@@ -77,7 +77,7 @@ Ken ขอให้ตรวจช่องโหว่และบั๊กท�
 - PR จาก Dependabot ที่แตะ Velopack หรือ System.Security.Cryptography.Pkcs ต้องให้ Claude ตรวจก่อน merge ทุกครั้ง เพราะเกี่ยวกับการอัปเดตและการเข้ารหัส
 
 ## สถานะ
-- [ ] ขั้น 0 สแกนความลับในเครื่อง
+- [x] ขั้น 0 สแกนความลับในเครื่อง (2026-11-12: gitleaks 8.30.1 สแกน 310 commit ไม่เจอเลย, กุญแจอัปเดตในประวัติเป็น PUBLIC KEY อย่างเดียว, ไม่มีบรรทัด PRIVATE KEY ในประวัติ; ขั้น 2 จึงยังไม่ต้องมี allowlist ใน .gitleaks.toml ใส่เมื่อเจอของทดสอบจริงเท่านั้น)
 - [ ] ขั้น 1 .NET analyzers
 - [ ] ขั้น 2 workflow + Dependabot + .gitleaks.toml
 - [ ] ขั้น 3 ตรวจ + Ken อนุมัติ + Ken เปิดค่าใน Settings + push
