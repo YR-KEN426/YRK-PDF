@@ -12,6 +12,38 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class AppOcrTests
 {
+    [Fact]
+    public async Task Scan_ocr_reads_whitened_sharpened_output_instead_of_raw_gray_scan()
+    {
+        await using var app = new AppTestHarness();
+        app.Model.OcrDataFactory = () => CreateLanguageData(app, install: true);
+        app.Dialogs.Answer("AskScan", new Func<object?[], object?>(args =>
+        {
+            var session = (ScanSession)args[0]!;
+            var scanner = new FakeScannerService { PageCount = 1, PageStyle = FakeScanPageStyle.GrayFaintText };
+            scanner.ScanAsync(FakeScannerService.Device, ScanSettings,
+                new ScanSessionTests.Sink<ScannedPage>(page => session.Add(page))).GetAwaiter().GetResult();
+            var entry = Assert.Single(session.Pages);
+            Assert.Equal(211, session.Read(entry).Bitmap.Pixels[0]);
+            entry.WhiteBackground = true;
+            entry.Sharpness = 35;
+            return new ScanRequest(session, ScanSettings, true, ["tha", "eng"]);
+        }));
+        var called = false;
+        app.Model.OcrRunner = async (document, bytes, _, _, _, token) =>
+        {
+            called = true;
+            var image = await document.RenderPageAsync(0, 827, 1169, cancellationToken: token);
+            Assert.InRange(image.Pixels[0], 245, 255);
+            Assert.Contains(image.Pixels.Where((_, i) => i % 4 == 0), value => value < 100);
+            return new OcrSummary(bytes, 0, 0, 0);
+        };
+        app.Dialogs.Answer("PickSavePdfFile", app.PathFor("adjusted-scan.pdf"));
+        await app.Model.ScanToPdfCommand.ExecuteAsync(null);
+        Assert.True(called);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+    }
+
     private static readonly ScanSettings ScanSettings = new(Dpi: 100, AutoStraighten: false, AutoCrop: false);
     private static readonly OcrOptions OcrOptions = new(["tha", "eng"], OcrPageSelection.AllPages);
 

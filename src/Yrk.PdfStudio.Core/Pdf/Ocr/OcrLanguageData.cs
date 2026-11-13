@@ -33,7 +33,14 @@ public sealed class OcrLanguageData
             ["deu"] = ("19d219bbb6672c869d20a9636c6816a81eb9a71796cb93ebe0cb1530e2cdb22d", 1525436),
         });
 
-    public OcrLanguageData(string? folder = null) : this(folder, Client, VerificationData)
+    // OSD is an auxiliary model, separate from the selectable language verification table.
+    internal static IReadOnlyDictionary<string, (string Sha256, long Size)> AllVerificationData { get; } =
+        new ReadOnlyDictionary<string, (string Sha256, long Size)>(new Dictionary<string, (string Sha256, long Size)>(VerificationData)
+        {
+            ["osd"] = ("9cf5d576fcc47564f11265841e5ca839001e7e6f38ff7f7aacf46d15a96b00ff", 10562727),
+        });
+
+    public OcrLanguageData(string? folder = null) : this(folder, Client, AllVerificationData)
     {
     }
 
@@ -66,10 +73,22 @@ public sealed class OcrLanguageData
 
     public bool IsInstalled(string language) => File.Exists(PathOf(language));
 
+    /// <summary>Optional auxiliary model: callers must present the download consent before installing it.
+    /// Auto adjust never calls this method; it only uses a model that is already installed.</summary>
+    public async Task<bool> EnsureOrientationDataAsync(Func<Task<bool>> requestConsent, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(requestConsent);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (IsInstalled("osd")) return true;
+        if (!await requestConsent().ConfigureAwait(false)) return false;
+        await DownloadAsync("osd", cancellationToken: cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
     /// <summary>Downloads a language file (a few MB) into <see cref="Folder"/>, atomically.</summary>
     public async Task DownloadAsync(string language, IProgress<double>? progress = null, CancellationToken cancellationToken = default)
     {
-        if (Languages.All(l => l.Code != language) || !_verificationData.TryGetValue(language, out var expected))
+        if ((language != "osd" && Languages.All(l => l.Code != language)) || !_verificationData.TryGetValue(language, out var expected))
         {
             throw new ArgumentException($"Unknown OCR language or missing verification data for '{language}'.", nameof(language));
         }

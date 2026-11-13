@@ -90,11 +90,23 @@
                         </Grid>
                     </Border>
                 </Grid>
-                <Border Grid.Column="4" BorderBrush="#D1D5DB" BorderThickness="1" Padding="12">
-                    <StackPanel>
+                <Border Grid.Column="4" BorderBrush="#D1D5DB" BorderThickness="1" Padding="10">
+                    <StackPanel x:Name="AdjustmentPanel">
                         <TextBlock Text="Adjust page" FontWeight="SemiBold"/>
-                        <TextBlock Text="Page adjustments will be available later." TextWrapping="Wrap" Foreground="#6B7280" Margin="0,12,0,0"/>
-                        <StackPanel IsEnabled="False" Visibility="Collapsed"/>
+                        <TextBlock Text="Brightness" Margin="0,12,0,0"/>
+                        <Slider x:Name="Brightness" Minimum="-50" Maximum="50" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="OnAdjustmentChanged"/>
+                        <TextBlock Text="{Binding ElementName=Brightness, Path=Value, StringFormat={}{0:+0;-0;0}}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Sharpness" Margin="0,12,0,0"/>
+                        <Slider x:Name="Sharpness" Minimum="-50" Maximum="50" Value="0" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="OnAdjustmentChanged"/>
+                        <TextBlock Text="{Binding ElementName=Sharpness, Path=Value, StringFormat={}{0:+0;-0;0}}" HorizontalAlignment="Center"/>
+                        <CheckBox x:Name="WhiteBackground" Content="White background" Margin="0,12,0,0" Checked="OnAdjustmentChanged" Unchecked="OnAdjustmentChanged"/>
+                        <CheckBox x:Name="Straighten" Content="Straighten" Margin="0,12,0,12" Checked="OnAdjustmentChanged" Unchecked="OnAdjustmentChanged"/>
+                        <Button Click="OnApplyAll" Style="{StaticResource ToolbarButton}">
+                            <TextBlock Text="Apply to all pages" Width="105" TextWrapping="Wrap" TextAlignment="Center"/>
+                        </Button>
+                        <Button Click="OnApplySelected" Style="{StaticResource ToolbarButton}" Margin="0,6,0,0">
+                            <TextBlock Text="Apply to selected pages" Width="105" TextWrapping="Wrap" TextAlignment="Center"/>
+                        </Button>
                     </StackPanel>
                 </Border>
             </Grid>

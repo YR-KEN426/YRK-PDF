@@ -12,6 +12,9 @@ using Yrk.PdfStudio.Core.Pdf.Scan;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
+[CollectionDefinition("WPF Application", DisableParallelization = true)]
+public sealed class ScanWpfApplicationGroup;
+
 [Collection("WPF Application")]
 public sealed class AppScanLayoutTests
 {
@@ -73,6 +76,15 @@ public sealed class AppScanLayoutTests
                     encoder.Frames.Add(BitmapFrame.Create(bitmap));
                     using var output = File.Create(Path.Combine(folder, $"scan-{state}-{language}.png"));
                     encoder.Save(output);
+                    if (state == "empty")
+                    {
+                        session.Add(ScanSessionTests.Page(300, 400));
+                        Await(model.LoadPagesAsync());
+                        typeof(ScanDialog).GetMethod("OnAutoCrop", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(window, [window, new RoutedEventArgs()]);
+                        PumpUntil(() => !(bool)typeof(ScanDialog).GetField("_working", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!);
+                        Assert.Equal(Loc.T("No edges to crop were found"), ((TextBlock)window.FindName("Message")).Text);
+                    }
                 }
                 finally { window.Close(); }
             }

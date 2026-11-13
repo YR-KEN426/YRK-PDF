@@ -29,7 +29,46 @@ public static class ScanCleanup
         var ink = InkPoints(gray, bitmap.Width, bitmap.Height);
         var area = bitmap.Width * (1 - (2 * Margin)) * bitmap.Height * (1 - (2 * Margin));
         var blank = ink.Count <= area * BlankInk;
-        return new ScanPageCheck(blank, blank ? 0 : Straighten(ink), DarkEdges(gray, bitmap.Width, bitmap.Height));
+        return new ScanPageCheck(blank, blank ? 0 : Straighten(ink),
+            DarkEdges(gray, bitmap.Width, bitmap.Height) ?? ObjectOnGlass(gray, bitmap.Width, bitmap.Height));
+    }
+
+    /// <summary>Finds a filled rectangular object against the flatbed's border colour, including a white lid.
+    /// Sparse text alone is deliberately insufficient evidence of a paper edge.</summary>
+    private static NormalizedRect? ObjectOnGlass(byte[] gray, int width, int height)
+    {
+        if (width < 20 || height < 20) return null;
+        var histogram = new int[256];
+        for (var x = 0; x < width; x++) { histogram[gray[x]]++; histogram[gray[(height - 1) * width + x]]++; }
+        for (var y = 0; y < height; y++) { histogram[gray[y * width]]++; histogram[gray[y * width + width - 1]]++; }
+        var sum = 0;
+        var background = 255;
+        for (var i = 0; i < 256; i++)
+        {
+            sum += histogram[i];
+            if (sum >= width + height) { background = i; break; }
+        }
+        bool Object(int x, int y) => Math.Abs(gray[y * width + x] - background) >= 6;
+        var rows = new int[height];
+        var columns = new int[width];
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+                if (Object(x, y)) { rows[y]++; columns[x]++; }
+        var left = Array.FindIndex(columns, n => n >= Math.Max(5, height * 0.03));
+        var right = Array.FindLastIndex(columns, n => n >= Math.Max(5, height * 0.03));
+        var top = Array.FindIndex(rows, n => n >= Math.Max(5, width * 0.03));
+        var bottom = Array.FindLastIndex(rows, n => n >= Math.Max(5, width * 0.03));
+        if (left < 0 || top < 0 || right - left < width * 0.1 || bottom - top < height * 0.08
+            || left < 2 || top < 2 || right >= width - 2 || bottom >= height - 2) return null;
+        long filled = 0;
+        for (var y = top; y <= bottom; y++)
+            for (var x = left; x <= right; x++) if (Object(x, y)) filled++;
+        if (filled < (right - left + 1L) * (bottom - top + 1) * 0.65) return null;
+        // All four boundaries must have substantial support. Do not crop a text block or a photograph's isolated marks.
+        if (rows[top] < (right - left) * 0.65 || rows[bottom] < (right - left) * 0.65
+            || columns[left] < (bottom - top) * 0.65 || columns[right] < (bottom - top) * 0.65) return null;
+        left--; top--; right++; bottom++;
+        return new((double)left / width, (double)top / height, (double)(right - left + 1) / width, (double)(bottom - top + 1) / height);
     }
 
     private static byte[] Gray(PdfBitmap bitmap)

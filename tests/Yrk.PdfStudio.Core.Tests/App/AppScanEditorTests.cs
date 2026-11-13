@@ -1,4 +1,5 @@
 using System.Windows.Threading;
+using Yrk.PdfStudio.App.Localization;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Scanning;
 using Yrk.PdfStudio.App.ViewModels;
@@ -9,6 +10,100 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class AppScanEditorTests
 {
+    [Fact]
+    public void Per_page_adjustments_apply_to_selected_or_all_and_support_undo_redo() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var model = CreateModel(session);
+        await model.LoadPagesAsync();
+        model.Select(0); model.Select(2, control: true);
+        var edits = new ScanPageAdjustments(20, -30, true, false);
+        model.AdjustCurrent(model.Current!, edits);
+        Assert.Equal(new ScanPageAdjustments(), model.Pages[0].Page.Adjustments);
+        Assert.Equal(edits, model.Pages[2].Page.Adjustments);
+        await model.ApplyAdjustmentsAsync(edits, false);
+        Assert.Equal(edits, model.Pages[0].Page.Adjustments);
+        Assert.Equal(new ScanPageAdjustments(), model.Pages[1].Page.Adjustments);
+        await model.ApplyAdjustmentsAsync(edits, true);
+        Assert.All(model.Pages, entry => Assert.Equal(edits, entry.Page.Adjustments));
+        await model.UndoAsync();
+        Assert.Equal(new ScanPageAdjustments(), model.Pages[1].Page.Adjustments);
+        await model.RedoAsync();
+        Assert.All(model.Pages, entry => Assert.Equal(edits, entry.Page.Adjustments));
+        var entry = model.Pages[1];
+        var before = await model.PreviewAsync(entry);
+        var cache = entry.PreviewPage;
+        model.AdjustCurrent(entry, new(-50, 50, false, false));
+        var after = await model.PreviewAsync(entry);
+        Assert.Same(cache, entry.PreviewPage);
+        var a = new byte[before.PixelWidth * before.PixelHeight * 4];
+        var b = new byte[after.PixelWidth * after.PixelHeight * 4];
+        before.CopyPixels(a, before.PixelWidth * 4, 0);
+        after.CopyPixels(b, after.PixelWidth * 4, 0);
+        Assert.NotEqual(a, b);
+    });
+
+    [Fact]
+    public void Auto_adjust_reports_missing_crop_edges_and_turns_on_whitening_and_straightening() => Run(async () =>
+    {
+        using var session = new ScanSession();
+        session.Add(ScanSessionTests.Page(300, 400));
+        var model = CreateModel(session);
+        await model.LoadPagesAsync();
+        await model.AutoCropAsync();
+        Assert.Equal(Loc.T("No edges to crop were found"), model.AdjustmentMessage);
+        Assert.True(model.Current!.Page.WhiteBackground);
+        Assert.True(model.Current.Page.Straighten);
+        await model.UndoAsync();
+        Assert.False(model.Current!.Page.WhiteBackground);
+    });
+
+    [Fact]
+    public void Auto_adjust_crops_fake_card_on_white_glass_and_receipt_preset_whitens_new_pages() => Run(async () =>
+    {
+        using var session = new ScanSession();
+        var scanner = new FakeScannerService { PageCount = 1, PageStyle = FakeScanPageStyle.CardOnWhiteGlass };
+        var model = new ScanViewModel(session, scanner, Dispatcher.CurrentDispatcher) { Settings = new(Dpi: 100) };
+        await model.ScanAsync(FakeScannerService.Device, () => { });
+        await model.AutoCropAsync();
+        Assert.NotNull(model.Current!.Page.Crop);
+        Assert.Empty(model.AdjustmentMessage);
+        Assert.True(model.Current.Page.WhiteBackground);
+        model.ApplyPreset(ScanPreset.Receipt);
+        model.Settings = model.Settings with { Dpi = 100 };
+        await model.ScanAsync(FakeScannerService.Device, () => { });
+        Assert.True(model.Current!.Page.WhiteBackground);
+    });
+
+    [Fact]
+    public void Auto_adjust_applies_optional_osd_rotation_only_to_selected_page_and_undo_restores_it() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var folder = Path.Combine(session.DirectoryPath, "tessdata");
+        Directory.CreateDirectory(folder);
+        File.WriteAllBytes(Path.Combine(folder, "osd.traineddata"), [1]);
+        var detector = new TestOrientationDetector();
+        var model = CreateModel(session);
+        model.Processor = new(new WpfImageCodec(), detector, folder);
+        await model.LoadPagesAsync();
+        model.Select(1);
+        await model.AutoCropAsync();
+        Assert.Equal(90, model.Pages[1].Page.Rotation);
+        Assert.Equal(0, model.Pages[0].Page.Rotation);
+        Assert.Equal(0, model.Pages[2].Page.Rotation);
+        Assert.Equal(1, detector.Calls);
+        await model.UndoAsync();
+        Assert.Equal(0, model.Pages[1].Page.Rotation);
+        Assert.False(model.Pages[1].Page.WhiteBackground);
+    });
+
+    private sealed class TestOrientationDetector : IScanOrientationDetector
+    {
+        public int Calls { get; private set; }
+        public int? Detect(PdfBitmap bitmap, string tessdataFolder, CancellationToken cancellationToken)
+        { Calls++; return 90; }
+    }
+
     [Theory]
     [InlineData(ScanPreset.BlackAndWhiteDocument, 300, ScanColorMode.BlackAndWhite, 80)]
     [InlineData(ScanPreset.ColorDocument, 200, ScanColorMode.Color, 80)]

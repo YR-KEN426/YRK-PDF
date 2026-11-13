@@ -24,6 +24,9 @@ public partial class ScanDialog : Window
     private bool _fit = true, _cropping, _drawingCrop;
     private Point _cropStart;
     private int _previewVersion;
+    private int _adjustmentVersion;
+    private bool _showingAdjustments;
+    private ScanPageEntry? _adjustmentEntry;
     public ScanRequest? Request { get; private set; }
 
     public ScanDialog() : this(new ScanSession(), new FakeScannerService()) { _ownsSession = true; }
@@ -38,7 +41,7 @@ public partial class ScanDialog : Window
         Ocr.IsChecked = _saved.ScanOcr;
         Loaded += OnLoaded;
         Closing += OnClosing;
-        Closed += (_, _) => { if (_ownsSession) session.Dispose(); };
+        Closed += (_, _) => { ++_adjustmentVersion; ++_previewVersion; if (_ownsSession) session.Dispose(); };
         UpdateButtons();
     }
 
@@ -216,6 +219,7 @@ public partial class ScanDialog : Window
         ProgressArea.Visibility = _working ? Visibility.Visible : Visibility.Collapsed;
         NoticeText.Text = string.Join(Environment.NewLine, _model.Notices);
         NoticeBand.Visibility = _model.Notices.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        ShowAdjustments();
     }
     private void OnCancel(object sender, RoutedEventArgs e) => _cancel?.Cancel();
     private void OnClosing(object? sender, CancelEventArgs e)
@@ -260,7 +264,58 @@ public partial class ScanDialog : Window
         UpdateButtons();
         _ = RefreshPreviewAsync();
     }
-    private async void OnAutoCrop(object sender, RoutedEventArgs e) { ReadSettings(); await WorkAsync(_model.AutoCropAsync); }
+    private async void OnAutoCrop(object sender, RoutedEventArgs e)
+    {
+        ReadSettings();
+        await WorkAsync(async () => { await _model.AutoCropAsync(); Message.Text = _model.AdjustmentMessage; });
+    }
+
+    private ScanPageAdjustments ReadAdjustments() => new((int)Brightness.Value, (int)Sharpness.Value,
+        WhiteBackground.IsChecked == true, Straighten.IsChecked == true);
+
+    private void ShowAdjustments()
+    {
+        var selected = _model.SelectedPages;
+        var entry = _model.Current ?? (selected.Count > 0 ? selected[0] : null);
+        _showingAdjustments = true;
+        try
+        {
+            _adjustmentEntry = entry;
+            AdjustmentPanel.IsEnabled = entry is not null;
+            var edits = entry?.Page.Adjustments ?? new();
+            Brightness.Value = edits.Brightness;
+            Sharpness.Value = edits.Sharpness;
+            WhiteBackground.IsChecked = edits.WhiteBackground;
+            Straighten.IsChecked = edits.Straighten ?? _model.Settings.AutoStraighten;
+        }
+        finally { _showingAdjustments = false; }
+    }
+
+    private async void OnAdjustmentChanged(object sender, RoutedEventArgs e)
+    {
+        if (_showingAdjustments || _working || _adjustmentEntry is not { } entry) return;
+        _model.AdjustCurrent(entry, ReadAdjustments());
+        var version = ++_adjustmentVersion;
+        await Task.Delay(120);
+        if (version != _adjustmentVersion || _working || _adjustmentEntry != entry) return;
+        await RefreshPreviewAsync(); // Always render the cached screen-sized image first.
+        // The estimate is a separate encoding pass after the controls have been idle.
+        await Task.Delay(600);
+        if (version != _adjustmentVersion || _working || _adjustmentEntry != entry) return;
+        try { await _model.RefreshAsync(entry); if (version == _adjustmentVersion) UpdateButtons(); }
+        catch (Exception ex) { Message.Text = ex.Message; }
+    }
+
+    private async void OnApplyAll(object sender, RoutedEventArgs e)
+    {
+        var edits = ReadAdjustments();
+        await WorkAsync(() => _model.ApplyAdjustmentsAsync(edits, true));
+    }
+    private async void OnApplySelected(object sender, RoutedEventArgs e)
+    {
+        var edits = ReadAdjustments();
+        await WorkAsync(() => _model.ApplyAdjustmentsAsync(edits, false));
+    }
     private async void OnCrop(object sender, RoutedEventArgs e)
     {
         if (_working || _model.Current is null) return;

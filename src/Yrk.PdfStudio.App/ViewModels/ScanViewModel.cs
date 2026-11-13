@@ -13,7 +13,6 @@ namespace Yrk.PdfStudio.App.ViewModels;
 
 public sealed class ScanViewModel(ScanSession session, IScannerService scanner, Dispatcher dispatcher) : ObservableObject
 {
-    private readonly ScanPageProcessor _processor = new(new WpfImageCodec());
     public ScanSession Session { get; } = session;
     public ObservableCollection<ScanPageEntry> Pages { get; } = [];
     public HashSet<string> Notices { get; } = [];
@@ -29,6 +28,8 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     public bool CanRedo => _redo.Count > 0;
     public long EstimatedBytes => Pages.Sum(p => p.EncodedBytes);
     public string SizeSummary => Loc.F("{0} pages · approximately {1:0.00} MB", Pages.Count, EstimatedBytes / 1_000_000.0);
+    public string AdjustmentMessage { get; private set; } = string.Empty;
+    internal ScanPageProcessor Processor { get; set; } = new(new WpfImageCodec());
 
     public void ApplyPreset(ScanPreset preset)
     {
@@ -54,8 +55,8 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     }
 
     public void Navigate(int delta, bool extend = false) => Select(Math.Clamp(Pages.IndexOf(Current!) + delta, 0, Math.Max(0, Pages.Count - 1)), shift: extend);
-    private sealed record PageState(ScanPageEntry Entry, int Rotation, NormalizedRect? Crop, bool Selected);
-    private PageState[] Snapshot() => Pages.Select(p => new PageState(p, p.Page.Rotation, p.Page.Crop, p.IsSelected)).ToArray();
+    private sealed record PageState(ScanPageEntry Entry, int Rotation, NormalizedRect? Crop, bool Selected, ScanPageAdjustments Adjustments);
+    private PageState[] Snapshot() => Pages.Select(p => new PageState(p, p.Page.Rotation, p.Page.Crop, p.IsSelected, p.Page.Adjustments)).ToArray();
     private void Remember() { _undo.Push(Snapshot()); _redo.Clear(); }
     private async Task RestoreAsync(PageState[] state)
     {
@@ -63,6 +64,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         foreach (var s in state)
         {
             s.Entry.Page.Rotation = s.Rotation; s.Entry.Page.Crop = s.Crop; s.Entry.IsSelected = s.Selected;
+            s.Entry.Page.Adjustments = s.Adjustments;
             Pages.Add(s.Entry);
             await RefreshAsync(s.Entry);
         }
@@ -134,6 +136,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
                 dispatcher.Invoke(() =>
                 {
                     var entry = new ScanPageEntry(saved);
+                    if (Preset == ScanPreset.Receipt) saved.WhiteBackground = true;
                     if (PaperSize != "Original")
                     {
                         var raw = page.Bitmap;
@@ -157,11 +160,13 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     {
         var settings = Settings;
         var rotation = entry.Page.Rotation;
+        var crop = entry.Page.Crop;
+        var edits = entry.Page.Adjustments;
         var result = await Task.Run(() =>
         {
-            var page = Session.Read(entry.Page);
-            var analysis = _processor.Analyze(page, settings, rotation);
-            var processed = _processor.Process(page, settings, rotation, entry.Page.Crop);
+            var page = Session.Read(entry.Page) with { Adjustments = edits };
+            var processed = Processor.Process(page, settings, rotation, crop);
+            var previewPage = entry.PreviewPage ?? ScanPageProcessor.CreatePreviewPage(page, 1400);
             var full = Decode(processed.Data);
             var scale = Math.Min(1, 160.0 / Math.Max(full.PixelWidth, full.PixelHeight));
             var visual = new DrawingVisual();
@@ -184,10 +189,12 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
                 document.Save(output, false);
                 bytes = output.Length;
             }
-            return (analysis, source, bytes);
+            return (processed.IsBlank, source, bytes, previewPage);
         });
-        entry.Page.IsBlank = result.analysis.IsBlank;
-        entry.Blank = result.analysis.IsBlank ? Loc.T("Blank") : string.Empty;
+        if (entry.Page.Adjustments != edits || entry.Page.Rotation != rotation || entry.Page.Crop != crop || Settings != settings) return;
+        entry.PreviewPage = result.previewPage;
+        entry.Page.IsBlank = result.IsBlank;
+        entry.Blank = result.IsBlank ? Loc.T("Blank") : string.Empty;
         entry.Thumbnail = result.source;
         entry.EncodedBytes = result.bytes;
     }
@@ -199,24 +206,60 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         image.Freeze();
         return image;
     }
-    public Task<BitmapSource> PreviewAsync(ScanPageEntry entry) => Task.Run(() =>
-        (BitmapSource)Decode(_processor.Process(Session.Read(entry.Page), Settings, entry.Page.Rotation, entry.Page.Crop).Data));
+    public Task<BitmapSource> PreviewAsync(ScanPageEntry entry) => RenderPreviewAsync(entry, true);
 
-    public Task<System.Windows.Media.Imaging.BitmapSource> CropPreviewAsync(ScanPageEntry entry) => Task.Run(() =>
+    public Task<BitmapSource> CropPreviewAsync(ScanPageEntry entry) => RenderPreviewAsync(entry, false);
+
+    private Task<BitmapSource> RenderPreviewAsync(ScanPageEntry entry, bool crop)
     {
-        var preview = _processor.RenderPreview(Session.Read(entry.Page), Settings, entry.Page.Rotation, 1400);
-        var image = BitmapSource.Create(preview.Width, preview.Height, 96, 96, PixelFormats.Bgra32, null, preview.Pixels, preview.Stride);
-        image.Freeze();
-        return image;
-    });
+        var settings = Settings;
+        var rotation = entry.Page.Rotation;
+        var edits = entry.Page.Adjustments;
+        var rectangle = entry.Page.Crop;
+        return Task.Run<BitmapSource>(() =>
+        {
+            var small = entry.PreviewPage ??= ScanPageProcessor.CreatePreviewPage(Session.Read(entry.Page), 1400);
+            var preview = Processor.RenderPreview(small with { Adjustments = edits }, settings, rotation, 1400,
+                crop: rectangle, applyCrop: crop);
+            var image = BitmapSource.Create(preview.Width, preview.Height, 96, 96, PixelFormats.Bgra32, null, preview.Pixels, preview.Stride);
+            image.Freeze();
+            return image;
+        });
+    }
+
+    public void AdjustCurrent(ScanPageEntry entry, ScanPageAdjustments edits)
+    {
+        edits.Validate();
+        if (entry.Page.Adjustments == edits) return;
+        Remember();
+        entry.Page.Adjustments = edits;
+    }
+
+    public async Task ApplyAdjustmentsAsync(ScanPageAdjustments edits, bool allPages)
+    {
+        edits.Validate();
+        var targets = allPages ? Pages.ToArray() : SelectedPages.ToArray();
+        if (targets.Length == 0) return;
+        Remember();
+        foreach (var entry in targets) entry.Page.Adjustments = edits;
+        foreach (var entry in targets) await RefreshAsync(entry);
+    }
 
     public async Task AutoCropAsync()
     {
         if (SelectedPages.Count == 0) return;
         Remember();
+        AdjustmentMessage = string.Empty;
         foreach (var entry in SelectedPages)
         {
-            entry.Page.Crop = (await Task.Run(() => _processor.Analyze(Session.Read(entry.Page), Settings with { AutoCrop = true }, entry.Page.Rotation))).Keep;
+            entry.Page.Straighten = true;
+            entry.Page.WhiteBackground = true;
+            var page = entry.PreviewPage ??= await Task.Run(() => ScanPageProcessor.CreatePreviewPage(Session.Read(entry.Page), 1400));
+            var rotation = await Task.Run(() => Processor.DetectOrientation(page, entry.Page.Rotation));
+            entry.Page.Rotation = (entry.Page.Rotation + rotation) % 360;
+            entry.Page.Crop = (await Task.Run(() => Processor.Analyze(page with { Adjustments = entry.Page.Adjustments },
+                Settings with { AutoCrop = true, AutoStraighten = true }, entry.Page.Rotation))).Keep;
+            if (entry.Page.Crop is null) AdjustmentMessage = Loc.T("No edges to crop were found");
             await RefreshAsync(entry);
         }
     }
@@ -270,6 +313,7 @@ public enum ScanPreset { BlackAndWhiteDocument, ColorDocument, Receipt, TwoSided
 public sealed class ScanPageEntry(ScanSessionPage page) : ObservableObject
 {
     public ScanSessionPage Page { get; } = page;
+    internal ScannedPage? PreviewPage { get; set; }
     public long EncodedBytes { get; set; }
     private bool _isSelected;
     public bool IsSelected { get => _isSelected; set => SetProperty(ref _isSelected, value); }

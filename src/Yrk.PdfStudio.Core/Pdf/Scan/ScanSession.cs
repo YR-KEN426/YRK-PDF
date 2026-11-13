@@ -8,6 +8,7 @@ public sealed class ScanSessionPage
         DpiX = page.DpiX;
         DpiY = page.DpiY;
         Notices = page.Notices?.ToArray() ?? [];
+        Adjustments = page.Adjustments ?? new();
     }
 
     public string FilePath { get; }
@@ -17,6 +18,16 @@ public sealed class ScanSessionPage
     public int Rotation { get; set; }
     public NormalizedRect? Crop { get; set; }
     public bool IsBlank { get; set; }
+    private ScanPageAdjustments _adjustments = new();
+    public ScanPageAdjustments Adjustments
+    {
+        get => _adjustments;
+        set { ArgumentNullException.ThrowIfNull(value); value.Validate(); _adjustments = value; }
+    }
+    public int Brightness { get => Adjustments.Brightness; set => Adjustments = Adjustments with { Brightness = value }; }
+    public int Sharpness { get => Adjustments.Sharpness; set => Adjustments = Adjustments with { Sharpness = value }; }
+    public bool WhiteBackground { get => Adjustments.WhiteBackground; set => Adjustments = Adjustments with { WhiteBackground = value }; }
+    public bool Straighten { get => Adjustments.Straighten ?? true; set => Adjustments = Adjustments with { Straighten = value }; }
 }
 
 /// <summary>Owns only its freshly created directory. No caller-supplied file is ever deleted.</summary>
@@ -118,7 +129,7 @@ public sealed class ScanSession : IDisposable
             var count = checked(stride * h);
             if (w <= 0 || h <= 0 || stride < checked(w * 4) || stream.Length - stream.Position != count)
                 throw new InvalidDataException("Invalid scan page file.");
-            return new(new(w, h, stride, reader.ReadBytes(count)), page.DpiX, page.DpiY, page.Notices);
+            return new(new(w, h, stride, reader.ReadBytes(count)), page.DpiX, page.DpiY, page.Notices, page.Adjustments);
         }
     }
 

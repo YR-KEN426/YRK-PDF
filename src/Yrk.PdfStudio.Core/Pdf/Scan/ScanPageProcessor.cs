@@ -1,14 +1,56 @@
+using Tesseract;
+using Yrk.PdfStudio.Core.Pdf.Ocr;
+
 namespace Yrk.PdfStudio.Core.Pdf.Scan;
 
-/// <summary>Pixel operations stay independent of WPF; only the injected JPEG codec is platform-specific.</summary>
-public sealed class ScanPageProcessor(IPdfImageCodec codec)
+/// <summary>Returns the clockwise correction; null means no reliable orientation was found.</summary>
+public interface IScanOrientationDetector
 {
+    int? Detect(PdfBitmap bitmap, string tessdataFolder, CancellationToken cancellationToken);
+}
+
+public sealed class TesseractScanOrientationDetector : IScanOrientationDetector
+{
+    public int? Detect(PdfBitmap bitmap, string tessdataFolder, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            using var engine = new TesseractEngine(tessdataFolder, "osd", EngineMode.TesseractOnly);
+            using var pix = Pix.LoadFromMemory(TesseractOcrEngine.GrayBmp(bitmap));
+            using var page = engine.Process(pix, PageSegMode.OsdOnly);
+            page.DetectBestOrientation(out int orientation, out var confidence);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (confidence < 15) return null;
+            return (360 - orientation) % 360;
+        }
+        catch (Exception ex) when (ex is TesseractException or DllNotFoundException or BadImageFormatException or InvalidOperationException or IOException or UnauthorizedAccessException)
+        { return null; }
+    }
+}
+
+/// <summary>Pixel operations stay independent of WPF; only the injected JPEG codec is platform-specific.</summary>
+public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDetector? orientationDetector = null, string? tessdataFolder = null)
+{
+    /// <summary>Optional OSD is used only by Auto adjust. This path never downloads data.</summary>
+    public int DetectOrientation(ScannedPage page, int rotation = 0, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var folder = tessdataFolder ?? new OcrLanguageData().Folder;
+        if (!File.Exists(Path.Combine(folder, "osd.traineddata"))) return 0;
+        var small = CreatePreviewPage(page, 1600, ct);
+        var image = Adjust(Rotate(small.Bitmap, rotation, ct), new(WhiteBackground: true), ct);
+        var correction = (orientationDetector ?? new TesseractScanOrientationDetector()).Detect(image, folder, ct);
+        return correction is 0 or 90 or 180 or 270 ? correction.Value : 0;
+    }
+
     public ProcessedScanPage Process(ScannedPage page, ScanSettings settings, int rotation = 0,
         NormalizedRect? crop = null, CancellationToken cancellationToken = default)
     {
         var ct = cancellationToken;
         var (bitmap, dpiX, dpiY, analysis) = Prepare(page, settings, rotation, ct);
         bitmap = Crop(bitmap, crop ?? analysis.Keep, ct);
+        bitmap = Adjust(bitmap, page.Adjustments ?? new(), ct);
         var gray = settings.ColorMode == ScanColorMode.Color ? null : Gray(bitmap, ct);
         byte[] data;
         if (settings.ColorMode == ScanColorMode.BlackAndWhite)
@@ -28,11 +70,37 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec)
     public ScanPageAnalysis Analyze(ScannedPage page, ScanSettings settings, int rotation = 0, CancellationToken ct = default)
         => Prepare(page, settings, rotation, ct).Analysis;
 
-    public PdfBitmap RenderPreview(ScannedPage page, ScanSettings settings, int rotation, int maxSide, CancellationToken ct = default)
+    public PdfBitmap RenderPreview(ScannedPage page, ScanSettings settings, int rotation, int maxSide,
+        NormalizedRect? crop = null, bool applyCrop = false, CancellationToken ct = default)
+    {
+        var prepared = Prepare(CreatePreviewPage(page, maxSide, ct), settings, rotation, ct);
+        var bitmap = applyCrop ? Crop(prepared.Bitmap, crop ?? prepared.Analysis.Keep, ct) : prepared.Bitmap;
+        bitmap = Adjust(bitmap, page.Adjustments ?? new(), ct);
+        if (settings.ColorMode == ScanColorMode.Color) return bitmap;
+        var gray = Gray(bitmap, ct);
+        var threshold = settings.ColorMode == ScanColorMode.BlackAndWhite ? BilevelThreshold(gray) : -1;
+        var pixels = new byte[checked(bitmap.Width * bitmap.Height * 4)];
+        for (var y = 0; y < bitmap.Height; y++)
+        {
+            ct.ThrowIfCancellationRequested();
+            for (var x = 0; x < bitmap.Width; x++)
+            {
+                var i = y * bitmap.Width + x;
+                var value = threshold < 0 ? gray[i] : gray[i] > threshold ? (byte)255 : (byte)0;
+                pixels[i * 4] = pixels[i * 4 + 1] = pixels[i * 4 + 2] = value;
+                pixels[i * 4 + 3] = 255;
+            }
+        }
+        return new(bitmap.Width, bitmap.Height, bitmap.Width * 4, pixels);
+    }
+
+    public static ScannedPage CreatePreviewPage(ScannedPage page, int maxSide, CancellationToken ct = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSide);
-        var bitmap = Prepare(page, settings, rotation, ct).Bitmap;
-        return Preview(bitmap, ScanCleanup.Dpi, ScanCleanup.Dpi, ct, maxSide);
+        Validate(page);
+        var bitmap = Preview(page.Bitmap, ScanCleanup.Dpi, ScanCleanup.Dpi, ct, maxSide);
+        return page with { Bitmap = bitmap, DpiX = page.DpiX * bitmap.Width / page.Bitmap.Width,
+            DpiY = page.DpiY * bitmap.Height / page.Bitmap.Height };
     }
 
     private static (PdfBitmap Bitmap, double DpiX, double DpiY, ScanPageAnalysis Analysis) Prepare(
@@ -42,23 +110,92 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec)
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
         Validate(page);
+        var adjustments = page.Adjustments ?? new();
+        adjustments.Validate();
         ct.ThrowIfCancellationRequested();
         var bitmap = Rotate(page.Bitmap, rotation, ct);
         var quarterTurn = ((rotation % 180) + 180) % 180 != 0;
         var dpiX = quarterTurn ? page.DpiY : page.DpiX;
         var dpiY = quarterTurn ? page.DpiX : page.DpiY;
         // ScanCleanup is calibrated at 100 dpi, not at the scanner's full resolution.
-        var check = ScanCleanup.Check(Preview(bitmap, dpiX, dpiY, ct));
-        if (settings.AutoStraighten && check.Straighten != 0)
+        var checkImage = Preview(bitmap, dpiX, dpiY, ct);
+        var edgeCheck = ScanCleanup.Check(checkImage);
+        var check = adjustments.WhiteBackground ? ScanCleanup.Check(Adjust(checkImage, new(WhiteBackground: true), ct)) : edgeCheck;
+        // Find the physical edge before whitening removes the paper/glass contrast.
+        var originalKeep = edgeCheck.Keep;
+        var straighten = adjustments.Straighten ?? settings.AutoStraighten;
+        if (straighten && check.Straighten != 0)
             bitmap = Straighten(bitmap, check.Straighten, ct);
-        // Recheck edges after straightening; the previous rectangle was in the old coordinates.
-        var keep = settings.AutoCrop
-            ? ScanCleanup.Check(Preview(bitmap, dpiX, dpiY, ct)).Keep : null;
+        var keep = settings.AutoCrop ? originalKeep : null;
         // Deskew leaves white corners around formerly straight black edges. Preserve an inscribed
         // rectangle from the original edge check, expressed in the straightened canvas coordinates.
-        if (settings.AutoCrop && settings.AutoStraighten && check.Straighten != 0 && check.Keep is { } originalKeep)
-            keep = StraightenedKeep(originalKeep, bitmap.Width, bitmap.Height, check.Straighten);
+        if (settings.AutoCrop && straighten && check.Straighten != 0 && originalKeep is { } original)
+            keep = StraightenedKeep(original, bitmap.Width, bitmap.Height, check.Straighten);
         return (bitmap, dpiX, dpiY, new(check.IsBlank, keep));
+    }
+
+    private static PdfBitmap Adjust(PdfBitmap source, ScanPageAdjustments edits, CancellationToken ct)
+    {
+        if (edits.Brightness == 0 && edits.Sharpness == 0 && !edits.WhiteBackground) return source;
+        var gray = Gray(source, ct);
+        var background = 255;
+        var black = 0;
+        if (edits.WhiteBackground)
+        {
+            var histogram = new int[256];
+            foreach (var value in gray) histogram[value]++;
+            int Percentile(int count)
+            {
+                var sum = 0;
+                for (var i = 0; i < 256; i++) { sum += histogram[i]; if (sum >= count) return i; }
+                return 255;
+            }
+            background = Math.Max(1, Percentile(Math.Max(1, (int)(gray.Length * 0.90))));
+            black = Math.Min(background - 1, Percentile(Math.Max(1, (int)(gray.Length * 0.005))));
+            black = Math.Max(0, Math.Min(black, background - 32));
+        }
+        var pixels = new byte[checked(source.Width * source.Height * 4)];
+        for (var y = 0; y < source.Height; y++)
+        {
+            ct.ThrowIfCancellationRequested();
+            for (var x = 0; x < source.Width; x++)
+            {
+                var index = y * source.Width + x;
+                double tone = gray[index];
+                if (edits.WhiteBackground)
+                {
+                    var stretched = Math.Clamp((tone - black) * 255 / (background - black), 0, 255);
+                    // Preserve/darken faint ink, while allowing paper pixels to reach white.
+                    tone = tone < background - 12 ? Math.Min(tone, stretched) : stretched;
+                }
+                var delta = tone - gray[index] + edits.Brightness * 2;
+                for (var channel = 0; channel < 3; channel++)
+                {
+                    double value = source.Pixels[y * source.Stride + x * 4 + channel] + delta;
+                    pixels[index * 4 + channel] = (byte)Math.Clamp((int)Math.Round(value), 0, 255);
+                }
+                pixels[index * 4 + 3] = 255;
+            }
+        }
+        if (edits.Sharpness == 0) return new(source.Width, source.Height, source.Width * 4, pixels);
+        var result = (byte[])pixels.Clone();
+        // Unsharp mask for positive values, the same local blur blended in for negative ones.
+        var amount = edits.Sharpness / 25.0;
+        for (var y = 1; y < source.Height - 1; y++)
+        {
+            ct.ThrowIfCancellationRequested();
+            for (var x = 1; x < source.Width - 1; x++)
+                for (var c = 0; c < 3; c++)
+                {
+                    var i = (y * source.Width + x) * 4 + c;
+                    var sum = 0;
+                    for (var dy = -1; dy <= 1; dy++)
+                        for (var dx = -1; dx <= 1; dx++) sum += pixels[((y + dy) * source.Width + x + dx) * 4 + c];
+                    var blend = amount < 0 ? amount / 2 : amount;
+                    result[i] = (byte)Math.Clamp((int)Math.Round(pixels[i] + blend * (pixels[i] - sum / 9.0)), 0, 255);
+                }
+        }
+        return new(source.Width, source.Height, source.Width * 4, result);
     }
 
     internal static void Validate(ScannedPage page)
@@ -196,7 +333,7 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec)
         return gray;
     }
 
-    private static byte[] BilevelBmp(byte[] gray, int width, int height, CancellationToken ct)
+    private static int BilevelThreshold(byte[] gray)
     {
         var histogram = new long[256];
         foreach (var value in gray) histogram[value]++;
@@ -214,6 +351,12 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec)
             var score = below * (double)(total - below) * difference * difference;
             if (score > best) (best, threshold) = (score, t);
         }
+        return threshold;
+    }
+
+    private static byte[] BilevelBmp(byte[] gray, int width, int height, CancellationToken ct)
+    {
+        var threshold = BilevelThreshold(gray);
         var stride = checked((width + 31) / 32 * 4);
         using var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream);
