@@ -15,7 +15,7 @@ sent to an AI or cloud service.
 
 ## ดาวน์โหลด / Download
 
-**[yr-ken426.github.io/yrk-easy-pdf-release](https://yr-ken426.github.io/yrk-easy-pdf-release/)**, or the
+**[pdf.yrklab.com](https://pdf.yrklab.com/)**, or the
 newest file under [Releases](https://github.com/YR-KEN426/yrk-easy-pdf-release/releases/latest):
 
 - `YRK.EasyPdf-win-Setup.exe`: ตัวติดตั้ง แนะนำสำหรับคนทั่วไป อัปเดตตัวเองได้ / installer, updates itself

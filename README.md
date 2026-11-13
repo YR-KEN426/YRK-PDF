@@ -5,7 +5,7 @@ organise pages, convert PDF to Word, Excel and PowerPoint, recognise scanned tex
 open AutoCAD drawings (DWG/DXF), all on your own computer. Every feature is free, also for business use,
 with no ads, no account and no tracking. The interface is in Thai and English. (Formerly YRK Easy PDF.)
 
-**Download:** [yr-ken426.github.io/yrk-easy-pdf-release](https://yr-ken426.github.io/yrk-easy-pdf-release/)
+**Download:** [pdf.yrklab.com](https://pdf.yrklab.com/)
 (installer or portable zip, Windows 10/11 x64). The current version is in
 [Directory.Build.props](Directory.Build.props); release notes are in [docs/release-notes](docs/release-notes).
 
@@ -488,6 +488,6 @@ Sponsorship pays for a code-signing certificate, development time and the costs 
   components keep their own licenses, listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) with
   full texts in [licenses](licenses).
 
-The code is Apache-2.0; its Section 6 does not grant trademark rights. The name **YRK PDF** and its logo may be used only for official releases. If you build and distribute your own version, change its name and icon. Download official releases only from the [official website](https://yr-ken426.github.io/yrk-easy-pdf-release/) or the Microsoft Store linked from that site.
+The code is Apache-2.0; its Section 6 does not grant trademark rights. The name **YRK PDF** and its logo may be used only for official releases. If you build and distribute your own version, change its name and icon. Download official releases only from the [official website](https://pdf.yrklab.com/) or the Microsoft Store linked from that site.
 
-โค้ดใช้สัญญาอนุญาต Apache-2.0 ซึ่งข้อ 6 ไม่ให้สิทธิ์ใช้เครื่องหมายการค้า ชื่อ **YRK PDF** และโลโก้ใช้ได้เฉพาะรุ่นทางการ หาก build เองแล้วเผยแพร่ ต้องเปลี่ยนชื่อและไอคอน ดาวน์โหลดรุ่นทางการจาก[เว็บไซต์หลัก](https://yr-ken426.github.io/yrk-easy-pdf-release/) หรือ Microsoft Store ที่ลิงก์จากเว็บไซต์นี้เท่านั้น
+โค้ดใช้สัญญาอนุญาต Apache-2.0 ซึ่งข้อ 6 ไม่ให้สิทธิ์ใช้เครื่องหมายการค้า ชื่อ **YRK PDF** และโลโก้ใช้ได้เฉพาะรุ่นทางการ หาก build เองแล้วเผยแพร่ ต้องเปลี่ยนชื่อและไอคอน ดาวน์โหลดรุ่นทางการจาก[เว็บไซต์หลัก](https://pdf.yrklab.com/) หรือ Microsoft Store ที่ลิงก์จากเว็บไซต์นี้เท่านั้น

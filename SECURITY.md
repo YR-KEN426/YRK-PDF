@@ -20,7 +20,7 @@ unless they prefer not to be.
 
 Only the latest release gets security fixes. Installed copies update themselves when update checks are
 on (? Help ▸ About YRK PDF); otherwise download the latest version from the
-[download page](https://yr-ken426.github.io/yrk-easy-pdf-release/).
+[download page](https://pdf.yrklab.com/).
 
 ## What is in scope
 
