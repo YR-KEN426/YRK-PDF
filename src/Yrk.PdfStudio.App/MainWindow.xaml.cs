@@ -1553,6 +1553,7 @@ public partial class MainWindow : Window
         var menu = new ContextMenu { PlacementTarget = (UIElement)sender, Placement = PlacementMode.Bottom };
         menu.Items.Add(new MenuItem { Header = "Combine files…", Command = _viewModel.CombineFilesCommand });
         menu.Items.Add(new MenuItem { Header = "Images to PDF…", Command = _viewModel.ImagesToPdfCommand });
+        menu.Items.Add(new MenuItem { Header = Loc.T("Scan to PDF…"), Command = _viewModel.ScanToPdfCommand });
         menu.Items.Add(new MenuItem { Header = "e-Tax Invoice…", Command = _viewModel.ETaxInvoiceCommand });
         menu.Items.Add(new MenuItem { Header = "Process many files…", Command = _viewModel.BatchCommand });
         menu.Items.Add(new Separator());

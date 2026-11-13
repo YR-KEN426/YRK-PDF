@@ -6,11 +6,42 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec)
     public ProcessedScanPage Process(ScannedPage page, ScanSettings settings, int rotation = 0,
         NormalizedRect? crop = null, CancellationToken cancellationToken = default)
     {
+        var ct = cancellationToken;
+        var (bitmap, dpiX, dpiY, analysis) = Prepare(page, settings, rotation, ct);
+        bitmap = Crop(bitmap, crop ?? analysis.Keep, ct);
+        var gray = settings.ColorMode == ScanColorMode.Color ? null : Gray(bitmap, ct);
+        byte[] data;
+        if (settings.ColorMode == ScanColorMode.BlackAndWhite)
+            data = BilevelBmp(gray!, bitmap.Width, bitmap.Height, ct);
+        else
+        {
+            ct.ThrowIfCancellationRequested();
+            var pixels = gray is null
+                ? new PdfRawPixels(bitmap.Width, bitmap.Height, bitmap.Stride, PdfPixelFormat.Bgra32, bitmap.Pixels)
+                : new PdfRawPixels(bitmap.Width, bitmap.Height, bitmap.Width, PdfPixelFormat.Gray8, gray);
+            data = codec.EncodeJpeg(pixels, bitmap.Width, bitmap.Height, settings.JpegQuality);
+        }
+        ct.ThrowIfCancellationRequested();
+        return new(bitmap.Width, bitmap.Height, dpiX, dpiY, settings.ColorMode, data, analysis.IsBlank);
+    }
+
+    public ScanPageAnalysis Analyze(ScannedPage page, ScanSettings settings, int rotation = 0, CancellationToken ct = default)
+        => Prepare(page, settings, rotation, ct).Analysis;
+
+    public PdfBitmap RenderPreview(ScannedPage page, ScanSettings settings, int rotation, int maxSide, CancellationToken ct = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSide);
+        var bitmap = Prepare(page, settings, rotation, ct).Bitmap;
+        return Preview(bitmap, ScanCleanup.Dpi, ScanCleanup.Dpi, ct, maxSide);
+    }
+
+    private static (PdfBitmap Bitmap, double DpiX, double DpiY, ScanPageAnalysis Analysis) Prepare(
+        ScannedPage page, ScanSettings settings, int rotation, CancellationToken ct)
+    {
         ArgumentNullException.ThrowIfNull(page);
         ArgumentNullException.ThrowIfNull(settings);
         settings.Validate();
         Validate(page);
-        var ct = cancellationToken;
         ct.ThrowIfCancellationRequested();
         var bitmap = Rotate(page.Bitmap, rotation, ct);
         var quarterTurn = ((rotation % 180) + 180) % 180 != 0;
@@ -27,21 +58,7 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec)
         // rectangle from the original edge check, expressed in the straightened canvas coordinates.
         if (settings.AutoCrop && settings.AutoStraighten && check.Straighten != 0 && check.Keep is { } originalKeep)
             keep = StraightenedKeep(originalKeep, bitmap.Width, bitmap.Height, check.Straighten);
-        bitmap = Crop(bitmap, crop ?? keep, ct);
-        var gray = settings.ColorMode == ScanColorMode.Color ? null : Gray(bitmap, ct);
-        byte[] data;
-        if (settings.ColorMode == ScanColorMode.BlackAndWhite)
-            data = BilevelBmp(gray!, bitmap.Width, bitmap.Height, ct);
-        else
-        {
-            ct.ThrowIfCancellationRequested();
-            var pixels = gray is null
-                ? new PdfRawPixels(bitmap.Width, bitmap.Height, bitmap.Stride, PdfPixelFormat.Bgra32, bitmap.Pixels)
-                : new PdfRawPixels(bitmap.Width, bitmap.Height, bitmap.Width, PdfPixelFormat.Gray8, gray);
-            data = codec.EncodeJpeg(pixels, bitmap.Width, bitmap.Height, settings.JpegQuality);
-        }
-        ct.ThrowIfCancellationRequested();
-        return new(bitmap.Width, bitmap.Height, dpiX, dpiY, settings.ColorMode, data, check.IsBlank);
+        return (bitmap, dpiX, dpiY, new(check.IsBlank, keep));
     }
 
     internal static void Validate(ScannedPage page)
@@ -80,11 +97,11 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec)
         return new(w, h, w * 4, pixels);
     }
 
-    private static PdfBitmap Preview(PdfBitmap source, double dpiX, double dpiY, CancellationToken ct)
+    private static PdfBitmap Preview(PdfBitmap source, double dpiX, double dpiY, CancellationToken ct, int maxSide = 1600)
     {
         var scale = Math.Min(1, ScanCleanup.Dpi / Math.Max(dpiX, dpiY));
         // Bound work even if a driver sends a bogus DPI value.
-        scale = Math.Min(scale, 1600.0 / Math.Max(source.Width, source.Height));
+        scale = Math.Min(scale, (double)maxSide / Math.Max(source.Width, source.Height));
         var w = Math.Max(1, (int)Math.Round(source.Width * scale));
         var h = Math.Max(1, (int)Math.Round(source.Height * scale));
         var pixels = new byte[checked(w * h * 4)];

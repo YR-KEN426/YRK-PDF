@@ -21,6 +21,7 @@ public partial class App : Application
         try { CleanupOldLogs(LogFolder, DateTime.Now); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
 
+
         var language = AppSettings.Load().Language;
         Loc.Language = language is Loc.English or Loc.Thai ? language : Loc.SystemDefault;
         UiTranslator.Start();
@@ -39,6 +40,12 @@ public partial class App : Application
             finally { foreach (var process in siblings) process.Dispose(); }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+
+        _ = Task.Run(() =>
+        {
+            try { Yrk.PdfStudio.Core.Pdf.Scan.ScanSession.SweepStale(DateTime.UtcNow, TimeSpan.FromDays(1)); }
+            catch (Exception ex) { LogMessage("Scan cleanup failed: " + ex); }
+        });
 
         _engine = new PdfiumEngine();
         var viewModel = new MainViewModel(_engine, new DialogService(), new SignatureStore());

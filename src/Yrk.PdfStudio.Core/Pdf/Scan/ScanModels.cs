@@ -4,6 +4,7 @@ public enum ScanColorMode { Color, Grayscale, BlackAndWhite }
 public enum ScanSource { Flatbed, Feeder, Duplex }
 
 public sealed record ScanDevice(string Id, string Name);
+public sealed record ScanPageAnalysis(bool IsBlank, NormalizedRect? Keep);
 public sealed record ScanCapabilities(IReadOnlyList<ScanSource> Sources, IReadOnlyList<int> Dpi, IReadOnlyList<ScanColorMode> ColorModes);
 
 public sealed record ScanSettings(

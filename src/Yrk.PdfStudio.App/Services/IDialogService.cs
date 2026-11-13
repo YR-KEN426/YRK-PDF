@@ -3,6 +3,7 @@ using System.Windows.Media.Imaging;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Ocr;
+using Yrk.PdfStudio.Core.Pdf.Scan;
 
 namespace Yrk.PdfStudio.App.Services;
 
@@ -34,6 +35,9 @@ public sealed record DigitalSignOptions(
     Uri? TimestampUrl,
     Core.Pdf.Signatures.PdfCertification Certification = Core.Pdf.Signatures.PdfCertification.None,
     bool LongTermValidation = false);
+
+/// <summary>The caller owns the session, including after the dialog closes.</summary>
+public sealed record ScanRequest(ScanSession Session, ScanSettings Settings, bool Ocr, IReadOnlyList<string> OcrLanguages);
 
 /// <summary>Keeps view models free of window and dialog code.</summary>
 public interface IDialogService
@@ -82,6 +86,7 @@ public interface IDialogService
     IReadOnlyList<string>? AskCombine(IReadOnlyList<string> initialFiles);
 
     ImagesToPdfRequest? AskImagesToPdf();
+    ScanRequest? AskScan(ScanSession session, IScannerService scanner);
 
     /// <summary>The e-Tax Invoice form; null when cancelled.</summary>
     Yrk.PdfStudio.Core.Pdf.ETax.TaxInvoice? AskETaxInvoice(ETaxSettings settings);

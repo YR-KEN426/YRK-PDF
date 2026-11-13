@@ -128,7 +128,10 @@ internal sealed class ScriptedDialogs
         {
             Calls.Add(new(method.Name, args?.ToArray() ?? []));
             if (_answers.TryGetValue(method.Name, out var answers) && answers.Count > 0)
-                return answers.Dequeue();
+            {
+                var answer = answers.Dequeue();
+                return answer is Func<object?[], object?> callback ? callback(args ?? []) : answer;
+            }
             if (method.Name is "ShowError" or "ShowInfo") return null;
             throw new InvalidOperationException($"No scripted answer for {method.Name}");
         };

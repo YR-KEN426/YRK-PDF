@@ -39,6 +39,8 @@ public partial class MainWindow
             Loc.T("Split PDF"), Loc.T("Save chosen pages, or every few pages, as separate files")),
         new("pages", "organize", "\uE7C3",
             Loc.T("Organize pages"), Loc.T("Turn, delete, move, insert and extract pages")),
+        new("scanpdf", "organize", "\uE8FE",
+            Loc.T("Scan to PDF"), Loc.T("Scan paper from your scanner straight into a PDF, with optional text recognition"), NeedsDocument: false, Accounting: true),
         new("scan", "organize", "",
             Loc.T("Clean up scans"), Loc.T("Straighten tilted pages, trim dark edges, delete blank pages"), Accounting: true),
         new("images", "organize", "\uEB9F",
@@ -208,6 +210,9 @@ public partial class MainWindow
         {
             case "combine":
                 await tab.CombineFilesCommand.ExecuteAsync(null);
+                return;
+            case "scanpdf":
+                await tab.ScanToPdfCommand.ExecuteAsync(null);
                 return;
             case "images":
                 await tab.ImagesToPdfCommand.ExecuteAsync(null);

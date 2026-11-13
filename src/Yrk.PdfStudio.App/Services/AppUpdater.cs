@@ -209,6 +209,13 @@ public sealed class AppSettings
     private static readonly string FilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "settings.json");
 
+    public int ScanDpi { get; set; } = 300;
+    public string ScanColorMode { get; set; } = "Color";
+    public string ScanSource { get; set; } = "Flatbed";
+    public int ScanJpegQuality { get; set; } = 80;
+    public bool ScanOcr { get; set; }
+    public string ScanDeviceName { get; set; } = string.Empty;
+
     public bool CheckForUpdates { get; set; } = true;
 
     /// <summary>The user has answered the first-start question about automatic updates.</summary>

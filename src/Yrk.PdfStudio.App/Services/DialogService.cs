@@ -8,11 +8,18 @@ using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Views;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Ocr;
+using Yrk.PdfStudio.Core.Pdf.Scan;
 
 namespace Yrk.PdfStudio.App.Services;
 
 public sealed class DialogService : IDialogService
 {
+    public ScanRequest? AskScan(ScanSession session, IScannerService scanner)
+    {
+        var dialog = new ScanDialog(session, scanner) { Owner = Owner };
+        return dialog.ShowDialog() == true ? dialog.Request : null;
+    }
+
     public const string Caption = "YRK PDF";
 
     private const string PdfFilter = "PDF documents (*.pdf)|*.pdf|All files (*.*)|*.*";

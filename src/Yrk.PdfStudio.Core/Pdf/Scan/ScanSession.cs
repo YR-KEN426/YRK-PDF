@@ -139,26 +139,33 @@ public sealed class ScanSession : IDisposable
 
     /// <summary>Rejects traversal and sibling-prefix paths. Removes links themselves, never their targets.</summary>
     internal void DeleteOwnedPath(string path)
+        => DeleteOwnedPath(DirectoryPath, path, TempRoot);
+
+    private static void DeleteOwnedPath(string root, string path, string tempRoot)
     {
-        var full = RequireOwned(path);
+        var full = RequireOwned(root, path);
         // Check ancestors, but allow deletion of the final link itself.
-        RequireNoLinks(Path.GetDirectoryName(full)!);
-        if (!File.Exists(full) && !Directory.Exists(full)) return;
-        var attributes = File.GetAttributes(full);
+        RequireNoLinks(Path.GetDirectoryName(full)!, tempRoot);
+        FileAttributes attributes;
+        try { attributes = File.GetAttributes(full); }
+        catch (FileNotFoundException) { return; }
+        catch (DirectoryNotFoundException) { return; }
         if ((attributes & FileAttributes.Directory) == 0) File.Delete(full);
         else
         {
             if ((attributes & FileAttributes.ReparsePoint) == 0)
-                foreach (var child in Directory.EnumerateFileSystemEntries(full)) DeleteOwnedPath(child);
+                foreach (var child in Directory.EnumerateFileSystemEntries(full)) DeleteOwnedPath(root, child, tempRoot);
             Directory.Delete(full, recursive: false);
         }
     }
 
-    private string RequireOwned(string path)
+    private string RequireOwned(string path) => RequireOwned(DirectoryPath, path);
+
+    private static string RequireOwned(string root, string path)
     {
         var full = Path.GetFullPath(path);
-        if (!string.Equals(full, DirectoryPath, StringComparison.OrdinalIgnoreCase)
-            && !full.StartsWith(DirectoryPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(full, root, StringComparison.OrdinalIgnoreCase)
+            && !full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new ArgumentException("Path is outside this scan session.", nameof(path));
         return full;
     }
@@ -167,11 +174,43 @@ public sealed class ScanSession : IDisposable
     // sit behind a junction (profile moved to another drive), and that must not block scanning.
     private static readonly string TempRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
 
-    private static void RequireNoLinks(string path)
+    public static int SweepStale(DateTime nowUtc, TimeSpan maxAge)
+        => SweepStale(nowUtc, maxAge, Path.Combine(TempRoot, "YRK PDF", "scan"), TempRoot);
+
+    internal static int SweepStale(DateTime nowUtc, TimeSpan maxAge, string scanRoot, string tempRoot)
+    {
+        var removed = 0;
+        try
+        {
+            tempRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(tempRoot));
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(scanRoot));
+            if (!string.Equals(root, Path.Combine(tempRoot, "YRK PDF", "scan"), StringComparison.OrdinalIgnoreCase)) return 0;
+            RequireNoLinks(root, tempRoot);
+            if (!Directory.Exists(root)) return 0;
+            foreach (var path in Directory.EnumerateFileSystemEntries(root))
+            {
+                try
+                {
+                    var created = File.GetCreationTimeUtc(path);
+                    var written = File.GetLastWriteTimeUtc(path);
+                    if (nowUtc - (created > written ? created : written) <= maxAge) continue;
+                    DeleteOwnedPath(root, path, tempRoot);
+                    removed++;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+        }
+        catch (Exception) { /* Startup maintenance must never prevent startup. */ }
+        return removed;
+    }
+
+    private static void RequireNoLinks(string path) => RequireNoLinks(path, TempRoot);
+
+    private static void RequireNoLinks(string path, string tempRoot)
     {
         for (var current = Path.GetFullPath(path);
-             current is not null && current.Length > TempRoot.Length
-                 && current.StartsWith(TempRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+             current is not null && current.Length > tempRoot.Length
+                 && current.StartsWith(tempRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
              current = Path.GetDirectoryName(current))
             if ((File.Exists(current) || Directory.Exists(current))
                 && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
