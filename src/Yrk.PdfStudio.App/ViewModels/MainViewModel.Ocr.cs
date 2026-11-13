@@ -1,6 +1,7 @@
 using System.IO;
 using System.Net.Http;
 using CommunityToolkit.Mvvm.Input;
+using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Ocr;
 
 namespace Yrk.PdfStudio.App.ViewModels;
@@ -8,6 +9,9 @@ namespace Yrk.PdfStudio.App.ViewModels;
 /// <summary>Text recognition (OCR) for scanned documents.</summary>
 public sealed partial class MainViewModel
 {
+    internal Func<OcrLanguageData> OcrDataFactory = () => new OcrLanguageData();
+    internal Func<IPdfDocument, byte[], OcrOptions, OcrLanguageData, IProgress<OcrProgress>?, CancellationToken, Task<OcrSummary>> OcrRunner = PdfOcr.RecognizeAsync;
+
     private IAsyncRelayCommand? _recognizeTextCommand;
 
     public IAsyncRelayCommand RecognizeTextCommand => _recognizeTextCommand ??= new AsyncRelayCommand(RecognizeTextAsync);
@@ -24,7 +28,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        var data = new OcrLanguageData();
+        var data = OcrDataFactory();
         if (!await EnsureLanguageDataAsync(data, options.Languages))
         {
             return;
@@ -51,7 +55,7 @@ public sealed partial class MainViewModel
                     ReportOperation("Adding the text layer…");
                 }
             });
-            summary = await PdfOcr.RecognizeAsync(doc, input, options, data, progress, cancellationToken);
+            summary = await OcrRunner(doc, input, options, data, progress, cancellationToken);
             if (summary.PagesRecognised == 0)
             {
                 _dialogs.ShowInfo("Every page already contains text, so nothing was changed.\n\nChoose \"All pages\" to recognize them anyway.");

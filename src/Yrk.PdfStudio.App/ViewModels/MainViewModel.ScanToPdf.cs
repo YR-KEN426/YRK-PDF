@@ -49,9 +49,9 @@ public sealed partial class MainViewModel
                     File.Move(temp, output, overwrite: true);
                 });
                 if (!done) return;
-                // STEP6: OCR here
+                var ocrStatus = request.Ocr ? await OcrScannedFileAsync(output, request.OcrLanguages) : null;
                 await OpenFileAsync(output);
-                StatusMessage = Loc.F("Created a PDF with {0} page(s)", count);
+                StatusMessage = ocrStatus ?? Loc.F("Created a PDF with {0} page(s)", count);
                 return;
             }
             catch (Exception ex)

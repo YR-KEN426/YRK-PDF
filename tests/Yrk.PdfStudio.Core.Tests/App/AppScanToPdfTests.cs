@@ -15,7 +15,7 @@ public sealed class AppScanToPdfTests
         scanner.ScanAsync(FakeScannerService.Device, Settings,
             new ScanSessionTests.Sink<ScannedPage>(page => session.Add(page))).GetAwaiter().GetResult();
         observe?.Invoke(session);
-        return new ScanRequest(session, Settings, true, ["tha", "eng"]);
+        return new ScanRequest(session, Settings, false, ["tha", "eng"]);
     };
 
     [Fact]
