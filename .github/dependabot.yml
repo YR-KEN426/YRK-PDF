@@ -11,6 +11,9 @@ updates:
     ignore:
       # PDFsharp is intentionally pinned to [6.2.4] in the Core project.
       - dependency-name: "PDFsharp"
+      # Stay on the .NET 10 (LTS) line of the runtime packages: take 10.0.x servicing, not 11.x majors.
+      - dependency-name: "System.*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
