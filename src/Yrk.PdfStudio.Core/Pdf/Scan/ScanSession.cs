@@ -163,9 +163,16 @@ public sealed class ScanSession : IDisposable
         return full;
     }
 
+    // Only the folders YRK creates (TEMP\YRK PDF\...) are checked: a user's TEMP or profile may itself
+    // sit behind a junction (profile moved to another drive), and that must not block scanning.
+    private static readonly string TempRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath()));
+
     private static void RequireNoLinks(string path)
     {
-        for (var current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
+        for (var current = Path.GetFullPath(path);
+             current is not null && current.Length > TempRoot.Length
+                 && current.StartsWith(TempRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+             current = Path.GetDirectoryName(current))
             if ((File.Exists(current) || Directory.Exists(current))
                 && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
                 throw new IOException("Scan temporary paths must not traverse junctions or symbolic links.");
@@ -176,9 +183,12 @@ public sealed class ScanSession : IDisposable
         lock (_gate)
         {
             if (_disposed) return;
-            DeleteOwnedPath(DirectoryPath);
-            _pages.Clear();
             _disposed = true;
+            _pages.Clear();
+            // A file held open (e.g. by antivirus) must not make Dispose throw; leftovers are removed
+            // by the stale-folder sweep at the next start.
+            try { DeleteOwnedPath(DirectoryPath); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 }
