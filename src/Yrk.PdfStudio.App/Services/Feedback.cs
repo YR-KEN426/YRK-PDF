@@ -30,7 +30,7 @@ public static class Feedback
         $"Language: {Loc.Language}";
 
     /// <summary>The download page: newest version, features and answers to common questions.</summary>
-    public const string WebsiteUrl = "https://yr-ken426.github.io/yrk-easy-pdf-release/";
+    public const string WebsiteUrl = "https://pdf.yrklab.com/";
 
     /// <summary>GitHub Sponsors for supporters outside Thailand.</summary>
     public const string GitHubSponsorsUrl = "https://github.com/sponsors/YR-KEN426";

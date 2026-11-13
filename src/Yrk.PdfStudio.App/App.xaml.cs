@@ -95,9 +95,12 @@ public partial class App : Application
         base.OnExit(e);
     }
 
-    /// <summary>%LOCALAPPDATA%\YRK\EasyPdf\logs, for diagnosing problems users report.</summary>
-    public static string LogFolder { get; internal set; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "logs");
+    /// <summary>YRK_EASYPDF_LOG_DIR when set; otherwise %LOCALAPPDATA%\YRK\EasyPdf\logs.</summary>
+    public static string LogFolder { get; internal set; } = GetDefaultLogFolder(Environment.GetEnvironmentVariable("YRK_EASYPDF_LOG_DIR"));
+
+    internal static string GetDefaultLogFolder(string? logFolder) => !string.IsNullOrWhiteSpace(logFolder)
+        ? logFolder
+        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "logs");
 
     private static void LogError(Exception exception) => LogMessage(exception.ToString());
 

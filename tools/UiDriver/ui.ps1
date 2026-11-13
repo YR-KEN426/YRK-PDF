@@ -108,6 +108,7 @@ function Key([byte]$vk) { Guard; [K]::keybd_event($vk,0,0,[UIntPtr]::Zero); Star
 function Chord([byte]$vk) { Guard; [K]::keybd_event(0x11,0,0,[UIntPtr]::Zero); [K]::keybd_event($vk,0,0,[UIntPtr]::Zero); Start-Sleep -Milliseconds 50; [K]::keybd_event($vk,0,2,[UIntPtr]::Zero); [K]::keybd_event(0x11,0,2,[UIntPtr]::Zero); Start-Sleep 2 }
 function Open-App([string]$file) {
   Get-Process YrkEasyPdf -ErrorAction SilentlyContinue | ForEach-Object { $_.CloseMainWindow() | Out-Null; $_.WaitForExit(10000) | Out-Null }
+  $env:YRK_EASYPDF_LOG_DIR = Join-Path $env:TEMP 'yrk-uidriver-logs'
   Start-Process (Join-Path $PSScriptRoot 'uiapp\YrkEasyPdf.exe') -ArgumentList "`"$file`""
   $sw=[Diagnostics.Stopwatch]::StartNew(); while (-not (Get-Win) -and $sw.Elapsed.TotalSeconds -lt 20) { Start-Sleep 1 }
   Start-Sleep 3; $w = Get-Win; [W]::MoveWindow([IntPtr]$w.Current.NativeWindowHandle, 0, 0, 1400, 950, $true) | Out-Null; Start-Sleep 1; Front
