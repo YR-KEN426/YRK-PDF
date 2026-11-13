@@ -1,68 +1,178 @@
-# แผน: ย้ายหน้าเว็บไป `pdf.yrklab.com` (ไม่ออกรุ่นโปรแกรม)
+# แผน: รุ่น 1.2.2 สแกนเข้า PDF + งานเก็บ
 
 ## ที่มา
-Ken ตกลง 2026-11-12 ให้ย้ายหน้าเว็บทันทีหลัง 1.2.1 เพื่อให้ README, ลิงก์ และข้อความหน้า Store ใช้โดเมนใหม่ครบก่อนลง Store (PROJECT_NOTES "รายการย้ายหน้าเว็บ")
-- เปลี่ยนแค่ `yr-ken426.github.io/yrk-easy-pdf-release` → `pdf.yrklab.com` ลิงก์ Ko-fi และ GitHub Sponsors ไม่เปลี่ยน
-- เมื่อตั้ง custom domain แล้ว GitHub จะ redirect ที่อยู่ github.io เดิมไปโดเมนใหม่เอง ลิงก์ในโปรแกรม 1.2.1 และคู่มือ PDF เดิมจึงยังใช้ได้
-- การอัปเดตโปรแกรมไม่กระทบ เพราะ `AppUpdater` ใช้ `GithubSource` อ่าน release ของ repo ไม่ได้อ่านจาก GitHub Pages
+ลำดับรุ่นที่ Ken ตกลงไว้เมื่อ 2026-11-12 (PROJECT_NOTES "ลำดับรุ่นใหม่") กำหนดให้ 1.2.2 มีงานเหล่านี้
+- สแกนเข้า PDF แบบเต็ม โดย Ken ยืนยันว่าไม่ลดขอบเขต
+- เทสต์ App ส่วน OCR
+- log ของเทสต์ไปอยู่ใน temp
+- คำสั่ง `verify` ใน UpdateSigner และแก้ checklist
+- เปลี่ยนลิงก์ในโปรแกรมเป็น `pdf.yrklab.com`
+- merge PR ของ Dependabot ตอนต้นรุ่น
 
-## ขอบเขต
-ทำ: ตั้งโดเมน, แก้ลิงก์ในหน้าเว็บ / README / SECURITY / FUNDING, build หน้าเว็บ, อัปโหลด, ตรวจออนไลน์
-ไม่ทำ (ไป 1.2.2): `src/Yrk.PdfStudio.App/Services/Feedback.cs` (`WebsiteUrl`), `docs/guide/th.html` + `en.html` (ไฟล์ละ 3 จุด) และ PDF คู่มือ
-ห้ามเปลี่ยน: ชื่อ repo `yrk-easy-pdf-release` ใน `build-site.ps1`, `download-stats.ps1`, `AppUpdater.cs` และ feed อัปเดต
+**ของที่มีอยู่แล้วและจะใช้ต่อ**
+- OCR Tesseract: `PdfOcr.RecognizeAsync` + `AddTextLayer`, `OcrLanguageData` (ดาวน์โหลดภาษาไทย), `MainViewModel.Ocr.EnsureLanguageDataAsync`
+- สร้าง PDF จากรูป: `IPdfEngine.CreateFromImagesAsync` (JPEG ผ่านตรง, BGRA เป็น Flate)
+- ตรวจหน้าสแกน: `Pdf/Scan/ScanCleanup.Check` (หน้าว่าง มุมเอียง ขอบดำ), `App/Imaging/ImageConversion`, `WpfImageCodec.EncodeJpeg`
+- รายการรูปพร้อมภาพย่อ: `Views/FileListDialog` (โหมด ImagesToPdf)
+- เทสต์ App: `AppTestHarness` + `ScriptedDialogs`
+
+**ยังไม่มี:** โค้ด WIA/TWAIN และตัวบีบอัดรูป 1 บิต
+
+## สิ่งที่ Claude ตัดสินใจแทน (Ken ข้ามคำถาม ปรับได้ตอนอนุมัติ)
+1. **ใช้ WIA 2.0 Automation** (`WIA.DeviceManager` ผ่าน COM แบบ late-bound)
+   - ไม่ต้องมี interop dll และใช้ได้ทั้ง x64 และ x86
+   - รันบนเธรด STA แยก
+   - ใช้หน้าต่างตั้งค่าของ YRK เอง ไม่เรียกหน้าต่างของไดรเวอร์
+2. **ปลายทางคือสร้างไฟล์ใหม่อย่างเดียว** การแทรกหน้าสแกนต่อท้ายไฟล์ที่เปิดอยู่ไว้รุ่นหลัง
+   - ปุ่มอยู่ที่หน้า Home และแถบเครื่องมือ
+3. **ตัดขอบได้ทั้งแบบอัตโนมัติและแบบลากกรอบเอง**
+   - อัตโนมัติใช้ `ScanCleanup` จัดหน้าให้ตรง ตัดขอบดำ และติ๊กหน้าว่างไว้ให้ลบ
+   - ผู้ใช้ลากกรอบแก้เองได้ทีละหน้า
+4. **วิธีเก็บรูปในไฟล์**
+   - สี/เทา: JPEG คุณภาพ 80 (ปรับได้)
+   - ขาวดำ: รูป 1 บิตแบบ CCITT G4 ผ่าน PDFsharp 6.2.4 ที่มีอยู่แล้ว ถ้าทำไม่ได้ใช้ Flate 1 บิตแทน
+   - ขนาดเป้าหมายคือไม่เกิน 100 KB ต่อหน้า A4 ขาวดำที่ 300 dpi
+5. **ทำงานในเครื่องเท่านั้น**
+   - รูปที่สแกนพักใน temp ส่วนตัวของโปรแกรม และลบเมื่อปิดหน้าต่าง ทั้งตอนปิดปกติ ตอนยกเลิก และตอนเกิด error
+   - ไม่ส่งรูปออกนอกเครื่อง ยกเว้นการดาวน์โหลดภาษา OCR ที่มีอยู่เดิม
+6. **log ของเทสต์:** เดิมแก้ไว้แล้วใน a35cda6 (`PrivateTempDirectory` ตั้ง `App.LogFolder`) แต่ log จริงยังมีรายการจาก `UiDriver` ปนอยู่
+   - เพิ่มตัวแปร `YRK_EASYPDF_LOG_DIR` ให้ `UiDriver` และเครื่องมือทดสอบใช้
 
 ## ขั้นตอน
 
-### ขั้น 0: Ken ตั้งโดเมน (Ken ทำเอง เพราะเป็นการเปลี่ยนค่าบัญชี)
-ต้องทำก่อนแก้ลิงก์ ไม่อย่างนั้น hreflang และลิงก์แชร์จะชี้ไปที่อยู่ที่ยังเปิดไม่ได้
-1. Cloudflare → `yrklab.com` → DNS → เพิ่ม `CNAME` ชื่อ `pdf` ค่า `yr-ken426.github.io` **Proxy status: DNS only** (เมฆสีเทา)
-2. GitHub → Settings ของบัญชี → Pages → Verified domains → Add `yrklab.com` แล้วเพิ่ม TXT record ที่ GitHub ให้มาใน Cloudflare จากนั้นกด Verify
-   - กันคนอื่นเอาโดเมนย่อยของเราไปผูกกับ repo ของเขา
-3. repo `yrk-easy-pdf-release` → Settings → Pages → Custom domain ใส่ `pdf.yrklab.com` → Save → รอ DNS check ผ่าน → ติ๊ก **Enforce HTTPS** (ใบรับรองอาจใช้เวลาถึงประมาณ 1 ชั่วโมง)
-   - GitHub จะสร้างไฟล์ `docs/CNAME` ใน repo นั้น **ห้ามลบ** ตอนอัปโหลดหน้าเว็บครั้งต่อไป
-- **Claude ตรวจ:** `https://pdf.yrklab.com/` และ `/en/` เปิดได้ด้วย HTTPS, ที่อยู่ github.io เดิม (รวม `/en/`) redirect 301 มาโดเมนใหม่, DNS ไม่ผ่าน proxy ของ Cloudflare
+### ขั้น 0: merge PR ของ Dependabot (Claude ในแชตหลัก, Ken ยืนยันก่อน merge)
+- รายการ PR
+  - #1 กลุ่ม minor/patch
+  - #2 PDFium 159 (Claude ตรวจ diff ก่อน)
+  - #3 Test SDK 18
+  - #5 xunit runner 4
+  - #4 Pkcs 11 ไม่รับ ให้ปิด PR พร้อมเหตุผล
+- ขั้นตอน: `gh pr list --author app/dependabot` → Ken ยืนยัน → merge ทีละ PR → `git pull`
+- ทดสอบ: `dotnet test` ทั้งชุดผ่าน เปิด PDF ที่มีลายเซ็น เปิด DWG จริง และรัน OCR หนึ่งหน้า
 
-### ขั้น 1: แก้ลิงก์ในไฟล์ต้นฉบับ (implementer → Codex `gpt-6-luna` · low เพราะเป็นการแทนข้อความแบบกลไก)
-แก้ได้เฉพาะไฟล์เหล่านี้ แทน `https://yr-ken426.github.io/yrk-easy-pdf-release/` ด้วย `https://pdf.yrklab.com/` (รวมส่วน `en/` ต่อท้าย) และข้อความที่แสดง `yr-ken426.github.io/yrk-easy-pdf-release` ด้วย `pdf.yrklab.com`
-- `docs/release-repo/site-src/index.html` บรรทัด 9, 10, 441
-- `docs/release-repo/site-src/en/index.html` บรรทัด 9, 10, 440
-- `docs/release-repo/README.md` บรรทัด 18
-- `README.md` บรรทัด 8, 491, 493
-- `SECURITY.md` บรรทัด 23
-- `.github/FUNDING.yml` เพิ่ม `ko_fi: yrklab` (คง `github: YR-KEN426`)
-- สร้าง `docs/release-repo/.github/FUNDING.yml` เนื้อหาเดียวกัน ไว้ให้ Ken อัปโหลดขึ้น repo ปล่อยรุ่น
-- ทดสอบ: ค้นคำว่า `github.io` ทั้ง repo (ยกเว้น `docs/release-repo/site/`, `artifacts/`, `Assets/Guide/`) ต้องเหลือแค่ `PROJECT_NOTES.md`, `docs/guide/*.html` และ `Feedback.cs` (ของ 1.2.2)
+### ขั้น 1: `verify` ใน UpdateSigner + checklist (Codex `gpt-6.1-sol` · medium)
+- `build/UpdateSigner/Program.cs`: คำสั่ง `verify`
+  - รับ `--package --id --version --sig [--content-sig] [--public]` โดย `--public` ใช้ `src/Yrk.PdfStudio.App/Assets/update-public-key.pem` เป็นค่าเริ่มต้น
+  - เรียก `UpdateSignature.Verify` / `VerifyContent` แล้วพิมพ์ Fingerprint
+  - ผ่านได้ exit 0 ไม่ผ่านได้ exit 1 และไม่ถามรหัสผ่าน
+- `docs/release-checklist.md` (`gpt-6-luna` · low ส่งรวมรอบเดียวกัน)
+  - เลขรุ่นเป็นตัวแปร `$Ver` / `$PrevVer`
+  - ตัดขั้นสำรองและคืน feed (L5, L42)
+  - ใส่ `cd "D:\Software Project\YRK-PDF"` ก่อนคำสั่งที่ใช้ path แบบ relative
+  - เพิ่มขั้นรัน `verify` กับแพ็กเกจที่ปล่อยแล้ว
+- ทดสอบ: เทสต์ใหม่ (ลายเซ็นถูกได้ 0, แก้ไฟล์ 1 ไบต์ได้ 1, กุญแจผิดได้ 1) และรัน verify กับแพ็กเกจ 1.2.1 จริงใน `artifacts\releases` ต้องผ่าน
+- **Claude ตรวจเอง** เพราะเป็นส่วนการเซ็นอัปเดต
 
-### ขั้น 2: build หน้าเว็บและตรวจ (Claude)
-- รัน `build\build-site.ps1` (ตรวจนโยบายความเป็นส่วนตัวให้ด้วย) ต้องผ่านไม่มี error
-- ค้นใน `site\index.html` และ `site\en\index.html` ว่ามี `pdf.yrklab.com` และไม่มี `github.io` เหลือ (นับเฉพาะ ไม่เปิดอ่านทั้งไฟล์)
-- Claude ตรวจ `git diff` แล้ว commit **ห้าม push จนกว่า Ken จะยืนยัน**
+### ขั้น 2: ลิงก์โดเมนใหม่ + log (Codex `gpt-6-luna` · low)
+- `src/Yrk.PdfStudio.App/Services/Feedback.cs` L33 → `https://pdf.yrklab.com/`
+- `docs/guide/th.html` L18, 341, 404 และ `docs/guide/en.html` L18, 337, 399 (คง `#privacy` และ `en/`)
+- `src/Yrk.PdfStudio.App/App.xaml.cs` `LogFolder`: ถ้ามี `YRK_EASYPDF_LOG_DIR` ให้ใช้ค่านั้น และให้ `tools/UiDriver` ตั้งค่านี้ไปที่ temp
+- ทดสอบ
+  - ค้น `github.io` ต้องเหลือแค่ `PROJECT_NOTES.md` และ `plan.md`
+  - เทสต์ `LogFolder` อ่านตัวแปรได้
+  - ทั้งชุดผ่าน
+- (ยังไม่ build คู่มือ PDF รอขั้น 8 ทีเดียว)
 
-### ขั้น 3: Ken อัปโหลดและแก้ลิงก์ภายนอก (Ken ทำเอง)
-- repo `yrk-easy-pdf-release` (อัปโหลดผ่าน GitHub ตามเดิม **อย่าลบ `docs/CNAME`**)
-  - `docs\release-repo\site\index.html` → `docs/`
-  - `docs\release-repo\site\en\index.html` → `docs/en/`
-  - `docs\release-repo\README.md` → ราก repo
-  - `docs\release-repo\.github\FUNDING.yml` → `.github/`
-- ช่อง Website ใน About ของ repo `YRK-PDF` และ `yrk-easy-pdf-release` → `https://pdf.yrklab.com`
-- Ko-fi: แก้ลิงก์ในโพสต์ปักหมุด (หน้าไทย / อังกฤษ) และลิงก์เว็บในโปรไฟล์ถ้ามี
-- GitHub Sponsors / โปรไฟล์ GitHub ถ้ามีลิงก์เว็บเดิม
+### ขั้น 3: แกนสแกน: โมเดล, ตัวจำลอง, ประมวลผลรูป, สร้าง PDF (Codex `gpt-6.1-sol` · high)
+ไฟล์ใหม่ใน `src/Yrk.PdfStudio.Core/Pdf/Scan/` และ `src/Yrk.PdfStudio.App/Scanning/`
+- `IScannerService`
+  - `ListDevicesAsync`
+  - `GetCapabilitiesAsync(device)` คืนแหล่งกระดาษ (กระจก / ถาดป้อน / สองหน้า), dpi ที่รองรับ และโหมดสี
+  - `ScanAsync(device, ScanSettings, IProgress<ScannedPage>, ct)` คืนหน้าทีละแผ่น
+  - error ที่แยกชนิดได้: ไม่พบเครื่อง, เครื่องไม่ว่าง, กระดาษติด, ถาดว่าง, ยกเลิก
+- `FakeScannerService` (ตัวจำลอง)
+  - สร้างหน้าทดสอบที่มีข้อความไทย/อังกฤษ เอียงเล็กน้อย มีขอบดำ และมีหน้าว่าง
+  - จำลอง error ได้ทุกชนิด
+  - ใช้ทั้งในเทสต์และโหมด debug
+- `ScanSession`: รายการหน้าที่เก็บ rotation, crop rect และสถานะ "หน้าว่าง" แก้ลำดับได้
+  - เก็บไฟล์รูปใน temp ส่วนตัวของโปรแกรม `Dispose` ลบทั้งโฟลเดอร์
+- `ScanPageProcessor`: หมุน → จัดหน้าตรง → ตัด → แปลงเป็นเทาหรือขาวดำ (threshold แบบ Otsu) → เข้ารหัส
+- `ScanPdfBuilder`
+  - สี/เทาใช้ JPEG ผ่าน `CreateFromImagesAsync`
+  - ขาวดำใช้รูป 1 บิต CCITT G4 ผ่าน PDFsharp ถ้าไม่ได้ให้ใช้ Flate และรายงานใน plan.md
+  - ขนาดหน้าตาม dpi จริง และตั้ง metadata Producer
+- ทดสอบ (เทสต์ใหม่ `ScanSessionTests`, `ScanPdfBuilderTests`)
+  - PDF ที่ได้เปิดด้วย PDFium ได้ จำนวนหน้าถูก
+  - หน้าขาวดำ A4 300 dpi ไม่เกิน 100 KB
+  - การหมุนและการตัดถูกต้อง
+  - temp ถูกลบหลัง Dispose และหลัง exception
 
-### ขั้น 4: ตรวจออนไลน์และบันทึก (Claude)
-- เทียบหน้าเว็บออนไลน์กับไฟล์ใน `site\` ทั้งสองภาษา, ปุ่มดาวน์โหลดได้ไฟล์จริง, ลิงก์แชร์และ hreflang ชี้โดเมนใหม่
-- ที่อยู่เดิม `.../yrk-easy-pdf-release/#privacy` (ลิงก์ในคู่มือ PDF เดิม) redirect แล้วยังไปถึงส่วนนโยบายความเป็นส่วนตัว
-- ปุ่ม Sponsor ของ repo ขึ้นทั้ง GitHub Sponsors และ Ko-fi
-- อัปเดต PROJECT_NOTES: ติ๊กรายการย้ายหน้าเว็บว่าทำแล้ว คงรายการไฟล์ของ 1.2.2 ไว้
+### ขั้น 4: WIA จริง (Codex `gpt-6.1-sol` · high)
+- `src/Yrk.PdfStudio.App/Scanning/WiaScannerService.cs`
+  - COM late-bound บนเธรด STA
+  - ตั้งค่าโหมดสี (WIA_IPS_CUR_INTENT), dpi และแหล่งกระดาษ (`WIA_DPS_DOCUMENT_HANDLING_SELECT`)
+  - วนดึงจากถาดป้อนจนได้ `WIA_ERROR_PAPER_EMPTY` (0x80210003)
+  - แปลง HRESULT เป็น error ของ `IScannerService`
+  - ถ้าเครื่องไม่รองรับค่าที่เลือก ให้ใช้ค่าใกล้ที่สุดแล้วแจ้งผู้ใช้
+- ไม่มี WIA ในเครื่อง (เช่น Windows N ที่ปิดบริการ) ให้ขึ้นข้อความ ไม่แครช
+- ทดสอบอัตโนมัติ: แปลง HRESULT ทุกค่าที่รู้จัก และกรณีไม่พบเครื่องได้รายการว่าง
+- ทดสอบด้วยมือ: Ken ทดสอบกับเครื่อง Epson ในขั้น 7
+
+### ขั้น 5: หน้าต่างสแกน (Codex `gpt-6.1-sol` · medium)
+- `Views/ScanDialog.xaml(.cs)` + `ViewModels/ScanViewModel.cs`
+  - ส่วนตั้งค่า: เลือกเครื่อง, แหล่งกระดาษ, สี/เทา/ขาวดำ, dpi (150/200/300/600), ค่าบีบอัด
+  - "สแกน" และ "สแกนเพิ่ม" ใช้สแกนหลายแผ่นต่อกัน มีแถบความคืบหน้าและปุ่มยกเลิก
+  - รายการหน้าพร้อมภาพย่อ ใช้รูปแบบเดียวกับ `FileListDialog`
+    - ลากสลับลำดับได้
+    - ปุ่มหมุน ซ้าย/ขวา และลบ
+    - ปุ่ม "ตัดขอบอัตโนมัติ" กับ "ลบหน้าว่าง"
+  - กดภาพย่อสองครั้งเปิดหน้าตัดขอบที่ลากกรอบได้
+  - ติ๊ก "ทำ OCR ภาษาไทย/อังกฤษ" ถ้ายังไม่มีไฟล์ภาษาให้ใช้ `EnsureLanguageDataAsync`
+  - "สร้าง PDF…" เลือกที่บันทึก ถ้าทับไฟล์เดิมต้องยืนยัน แล้วเปิดไฟล์ใหม่ในโปรแกรม
+- จำค่าตั้งล่าสุดในไฟล์ตั้งค่าเดิม แต่ไม่จำรูปหรือชื่อเครื่องที่ระบุตัวคนได้นอกจากชื่อรุ่น
+- ปุ่มที่หน้า Home (`MainWindow.Home.cs`) + แถบเครื่องมือ + `IDialogService.AskScan`
+- ข้อความไทยใน `Localization/th.json` แล้ว `build\check-translations.ps1` ต้องยังได้ 12 คำเท่าเดิม
+- ทดสอบ: เปิดหน้าต่างด้วย `UiDriver` + ตัวจำลอง แล้วเรนเดอร์ภาพหน้าต่างทั้งไทยและอังกฤษให้ Claude ดู
+
+### ขั้น 6: OCR หลังสแกน + เทสต์ App ส่วน OCR (Codex `gpt-6.1-sol` · medium, เทสต์ `gpt-6-luna` · low)
+- หลังสร้างไฟล์ ถ้าติ๊ก OCR ให้รัน `PdfOcr.RecognizeAsync` + `AddTextLayer` ทุกหน้า มีความคืบหน้าและยกเลิกได้
+  - ถ้ายกเลิก ให้ได้ไฟล์ที่ไม่มีข้อความ ไม่ใช่ไฟล์เสีย
+- เทสต์ App ใหม่ใน `tests/.../App/`
+  - OCR จากเมนูเดิม: มีไฟล์ภาษาแล้ว / ต้องดาวน์โหลด / ยกเลิก
+  - สแกน → OCR → ค้นข้อความไทยในไฟล์ได้
+  - สแกนแล้วยกเลิกกลางทาง → temp ถูกลบ
+- ทดสอบ: ทั้งชุดผ่าน
+
+### ขั้น 7: ตรวจรวม (Claude + Codex read-only + Ken)
+- Claude ตรวจ diff ส่วน temp/ลบไฟล์/เขียนทับไฟล์ และ `verify`
+- Codex: `codex exec --sandbox read-only "ตรวจ git diff ตั้งแต่ <commit ต้นรุ่น> หาบั๊ก ช่องโหว่ และสิ่งที่ผิดจาก plan.md"`
+- **Ken ทดสอบกับเครื่อง Epson**
+  - สแกนจากกระจก 1 แผ่น และต่อกันหลายแผ่น
+  - ถาดป้อน ถ้าเครื่องมี
+  - สี/เทา/ขาวดำ ที่ 300 dpi
+  - OCR ไทย
+  - ถอดสาย USB กลางทาง ต้องขึ้นข้อความ ไม่แครช
+- UiDriver เปิดทุกหน้าต่างใน Release
+
+### ขั้น 8: เอกสาร (Codex `gpt-6-luna` · low)
+- `docs/release-notes/1.2.2.md` (ไทย/อังกฤษ)
+- `Directory.Build.props` → 1.2.2
+- คู่มือ `docs/guide/th.html` + `en.html`: เพิ่มหัวข้อ "สแกนเข้า PDF"
+- `build\build-guide.ps1`
+
+### ขั้น 9: ปล่อยรุ่น (แชตหลักเท่านั้น, Ken ยืนยันทุกขั้น)
+- ทำตาม `docs/release-checklist.md` ฉบับใหม่ รวมขั้น `verify`
+- build หน้าเว็บใหม่ แล้ว Ken อัปโหลด
+- อัปเดต PROJECT_NOTES
+
+## ลำดับส่ง implementer
+รอบ A: ขั้น 1–2 → รอบ B: ขั้น 3–4 → รอบ C: ขั้น 5–6 (ขั้น 0 และ 7–9 ทำในแชตหลัก)
 
 ## การตรวจผล (ทั้งหมด)
-- `https://pdf.yrklab.com/` และ `/en/` เปิดได้ด้วย HTTPS เนื้อหาตรงกับ build ล่าสุด
-- ที่อยู่ github.io เดิมทุกแบบ redirect มาโดเมนใหม่
-- ไฟล์ `docs/CNAME` ยังอยู่ใน repo ปล่อยรุ่น
-- ไม่มีการแก้โค้ดโปรแกรมหรือ feed อัปเดต
+- `dotnet test` ทั้งชุดผ่าน และ `check-translations` ได้ 12 คำ
+- สแกนจริงด้วย Epson ได้ PDF ที่เปิดใน YRK และ Acrobat ได้ และค้นคำไทยได้เมื่อติ๊ก OCR
+- ไม่มีไฟล์รูปค้างใน temp หลังปิดหน้าต่าง ทั้งตอนปกติ ยกเลิก และ error
+- `UpdateSigner verify` ผ่านกับแพ็กเกจ 1.2.2 ที่ปล่อย
+- ค้นแล้วไม่มีลิงก์ github.io เหลือในโปรแกรมและคู่มือ
 
 ## สถานะ
-- [x] ขั้น 0 Ken ตั้งโดเมน + Claude ตรวจ (2026-11-13: CNAME DNS only + TXT ยืนยัน yrklab.com, custom domain + Enforce HTTPS; HTTPS 200, github.io เดิม 301 → pdf.yrklab.com; redirect บางที่อยู่ยังไป http:// รอ CDN แล้วตรวจซ้ำในขั้น 4)
-- [x] ขั้น 1 แก้ลิงก์ในไฟล์ต้นฉบับ
-- [x] ขั้น 2 build หน้าเว็บ + ตรวจ + commit (2026-11-13: build-site ผ่าน, รุ่น 1.2.1; site ไทย/อังกฤษ มี pdf.yrklab.com 3 จุด ไม่เหลือ github.io)
-- [x] ขั้น 3 Ken อัปโหลด + แก้ลิงก์ภายนอก (2026-11-13: docs/CNAME ยังอยู่, FUNDING + README ของ repo ปล่อยรุ่นขึ้นแล้ว)
-- [x] ขั้น 4 ตรวจออนไลน์ + อัปเดต PROJECT_NOTES (2026-11-13: หน้าไทย/อังกฤษออนไลน์ตรงกับ build, HTTPS + redirect ทุกแบบถึง https, ปุ่มดาวน์โหลดได้ไฟล์ 85 MB; ช่อง Website ของ repo YRK-PDF ยังเป็นที่อยู่เดิม ให้ Ken แก้)
+- [ ] ขั้น 0 merge Dependabot
+- [ ] ขั้น 1 verify + checklist
+- [ ] ขั้น 2 ลิงก์ + log
+- [ ] ขั้น 3 แกนสแกน
+- [ ] ขั้น 4 WIA
+- [ ] ขั้น 5 หน้าต่างสแกน
+- [ ] ขั้น 6 OCR หลังสแกน + เทสต์ App
+- [ ] ขั้น 7 ตรวจรวม + Ken ทดสอบ Epson
+- [ ] ขั้น 8 เอกสาร
+- [ ] ขั้น 9 ปล่อยรุ่น
