@@ -80,7 +80,7 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="250"/></Grid.ColumnDefinitions>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
-                        <Button Content="Clear scan area" Click="OnClearArea" Style="{StaticResource ToolbarButton}" Margin="0,0,0,6"/>
+                        <Button Content="Clear scan area" Click="OnClearArea" Padding="8,4" Margin="6,0,6,6" HorizontalAlignment="Stretch"/>
                         <ListBox x:Name="PageList" HorizontalContentAlignment="Stretch" SelectionMode="Extended" SelectionChanged="OnSelectionChanged"
                                  ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  AllowDrop="True" PreviewMouseLeftButtonDown="OnDragStart" PreviewMouseMove="OnDragMove" Drop="OnDrop">
@@ -89,7 +89,11 @@
                             </Style></ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate><DataTemplate>
                                 <StackPanel Margin="6">
-                                    <Image Source="{Binding Thumbnail}" Width="120" Height="145" Stretch="Uniform"/>
+                                    <Border Width="120" Height="145">
+                                        <Border BorderBrush="#C9CDD4" BorderThickness="1" Background="White" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Image Source="{Binding Thumbnail}" MaxWidth="118" MaxHeight="143" Stretch="Uniform"/>
+                                        </Border>
+                                    </Border>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
                                         <TextBlock Text="{Binding Number}"/><TextBlock Text="{Binding Blank}" Foreground="#8A6500" Margin="8,0,0,0"/>
                                     </StackPanel>
@@ -151,7 +155,7 @@
                         <CheckBox x:Name="WhiteBackground" Content="White background" Margin="0,12,0,0" Checked="OnAdjustmentChanged" Unchecked="OnAdjustmentChanged"/>
                         <CheckBox x:Name="Straighten" Content="Straighten" Margin="0,12,0,12" Checked="OnAdjustmentChanged" Unchecked="OnAdjustmentChanged"/>
                         <CheckBox x:Name="AutoOrientation" Content="Auto rotate to text orientation" Margin="0,0,0,12" Checked="OnOrientationChanged" Unchecked="OnOrientationChanged">
-                            <CheckBox.ContentTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Width="100"/></DataTemplate></CheckBox.ContentTemplate>
+                            <CheckBox.ContentTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" MaxWidth="190"/></DataTemplate></CheckBox.ContentTemplate>
                         </CheckBox>
                     </StackPanel>
                 </Border>
