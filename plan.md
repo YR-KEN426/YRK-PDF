@@ -63,6 +63,6 @@ Ken ตกลง 2026-11-12 ให้ย้ายหน้าเว็บทั�
 ## สถานะ
 - [x] ขั้น 0 Ken ตั้งโดเมน + Claude ตรวจ (2026-11-13: CNAME DNS only + TXT ยืนยัน yrklab.com, custom domain + Enforce HTTPS; HTTPS 200, github.io เดิม 301 → pdf.yrklab.com; redirect บางที่อยู่ยังไป http:// รอ CDN แล้วตรวจซ้ำในขั้น 4)
 - [x] ขั้น 1 แก้ลิงก์ในไฟล์ต้นฉบับ
-- [ ] ขั้น 2 build หน้าเว็บ + ตรวจ + commit
+- [x] ขั้น 2 build หน้าเว็บ + ตรวจ + commit (2026-11-13: build-site ผ่าน, รุ่น 1.2.1; site ไทย/อังกฤษ มี pdf.yrklab.com 3 จุด ไม่เหลือ github.io)
 - [ ] ขั้น 3 Ken อัปโหลด + แก้ลิงก์ภายนอก
 - [ ] ขั้น 4 ตรวจออนไลน์ + อัปเดต PROJECT_NOTES
