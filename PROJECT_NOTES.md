@@ -2,7 +2,7 @@
 
 ความรู้ที่ไม่ได้อยู่ในไฟล์อื่น ส่วนการออกแบบเชิงเทคนิคดู `docs/ARCHITECTURE.md`
 ไฟล์นี้อยู่ใน repo สาธารณะ ห้ามใส่ข้อมูลส่วนตัว กุญแจ รหัสผ่าน หรือชื่อไฟล์ของผู้ใช้
-ข้อมูลล่าสุด: 2026-11-12
+ข้อมูลล่าสุด: 2026-11-13
 
 ## ภาพรวม
 
@@ -212,7 +212,7 @@
      - ยังไม่ได้ตั้ง DNS แผน 2.0.0: `pdf.yrklab.com` ผูก GitHub Pages ของ repo ปล่อยรุ่น, `yrklab.com` เป็นหน้ารวมแอป YRK LAB, อีเมลส่งต่อของ Cloudflare
      - feed อัปเดตอยู่ที่ GitHub Releases เหมือนเดิม ห้ามย้ายไปโดเมนใหม่
      - **เปลี่ยน (Ken 2026-11-11):** ย้ายหน้าเว็บไปโดเมนนี้ก่อนลง Store อย่างน้อย 1 รุ่น เพื่อแก้ README ลิงก์ในโปรแกรม และข้อความหน้า Store ให้ครบก่อน; Claude เสนอทำเป็นรุ่นเล็กหลัง 1.2.1 (GitHub Pages + custom domain `pdf.yrklab.com`, CNAME แบบ DNS only, Enforce HTTPS) Ken เปิดต่ออายุอัตโนมัติแล้ว; **Ken ตกลง 2026-11-12:** ย้ายหน้าเว็บทันทีหลัง 1.2.1 (ไม่ออกรุ่นโปรแกรม) แล้วเปลี่ยนลิงก์ในโปรแกรมใน 1.2.2
-       - **รายการย้ายหน้าเว็บ (Claude รวบรวม 2026-11-12, ยังไม่ได้ทำ):** ลิงก์ Ko-fi (`ko-fi.com/yrklab`) และ GitHub Sponsors ไม่เปลี่ยน เปลี่ยนแค่ `yr-ken426.github.io/yrk-easy-pdf-release` → `pdf.yrklab.com`; github.io เดิมจะ redirect ไปโดเมนใหม่เองตราบที่ตั้ง custom domain ไว้ ลิงก์ในโปรแกรม 1.2.1 จึงยังใช้ได้
+       - **รายการย้ายหน้าเว็บ (Claude รวบรวม 2026-11-12; ย้ายเสร็จ 2026-11-13: เว็บอยู่ที่ `https://pdf.yrklab.com` แล้ว, github.io เดิม 301 มาโดเมนใหม่, ส่วนที่ยังค้างคือรายการ "ไฟล์ใน 1.2.2" ด้านล่าง):** ลิงก์ Ko-fi (`ko-fi.com/yrklab`) และ GitHub Sponsors ไม่เปลี่ยน เปลี่ยนแค่ `yr-ken426.github.io/yrk-easy-pdf-release` → `pdf.yrklab.com`; github.io เดิมจะ redirect ไปโดเมนใหม่เองตราบที่ตั้ง custom domain ไว้ ลิงก์ในโปรแกรม 1.2.1 จึงยังใช้ได้
          - Ken ตั้งเอง: Cloudflare CNAME `pdf` → `yr-ken426.github.io` (DNS only); บัญชี GitHub → Settings → Pages → Verified domains ยืนยัน `yrklab.com`; repo `yrk-easy-pdf-release` → Settings → Pages → Custom domain `pdf.yrklab.com` → Enforce HTTPS (GitHub สร้างไฟล์ `CNAME` ใน `docs/` ของ repo นั้น ห้ามลบตอนอัปโหลดหน้าเว็บ); ช่อง Website ใน About ของทั้งสอง repo; โปรไฟล์ Ko-fi / GitHub Sponsors / โปรไฟล์ GitHub ถ้ามีลิงก์เว็บ
          - ไฟล์ตอนย้าย (ไม่ออกรุ่น): `docs/release-repo/site-src/index.html` + `en/index.html` (hreflang บรรทัด 9–10, ลิงก์แชร์ประมาณบรรทัด 440), `docs/release-repo/README.md`, `README.md` (3 จุด), `SECURITY.md`; เสนอเพิ่ม `ko_fi: yrklab` ใน `.github/FUNDING.yml` ทั้งสอง repo; แล้วรัน `build\build-site.ps1` และอัปโหลด
          - ไฟล์ใน 1.2.2: `src/Yrk.PdfStudio.App/Services/Feedback.cs` (`WebsiteUrl`), `docs/guide/th.html` + `en.html` (ไฟล์ละ 3 จุด) แล้ว build PDF คู่มือใหม่
