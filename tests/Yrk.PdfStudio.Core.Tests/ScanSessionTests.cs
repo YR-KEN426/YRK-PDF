@@ -175,7 +175,7 @@ public sealed class ScanSessionTests
         return new(new(width, height, width * 4, pixels), 300, 300);
     }
 
-    private static void MakeJunction(string link, string target)
+    internal static void MakeJunction(string link, string target)
     {
         var info = new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{link}\" \"{target}\"")
         { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };

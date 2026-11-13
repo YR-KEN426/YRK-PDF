@@ -14,13 +14,15 @@
                     <ComboBox x:Name="Devices" Width="240" DisplayMemberPath="Name" SelectionChanged="OnDeviceChanged"/>
                     <Button Content="Find scanners again" Click="OnFind" Style="{StaticResource ToolbarButton}" Margin="6,0,12,0"/>
                     <TextBlock Text="Paper source" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                    <ComboBox x:Name="Sources" Width="150" DisplayMemberPath="Text" SelectedValuePath="Value" HorizontalAlignment="Left"/>
+                    <ComboBox x:Name="Sources" Width="150" DisplayMemberPath="Text" SelectedValuePath="Value" HorizontalAlignment="Left" SelectionChanged="OnSourceChanged"/>
+                    <Button x:Name="GlassButton" Content="Preview glass" Click="OnGlassPreview" Style="{StaticResource ToolbarButton}" Margin="8,0,0,0"/>
+                    <Button Content="Clear scan area" Click="OnClearArea" Style="{StaticResource ToolbarButton}"/>
                 </DockPanel>
                 <WrapPanel Margin="0,0,0,8">
                     <Button Tag="BlackAndWhiteDocument" Content="B&amp;W document" Click="OnPreset" Style="{StaticResource ToolbarButton}"/>
                     <Button Tag="ColorDocument" Content="Color document" Click="OnPreset" Style="{StaticResource ToolbarButton}"/>
                     <Button Tag="Receipt" Content="Receipt" Click="OnPreset" Style="{StaticResource ToolbarButton}"/>
-                    <Button Tag="TwoSidedCard" Content="Two-sided card" ToolTip="Card layout will be available later. Uses normal scan settings." Click="OnPreset" Style="{StaticResource ToolbarButton}"/>
+                    <Button Tag="TwoSidedCard" Content="Two-sided card" Click="OnPreset" Style="{StaticResource ToolbarButton}"/>
                     <Button Tag="Photo" Content="Photo" Click="OnPreset" Style="{StaticResource ToolbarButton}"/>
                     <Button Tag="Custom" Content="Custom" Click="OnPreset" Style="{StaticResource ToolbarButton}"/>
                     <TextBlock x:Name="PresetLabel" VerticalAlignment="Center" Margin="12,0,0,0" FontWeight="SemiBold"/>
@@ -65,7 +67,7 @@
                 </ScrollViewer>
                 <Grid Grid.Column="2">
                     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-                    <WrapPanel Margin="0,0,0,8">
+                    <WrapPanel x:Name="PageTools" Margin="0,0,0,8">
                         <Button Content="Rotate left" Click="OnLeft" Style="{StaticResource ToolbarButton}"/>
                         <Button Content="Rotate right" Click="OnRight" Style="{StaticResource ToolbarButton}"/>
                         <Button x:Name="CropButton" Content="Crop" Click="OnCrop" Style="{StaticResource ToolbarButton}"/>
@@ -123,8 +125,12 @@
         </StackPanel>
         <DockPanel Grid.Row="3" Margin="0,14,0,0">
             <Button x:Name="ScanButton" Content="Scan" Click="OnScan" Style="{StaticResource PrimaryButton}" Margin="0,0,14,0"/>
+            <Button x:Name="CancelCardButton" Content="Cancel card" Click="OnCancelCard" Style="{StaticResource SecondaryButton}" Visibility="Collapsed"/>
             <Button x:Name="CloseButton" Content="Close" DockPanel.Dock="Right" Click="OnClose" Style="{StaticResource SecondaryButton}"/>
             <Button x:Name="CreateButton" Content="Save PDF" DockPanel.Dock="Right" Click="OnCreate" Style="{StaticResource SecondaryButton}" Margin="8,0"/>
+            <ComboBox x:Name="OutputFormat" DockPanel.Dock="Right" Width="85" SelectedIndex="0" SelectedValuePath="Tag" SelectionChanged="OnOutputFormatChanged">
+                <ComboBoxItem Tag="Pdf" Content="PDF"/><ComboBoxItem Tag="Jpeg" Content="JPEG"/><ComboBoxItem Tag="Png" Content="PNG"/>
+            </ComboBox>
             <TextBlock x:Name="SizeText" DockPanel.Dock="Right" VerticalAlignment="Center" Margin="8,0"/>
             <CheckBox x:Name="Ocr" Content="Searchable text (OCR)" VerticalAlignment="Center"/>
         </DockPanel>

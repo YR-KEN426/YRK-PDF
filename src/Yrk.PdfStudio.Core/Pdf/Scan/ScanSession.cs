@@ -34,6 +34,7 @@ public sealed class ScanSessionPage
 public sealed class ScanSession : IDisposable
 {
     private readonly List<ScanSessionPage> _pages = [];
+    private readonly HashSet<ScanSessionPage> _temporaryPages = [];
     private readonly object _gate = new();
     private readonly FileStream _sessionLock;
     private bool _disposed;
@@ -49,6 +50,29 @@ public sealed class ScanSession : IDisposable
 
     public string DirectoryPath { get; }
     public IReadOnlyList<ScanSessionPage> Pages { get { lock (_gate) return _pages.ToArray(); } }
+
+    /// <summary>Session-owned input for glass previews and card sides; never a document page.</summary>
+    public ScanSessionPage AddTemporary(ScannedPage page, CancellationToken ct = default)
+    {
+        lock (_gate)
+        {
+            var saved = Add(page, ct);
+            _pages.Remove(saved);
+            _temporaryPages.Add(saved);
+            return saved;
+        }
+    }
+
+    public void DeleteTemporary(ScanSessionPage page)
+    {
+        lock (_gate)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (!_temporaryPages.Contains(page)) throw new ArgumentException("Not a temporary page.", nameof(page));
+            DeleteOwnedPath(page.FilePath);
+            _temporaryPages.Remove(page);
+        }
+    }
 
     public ScanSessionPage Add(ScannedPage page, CancellationToken cancellationToken = default)
     {
@@ -118,7 +142,7 @@ public sealed class ScanSession : IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            if (!_pages.Contains(page)) throw new ArgumentException("Page belongs to another session.", nameof(page));
+            if (!_pages.Contains(page) && !_temporaryPages.Contains(page)) throw new ArgumentException("Page belongs to another session.", nameof(page));
             RequireOwned(page.FilePath);
             RequireNoLinks(page.FilePath);
             using var stream = File.OpenRead(page.FilePath);
@@ -265,6 +289,7 @@ public sealed class ScanSession : IDisposable
             if (_disposed) return;
             _disposed = true;
             _pages.Clear();
+            _temporaryPages.Clear();
             _sessionLock.Dispose();
             // A file held open (e.g. by antivirus) must not make Dispose throw; leftovers are removed
             // by the stale-folder sweep at the next start.

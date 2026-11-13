@@ -10,7 +10,8 @@ namespace Yrk.PdfStudio.App.Scanning;
 /// <summary>A deterministic scanner for development and tests; no dialogs or hardware required.</summary>
 public sealed class FakeScannerService : IScannerService
 {
-    private static readonly int[] Resolutions = [100, 150, 200, 300, 600];
+    private static readonly int[] Resolutions = [75, 100, 150, 200, 300, 600];
+    public bool SupportsRegion { get; set; } = true;
     public static ScanDevice Device { get; } = new("yrk-fake", "YRK test scanner");
     public ScannerErrorKind? SimulatedError { get; set; }
     public int ErrorAfterPages { get; set; }
@@ -43,8 +44,15 @@ public sealed class FakeScannerService : IScannerService
                     throw new ScannerException(error, $"Simulated scanner error: {error}.");
                 var dpi = Resolutions.MinBy(n => Math.Abs((long)n - settings.Dpi));
                 var bitmap = CreateTestPage(i, dpi, PageStyle);
+                var notices = new List<string>();
+                if (dpi != settings.Dpi) notices.Add($"DPI adjusted from {settings.Dpi} to {dpi}.");
+                if (settings.Region is { } region)
+                {
+                    bitmap = ScanRegion.Crop(bitmap, region, cancellationToken);
+                    if (!SupportsRegion) notices.Add(ScanRegion.FallbackNotice);
+                }
                 cancellationToken.ThrowIfCancellationRequested();
-                progress.Report(new(bitmap, dpi, dpi, dpi == settings.Dpi ? [] : [$"DPI adjusted from {settings.Dpi} to {dpi}."]));
+                progress.Report(new(bitmap, dpi, dpi, notices));
             }
             return true;
         }, cancellationToken);

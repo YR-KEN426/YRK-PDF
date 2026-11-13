@@ -122,9 +122,8 @@ public sealed class AppScanEditorTests
     }
 
     [Theory]
-    [InlineData(ScanPreset.TwoSidedCard)]
     [InlineData(ScanPreset.Custom)]
-    public void Placeholder_and_custom_keep_normal_settings(ScanPreset preset)
+    public void Custom_keeps_normal_settings(ScanPreset preset)
     {
         using var session = new ScanSession();
         var model = new ScanViewModel(session, new FakeScannerService(), Dispatcher.CurrentDispatcher)

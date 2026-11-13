@@ -99,6 +99,8 @@ public sealed class WiaScannerService : IScannerService
             if (dpiX <= 0 || dpiY <= 0) throw new ScannerException(ScannerErrorKind.Other, "The scanner returned an invalid DPI.");
             if (dpiX != settings.Dpi) notices.Add($"Actual horizontal DPI: {dpiX} (requested {settings.Dpi}).");
             if (dpiY != settings.Dpi) notices.Add($"Actual vertical DPI: {dpiY} (requested {settings.Dpi}).");
+            var cropInSoftware = ConfigureArea(item, settings.Region);
+            if (cropInSoftware) notices.Add(ScanRegion.FallbackNotice);
             // Request all feeder pages when supported, or a valid batch that includes both duplex sides.
             // Automation has no cancellable Transfer API:
             // cancellation is checked before/after each driver call, then all RCWs are released before completion.
@@ -128,7 +130,9 @@ public sealed class WiaScannerService : IScannerService
                     {
                         var pixels = ImageConversion.ToPdfImage(frame);
                         cancellationToken.ThrowIfCancellationRequested();
-                        progress.Report(new(new PdfBitmap(pixels.Width, pixels.Height, pixels.Width * 4, pixels.Pixels), dpiX, dpiY, notices.ToArray()));
+                        var bitmap = new PdfBitmap(pixels.Width, pixels.Height, pixels.Width * 4, pixels.Pixels);
+                        if (cropInSoftware && settings.Region is { } region) bitmap = ScanRegion.Crop(bitmap, region, cancellationToken);
+                        progress.Report(new(bitmap, dpiX, dpiY, notices.ToArray()));
                     }
                     if (source == ScanSource.Flatbed) break;
                 }
@@ -140,6 +144,59 @@ public sealed class WiaScannerService : IScannerService
             }
             return true;
         }, cancellationToken);
+    }
+
+    // Extent maxima are read after setting both resolutions: WIA expresses these values in pixels.
+    internal static (int X, int Y, int Width, int Height) CalculateArea(NormalizedRect region, int maxWidth, int maxHeight)
+        => ScanRegion.Pixels(region, maxWidth, maxHeight);
+
+    internal static bool ConfigureArea(object item, NormalizedRect? region)
+    {
+        using var objects = new ComObjects();
+        var x = FindProperty(item, 6149, objects);
+        var y = FindProperty(item, 6150, objects);
+        var w = FindProperty(item, 6151, objects);
+        var h = FindProperty(item, 6152, objects);
+        int Maximum(object property) => SupportedNumbers(property).DefaultIfEmpty(Number(Get(property, "Value"))).Max();
+        // Range properties can have thousands of values; use the advertised maximum directly.
+        int Extent(object property) => Number(Get(property, "SubType")) == 1 ? Number(Get(property, "SubTypeMax")) : Maximum(property);
+        void Write(object? property, int value)
+        {
+            if (property is null) return;
+            if (Number(Get(property, "Value")) == value) return;
+            Set(property, "Value", value);
+            if (Number(Get(property, "Value")) != value) throw new NotSupportedException("Scanner area was adjusted by the driver.");
+        }
+        // Some drivers reduce the extent limit when the origin is away from the glass edge.
+        Write(x, 0); Write(y, 0);
+        var maxW = w is null ? 0 : Extent(w);
+        var maxH = h is null ? 0 : Extent(h);
+        void FullGlass()
+        {
+            Write(x, 0); Write(y, 0);
+            if (maxW > 0) Write(w, maxW);
+            if (maxH > 0) Write(h, maxH);
+        }
+        if (region is null)
+        {
+            FullGlass();
+            return false;
+        }
+        try
+        {
+            FullGlass();
+            if (x is null || y is null || w is null || h is null || maxW <= 0 || maxH <= 0) return true;
+            var area = CalculateArea(region.Value, maxW, maxH);
+            Write(w, area.Width); Write(h, area.Height);
+            Write(x, area.X); Write(y, area.Y);
+            return false;
+        }
+        catch (Exception ex) when (Unwrap(ex) is COMException or NotSupportedException or ArgumentException)
+        {
+            // Never crop a partially configured scan: restoring full glass must succeed first.
+            FullGlass();
+            return true;
+        }
     }
 
     internal static int SelectPagesPerTransfer(ScanSource source, int minimum, int maximum, int step)

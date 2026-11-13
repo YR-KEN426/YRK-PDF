@@ -30,6 +30,77 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     public string SizeSummary => Loc.F("{0} pages · approximately {1:0.00} MB", Pages.Count, EstimatedBytes / 1_000_000.0);
     public string AdjustmentMessage { get; private set; } = string.Empty;
     internal ScanPageProcessor Processor { get; set; } = new(new WpfImageCodec());
+    public ScanPageEntry? GlassPreview { get; private set; }
+    public ScanPageEntry? CardFront { get; private set; }
+    public ScanPageEntry? CardBack { get; private set; }
+    public ScanPageEntry? TemporaryPreview => CardBack ?? CardFront ?? GlassPreview;
+
+    public void ClearGlassPreview()
+    {
+        if (GlassPreview is { } entry) Session.DeleteTemporary(entry.Page);
+        GlassPreview = null;
+    }
+
+    public void CancelCard()
+    {
+        if (CardFront is { } front) Session.DeleteTemporary(front.Page);
+        if (CardBack is { } back) Session.DeleteTemporary(back.Page);
+        CardFront = CardBack = null;
+    }
+
+    private async Task<ScanPageEntry> CaptureTemporaryAsync(ScanDevice device, ScanSettings settings, CancellationToken ct)
+    {
+        ScanSessionPage? saved = null;
+        try
+        {
+            await scanner.ScanAsync(device, settings, new PageSink(page =>
+            {
+                saved ??= Session.AddTemporary(page, ct);
+            }), ct);
+            ct.ThrowIfCancellationRequested();
+            if (saved is null) throw new InvalidOperationException(Loc.T("No scanned page was returned."));
+            foreach (var notice in saved.Notices) Notices.Add(TranslateNotice(notice));
+            return new(saved);
+        }
+        catch { if (saved is not null) Session.DeleteTemporary(saved); throw; }
+    }
+
+    public async Task PreviewGlassAsync(ScanDevice device, CancellationToken ct = default)
+    {
+        ClearGlassPreview();
+        Settings = Settings with { Region = null };
+        GlassPreview = await CaptureTemporaryAsync(device, Settings with
+        { Dpi = 75, Source = ScanSource.Flatbed, Region = null, AutoCrop = false, AutoStraighten = false }, ct);
+    }
+
+    public async Task ScanCardAsync(ScanDevice device, CancellationToken ct = default)
+    {
+        ClearGlassPreview();
+        try
+        {
+            var settings = Settings with { Source = ScanSource.Flatbed, Region = null, AutoStraighten = false, AutoCrop = true };
+            if (CardBack is not null)
+            {
+                var composed = await Task.Run(() => ScanPageProcessor.ComposeCard(Session.Read(CardFront!.Page), CardFront.Page.Crop,
+                    Session.Read(CardBack.Page), CardBack.Page.Crop, settings.Dpi, ct), ct);
+                Remember();
+                var saved = Session.Add(composed, ct);
+                saved.Crop = new(0, 0, 1, 1); // Keep the A4 canvas through the normal processing pipeline.
+                var entry = new ScanPageEntry(saved);
+                Pages.Add(entry); Select(Pages.Count - 1); Renumber();
+                CancelCard();
+                await RefreshAsync(entry);
+                return;
+            }
+            var side = await CaptureTemporaryAsync(device, settings, ct);
+            if (CardFront is null) CardFront = side; else CardBack = side;
+            side.Page.Adjustments = new(Straighten: false);
+            side.Page.Crop = (await Task.Run(() => Processor.Analyze(Session.Read(side.Page), settings, ct: ct), ct)).Keep;
+            AdjustmentMessage = side.Page.Crop is null ? Loc.T("No edges to crop were found") : string.Empty;
+        }
+        catch (InvalidOperationException) when (CardBack is not null && !ct.IsCancellationRequested) { throw; }
+        catch { CancelCard(); throw; }
+    }
 
     public void ApplyPreset(ScanPreset preset)
     {
@@ -40,6 +111,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
             ScanPreset.ColorDocument => Settings with { Dpi = 200, ColorMode = ScanColorMode.Color, JpegQuality = 80 },
             ScanPreset.Receipt => Settings with { Dpi = 300, ColorMode = ScanColorMode.Grayscale, JpegQuality = 80 },
             ScanPreset.Photo => Settings with { Dpi = 300, ColorMode = ScanColorMode.Color, JpegQuality = 90 },
+            ScanPreset.TwoSidedCard => Settings with { Dpi = 300, ColorMode = ScanColorMode.Color, Source = ScanSource.Flatbed, Region = null },
             _ => Settings,
         };
     }
@@ -212,7 +284,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
 
     private Task<BitmapSource> RenderPreviewAsync(ScanPageEntry entry, bool crop)
     {
-        var settings = Settings;
+        var settings = TemporaryPreview == entry ? Settings with { AutoStraighten = false, AutoCrop = false } : Settings;
         var rotation = entry.Page.Rotation;
         var edits = entry.Page.Adjustments;
         var rectangle = entry.Page.Crop;

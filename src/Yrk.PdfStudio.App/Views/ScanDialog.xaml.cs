@@ -41,7 +41,7 @@ public partial class ScanDialog : Window
         Ocr.IsChecked = _saved.ScanOcr;
         Loaded += OnLoaded;
         Closing += OnClosing;
-        Closed += (_, _) => { ++_adjustmentVersion; ++_previewVersion; if (_ownsSession) session.Dispose(); };
+        Closed += (_, _) => { ++_adjustmentVersion; ++_previewVersion; _model.ClearGlassPreview(); _model.CancelCard(); if (_ownsSession) session.Dispose(); };
         UpdateButtons();
     }
 
@@ -111,7 +111,7 @@ public partial class ScanDialog : Window
             _model.ApplyPreset(ScanPreset.Custom);
             PresetLabel.Text = PresetText(ScanPreset.Custom);
         }
-        _model.Settings = settings;
+        _model.Settings = settings with { Region = settings.Source == ScanSource.Flatbed ? _model.Settings.Region : null };
         _model.PaperSize = PaperSize.SelectedValue as string ?? "Original";
     }
     private static string PresetText(ScanPreset preset) => preset switch
@@ -122,6 +122,7 @@ public partial class ScanDialog : Window
     };
     private void ShowPreset()
     {
+        Sources.SelectedValue = _model.Settings.Source;
         Colors.SelectedValue = _model.Settings.ColorMode;
         Dpi.SelectedItem = _model.Settings.Dpi;
         Quality.Value = _model.Settings.JpegQuality;
@@ -132,6 +133,8 @@ public partial class ScanDialog : Window
     {
         if (_working || sender is not Button { Tag: string name } || !Enum.TryParse<ScanPreset>(name, out var preset)) return;
         ReadSettings();
+        _model.CancelCard();
+        _model.ClearGlassPreview();
         _model.ApplyPreset(preset);
         ShowPreset();
         SavePreferences();
@@ -158,6 +161,46 @@ public partial class ScanDialog : Window
         await StartScanAsync();
     }
     private async void OnAppend(object sender, RoutedEventArgs e) => await StartScanAsync();
+    private void OnSourceChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_model is null) return;
+        _model.ClearGlassPreview();
+        _model.Settings = _model.Settings with { Region = null };
+        UpdateButtons();
+    }
+    private async void OnGlassPreview(object sender, RoutedEventArgs e)
+    {
+        if (_working || Devices.SelectedItem is not ScanDevice device) return;
+        ReadSettings();
+        _model.CancelCard();
+        await WorkAsync(async () => { await _model.PreviewGlassAsync(device, _cancel!.Token); });
+        if (_model.GlassPreview is not null && !_closePending)
+        {
+            _cropping = true;
+            Message.Text = Loc.T("Drag a rectangle to select the scan area.");
+        }
+    }
+    private async void OnClearArea(object sender, RoutedEventArgs e)
+    {
+        if (_working) return;
+        _model.Settings = _model.Settings with { Region = null };
+        _model.ClearGlassPreview(); _cropping = false;
+        UpdateButtons(); await RefreshPreviewAsync();
+    }
+    private async void OnCancelCard(object sender, RoutedEventArgs e)
+    {
+        if (_working) return;
+        _model.CancelCard(); _cropping = false;
+        UpdateButtons(); await RefreshPreviewAsync();
+    }
+    private ScanOutputFormat SelectedOutput => Enum.TryParse<ScanOutputFormat>(OutputFormat?.SelectedValue as string, out var format) ? format : ScanOutputFormat.Pdf;
+    private void OnOutputFormatChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (Ocr is null || CreateButton is null) return;
+        if (SelectedOutput != ScanOutputFormat.Pdf) Ocr.IsChecked = false;
+        Ocr.IsEnabled = !_working && SelectedOutput == ScanOutputFormat.Pdf;
+        CreateButton.Content = Loc.T(SelectedOutput == ScanOutputFormat.Pdf ? "Save PDF" : "Save images");
+    }
     private async Task StartScanAsync()
     {
         if (_working) return;
@@ -167,7 +210,19 @@ public partial class ScanDialog : Window
         await WorkAsync(async () =>
         {
             await _model.RefreshAllAsync();
-            await _model.ScanAsync(device, UpdateButtons, _cancel!.Token);
+            if (_model.Preset == ScanPreset.TwoSidedCard)
+            {
+                await _model.ScanCardAsync(device, _cancel!.Token);
+                _cropping = _model.TemporaryPreview is not null;
+                Message.Text = _model.CardBack is not null ? Loc.T("Check the back crop, then press Combine card.")
+                    : _model.CardFront is not null ? Loc.T("Check the front crop, flip the card, then press Continue.") : string.Empty;
+                if (_model.AdjustmentMessage.Length > 0 && _model.TemporaryPreview is not null) Message.Text += " " + _model.AdjustmentMessage;
+            }
+            else
+            {
+                _model.ClearGlassPreview(); _cropping = false;
+                await _model.ScanAsync(device, UpdateButtons, _cancel!.Token);
+            }
         });
     }
 
@@ -181,14 +236,14 @@ public partial class ScanDialog : Window
         try { await work(); }
         catch (ScannerException ex) { Message.Text = ErrorText(ex); }
         catch (OperationCanceledException) { Message.Text = Loc.T("Scanning cancelled. Scanned pages have been kept."); }
-        catch (Exception ex) { Message.Text = ex.Message; }
+        catch (Exception ex) { Message.Text = Loc.T(ex.Message); }
         finally
         {
-            _working = false;
             _cancel.Dispose();
             _cancel = null;
-            UpdateButtons();
             await RefreshPreviewAsync();
+            _working = false;
+            UpdateButtons();
             if (_closePending) Close();
         }
     }
@@ -207,14 +262,20 @@ public partial class ScanDialog : Window
     private void UpdateButtons()
     {
         Editor.IsEnabled = !_working;
+        PageTools.IsEnabled = _model.TemporaryPreview is null;
+        PageList.IsEnabled = _model.TemporaryPreview is null;
         ScanButton.IsEnabled = !_working;
-        Ocr.IsEnabled = !_working;
-        ScanButton.Content = Loc.T(_model.Pages.Count == 0 ? "Scan" : "Scan next page");
+        Ocr.IsEnabled = !_working && SelectedOutput == ScanOutputFormat.Pdf;
+        OutputFormat.IsEnabled = !_working;
+        GlassButton.IsEnabled = !_working && Sources.SelectedValue is ScanSource.Flatbed;
+        ScanButton.Content = Loc.T(_model.CardBack is not null ? "Combine card" : _model.CardFront is not null ? "Continue" : _model.Pages.Count == 0 ? "Scan" : "Scan next page");
+        CancelCardButton.Visibility = _model.CardFront is not null ? Visibility.Visible : Visibility.Collapsed;
+        CancelCardButton.IsEnabled = !_working;
         SizeText.Text = _model.SizeSummary;
-        EmptyHint.Visibility = _model.Pages.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EmptyHint.Visibility = _model.Pages.Count == 0 && _model.TemporaryPreview is null ? Visibility.Visible : Visibility.Collapsed;
         UndoButton.IsEnabled = _model.CanUndo;
         RedoButton.IsEnabled = _model.CanRedo;
-        CreateButton.IsEnabled = !_working && _model.Pages.Count > 0;
+        CreateButton.IsEnabled = !_working && _model.Pages.Count > 0 && _model.CardFront is null;
         CloseButton.IsEnabled = !_working;
         ProgressArea.Visibility = _working ? Visibility.Visible : Visibility.Collapsed;
         NoticeText.Text = string.Join(Environment.NewLine, _model.Notices);
@@ -232,11 +293,11 @@ public partial class ScanDialog : Window
     private void OnClose(object sender, RoutedEventArgs e) => DialogResult = false;
     private void OnCreate(object sender, RoutedEventArgs e)
     {
-        if (_working || _model.Pages.Count == 0) return;
+        if (_working || _model.Pages.Count == 0 || _model.CardFront is not null) return;
         ReadSettings();
         SavePreferences();
         _model.CommitPages();
-        Request = new(_model.Session, _model.Settings, _saved.ScanOcr, ["tha", "eng"]);
+        Request = new(_model.Session, _model.Settings, SelectedOutput == ScanOutputFormat.Pdf && _saved.ScanOcr, ["tha", "eng"], SelectedOutput);
         DialogResult = true;
     }
     private void SavePreferences()
@@ -281,7 +342,7 @@ public partial class ScanDialog : Window
         try
         {
             _adjustmentEntry = entry;
-            AdjustmentPanel.IsEnabled = entry is not null;
+            AdjustmentPanel.IsEnabled = entry is not null && _model.TemporaryPreview is null;
             var edits = entry?.Page.Adjustments ?? new();
             Brightness.Value = edits.Brightness;
             Sharpness.Value = edits.Sharpness;
@@ -318,7 +379,7 @@ public partial class ScanDialog : Window
     }
     private async void OnCrop(object sender, RoutedEventArgs e)
     {
-        if (_working || _model.Current is null) return;
+        if (_working || (_model.Current is null && _model.TemporaryPreview is null)) return;
         ReadSettings();
         _cropping = !_cropping;
         await RefreshPreviewAsync();
@@ -327,17 +388,18 @@ public partial class ScanDialog : Window
     private async Task RefreshPreviewAsync()
     {
         var version = ++_previewVersion;
-        var entry = _model.Current ?? _model.Pages.FirstOrDefault();
+        var entry = _model.TemporaryPreview ?? _model.Current ?? _model.Pages.FirstOrDefault();
         if (entry is null) { PageImage.Source = null; CropFrame.Visibility = Visibility.Collapsed; return; }
         try
         {
-            var image = _cropping ? await _model.CropPreviewAsync(entry) : await _model.PreviewAsync(entry);
+            var temporary = _model.TemporaryPreview is not null;
+            var image = _cropping || temporary ? await _model.CropPreviewAsync(entry) : await _model.PreviewAsync(entry);
             if (version != _previewVersion) return;
             PageCanvas.Width = PageImage.Width = image.PixelWidth;
             PageCanvas.Height = PageImage.Height = image.PixelHeight;
             PageImage.Source = image;
             CropFrame.Visibility = Visibility.Collapsed;
-            if (_cropping && entry.Page.Crop is { } r)
+            if ((_cropping || temporary) && (entry == _model.GlassPreview ? _model.Settings.Region : entry.Page.Crop) is { } r)
                 DrawCrop(new Rect(r.X * PageCanvas.Width, r.Y * PageCanvas.Height, r.Width * PageCanvas.Width, r.Height * PageCanvas.Height));
             SetZoom();
         }
@@ -356,7 +418,7 @@ public partial class ScanDialog : Window
     }
     private void OnCropDown(object sender, MouseButtonEventArgs e)
     {
-        if (!_cropping || _working || PageImage.Source is null) return;
+        if ((!_cropping && _model.TemporaryPreview is null) || _working || PageImage.Source is null) return;
         _cropStart = CropPoint(e); _drawingCrop = true; PageCanvas.CaptureMouse(); e.Handled = true;
     }
     private void OnCropMove(object sender, MouseEventArgs e)
@@ -370,6 +432,13 @@ public partial class ScanDialog : Window
         var rect = new Rect(_cropStart, CropPoint(e));
         if (rect.Width < 3 || rect.Height < 3) return;
         var crop = new NormalizedRect(rect.X / PageCanvas.Width, rect.Y / PageCanvas.Height, rect.Width / PageCanvas.Width, rect.Height / PageCanvas.Height);
+        if (_model.TemporaryPreview is { } temporary)
+        {
+            if (temporary == _model.GlassPreview) _model.Settings = _model.Settings with { Region = crop };
+            else temporary.Page.Crop = crop;
+            DrawCrop(rect);
+            return;
+        }
         _cropping = false;
         await WorkAsync(() => _model.CropSelectedAsync(crop));
     }
@@ -394,6 +463,7 @@ public partial class ScanDialog : Window
         if (_working || Keyboard.FocusedElement is TextBox or ComboBox or Slider) return;
         var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        if (_model.TemporaryPreview is not null && e.Key != Key.Space && !(ctrl && e.Key == Key.S)) return;
         e.Handled = true;
         if (ctrl && e.Key == Key.S) OnCreate(sender, e);
         else if (ctrl && e.Key == Key.Z) await WorkAsync(_model.UndoAsync);

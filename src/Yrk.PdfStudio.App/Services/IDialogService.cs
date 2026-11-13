@@ -37,7 +37,8 @@ public sealed record DigitalSignOptions(
     bool LongTermValidation = false);
 
 /// <summary>The caller owns the session, including after the dialog closes.</summary>
-public sealed record ScanRequest(ScanSession Session, ScanSettings Settings, bool Ocr, IReadOnlyList<string> OcrLanguages);
+public sealed record ScanRequest(ScanSession Session, ScanSettings Settings, bool Ocr, IReadOnlyList<string> OcrLanguages,
+    ScanOutputFormat Format = ScanOutputFormat.Pdf);
 
 /// <summary>Keeps view models free of window and dialog code.</summary>
 public interface IDialogService

@@ -32,6 +32,38 @@ public sealed class TesseractScanOrientationDetector : IScanOrientationDetector
 /// <summary>Pixel operations stay independent of WPF; only the injected JPEG codec is platform-specific.</summary>
 public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDetector? orientationDetector = null, string? tessdataFolder = null)
 {
+    /// <summary>Places cropped card sides at their measured physical size, without scaling to fit.</summary>
+    public static ScannedPage ComposeCard(ScannedPage front, NormalizedRect? frontCrop, ScannedPage back,
+        NormalizedRect? backCrop, int dpi, CancellationToken ct = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(dpi);
+        var width = (int)Math.Round(210 / 25.4 * dpi);
+        var height = (int)Math.Round(297 / 25.4 * dpi);
+        var pixels = new byte[checked(width * height * 4)];
+        Array.Fill(pixels, (byte)255);
+        void Place(ScannedPage side, NormalizedRect? crop, int half)
+        {
+            Validate(side);
+            var bitmap = Crop(side.Bitmap, crop, ct);
+            var w = Math.Max(1, (int)Math.Round(bitmap.Width * dpi / side.DpiX));
+            var h = Math.Max(1, (int)Math.Round(bitmap.Height * dpi / side.DpiY));
+            if (w > width || h > height / 2) throw new InvalidOperationException("Crop each card side before combining it.");
+            var left = (width - w) / 2;
+            var top = half * (height / 2) + (height / 2 - h) / 2;
+            for (var y = 0; y < h; y++)
+            {
+                ct.ThrowIfCancellationRequested();
+                for (var x = 0; x < w; x++)
+                    bitmap.Pixels.AsSpan(Math.Min(bitmap.Height - 1, (int)(y * side.DpiY / dpi)) * bitmap.Stride
+                        + Math.Min(bitmap.Width - 1, (int)(x * side.DpiX / dpi)) * 4, 4)
+                        .CopyTo(pixels.AsSpan(((top + y) * width + left + x) * 4, 4));
+            }
+        }
+        Place(front, frontCrop, 0);
+        Place(back, backCrop, 1);
+        return new(new(width, height, width * 4, pixels), dpi, dpi, Adjustments: new(Straighten: false));
+    }
+
     /// <summary>Optional OSD is used only by Auto adjust. This path never downloads data.</summary>
     public int DetectOrientation(ScannedPage page, int rotation = 0, CancellationToken ct = default)
     {

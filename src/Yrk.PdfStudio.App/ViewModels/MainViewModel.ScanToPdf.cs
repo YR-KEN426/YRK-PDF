@@ -1,4 +1,7 @@
 using System.IO;
+using System.Globalization;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Scanning;
@@ -28,6 +31,12 @@ public sealed partial class MainViewModel
         {
             var request = _dialogs.AskScan(session, scanner);
             if (request is null) return;
+            if (request.Format != ScanOutputFormat.Pdf)
+            {
+                try { if (await SaveScanImagesAsync(request)) return; }
+                catch (Exception ex) { _dialogs.ShowError(ex.Message); return; }
+                continue;
+            }
             string? output;
             ScanOutputStamp? outputStamp = null;
             while (true)
@@ -36,7 +45,9 @@ public sealed partial class MainViewModel
                     _document is null ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : Path.GetDirectoryName(_document.FilePath), "Save PDF");
                 if (output is null) break;
                 if (!CheckNotOpenFile(output)) continue;
-                outputStamp = ScanOutputStamp.Read(output);
+                try { outputStamp = ScanOutputStamp.Read(output); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                { _dialogs.ShowError(ex.Message); return; }
                 if (outputStamp is not null && !_dialogs.Confirm(Loc.F("\"{0}\" already exists. Replace it?", Path.GetFileName(output)))) continue;
                 break;
             }
@@ -44,11 +55,13 @@ public sealed partial class MainViewModel
             var temp = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, $"~{Path.GetFileNameWithoutExtension(output)}.{Guid.NewGuid():N}.yrk-writing");
             var count = session.Pages.Count;
             var keepTemp = false;
+            var createdTemp = false;
             try
             {
                 var done = await RunBusyAsync("Creating PDF…", async () =>
                 {
                     await new ScanPdfBuilder(_engine, new ScanPageProcessor(new WpfImageCodec())).BuildAsync(session, request.Settings, temp);
+                    createdTemp = true;
                     keepTemp = true;
                     PublishScanOutput(temp, output, outputStamp);
                     keepTemp = false;
@@ -64,7 +77,97 @@ public sealed partial class MainViewModel
                 _dialogs.ShowError(ex.Message);
                 return;
             }
-            finally { if (!keepTemp) TryDelete(temp); }
+            finally { if (createdTemp && !keepTemp) TryDelete(temp); }
+        }
+    }
+
+    internal static string ScanImagePath(string chosenPath, int page, int pageCount, ScanOutputFormat format)
+    {
+        if (page < 1 || page > pageCount) throw new ArgumentOutOfRangeException(nameof(page));
+        var digits = Math.Max(3, pageCount.ToString(CultureInfo.InvariantCulture).Length);
+        var extension = format == ScanOutputFormat.Jpeg ? ".jpg" : ".png";
+        return Path.Combine(Path.GetDirectoryName(Path.GetFullPath(chosenPath))!,
+            Path.GetFileNameWithoutExtension(chosenPath) + "-" + page.ToString("D" + digits, CultureInfo.InvariantCulture) + extension);
+    }
+
+    private async Task<bool> SaveScanImagesAsync(Services.ScanRequest request)
+    {
+        var extension = request.Format == ScanOutputFormat.Jpeg ? ".jpg" : ".png";
+        var pages = request.Session.Pages;
+        string[] outputs;
+        ScanOutputStamp?[] stamps;
+        while (true)
+        {
+            var chosen = _dialogs.PickSaveFile($"Scan {DateTime.Now:yyyy-MM-dd HHmm}{extension}",
+                _document is null ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : Path.GetDirectoryName(_document.FilePath),
+                "Save images", request.Format == ScanOutputFormat.Jpeg ? "JPEG image|*.jpg" : "PNG image|*.png", extension);
+            if (chosen is null) return false;
+            outputs = Enumerable.Range(1, pages.Count).Select(n => ScanImagePath(chosen, n, pages.Count, request.Format)).ToArray();
+            stamps = new ScanOutputStamp?[outputs.Length];
+            var approved = true;
+            for (var i = 0; i < outputs.Length; i++)
+            {
+                if (!CheckNotOpenFile(outputs[i])) { approved = false; break; }
+                stamps[i] = ScanOutputStamp.Read(outputs[i]);
+                if (stamps[i] is not null && !_dialogs.Confirm(Loc.F("\"{0}\" already exists. Replace it?", Path.GetFileName(outputs[i]))))
+                { approved = false; break; }
+            }
+            if (approved) break;
+        }
+        var done = await RunBusyAsync("Saving images…", async () =>
+        {
+            var processor = new ScanPageProcessor(new WpfImageCodec());
+            for (var i = 0; i < pages.Count; i++)
+            {
+                var page = pages[i];
+                var temp = Path.Combine(Path.GetDirectoryName(outputs[i])!, $"~{Guid.NewGuid():N}.yrk-writing");
+                var keepTemp = false;
+                var createdTemp = false;
+                try
+                {
+                    RequireScanOutputNoLinks(temp);
+                    var bytes = await Task.Run(() =>
+                    {
+                        var raw = request.Session.Read(page);
+                        // Same preparation, crop, tone and bilevel operations as the PDF processor, at full resolution.
+                        var bitmap = processor.RenderPreview(raw, request.Settings, page.Rotation, int.MaxValue, page.Crop, true);
+                        var swapped = page.Rotation % 180 != 0;
+                        var source = BitmapSource.Create(bitmap.Width, bitmap.Height, swapped ? raw.DpiY : raw.DpiX,
+                            swapped ? raw.DpiX : raw.DpiY, PixelFormats.Bgra32, null, bitmap.Pixels, bitmap.Stride);
+                        BitmapEncoder encoder = request.Format == ScanOutputFormat.Jpeg
+                            ? new JpegBitmapEncoder { QualityLevel = request.Settings.JpegQuality } : new PngBitmapEncoder();
+                        encoder.Frames.Add(BitmapFrame.Create(source));
+                        using var memory = new MemoryStream();
+                        encoder.Save(memory);
+                        return memory.ToArray();
+                    });
+                    using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                    {
+                        createdTemp = true;
+                        await stream.WriteAsync(bytes);
+                    }
+                    keepTemp = true;
+                    PublishScanOutput(temp, outputs[i], stamps[i]);
+                    keepTemp = false;
+                }
+                finally { if (createdTemp && !keepTemp) TryDelete(temp); }
+            }
+        });
+        if (done) StatusMessage = Loc.F("Saved {0} image(s)", pages.Count);
+        return true;
+    }
+
+    private static void RequireScanOutputNoLinks(string path)
+    {
+        for (var current = Path.GetFullPath(path); current is not null; current = Path.GetDirectoryName(current))
+        {
+            try
+            {
+                if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException(Loc.T("Scan output paths must not use symbolic links or junctions."));
+            }
+            catch (FileNotFoundException) { }
+            catch (DirectoryNotFoundException) { }
         }
     }
 
@@ -72,6 +175,7 @@ public sealed partial class MainViewModel
     {
         public static ScanOutputStamp? Read(string path)
         {
+            RequireScanOutputNoLinks(path);
             var file = new FileInfo(path);
             return file.Exists ? new(file.Length, file.LastWriteTimeUtc) : null;
         }
@@ -79,17 +183,19 @@ public sealed partial class MainViewModel
 
     private static void PublishScanOutput(string temp, string output, ScanOutputStamp? expected)
     {
-        if (expected is not null && ScanOutputStamp.Read(output) != expected)
-            throw new IOException(Loc.F("The destination changed. The result is kept at:\n{0}", temp));
         try
         {
+            RequireScanOutputNoLinks(temp);
+            RequireScanOutputNoLinks(output);
+            if (expected is not null && ScanOutputStamp.Read(output) != expected)
+                throw new IOException(Loc.F("The destination changed. The result is kept at:\n{0}", temp));
             // An absent destination was never approved for replacement. Move must enforce this
             // even if another process creates the file after the save dialog closes.
             File.Move(temp, output, overwrite: expected is not null);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw new IOException(Loc.F("The PDF could not be saved. The result is kept at:\n{0}\n\n{1}", temp, ex.Message), ex);
+            throw new IOException(Loc.F("The file could not be saved. The result is kept at:\n{0}\n\n{1}", temp, ex.Message), ex);
         }
     }
 }
