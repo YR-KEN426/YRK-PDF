@@ -5,8 +5,10 @@
 //   sign      Signs a release package; checks first that the key matches the app's public key. Writes the
 //             file signature (--out) and, with --content-out, the content signature that also matches a
 //             package the updater rebuilt from a delta (see UpdateSignature).
+//   verify    Checks the file signature and optional content signature using only a public key, and
+//             prints its fingerprint. Defaults to the app's public key in the repository.
 //
-// The password is asked for on the console, or read from YRK_UPDATE_KEY_PASSWORD.
+// Only new-key and sign ask for a password, or read it from YRK_UPDATE_KEY_PASSWORD.
 using System.Security.Cryptography;
 using System.Text;
 using Yrk.PdfStudio.Core.Security;
@@ -24,9 +26,13 @@ static int Run(string[] args)
                 return NewKey(options["private"], options["public"]);
             case "sign":
                 return Sign(options["private"], options["public"], options["package"], options["id"], options["version"], options["out"], options.GetValueOrDefault("content-out"));
+            case "verify":
+                return Verify(options["package"], options["id"], options["version"], options["sig"], options.GetValueOrDefault("content-sig"), options.GetValueOrDefault("public"));
             default:
                 Console.Error.WriteLine("Usage: new-key --private <file> --public <file>");
                 Console.Error.WriteLine("       sign --private <file> --public <file> --package <nupkg> --id <id> --version <x.y.z> --out <sig> [--content-out <sig>]");
+                Console.Error.WriteLine("       verify --package <nupkg> --id <id> --version <x.y.z> --sig <file> [--content-sig <file>] [--public <pem>]");
+                Console.Error.WriteLine("       verify defaults --public to src/Yrk.PdfStudio.App/Assets/update-public-key.pem (repository root or cwd).");
                 return 2;
         }
     }
@@ -35,11 +41,43 @@ static int Run(string[] args)
         Console.Error.WriteLine("Missing option: " + ex.Message);
         return 2;
     }
-    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or InvalidOperationException)
+    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException or InvalidOperationException or ArgumentException or InvalidDataException)
     {
         Console.Error.WriteLine(ex.Message);
         return 1;
     }
+}
+
+static int Verify(string package, string id, string version, string signaturePath, string? contentSignaturePath, string? publicPath)
+{
+    var publicPem = File.ReadAllText(publicPath ?? DefaultPublicKeyPath());
+    Console.WriteLine($"Fingerprint: {UpdateSignature.Fingerprint(publicPem)}");
+    var sha = UpdateSignature.Sha256Hex(package);
+    var valid = UpdateSignature.Verify(publicPem, id, version, Path.GetFileName(package), sha, File.ReadAllText(signaturePath));
+    Console.WriteLine($"File signature: {(valid ? "PASS" : "FAIL")} ({sha})");
+
+    if (contentSignaturePath is not null)
+    {
+        var digest = UpdateSignature.ContentDigest(package);
+        var contentValid = UpdateSignature.VerifyContent(publicPem, id, version, digest, File.ReadAllText(contentSignaturePath));
+        Console.WriteLine($"Content signature: {(contentValid ? "PASS" : "FAIL")} ({digest})");
+        valid &= contentValid;
+    }
+
+    return valid ? 0 : 1;
+}
+
+static string DefaultPublicKeyPath()
+{
+    var relativePath = Path.Combine("src", "Yrk.PdfStudio.App", "Assets", "update-public-key.pem");
+    for (var directory = new DirectoryInfo(Directory.GetCurrentDirectory()); directory is not null; directory = directory.Parent)
+    {
+        var candidate = Path.Combine(directory.FullName, relativePath);
+        if (File.Exists(candidate))
+            return candidate;
+    }
+
+    return relativePath;
 }
 
 static int NewKey(string privatePath, string publicPath)
@@ -158,8 +196,10 @@ static string ReadHidden(string prompt)
 static Dictionary<string, string> Options(string[] args)
 {
     var options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    for (var i = 0; i + 1 < args.Length; i += 2)
+    for (var i = 0; i < args.Length; i += 2)
     {
+        if (i + 1 >= args.Length || args[i + 1].StartsWith("--", StringComparison.Ordinal) || string.IsNullOrWhiteSpace(args[i + 1]))
+            throw new KeyNotFoundException(args[i]);
         options[args[i].TrimStart('-')] = args[i + 1];
     }
 
