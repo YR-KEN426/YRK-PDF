@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using System.Reflection;
 using System.Security.Cryptography;
 using Yrk.PdfStudio.App.Scanning;
 using Yrk.PdfStudio.App.Services;
@@ -145,6 +146,82 @@ public sealed class AppOcrTests
     }
 
     [Fact]
+    public async Task Scanning_ocr_rejects_output_changed_while_downloading_languages()
+    {
+        await using var app = new AppTestHarness();
+        var output = app.PathFor("scan.pdf");
+        app.Dialogs.Answer("AskScan", ScanAnswer(ocr: true));
+        app.Dialogs.Answer("PickSavePdfFile", output);
+        using var handler = new LanguageHandler();
+        using var client = new HttpClient(handler);
+        app.Model.OcrDataFactory = () => CreateLanguageData(app, install: false, client, handler.VerificationData);
+        byte[]? scanned = null;
+        app.Dialogs.Answer("Confirm", new Func<object?[], object?>(_ =>
+        {
+            scanned = File.ReadAllBytes(output);
+            File.SetLastWriteTimeUtc(output, File.GetLastWriteTimeUtc(output).AddMinutes(1));
+            return true;
+        }));
+        app.Model.OcrRunner = new TextLayerRunner().RunAsync;
+
+        await app.Model.ScanToPdfCommand.ExecuteAsync(null);
+
+        Assert.Equal(scanned, File.ReadAllBytes(output));
+        Assert.Single(app.Dialogs.Named("ShowError"));
+        var recovery = Assert.Single(Directory.GetFiles(app.Folder, "*.yrk-writing"));
+        await using var pdf = await app.Engine.OpenAsync(recovery);
+        Assert.Contains("Scan", await pdf.GetPageTextAsync(0), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("length")]
+    [InlineData("timestamp")]
+    public async Task Scanning_ocr_preserves_changed_non_ocr_pdf_and_retains_searchable_result(string change)
+    {
+        Action? changeOutput = null;
+        await using var app = new AppTestHarness(wrapOpenedDocument: document => AfterDispose(document, () =>
+        {
+            var update = changeOutput;
+            changeOutput = null;
+            update?.Invoke();
+        }));
+        var output = app.PathFor("scan-conflict.pdf");
+        app.Model.OcrDataFactory = () => CreateLanguageData(app, install: true);
+        app.Dialogs.Answer("AskScan", ScanAnswer(ocr: true));
+        app.Dialogs.Answer("PickSavePdfFile", output);
+        var runner = new TextLayerRunner();
+        byte[]? competing = null;
+        app.Model.OcrRunner = async (document, bytes, options, data, progress, token) =>
+        {
+            var result = await runner.RunAsync(document, bytes, options, data, progress, token);
+            var written = File.GetLastWriteTimeUtc(output);
+            competing = change == "length" ? bytes.Concat(new byte[] { 10 }).ToArray() : bytes;
+            // Simulate another writer as soon as OCR releases its read handle, before publish.
+            changeOutput = () =>
+            {
+                File.WriteAllBytes(output, competing);
+                File.SetLastWriteTimeUtc(output, change == "length" ? written : written.AddMinutes(1));
+            };
+            return result;
+        };
+
+        await app.Model.ScanToPdfCommand.ExecuteAsync(null);
+
+        var error = (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!;
+        Assert.True(error.Contains("destination changed", StringComparison.OrdinalIgnoreCase), error);
+        Assert.Equal(competing, File.ReadAllBytes(output));
+        Assert.True(app.Model.HasDocument);
+        var recovery = Assert.Single(Directory.GetFiles(app.Folder, "*.yrk-writing"));
+        Assert.Contains(recovery, error, StringComparison.Ordinal);
+        await using var nonOcr = await app.Engine.OpenAsync(output);
+        Assert.Equal(string.Empty, (await nonOcr.GetPageTextAsync(0)).Trim());
+        await using var ocr = await app.Engine.OpenAsync(recovery);
+        Assert.Contains("Scan", await ocr.GetPageTextAsync(0), StringComparison.Ordinal);
+        Assert.False(app.Model.IsBusy);
+        Assert.False(app.Model.IsOperationRunning);
+    }
+
+    [Fact]
     public async Task Scanning_ocr_cancellation_keeps_scanned_pdf_without_text()
     {
         await using var app = new AppTestHarness();
@@ -273,6 +350,20 @@ public sealed class AppOcrTests
         observe?.Invoke(session);
         return new ScanRequest(session, ScanSettings, ocr, ["tha", "eng"]);
     };
+
+    private static IPdfDocument AfterDispose(IPdfDocument document, Action afterDispose)
+    {
+        var proxy = DispatchProxy.Create<IPdfDocument, SignatureSecurityTests.TestProxy>();
+        ((SignatureSecurityTests.TestProxy)(object)proxy).Handle = (method, args) =>
+            method.Name == nameof(IAsyncDisposable.DisposeAsync) ? DisposeAsync() : method.Invoke(document, args);
+        return proxy;
+
+        async ValueTask DisposeAsync()
+        {
+            await document.DisposeAsync();
+            afterDispose();
+        }
+    }
 
     private static OcrLanguageData CreateLanguageData(AppTestHarness app, bool install, HttpClient? client = null,
         IReadOnlyDictionary<string, (string Sha256, long Size)>? verificationData = null)

@@ -99,10 +99,19 @@ public sealed class WiaScannerService : IScannerService
             if (dpiX <= 0 || dpiY <= 0) throw new ScannerException(ScannerErrorKind.Other, "The scanner returned an invalid DPI.");
             if (dpiX != settings.Dpi) notices.Add($"Actual horizontal DPI: {dpiX} (requested {settings.Dpi}).");
             if (dpiY != settings.Dpi) notices.Add($"Actual vertical DPI: {dpiY} (requested {settings.Dpi}).");
-            // One page per transfer, including feeder backs. Automation has no cancellable Transfer API:
+            // Request all feeder pages when supported, or a valid batch that includes both duplex sides.
+            // Automation has no cancellable Transfer API:
             // cancellation is checked before/after each driver call, then all RCWs are released before completion.
             var pages = FindProperty(item, 3096, objects);
-            if (source != ScanSource.Flatbed && pages is not null) SetWithFallback(pages, 1, "Pages per transfer", notices);
+            if (pages is not null)
+            {
+                var count = Number(Get(pages, "SubType")) == 1
+                    ? SelectPagesPerTransfer(source, Number(Get(pages, "SubTypeMin")), Number(Get(pages, "SubTypeMax")), Number(Get(pages, "SubTypeStep")))
+                    : SelectPagesPerTransfer(source, SupportedNumbers(pages));
+                SetWithFallback(pages, count, "Pages per transfer", notices);
+                // A driver fallback to one side must not silently discard duplex backs.
+                if (source == ScanSource.Duplex) SelectPagesPerTransfer(source, [Number(Get(pages, "Value"))]);
+            }
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -114,10 +123,13 @@ public sealed class WiaScannerService : IScannerService
                     var fileData = transfer.Own(Get(image, "FileData"));
                     var bytes = (byte[])Get(fileData, "BinaryData");
                     using var stream = new MemoryStream(bytes, writable: false);
-                    var frame = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
-                    var pixels = ImageConversion.ToPdfImage(frame);
-                    cancellationToken.ThrowIfCancellationRequested();
-                    progress.Report(new(new PdfBitmap(pixels.Width, pixels.Height, pixels.Width * 4, pixels.Pixels), dpiX, dpiY, notices.ToArray()));
+                    var frames = BitmapDecoder.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames;
+                    foreach (var frame in frames)
+                    {
+                        var pixels = ImageConversion.ToPdfImage(frame);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        progress.Report(new(new PdfBitmap(pixels.Width, pixels.Height, pixels.Width * 4, pixels.Pixels), dpiX, dpiY, notices.ToArray()));
+                    }
                     if (source == ScanSource.Flatbed) break;
                 }
                 catch (Exception ex) when (source != ScanSource.Flatbed && Unwrap(ex).HResult == unchecked((int)0x80210003))
@@ -128,6 +140,30 @@ public sealed class WiaScannerService : IScannerService
             }
             return true;
         }, cancellationToken);
+    }
+
+    internal static int SelectPagesPerTransfer(ScanSource source, int minimum, int maximum, int step)
+    {
+        if (source == ScanSource.Flatbed) return 1;
+        if (minimum < 0 || maximum < minimum || step <= 0) throw new ArgumentOutOfRangeException(nameof(minimum));
+        if (minimum == 0) return 0; // WIA ALL_PAGES.
+        var wanted = source == ScanSource.Duplex ? 2 : 1;
+        var chosen = (long)minimum + Math.Max(0, ((long)wanted - minimum + step - 1) / step) * step;
+        if (source == ScanSource.Duplex && chosen % 2 != 0)
+        {
+            if (step % 2 == 0) throw new NotSupportedException();
+            chosen += step;
+        }
+        if (chosen > maximum) throw new NotSupportedException();
+        return (int)chosen;
+    }
+
+    internal static int SelectPagesPerTransfer(ScanSource source, IReadOnlyList<int> values)
+    {
+        if (source == ScanSource.Flatbed) return 1;
+        if (values.Contains(0)) return 0;
+        var chosen = values.Where(n => n > 0 && (source != ScanSource.Duplex || n % 2 == 0)).Order().FirstOrDefault();
+        return chosen > 0 ? chosen : throw new NotSupportedException();
     }
 
     public static ScannerException MapError(int hresult, Exception? innerException = null)

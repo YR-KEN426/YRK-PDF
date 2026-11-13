@@ -13,8 +13,10 @@ public sealed partial class MainViewModel
         string? error = null;
         CancellationTokenSource? operation = null;
         var reporting = false;
+        var keepTemp = false;
         try
         {
+            var outputStamp = ScanOutputStamp.Read(output) ?? throw new FileNotFoundException(null, output);
             var data = OcrDataFactory();
             if (!await EnsureLanguageDataAsync(data, languages))
             {
@@ -57,7 +59,9 @@ public sealed partial class MainViewModel
                 temp = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, $"~{Path.GetFileNameWithoutExtension(output)}.{Guid.NewGuid():N}.yrk-writing");
                 await PdfTemporaryFiles.WriteDurableAsync(temp, summary.Output, token);
                 token.ThrowIfCancellationRequested();
-                File.Move(temp, output, overwrite: true);
+                keepTemp = true;
+                PublishScanOutput(temp, output, outputStamp);
+                keepTemp = false;
             }
 
             StatusMessage = summary.PagesRecognised == 1
@@ -77,7 +81,7 @@ public sealed partial class MainViewModel
         finally
         {
             reporting = false;
-            if (temp is not null) TryDelete(temp);
+            if (temp is not null && !keepTemp) TryDelete(temp);
             if (operation is not null)
             {
                 operation.Dispose();

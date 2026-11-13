@@ -24,6 +24,7 @@ public sealed class ScanSession : IDisposable
 {
     private readonly List<ScanSessionPage> _pages = [];
     private readonly object _gate = new();
+    private readonly FileStream _sessionLock;
     private bool _disposed;
 
     public ScanSession()
@@ -32,6 +33,7 @@ public sealed class ScanSession : IDisposable
         RequireNoLinks(DirectoryPath);
         Directory.CreateDirectory(DirectoryPath);
         RequireNoLinks(DirectoryPath);
+        _sessionLock = new FileStream(Path.Combine(DirectoryPath, ".lock"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
     }
 
     public string DirectoryPath { get; }
@@ -43,14 +45,17 @@ public sealed class ScanSession : IDisposable
         lock (_gate)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            string? path = null;
+            var created = false;
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 ScanPageProcessor.Validate(page);
-                var path = CreateTemporaryPath(".bgra");
+                path = CreateTemporaryPath(".bgra");
                 using (var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 using (var writer = new BinaryWriter(stream))
                 {
+                    created = true;
                     writer.Write(page.Bitmap.Width);
                     writer.Write(page.Bitmap.Height);
                     writer.Write(page.Bitmap.Stride);
@@ -61,7 +66,16 @@ public sealed class ScanSession : IDisposable
                 _pages.Add(item);
                 return item;
             }
-            catch { Dispose(); throw; }
+            catch
+            {
+                // A failed page must not invalidate pages already shown in the scan dialog.
+                if (created)
+                {
+                    try { DeleteOwnedPath(path!); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                }
+                throw;
+            }
         }
     }
 
@@ -194,7 +208,23 @@ public sealed class ScanSession : IDisposable
                     var created = File.GetCreationTimeUtc(path);
                     var written = File.GetLastWriteTimeUtc(path);
                     if (nowUtc - (created > written ? created : written) <= maxAge) continue;
-                    DeleteOwnedPath(root, path, tempRoot);
+                    var attributes = File.GetAttributes(path);
+                    if ((attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == FileAttributes.Directory)
+                    {
+                        var lockPath = Path.Combine(path, ".lock");
+                        RequireNoLinks(lockPath, tempRoot);
+                        // Keep exclusive ownership while removing contents; active sessions keep this
+                        // handle open even when they have not added a page for more than maxAge.
+                        using (var held = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None))
+                        {
+                            foreach (var child in Directory.EnumerateFileSystemEntries(path))
+                                if (!string.Equals(child, lockPath, StringComparison.OrdinalIgnoreCase))
+                                    DeleteOwnedPath(root, child, tempRoot);
+                        }
+                        DeleteOwnedPath(root, lockPath, tempRoot);
+                        Directory.Delete(path, recursive: false);
+                    }
+                    else DeleteOwnedPath(root, path, tempRoot);
                     removed++;
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
@@ -224,6 +254,7 @@ public sealed class ScanSession : IDisposable
             if (_disposed) return;
             _disposed = true;
             _pages.Clear();
+            _sessionLock.Dispose();
             // A file held open (e.g. by antivirus) must not make Dispose throw; leftovers are removed
             // by the stale-folder sweep at the next start.
             try { DeleteOwnedPath(DirectoryPath); }

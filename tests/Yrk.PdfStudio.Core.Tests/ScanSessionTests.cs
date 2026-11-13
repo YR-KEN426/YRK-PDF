@@ -72,12 +72,42 @@ public sealed class ScanSessionTests
     }
 
     [Fact]
-    public void Exception_while_adding_a_page_removes_existing_files()
+    public void Exception_while_adding_a_page_preserves_existing_pages_and_allows_retry()
     {
         using var session = new ScanSession();
-        session.Add(Page(4, 6));
+        var first = session.Add(Page(4, 6));
         Assert.Throws<ArgumentException>(() => session.Add(new(new(2, 2, 8, []), 300, 300)));
-        Assert.False(Directory.Exists(session.DirectoryPath));
+        Assert.Same(first, Assert.Single(session.Pages));
+        Assert.Equal(Page(4, 6).Bitmap.Pixels, session.Read(first).Bitmap.Pixels);
+        session.Add(Page(8, 10));
+        Assert.Equal(2, session.Pages.Count);
+    }
+
+    [Fact]
+    public void Failure_after_writing_a_page_rolls_back_only_that_file()
+    {
+        using var session = new ScanSession();
+        var first = session.Add(Page(4, 6));
+        var files = Directory.GetFiles(session.DirectoryPath).Order().ToArray();
+        var page = Page(8, 10) with { Notices = new FailingNotices() };
+        Assert.Throws<IOException>(() => session.Add(page));
+        Assert.Equal(files, Directory.GetFiles(session.DirectoryPath).Order().ToArray());
+        Assert.Same(first, Assert.Single(session.Pages));
+        Assert.Equal(4, session.Read(first).Bitmap.Width);
+        session.Add(Page(8, 10));
+        Assert.Equal(2, session.Pages.Count);
+    }
+
+    [Fact]
+    public void Cancelled_add_keeps_existing_pages()
+    {
+        using var session = new ScanSession();
+        var first = session.Add(Page(4, 6));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(() => session.Add(Page(8, 10), cancellation.Token));
+        Assert.Same(first, Assert.Single(session.Pages));
+        Assert.Equal(4, session.Read(first).Bitmap.Width);
     }
 
     [Fact]
@@ -125,6 +155,10 @@ public sealed class ScanSessionTests
         try
         {
             File.WriteAllText(Path.Combine(outside.FullName, "keep.txt"), "keep");
+            // Simulate replacement after an external actor has bypassed the live-session lock.
+            ((IDisposable)typeof(ScanSession).GetField("_sessionLock", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(session)!).Dispose();
+            File.Delete(Path.Combine(session.DirectoryPath, ".lock"));
             Directory.Delete(session.DirectoryPath); // This exact empty, session-created folder is owned here.
             MakeJunction(session.DirectoryPath, outside.FullName);
             session.Dispose();
@@ -154,5 +188,13 @@ public sealed class ScanSessionTests
     internal sealed class Sink<T>(Action<T> receive) : IProgress<T>
     {
         public void Report(T value) => receive(value);
+    }
+
+    private sealed class FailingNotices : IReadOnlyList<string>
+    {
+        public int Count => 1;
+        public string this[int index] => throw new IOException("Simulated failure after page bytes were written.");
+        public IEnumerator<string> GetEnumerator() { yield return this[0]; }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

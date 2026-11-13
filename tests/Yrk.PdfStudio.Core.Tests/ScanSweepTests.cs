@@ -34,6 +34,33 @@ public sealed class ScanSweepTests : IDisposable
     }
 
     [Fact]
+    public void Live_session_survives_sweep_even_with_old_timestamps()
+    {
+        using var session = new ScanSession();
+        var page = session.Add(ScanSessionTests.Page(4, 6));
+        Age(session.DirectoryPath);
+        Assert.Throws<IOException>(() => new FileStream(Path.Combine(session.DirectoryPath, ".lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.None));
+
+        ScanSession.SweepStale(_now, TimeSpan.FromDays(1));
+
+        Assert.True(Directory.Exists(session.DirectoryPath));
+        Assert.Equal(4, session.Read(page).Bitmap.Width);
+        session.Add(ScanSessionTests.Page(8, 10));
+    }
+
+    [Fact]
+    public void Unlocked_abandoned_session_is_removed()
+    {
+        var folder = Directory.CreateDirectory(Path.Combine(Root, "abandoned")).FullName;
+        using (var held = new FileStream(Path.Combine(folder, ".lock"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None)) { }
+        File.WriteAllText(Path.Combine(folder, "page"), "saved page");
+        Age(folder);
+
+        Assert.Equal(1, ScanSession.SweepStale(_now, TimeSpan.FromDays(1), Root, _temp));
+        Assert.False(Directory.Exists(folder));
+    }
+
+    [Fact]
     public void Missing_scan_directory_does_not_throw()
         => Assert.Equal(0, ScanSession.SweepStale(_now, TimeSpan.FromDays(1), Root, _temp));
 

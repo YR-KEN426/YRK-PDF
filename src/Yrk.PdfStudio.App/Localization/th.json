@@ -1568,5 +1568,7 @@
   "DPI ({0})": "ความละเอียด (DPI {0})",
   "The PDF was saved without searchable text.": "บันทึก PDF แล้ว โดยไม่มีข้อความที่ค้นหาได้",
   "Text recognition was cancelled. The PDF was saved without searchable text.": "ยกเลิกการรู้จำข้อความแล้ว บันทึก PDF แล้ว โดยไม่มีข้อความที่ค้นหาได้",
-  "Text recognition failed. The PDF was saved without searchable text.\n\n{0}": "รู้จำข้อความไม่สำเร็จ บันทึก PDF แล้ว โดยไม่มีข้อความที่ค้นหาได้\n\n{0}"
+  "Text recognition failed. The PDF was saved without searchable text.\n\n{0}": "รู้จำข้อความไม่สำเร็จ บันทึก PDF แล้ว โดยไม่มีข้อความที่ค้นหาได้\n\n{0}",
+  "The destination changed. The result is kept at:\n{0}": "ไฟล์ปลายทางมีการเปลี่ยนแปลง เก็บผลลัพธ์ไว้ที่:\n{0}",
+  "The PDF could not be saved. The result is kept at:\n{0}\n\n{1}": "บันทึก PDF ไม่สำเร็จ เก็บผลลัพธ์ไว้ที่:\n{0}\n\n{1}"
 }

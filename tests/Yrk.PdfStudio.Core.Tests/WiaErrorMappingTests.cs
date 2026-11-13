@@ -8,6 +8,59 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class WiaErrorMappingTests
 {
     [Theory]
+    [InlineData(ScanSource.Flatbed, 0, 100, 2, 1)]
+    [InlineData(ScanSource.Feeder, 0, 100, 1, 0)]
+    [InlineData(ScanSource.Duplex, 0, 100, 2, 0)]
+    [InlineData(ScanSource.Feeder, 1, 100, 1, 1)]
+    [InlineData(ScanSource.Duplex, 1, 100, 1, 2)]
+    [InlineData(ScanSource.Duplex, 2, 100, 2, 2)]
+    [InlineData(ScanSource.Duplex, 3, 100, 3, 6)]
+    [InlineData(ScanSource.Duplex, 4, 100, 3, 4)]
+    [InlineData(ScanSource.Duplex, int.MaxValue - 1, int.MaxValue, 2, int.MaxValue - 1)]
+    public void Page_count_respects_source_range_and_step(ScanSource source, int min, int max, int step, int expected)
+    {
+        Assert.Equal(expected, WiaScannerService.SelectPagesPerTransfer(source, min, max, step));
+    }
+
+    [Theory]
+    [InlineData(1, 100, 2)]
+    [InlineData(1, 1, 1)]
+    [InlineData(3, 5, 3)]
+    public void Duplex_rejects_ranges_without_a_supported_complete_sheet(int min, int max, int step)
+        => Assert.Throws<NotSupportedException>(() => WiaScannerService.SelectPagesPerTransfer(ScanSource.Duplex, min, max, step));
+
+    [Theory]
+    [InlineData(ScanSource.Feeder, new[] { 1, 2, 0 }, 0)]
+    [InlineData(ScanSource.Duplex, new[] { 1, 2, 0 }, 0)]
+    [InlineData(ScanSource.Duplex, new[] { 1, 5, 4, 2 }, 2)]
+    [InlineData(ScanSource.Feeder, new[] { 3, 5 }, 3)]
+    [InlineData(ScanSource.Flatbed, new[] { 0, 2 }, 1)]
+    public void Page_count_also_respects_enumerated_values(ScanSource source, int[] values, int expected)
+        => Assert.Equal(expected, WiaScannerService.SelectPagesPerTransfer(source, values));
+
+    [Fact]
+    public void Duplex_rejects_enumerated_single_sides()
+        => Assert.Throws<NotSupportedException>(() => WiaScannerService.SelectPagesPerTransfer(ScanSource.Duplex, [1, 3]));
+
+    [Theory]
+    [InlineData(0, 100, 2, 0)]
+    [InlineData(2, 100, 2, 2)]
+    [InlineData(1, 100, 1, 2)]
+    public async Task Duplex_retains_both_sides_and_continues_until_paper_empty(int min, int max, int step, int expected)
+    {
+        var driver = new TestDevice(feeder: true, availablePages: 4, duplex: true,
+            pages: new TestProperty(3096, min, 1) { SubTypeMin = min, SubTypeMax = max, SubTypeStep = step });
+        driver.Acquisition.OnTransfer = () => Assert.Equal(expected, driver.Acquisition.Properties[4].Value);
+        var scanner = new WiaScannerService(() => new TestManager(driver));
+        var pages = new List<ScannedPage>();
+        await scanner.ScanAsync(new("test-device", "Test"), new(Source: ScanSource.Duplex), new ScanSessionTests.Sink<ScannedPage>(pages.Add));
+        Assert.Equal(4, pages.Count);
+        Assert.Equal(5, driver.Acquisition.Transfers);
+        Assert.Equal(5, driver.Properties[2].Value); // FEEDER | DUPLEX.
+        Assert.Equal(new byte[] { 0, 1, 2, 3 }, pages.Select(p => p.Bitmap.Pixels[0]).ToArray());
+    }
+
+    [Theory]
     [InlineData(0x80210001u, ScannerErrorKind.Other)]
     [InlineData(0x80210002u, ScannerErrorKind.PaperJam)]
     [InlineData(0x80210003u, ScannerErrorKind.FeederEmpty)]
@@ -151,10 +204,10 @@ public sealed class WiaErrorMappingTests
 
     public sealed class TestDevice
     {
-        public TestDevice(bool feeder, int availablePages)
+        public TestDevice(bool feeder, int availablePages, bool duplex = false, TestProperty? pages = null)
         {
-            Acquisition = new TestAcquisition(availablePages);
-            Properties = new(new TestProperty(3086, feeder ? 1 : 2), new TestProperty(3088, feeder ? 1 : 2));
+            Acquisition = new TestAcquisition(availablePages, pages);
+            Properties = new(new TestProperty(3086, duplex ? 5 : feeder ? 1 : 2), new TestProperty(3088, feeder ? 1 : 2));
             Items = new(Acquisition);
         }
         public TestAcquisition Acquisition { get; }
@@ -162,13 +215,13 @@ public sealed class WiaErrorMappingTests
         public AutomationItems<TestAcquisition> Items { get; }
     }
 
-    public sealed class TestAcquisition(int availablePages)
+    public sealed class TestAcquisition(int availablePages, TestProperty? pages = null)
     {
         public AutomationItems<TestProperty> Properties { get; } = new(
             new TestProperty(6146, 1, 3, [1, 2]),
             new TestProperty(6147, 300, 1) { SubTypeMin = 300, SubTypeMax = 600, SubTypeStep = 300 },
             new TestProperty(6148, 300, 2, [300, 600]),
-            new TestProperty(3096, 1));
+            pages ?? new TestProperty(3096, 1));
         public int Transfers { get; private set; }
         public Action? OnTransfer { get; set; }
         public TestImage Transfer(string format)
@@ -180,7 +233,7 @@ public sealed class WiaErrorMappingTests
                 throw new ScannerException(ScannerErrorKind.FeederEmpty, "Empty feeder", hresult: unchecked((int)0x80210003));
             var encoder = new BmpBitmapEncoder();
             var pixels = new byte[16 * 16 * 3];
-            Array.Fill(pixels, (byte)255);
+            Array.Fill(pixels, (byte)(Transfers - 1));
             encoder.Frames.Add(BitmapFrame.Create(BitmapSource.Create(16, 16, 300, 300, PixelFormats.Bgr24, null, pixels, 16 * 3)));
             using var stream = new MemoryStream();
             encoder.Save(stream);

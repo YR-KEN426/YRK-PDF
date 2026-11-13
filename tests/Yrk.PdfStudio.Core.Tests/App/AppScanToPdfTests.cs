@@ -61,6 +61,82 @@ public sealed class AppScanToPdfTests
     }
 
     [Fact]
+    public async Task Destination_created_after_save_dialog_is_not_overwritten_and_result_is_kept()
+    {
+        await using var app = new AppTestHarness();
+        var output = app.PathFor("scan.pdf");
+        byte[] competing = [1, 2, 3, 4];
+        app.Dialogs.Answer("AskScan", ScanAnswer());
+        app.Dialogs.Answer("PickSavePdfFile", output);
+        app.Model.CommitEditsRequested += (_, _) => File.WriteAllBytes(output, competing);
+
+        await app.Model.ScanToPdfCommand.ExecuteAsync(null);
+
+        Assert.Equal(competing, File.ReadAllBytes(output));
+        Assert.Empty(app.Dialogs.Named("Confirm"));
+        Assert.False(app.Model.HasDocument);
+        var recovery = Assert.Single(Directory.GetFiles(app.Folder, "*.yrk-writing"));
+        Assert.Contains(recovery, (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!, StringComparison.Ordinal);
+        await using var pdf = await app.Engine.OpenAsync(recovery);
+        Assert.Equal(2, pdf.PageCount);
+    }
+
+    [Fact]
+    public async Task Confirmed_unchanged_destination_is_replaced()
+    {
+        await using var app = new AppTestHarness();
+        var output = app.CreatePdf();
+        var original = File.ReadAllBytes(output);
+        app.Dialogs.Answer("AskScan", ScanAnswer());
+        app.Dialogs.Answer("PickSavePdfFile", output);
+        app.Dialogs.Answer("Confirm", true);
+
+        await app.Model.ScanToPdfCommand.ExecuteAsync(null);
+
+        Assert.NotEqual(original, File.ReadAllBytes(output));
+        Assert.True(app.Model.HasDocument);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+        Assert.Empty(Directory.GetFiles(app.Folder, "*.yrk-writing"));
+    }
+
+    [Theory]
+    [InlineData("length")]
+    [InlineData("timestamp")]
+    [InlineData("deleted")]
+    public async Task Confirmed_destination_changed_before_publish_is_not_replaced(string change)
+    {
+        await using var app = new AppTestHarness();
+        var output = app.CreatePdf();
+        var original = File.ReadAllBytes(output);
+        var written = File.GetLastWriteTimeUtc(output);
+        app.Dialogs.Answer("AskScan", ScanAnswer());
+        app.Dialogs.Answer("PickSavePdfFile", output);
+        app.Dialogs.Answer("Confirm", true);
+        app.Model.CommitEditsRequested += (_, _) =>
+        {
+            if (change == "length")
+            {
+                File.WriteAllBytes(output, [1, 2]);
+                File.SetLastWriteTimeUtc(output, written); // Prove length alone detects a change.
+            }
+            else if (change == "timestamp") File.SetLastWriteTimeUtc(output, written.AddMinutes(1));
+            else File.Delete(output);
+        };
+
+        await app.Model.ScanToPdfCommand.ExecuteAsync(null);
+
+        if (change == "deleted") Assert.False(File.Exists(output));
+        else Assert.Equal(change == "length" ? new byte[] { 1, 2 } : original, File.ReadAllBytes(output));
+        var recovery = Assert.Single(Directory.GetFiles(app.Folder, "*.yrk-writing"));
+        var error = (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!;
+        Assert.Contains("destination changed", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(recovery, error, StringComparison.Ordinal);
+        Assert.False(app.Model.HasDocument);
+        await using var pdf = await app.Engine.OpenAsync(recovery);
+        Assert.Equal(2, pdf.PageCount);
+    }
+
+    [Fact]
     public async Task Closing_scan_dialog_disposes_session_without_creating_output()
     {
         await using var app = new AppTestHarness();
