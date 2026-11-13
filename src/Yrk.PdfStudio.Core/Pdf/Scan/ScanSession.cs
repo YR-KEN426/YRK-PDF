@@ -25,6 +25,7 @@ public sealed class ScanSessionPage
         set { ArgumentNullException.ThrowIfNull(value); value.Validate(); _adjustments = value; }
     }
     public int Brightness { get => Adjustments.Brightness; set => Adjustments = Adjustments with { Brightness = value }; }
+    public int Contrast { get => Adjustments.Contrast; set => Adjustments = Adjustments with { Contrast = value }; }
     public int Sharpness { get => Adjustments.Sharpness; set => Adjustments = Adjustments with { Sharpness = value }; }
     public bool WhiteBackground { get => Adjustments.WhiteBackground; set => Adjustments = Adjustments with { WhiteBackground = value }; }
     public bool Straighten { get => Adjustments.Straighten ?? true; set => Adjustments = Adjustments with { Straighten = value }; }

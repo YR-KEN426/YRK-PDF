@@ -11,13 +11,109 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class AppScanEditorTests
 {
     [Fact]
+    public void Unsaved_state_tracks_successful_save_edits_undo_and_selection() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var model = CreateModel(session);
+        Assert.False(model.HasUnsavedPages);
+        await model.LoadPagesAsync();
+        Assert.True(model.HasUnsavedPages);
+        Assert.Equal(3, model.UnsavedPageCount);
+        model.MarkSaved();
+        Assert.False(model.HasUnsavedPages);
+        Assert.Equal(0, model.UnsavedPageCount);
+        model.Select(1);
+        Assert.False(model.HasUnsavedPages);
+        await model.RotateSelectedAsync(90);
+        Assert.True(model.HasUnsavedPages);
+        await model.UndoAsync();
+        Assert.False(model.HasUnsavedPages);
+        model.Move(0, 2);
+        Assert.True(model.HasUnsavedPages);
+        model.MarkSaved();
+        Assert.False(model.HasUnsavedPages);
+        model.Settings = model.Settings with { JpegQuality = 90 };
+        Assert.True(model.HasUnsavedPages);
+        model.MarkSaved();
+        model.RemoveSelected();
+        Assert.True(model.HasUnsavedPages);
+    });
+
+    [Theory]
+    [InlineData(ScanAdjustmentScope.ThisPage)]
+    [InlineData(ScanAdjustmentScope.Selected)]
+    [InlineData(ScanAdjustmentScope.AllPages)]
+    public void Live_scope_uses_absolute_values_and_one_undo_per_drag(ScanAdjustmentScope scope) => Run(async () =>
+    {
+        using var session = CreateSession();
+        var model = CreateModel(session);
+        await model.LoadPagesAsync();
+        Assert.Equal(ScanAdjustmentScope.ThisPage, model.AdjustmentScope);
+        Assert.False(model.CanAdjustSelected);
+        model.SetAdjustmentScope(ScanAdjustmentScope.Selected);
+        Assert.Equal(ScanAdjustmentScope.ThisPage, model.AdjustmentScope);
+        model.Pages[0].Page.Adjustments = new(Brightness: -10, Contrast: 15);
+        model.Pages[1].Page.Adjustments = new(Brightness: 30, Sharpness: 20);
+        model.Select(2, control: true);
+        Assert.Equal(ScanAdjustmentScope.Selected, model.AdjustmentScope);
+        model.SetAdjustmentScope(scope);
+        var original = model.Pages.Select(p => p.Page.Adjustments).ToArray();
+        model.BeginAdjustmentGesture();
+        model.Adjust(a => a with { Brightness = 5 });
+        model.Adjust(a => a with { Brightness = 18 });
+        model.Adjust(a => a with { Brightness = -25 });
+        model.EndAdjustmentGesture();
+        for (var i = 0; i < 3; i++)
+        {
+            var affected = scope == ScanAdjustmentScope.AllPages || i == 2 || scope == ScanAdjustmentScope.Selected && i == 0;
+            Assert.Equal(affected ? original[i] with { Brightness = -25 } : original[i], model.Pages[i].Page.Adjustments);
+        }
+        await model.UndoAsync();
+        Assert.Equal(original, model.Pages.Select(p => p.Page.Adjustments));
+        Assert.False(model.CanUndo);
+        await model.RedoAsync();
+        Assert.Equal(-25, model.Pages[2].Page.Brightness);
+        model.Adjust(a => a with { WhiteBackground = true });
+        await model.UndoAsync();
+        Assert.False(model.Pages[2].Page.WhiteBackground);
+        Assert.Equal(-25, model.Pages[2].Page.Brightness);
+        model.Select(1);
+        if (scope == ScanAdjustmentScope.Selected) Assert.Equal(ScanAdjustmentScope.ThisPage, model.AdjustmentScope);
+    });
+
+    [Fact]
+    public void All_scope_new_scans_inherit_adjustments_and_undo_restores_inheritance() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var scanner = new FakeScannerService { PageCount = 1 };
+        var model = new ScanViewModel(session, scanner, Dispatcher.CurrentDispatcher) { Settings = new(Dpi: 75) };
+        await model.LoadPagesAsync();
+        model.SetAdjustmentScope(ScanAdjustmentScope.AllPages);
+        var edits = new ScanPageAdjustments(12, 22, true, false, 32);
+        model.BeginAdjustmentGesture();
+        model.Adjust(_ => edits);
+        model.EndAdjustmentGesture();
+        await model.ScanAsync(FakeScannerService.Device, () => { });
+        Assert.Equal(ScanAdjustmentScope.AllPages, model.AdjustmentScope);
+        Assert.All(model.Pages, p => Assert.Equal(edits, p.Page.Adjustments));
+        await model.UndoAsync();
+        await model.UndoAsync();
+        await model.ScanAsync(FakeScannerService.Device, () => { });
+        Assert.Equal(new ScanPageAdjustments(), model.Pages[^1].Page.Adjustments);
+        model.SetAdjustmentScope(ScanAdjustmentScope.ThisPage);
+        model.Adjust(a => a with { Brightness = 42 });
+        await model.ScanAsync(FakeScannerService.Device, () => { });
+        Assert.Equal(0, model.Pages[^1].Page.Brightness);
+    });
+
+    [Fact]
     public void Per_page_adjustments_apply_to_selected_or_all_and_support_undo_redo() => Run(async () =>
     {
         using var session = CreateSession();
         var model = CreateModel(session);
         await model.LoadPagesAsync();
         model.Select(0); model.Select(2, control: true);
-        var edits = new ScanPageAdjustments(20, -30, true, false);
+        var edits = new ScanPageAdjustments(20, -30, true, false, Contrast: 25);
         model.AdjustCurrent(model.Current!, edits);
         Assert.Equal(new ScanPageAdjustments(), model.Pages[0].Page.Adjustments);
         Assert.Equal(edits, model.Pages[2].Page.Adjustments);
@@ -85,6 +181,7 @@ public sealed class AppScanEditorTests
         var detector = new TestOrientationDetector();
         var model = CreateModel(session);
         model.Processor = new(new WpfImageCodec(), detector, folder);
+        await model.SetAutoOrientationAsync(true, new(folder), () => throw new InvalidOperationException("Installed"));
         await model.LoadPagesAsync();
         model.Select(1);
         await model.AutoCropAsync();

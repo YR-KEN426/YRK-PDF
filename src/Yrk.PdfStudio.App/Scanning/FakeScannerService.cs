@@ -28,7 +28,7 @@ public sealed class FakeScannerService : IScannerService
     {
         cancellationToken.ThrowIfCancellationRequested();
         CheckDevice(device);
-        return Task.FromResult(new ScanCapabilities(Enum.GetValues<ScanSource>(), Resolutions, Enum.GetValues<ScanColorMode>()));
+        return Task.FromResult(new ScanCapabilities(Enum.GetValues<ScanSource>(), Resolutions, Enum.GetValues<ScanColorMode>(), new(215.9, 297), new(215.9, 297)));
     }
 
     public Task ScanAsync(ScanDevice device, ScanSettings settings, IProgress<ScannedPage> progress, CancellationToken cancellationToken = default)

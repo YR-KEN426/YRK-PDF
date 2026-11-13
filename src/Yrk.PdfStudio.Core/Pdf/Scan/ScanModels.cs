@@ -5,7 +5,11 @@ public enum ScanSource { Flatbed, Feeder, Duplex }
 
 public sealed record ScanDevice(string Id, string Name);
 public sealed record ScanPageAnalysis(bool IsBlank, NormalizedRect? Keep);
-public sealed record ScanCapabilities(IReadOnlyList<ScanSource> Sources, IReadOnlyList<int> Dpi, IReadOnlyList<ScanColorMode> ColorModes);
+public sealed record ScanCapabilities(IReadOnlyList<ScanSource> Sources, IReadOnlyList<int> Dpi, IReadOnlyList<ScanColorMode> ColorModes,
+    ScanExtent? Bed = null, ScanExtent? Feeder = null)
+{
+    public ScanExtent? Extent(ScanSource source) => source == ScanSource.Flatbed ? Bed : Feeder;
+}
 
 public sealed record ScanSettings(
     int Dpi = 300,
@@ -69,11 +73,12 @@ public sealed record ScannedPage(PdfBitmap Bitmap, double DpiX, double DpiY, IRe
     ScanPageAdjustments? Adjustments = null);
 
 /// <summary>Immutable so background previews and output use one consistent set of page edits.</summary>
-public sealed record ScanPageAdjustments(int Brightness = 0, int Sharpness = 0, bool WhiteBackground = false, bool? Straighten = null)
+public sealed record ScanPageAdjustments(int Brightness = 0, int Sharpness = 0, bool WhiteBackground = false, bool? Straighten = null, int Contrast = 0)
 {
     public void Validate()
     {
         if (Brightness is < -50 or > 50) throw new ArgumentOutOfRangeException(nameof(Brightness));
+        if (Contrast is < -50 or > 50) throw new ArgumentOutOfRangeException(nameof(Contrast));
         if (Sharpness is < -50 or > 50) throw new ArgumentOutOfRangeException(nameof(Sharpness));
     }
 }

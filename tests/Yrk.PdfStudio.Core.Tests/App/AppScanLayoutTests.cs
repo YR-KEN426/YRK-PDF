@@ -55,8 +55,9 @@ public sealed class AppScanLayoutTests
                     PumpUntil(() => !(bool)typeof(ScanDialog).GetField("_working", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!);
                     var model = (ScanViewModel)typeof(ScanDialog).GetField("_model", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
                     if (state == "multi") model.Select(2, shift: true);
+                    if (state == "scope-all") model.SetAdjustmentScope(ScanAdjustmentScope.AllPages);
                     if (state == "adjust")
-                        Await(model.ApplyAdjustmentsAsync(new(Brightness: 15, Sharpness: 25, WhiteBackground: true, Straighten: false), false));
+                        Await(model.ApplyAdjustmentsAsync(new(Brightness: 15, Sharpness: 25, WhiteBackground: true, Straighten: false, Contrast: 20), false));
                     if (state == "card")
                     {
                         model.ApplyPreset(ScanPreset.TwoSidedCard);
@@ -104,10 +105,45 @@ public sealed class AppScanLayoutTests
                     Assert.Equal(state != "empty", adjustments.IsEnabled);
                     Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("CropFrame")).Visibility);
                     Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("CancelCardButton")).Visibility);
+                    var scopeRow = (WrapPanel)window.FindName("ScopeRow");
+                    var scopeChip = Assert.Single(scopeRow.Children.OfType<RadioButton>(), chip => chip.IsChecked == true);
+                    Assert.Equal(state == "scope-all" ? "AllPages" : state == "multi" ? "Selected" : "ThisPage", scopeChip.Tag);
+                    Assert.All(scopeRow.Children.OfType<RadioButton>(), chip =>
+                    {
+                        Assert.True(chip.Focusable);
+                        Assert.False(string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(chip)));
+                    });
+                    Assert.Equal(state == "multi", ((RadioButton)window.FindName("SelectedScope")).IsEnabled);
+                    if (state == "scope-all")
+                    {
+                        // Exercise the panel's routed ValueChanged path and gesture handlers.
+                        var brightness = (Slider)window.FindName("Brightness");
+                        var start = new System.Windows.Input.MouseButtonEventArgs(System.Windows.Input.Mouse.PrimaryDevice,
+                            0, System.Windows.Input.MouseButton.Left);
+                        typeof(ScanDialog).GetMethod("OnAdjustmentStart", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(window, [brightness, start]);
+                        brightness.Value = 8;
+                        brightness.Value = 16;
+                        brightness.Value = 24;
+                        typeof(ScanDialog).GetMethod("OnAdjustmentEnd", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(window, [brightness, new RoutedEventArgs()]);
+                        Assert.All(model.Pages, page => Assert.Equal(24, page.Page.Brightness));
+                        Await(model.UndoAsync());
+                        Assert.All(model.Pages, page => Assert.Equal(0, page.Page.Brightness));
+                        Assert.False(model.CanUndo);
+                        Await(model.RedoAsync());
+                        Assert.All(model.Pages, page => Assert.Equal(24, page.Page.Brightness));
+                        typeof(ScanDialog).GetMethod("UpdateButtons", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+                        Await((Task)typeof(ScanDialog).GetMethod("RefreshPreviewAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!);
+                        Assert.Equal(Loc.T("All pages"), scopeChip.Content);
+                        Assert.Equal(Loc.F("Selected ({0})", 1), ((RadioButton)window.FindName("SelectedScope")).Content);
+                    }
                     if (state == "adjust")
                     {
-                        Assert.Equal(new(Brightness: 15, Sharpness: 25, WhiteBackground: true, Straighten: false), model.Current!.Page.Adjustments);
+                        Assert.StartsWith(language == Loc.English ? "1 page ·" : "1 หน้า ·", model.SizeSummary);
+                        Assert.Equal(new(Brightness: 15, Sharpness: 25, WhiteBackground: true, Straighten: false, Contrast: 20), model.Current!.Page.Adjustments);
                         Assert.Equal(15, ((Slider)window.FindName("Brightness")).Value);
+                        Assert.Equal(20, ((Slider)window.FindName("Contrast")).Value);
                         Assert.Equal(25, ((Slider)window.FindName("Sharpness")).Value);
                         var whiteBackground = (CheckBox)window.FindName("WhiteBackground");
                         Assert.True(whiteBackground.IsVisible && whiteBackground.IsEnabled);
@@ -115,10 +151,56 @@ public sealed class AppScanLayoutTests
                     }
                     if (state == "card")
                     {
-                        Assert.Equal(Loc.T("Two-sided card"), ((TextBlock)window.FindName("PresetLabel")).Text);
+                        var selected = Assert.Single(((WrapPanel)window.FindName("PresetRow")).Children.OfType<RadioButton>(), chip => chip.IsChecked == true);
+                        Assert.Equal("TwoSidedCard", selected.Tag);
+                        Assert.True(selected.Focusable);
+                        Assert.False(string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(selected)));
                         Assert.True(((Button)window.FindName("CreateButton")).IsEnabled);
                         var preview = Assert.IsAssignableFrom<BitmapSource>(image.Source);
                         Assert.InRange((double)preview.PixelWidth / preview.PixelHeight, 0.70, 0.72);
+                    }
+                    if (state == "pages")
+                    {
+                        var closing = typeof(ScanDialog).GetMethod("OnClosing", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)!;
+                        var cancelClose = new System.ComponentModel.CancelEventArgs();
+                        window.CloseChoice = () => Yrk.PdfStudio.App.Services.SaveChangesChoice.Cancel;
+                        closing.Invoke(window, [window, cancelClose]);
+                        Assert.True(cancelClose.Cancel);
+                        Assert.Null(window.Request);
+                        var discardClose = new System.ComponentModel.CancelEventArgs();
+                        window.CloseChoice = () => Yrk.PdfStudio.App.Services.SaveChangesChoice.Discard;
+                        closing.Invoke(window, [window, discardClose]);
+                        Assert.False(discardClose.Cancel);
+                        model.MarkSaved();
+                        window.CloseChoice = () => throw new InvalidOperationException("Saved pages must not prompt");
+                        var savedClose = new System.ComponentModel.CancelEventArgs();
+                        closing.Invoke(window, [window, savedClose]);
+                        Assert.False(savedClose.Cancel);
+                        window.CloseChoice = () => Yrk.PdfStudio.App.Services.SaveChangesChoice.Discard;
+                        Assert.StartsWith(language == Loc.English ? "3 pages ·" : "3 หน้า ·", model.SizeSummary);
+                        var region = new Yrk.PdfStudio.Core.Pdf.NormalizedRect(0.1, 0.1, 0.8, 0.8);
+                        model.Settings = model.Settings with { Region = region };
+                        var prompts = 0;
+                        window.Confirm = _ => { prompts++; return false; };
+                        typeof(ScanDialog).GetMethod("OnClearArea", BindingFlags.Instance | BindingFlags.NonPublic)!
+                            .Invoke(window, [window, new RoutedEventArgs()]);
+                        Assert.Equal(1, prompts);
+                        Assert.Equal(region, model.Settings.Region);
+                        Assert.Equal(3, model.Pages.Count);
+                        model.Settings = model.Settings with { Region = null };
+
+                        prompts = 0;
+                        window.OrientationData = new(Path.Combine(session.DirectoryPath, "missing-osd"));
+                        var orientation = (CheckBox)window.FindName("AutoOrientation");
+                        Assert.False(orientation.IsChecked);
+                        for (var attempt = 0; attempt < 2; attempt++)
+                        {
+                            orientation.IsChecked = true;
+                            PumpUntil(() => !(bool)typeof(ScanDialog).GetField("_working", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!);
+                            Assert.False(orientation.IsChecked);
+                            Assert.False(model.AutoOrientationEnabled);
+                        }
+                        Assert.Equal(1, prompts);
                     }
                     Assert.True(((FrameworkElement)window.FindName("PreviewScroll")).ActualWidth > 450);
                     var client = (FrameworkElement)window.Content;
@@ -135,7 +217,7 @@ public sealed class AppScanLayoutTests
                     var folder = Directory.CreateDirectory(customDirectory ? shotDirectory! : Path.Combine(AppContext.BaseDirectory, "scan-screenshots")).FullName;
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                    using var output = File.Create(Path.Combine(folder, $"{(customDirectory ? "6b" : "scan")}-{state}-{language}.png"));
+                    using var output = File.Create(Path.Combine(folder, $"{(customDirectory || state == "scope-all" ? "6b" : "scan")}-{state}-{language}.png"));
                     encoder.Save(output);
                     if (state == "empty")
                     {
@@ -147,7 +229,7 @@ public sealed class AppScanLayoutTests
                         Assert.Equal(Loc.T("No edges to crop were found"), ((TextBlock)window.FindName("Message")).Text);
                     }
                 }
-                finally { window.Close(); }
+                finally { window.CloseChoice = () => Yrk.PdfStudio.App.Services.SaveChangesChoice.Discard; window.Close(); }
             }
         }
         finally { Loc.Language = oldLanguage; application.Shutdown(); ResetApplication(); }
@@ -155,7 +237,7 @@ public sealed class AppScanLayoutTests
     });
 
     private static readonly string[] Languages = [Loc.Thai, Loc.English];
-    private static readonly string[] States = ["empty", "pages", "multi", "adjust", "card"];
+    private static readonly string[] States = ["empty", "pages", "multi", "adjust", "card", "scope-all"];
     private static void Await(Task task) { PumpUntil(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
     private static void PumpUntil(Func<bool> done)
     {

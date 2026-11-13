@@ -2,6 +2,10 @@ using System.Net;
 using System.Net.Http;
 using System.Security.Cryptography;
 using Yrk.PdfStudio.Core.Pdf.Ocr;
+using Yrk.PdfStudio.App.ViewModels;
+using Yrk.PdfStudio.App.Scanning;
+using Yrk.PdfStudio.Core.Pdf.Scan;
+using System.Windows.Threading;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
@@ -10,6 +14,36 @@ public sealed class OcrLanguageDataTests : IDisposable
     private readonly DirectoryInfo _folder = Directory.CreateTempSubdirectory("yrk-ocr-download-");
 
     public void Dispose() => _folder.Delete(recursive: true);
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task Orientation_consent_is_asked_once_and_failed_or_declined_download_stays_off(bool accept, bool valid)
+    {
+        byte[] payload = [1, 2, 3, 4];
+        using var handler = new FakeHandler(payload);
+        using var client = new HttpClient(handler);
+        var table = new Dictionary<string, (string Sha256, long Size)>
+        { ["osd"] = (valid ? Convert.ToHexStringLower(SHA256.HashData(payload)) : new string('0', 64), payload.Length) };
+        var data = new OcrLanguageData(_folder.FullName, client, table);
+        using var session = new ScanSession();
+        var model = new ScanViewModel(session, new FakeScannerService(), Dispatcher.CurrentDispatcher);
+        Assert.False(model.AutoOrientationEnabled);
+        var prompts = 0;
+        Task<bool> Consent() { prompts++; return Task.FromResult(accept); }
+        if (accept && !valid)
+            await Assert.ThrowsAsync<InvalidDataException>(() => model.SetAutoOrientationAsync(true, data, Consent));
+        else await model.SetAutoOrientationAsync(true, data, Consent);
+        Assert.Equal(accept && valid, model.AutoOrientationEnabled);
+        Assert.Equal(accept ? 1 : 0, handler.RequestCount);
+        if (accept) Assert.EndsWith("/87416418657359cb625c412a48b6e1d6d41c29bd/osd.traineddata", handler.RequestUri!.AbsoluteUri);
+        await model.SetAutoOrientationAsync(false, data, Consent);
+        await model.SetAutoOrientationAsync(true, data, Consent);
+        Assert.Equal(1, prompts);
+        Assert.Equal(accept && valid, model.AutoOrientationEnabled);
+        if (!accept || !valid) Assert.Empty(_folder.GetFiles());
+    }
 
     [Fact]
     public void Verification_table_covers_every_language()

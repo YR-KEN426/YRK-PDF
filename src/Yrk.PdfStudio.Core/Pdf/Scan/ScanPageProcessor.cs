@@ -168,7 +168,25 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
 
     private static PdfBitmap Adjust(PdfBitmap source, ScanPageAdjustments edits, CancellationToken ct)
     {
-        if (edits.Brightness == 0 && edits.Sharpness == 0 && !edits.WhiteBackground) return source;
+        if (edits.Brightness == 0 && edits.Contrast == 0 && edits.Sharpness == 0 && !edits.WhiteBackground) return source;
+        // Adjust each channel around middle gray after brightness, before measuring the paper tone.
+        if (edits.Brightness != 0 || edits.Contrast != 0)
+        {
+            var adjusted = (byte[])source.Pixels.Clone();
+            var factor = (100.0 + edits.Contrast) / (100.0 - edits.Contrast);
+            for (var y = 0; y < source.Height; y++)
+            {
+                ct.ThrowIfCancellationRequested();
+                for (var x = 0; x < source.Width; x++)
+                    for (var c = 0; c < 3; c++)
+                    {
+                        var i = y * source.Stride + x * 4 + c;
+                        var value = Math.Clamp(source.Pixels[i] + edits.Brightness * 2, 0, 255);
+                        adjusted[i] = (byte)Math.Clamp((int)Math.Round(128 + (value - 128) * factor), 0, 255);
+                    }
+            }
+            source = source with { Pixels = adjusted };
+        }
         var gray = Gray(source, ct);
         var background = 255;
         var black = 0;
@@ -200,7 +218,7 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
                     // Preserve/darken faint ink, while allowing paper pixels to reach white.
                     tone = tone < background - 12 ? Math.Min(tone, stretched) : stretched;
                 }
-                var delta = tone - gray[index] + edits.Brightness * 2;
+                var delta = tone - gray[index];
                 for (var channel = 0; channel < 3; channel++)
                 {
                     double value = source.Pixels[y * source.Stride + x * 4 + channel] + delta;

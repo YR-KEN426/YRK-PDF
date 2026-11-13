@@ -5,6 +5,7 @@ using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Scanning;
+using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf.Scan;
 
 namespace Yrk.PdfStudio.App.ViewModels;
@@ -42,7 +43,7 @@ public sealed partial class MainViewModel
             while (true)
             {
                 output = _dialogs.PickSavePdfFile($"Scan {DateTime.Now:yyyy-MM-dd HHmm}.pdf",
-                    _document is null ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : Path.GetDirectoryName(_document.FilePath), "Save PDF");
+                    ScanPreferences.SaveFolder(AppSettings.Load().ScanSaveFolder, _document?.FilePath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)), "Save PDF");
                 if (output is null) break;
                 if (!CheckNotOpenFile(output)) continue;
                 try { outputStamp = ScanOutputStamp.Read(output); }
@@ -67,6 +68,7 @@ public sealed partial class MainViewModel
                     keepTemp = false;
                 });
                 if (!done) return;
+                RememberScanFolder(output);
                 var ocrStatus = request.Ocr ? await OcrScannedFileAsync(output, request.OcrLanguages) : null;
                 await OpenFileAsync(output);
                 StatusMessage = ocrStatus ?? Loc.F("Created a PDF with {0} page(s)", count);
@@ -79,6 +81,13 @@ public sealed partial class MainViewModel
             }
             finally { if (createdTemp && !keepTemp) TryDelete(temp); }
         }
+    }
+
+    private static void RememberScanFolder(string output)
+    {
+        var settings = AppSettings.Load();
+        settings.ScanSaveFolder = Path.GetDirectoryName(Path.GetFullPath(output))!;
+        settings.Save();
     }
 
     internal static string ScanImagePath(string chosenPath, int page, int pageCount, ScanOutputFormat format)
@@ -99,7 +108,7 @@ public sealed partial class MainViewModel
         while (true)
         {
             var chosen = _dialogs.PickSaveFile($"Scan {DateTime.Now:yyyy-MM-dd HHmm}{extension}",
-                _document is null ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : Path.GetDirectoryName(_document.FilePath),
+                ScanPreferences.SaveFolder(AppSettings.Load().ScanSaveFolder, _document?.FilePath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)),
                 "Save images", request.Format == ScanOutputFormat.Jpeg ? "JPEG image|*.jpg" : "PNG image|*.png", extension);
             if (chosen is null) return false;
             outputs = Enumerable.Range(1, pages.Count).Select(n => ScanImagePath(chosen, n, pages.Count, request.Format)).ToArray();
@@ -153,6 +162,7 @@ public sealed partial class MainViewModel
                 finally { if (createdTemp && !keepTemp) TryDelete(temp); }
             }
         });
+        if (done) RememberScanFolder(outputs[0]);
         if (done) StatusMessage = Loc.F("Saved {0} image(s)", pages.Count);
         return true;
     }

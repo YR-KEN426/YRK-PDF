@@ -14,6 +14,46 @@ public sealed class ScanAdjustmentTests
     private static readonly ScanSettings Plain = new(AutoStraighten: false, AutoCrop: false);
 
     [Theory]
+    [InlineData(25, 200, 80)]
+    [InlineData(-25, 200, 80)]
+    [InlineData(0, 200, 80)]
+    public void Contrast_adjusts_around_middle_gray_in_preview_and_output(int contrast, byte light, byte dark)
+    {
+        var page = GrayText(light, dark) with { Adjustments = new(Contrast: contrast) };
+        var codec = new CaptureCodec();
+        var processor = new ScanPageProcessor(codec);
+        var preview = processor.RenderPreview(page, Plain, 0, 100);
+        var bright = preview.Pixels[0];
+        var dim = preview.Pixels[40 * preview.Stride + 40 * 4];
+        if (contrast > 0) { Assert.True(bright > light); Assert.True(dim < dark); }
+        else if (contrast < 0) { Assert.True(bright < light); Assert.True(dim > dark); }
+        else { Assert.Equal(light, bright); Assert.Equal(dark, dim); }
+        processor.Process(page, Plain);
+        Assert.Equal(bright, codec.Last!.Pixels[0]);
+        Assert.Equal(dim, codec.Last.Pixels[40 * 400 + 40 * 4]);
+        Assert.Equal(light, page.Bitmap.Pixels[0]);
+    }
+
+    [Fact]
+    public void Brightness_precedes_contrast_and_middle_gray_stays_fixed()
+    {
+        var processor = new ScanPageProcessor(new CaptureCodec());
+        var page = GrayText(108, 108) with { Adjustments = new(Brightness: 10, Contrast: 50) };
+        Assert.Equal(128, processor.RenderPreview(page, Plain, 0, 100).Pixels[0]);
+    }
+
+    [Fact]
+    public void Contrast_is_stored_in_session_and_validated()
+    {
+        using var session = new ScanSession();
+        var page = session.Add(GrayText(200, 80));
+        page.Contrast = 25;
+        Assert.Equal(25, session.Read(page).Adjustments!.Contrast);
+        Assert.Throws<ArgumentOutOfRangeException>(() => page.Contrast = 51);
+        Assert.Throws<ArgumentOutOfRangeException>(() => page.Contrast = -51);
+    }
+
+    [Theory]
     [InlineData(211, 128)]
     [InlineData(211, 185)]
     [InlineData(225, 200)]

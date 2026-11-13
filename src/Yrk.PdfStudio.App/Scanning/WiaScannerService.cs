@@ -51,7 +51,8 @@ public sealed class WiaScannerService : IScannerService
         var y = FindProperty(item, YResolution, objects);
         var dpi = SupportedNumbers(x).Intersect(SupportedNumbers(y)).Where(n => n > 0).Order().ToArray();
         if (dpi.Length == 0) dpi = [x is null ? 300 : Math.Max(1, Number(Get(x, "Value")))];
-        return new ScanCapabilities(sources, dpi, Modes(FindProperty(item, Intent, objects)));
+        return new ScanCapabilities(sources, dpi, Modes(FindProperty(item, Intent, objects)),
+            ReadExtent(connected, 3074, 3075, objects), ReadExtent(connected, 3076, 3077, objects));
     }, cancellationToken);
 
     public Task ScanAsync(ScanDevice device, ScanSettings settings, IProgress<ScannedPage> progress, CancellationToken cancellationToken = default)
@@ -242,6 +243,17 @@ public sealed class WiaScannerService : IScannerService
             _ => (ScannerErrorKind.Other, "Scanning failed."),
         };
         return new(kind, $"{message} (0x{hresult:X8})", innerException, hresult);
+    }
+
+    private static ScanExtent? ReadExtent(object device, int horizontal, int vertical, ComObjects objects)
+    {
+        try
+        {
+            var w = Number(PropertyValue(device, horizontal, objects) ?? 0);
+            var h = Number(PropertyValue(device, vertical, objects) ?? 0);
+            return w > 0 && h > 0 ? new(w * 25.4 / 1000, h * 25.4 / 1000) : null;
+        }
+        catch (Exception ex) when (Unwrap(ex) is COMException or ArgumentException) { return null; }
     }
 
     private static object? CreateManager()

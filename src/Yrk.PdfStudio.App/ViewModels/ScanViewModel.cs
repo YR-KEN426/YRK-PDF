@@ -8,8 +8,11 @@ using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf.Scan;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Ocr;
 
 namespace Yrk.PdfStudio.App.ViewModels;
+
+public enum ScanAdjustmentScope { ThisPage, Selected, AllPages }
 
 public sealed class ScanViewModel(ScanSession session, IScannerService scanner, Dispatcher dispatcher) : ObservableObject
 {
@@ -18,16 +21,80 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     public HashSet<string> Notices { get; } = [];
     public ScanSettings Settings { get; set; } = new();
     public string PaperSize { get; set; } = "Original";
+    public ScanPaperSize? CustomPaperSize { get; set; }
+    public ScanPaperSize? SelectedPaper => PaperSize == "Custom" ? CustomPaperSize : ScanPaperSizes.Standard.FirstOrDefault(p => p.Id == PaperSize);
+    private PageState[] _savedPages = [];
+    private ScanSettings? _savedSettings;
+    private int PendingPageCount => Pages.Count + (CardFront is null ? 0 : 1) + (CardBack is null ? 0 : 1);
+    public int UnsavedPageCount => HasUnsavedPages ? PendingPageCount : 0;
+    public bool HasUnsavedPages => PendingPageCount > 0 && (CardFront is not null || CardBack is not null ||
+        _savedSettings != Settings || !_savedPages.SequenceEqual(Snapshot().Pages.Select(p => p with { Selected = false })));
+    public void MarkSaved()
+    {
+        _savedPages = Snapshot().Pages.Select(p => p with { Selected = false }).ToArray();
+        _savedSettings = Settings;
+    }
     public ScanPreset Preset { get; private set; } = ScanPreset.ColorDocument;
     public IReadOnlyList<ScanPageEntry> SelectedPages => Pages.Where(p => p.IsSelected).ToArray();
     private ScanPageEntry? _current;
     public ScanPageEntry? Current { get => _current; private set => SetProperty(ref _current, value); }
+    public ScanAdjustmentScope AdjustmentScope { get; private set; }
+    public bool CanAdjustSelected => SelectedPages.Count >= 2;
+    private ScanPageAdjustments? _allPageAdjustments;
+    private bool _adjustmentGesture, _gestureRemembered;
+    public void SetAdjustmentScope(ScanAdjustmentScope scope)
+    {
+        EndAdjustmentGesture();
+        AdjustmentScope = scope == ScanAdjustmentScope.Selected && !CanAdjustSelected ? ScanAdjustmentScope.ThisPage : scope;
+        _allPageAdjustments = AdjustmentScope == ScanAdjustmentScope.AllPages ? Current?.Page.Adjustments ?? new() : null;
+    }
+    private void UpdateSelectionScope()
+    {
+        if (CanAdjustSelected) SetAdjustmentScope(ScanAdjustmentScope.Selected);
+        else if (!CanAdjustSelected && AdjustmentScope == ScanAdjustmentScope.Selected) SetAdjustmentScope(ScanAdjustmentScope.ThisPage);
+    }
+    public void BeginAdjustmentGesture() { _adjustmentGesture = true; _gestureRemembered = false; }
+    public void EndAdjustmentGesture() { _adjustmentGesture = false; _gestureRemembered = false; }
+    public IReadOnlyList<ScanPageEntry> Adjust(Func<ScanPageAdjustments, ScanPageAdjustments> change)
+    {
+        var targets = AdjustmentScope switch
+        {
+            ScanAdjustmentScope.AllPages => Pages.ToArray(),
+            ScanAdjustmentScope.Selected => SelectedPages.ToArray(),
+            _ => Current is { } current ? new[] { current } : [],
+        };
+        var edits = targets.Select(p => change(p.Page.Adjustments)).ToArray();
+        foreach (var edit in edits) edit.Validate();
+        var inherited = _allPageAdjustments is { } all ? change(all) : null;
+        if (inherited is not null) inherited.Validate();
+        if (!targets.Where((p, i) => p.Page.Adjustments != edits[i]).Any() && inherited == _allPageAdjustments) return targets;
+        if (!_adjustmentGesture || !_gestureRemembered) { Remember(); _gestureRemembered = _adjustmentGesture; }
+        for (var i = 0; i < targets.Length; i++) targets[i].Page.Adjustments = edits[i];
+        _allPageAdjustments = inherited;
+        return targets;
+    }
     private int _anchor;
-    private readonly Stack<PageState[]> _undo = new(), _redo = new();
+    private readonly Stack<EditorState> _undo = new(), _redo = new();
     public bool CanUndo => _undo.Count > 0;
     public bool CanRedo => _redo.Count > 0;
     public long EstimatedBytes => Pages.Sum(p => p.EncodedBytes);
-    public string SizeSummary => Loc.F("{0} pages · approximately {1:0.00} MB", Pages.Count, EstimatedBytes / 1_000_000.0);
+    public string SizeSummary => Pages.Count == 1
+        ? Loc.F("{0} page · approximately {1:0.00} MB", Pages.Count, EstimatedBytes / 1_000_000.0)
+        : Loc.F("{0} pages · approximately {1:0.00} MB", Pages.Count, EstimatedBytes / 1_000_000.0);
+    public bool AutoOrientationEnabled { get; private set; }
+    private bool _orientationConsentAsked;
+
+    public async Task SetAutoOrientationAsync(bool enabled, OcrLanguageData data, Func<Task<bool>> consent, CancellationToken ct = default)
+    {
+        AutoOrientationEnabled = false;
+        if (!enabled) return;
+        AutoOrientationEnabled = await data.EnsureOrientationDataAsync(async () =>
+        {
+            if (_orientationConsentAsked) return false;
+            _orientationConsentAsked = true;
+            return await consent();
+        }, ct);
+    }
     public string AdjustmentMessage { get; private set; } = string.Empty;
     internal ScanPageProcessor Processor { get; set; } = new(new WpfImageCodec());
     public ScanPageEntry? GlassPreview { get; private set; }
@@ -86,6 +153,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
                 Remember();
                 var saved = Session.Add(composed, ct);
                 saved.Crop = new(0, 0, 1, 1); // Keep the A4 canvas through the normal processing pipeline.
+                if (AdjustmentScope == ScanAdjustmentScope.AllPages && _allPageAdjustments is { } all) saved.Adjustments = all;
                 var entry = new ScanPageEntry(saved);
                 Pages.Add(entry); Select(Pages.Count - 1); Renumber();
                 CancelCard();
@@ -119,21 +187,26 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     public void Select(int index, bool control = false, bool shift = false)
     {
         if ((uint)index >= Pages.Count) return;
+        EndAdjustmentGesture();
         if (!control) foreach (var page in Pages) page.IsSelected = false;
         if (shift)
             for (var i = Math.Min(_anchor, index); i <= Math.Max(_anchor, index) && i < Pages.Count; i++) Pages[i].IsSelected = true;
         else { Pages[index].IsSelected = !control || !Pages[index].IsSelected; _anchor = index; }
         Current = Pages[index];
+        UpdateSelectionScope();
     }
 
     public void Navigate(int delta, bool extend = false) => Select(Math.Clamp(Pages.IndexOf(Current!) + delta, 0, Math.Max(0, Pages.Count - 1)), shift: extend);
     private sealed record PageState(ScanPageEntry Entry, int Rotation, NormalizedRect? Crop, bool Selected, ScanPageAdjustments Adjustments);
-    private PageState[] Snapshot() => Pages.Select(p => new PageState(p, p.Page.Rotation, p.Page.Crop, p.IsSelected, p.Page.Adjustments)).ToArray();
+    private sealed record EditorState(PageState[] Pages, ScanPageAdjustments? AllPageAdjustments);
+    private EditorState Snapshot() => new(Pages.Select(p => new PageState(p, p.Page.Rotation, p.Page.Crop, p.IsSelected, p.Page.Adjustments)).ToArray(), _allPageAdjustments);
     private void Remember() { _undo.Push(Snapshot()); _redo.Clear(); }
-    private async Task RestoreAsync(PageState[] state)
+    private async Task RestoreAsync(EditorState state)
     {
+        EndAdjustmentGesture();
+        _allPageAdjustments = state.AllPageAdjustments;
         Pages.Clear();
-        foreach (var s in state)
+        foreach (var s in state.Pages)
         {
             s.Entry.Page.Rotation = s.Rotation; s.Entry.Page.Crop = s.Crop; s.Entry.IsSelected = s.Selected;
             s.Entry.Page.Adjustments = s.Adjustments;
@@ -143,6 +216,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         var selected = SelectedPages;
         Current = selected.Count > 0 ? selected[0] : Pages.Count > 0 ? Pages[0] : null;
         _anchor = Math.Max(0, Pages.IndexOf(Current!));
+        if (!CanAdjustSelected && AdjustmentScope == ScanAdjustmentScope.Selected) SetAdjustmentScope(ScanAdjustmentScope.ThisPage);
         Renumber();
     }
     public async Task UndoAsync() { if (!CanUndo) return; _redo.Push(Snapshot()); await RestoreAsync(_undo.Pop()); }
@@ -209,13 +283,9 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
                 {
                     var entry = new ScanPageEntry(saved);
                     if (Preset == ScanPreset.Receipt) saved.WhiteBackground = true;
-                    if (PaperSize != "Original")
-                    {
-                        var raw = page.Bitmap;
-                        var width = PaperSize == "Letter" ? 215.9 : 210;
-                        var height = PaperSize == "Letter" ? 279.4 : 297;
-                        saved.Crop = new(0, 0, Math.Min(1, width / 25.4 * saved.DpiX / raw.Width), Math.Min(1, height / 25.4 * saved.DpiY / raw.Height));
-                    }
+                    if (AdjustmentScope == ScanAdjustmentScope.AllPages && _allPageAdjustments is { } all) saved.Adjustments = all;
+                    if (SelectedPaper is { } paper)
+                        saved.Crop = paper.Crop(page.Bitmap.Width, page.Bitmap.Height, saved.DpiX, saved.DpiY);
                     Pages.Add(entry);
                     Select(Pages.Count - 1);
                     foreach (var notice in saved.Notices) Notices.Add(TranslateNotice(notice));
@@ -327,7 +397,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
             entry.Page.Straighten = true;
             entry.Page.WhiteBackground = true;
             var page = entry.PreviewPage ??= await Task.Run(() => ScanPageProcessor.CreatePreviewPage(Session.Read(entry.Page), 1400));
-            var rotation = await Task.Run(() => Processor.DetectOrientation(page, entry.Page.Rotation));
+            var rotation = AutoOrientationEnabled ? await Task.Run(() => Processor.DetectOrientation(page, entry.Page.Rotation)) : 0;
             entry.Page.Rotation = (entry.Page.Rotation + rotation) % 360;
             entry.Page.Crop = (await Task.Run(() => Processor.Analyze(page with { Adjustments = entry.Page.Adjustments },
                 Settings with { AutoCrop = true, AutoStraighten = true }, entry.Page.Rotation))).Keep;

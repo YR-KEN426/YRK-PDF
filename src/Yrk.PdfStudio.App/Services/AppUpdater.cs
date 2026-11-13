@@ -209,6 +209,8 @@ public sealed class AppSettings
     private static readonly string FilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "settings.json");
 
+    public string ScanSaveFolder { get; set; } = string.Empty;
+    public Dictionary<string, ScanPaperPreference> ScanPaperByPreset { get; set; } = [];
     public int ScanDpi { get; set; } = 300;
     public string ScanColorMode { get; set; } = "Color";
     public string ScanSource { get; set; } = "Flatbed";
