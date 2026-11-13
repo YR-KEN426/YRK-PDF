@@ -212,6 +212,16 @@ internal static class Program
             window.ShowInTaskbar = false;
             window.Show();
             window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            // Windows that fill themselves asynchronously (e.g. the scan dialog's demo pages): pump messages first.
+            if (int.TryParse(Environment.GetEnvironmentVariable("YRK_RENDER_WAIT_MS"), out var waitMs) && waitMs is > 0 and <= 20000)
+            {
+                var until = DateTime.UtcNow.AddMilliseconds(waitMs);
+                while (DateTime.UtcNow < until)
+                {
+                    window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+                    System.Threading.Thread.Sleep(50);
+                }
+            }
             window.Measure(new Size(window.ActualWidth, window.ActualHeight));
             window.Arrange(new Rect(0, 0, window.ActualWidth, window.ActualHeight));
             window.UpdateLayout();
