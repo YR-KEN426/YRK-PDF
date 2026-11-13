@@ -213,6 +213,7 @@ public sealed class AppSettings
     public string ScanColorMode { get; set; } = "Color";
     public string ScanSource { get; set; } = "Flatbed";
     public int ScanJpegQuality { get; set; } = 80;
+    public string ScanPreset { get; set; } = "ColorDocument";
     public bool ScanOcr { get; set; }
     public string ScanDeviceName { get; set; } = string.Empty;
 

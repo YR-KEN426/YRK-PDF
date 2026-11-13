@@ -1,0 +1,221 @@
+using System.Windows.Threading;
+using Yrk.PdfStudio.App.Imaging;
+using Yrk.PdfStudio.App.Scanning;
+using Yrk.PdfStudio.App.ViewModels;
+using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Scan;
+
+namespace Yrk.PdfStudio.Core.Tests;
+
+public sealed class AppScanEditorTests
+{
+    [Theory]
+    [InlineData(ScanPreset.BlackAndWhiteDocument, 300, ScanColorMode.BlackAndWhite, 80)]
+    [InlineData(ScanPreset.ColorDocument, 200, ScanColorMode.Color, 80)]
+    [InlineData(ScanPreset.Receipt, 300, ScanColorMode.Grayscale, 80)]
+    [InlineData(ScanPreset.Photo, 300, ScanColorMode.Color, 90)]
+    public void Presets_set_scan_settings_and_preserve_paper_source(ScanPreset preset, int dpi, ScanColorMode color, int quality)
+    {
+        using var session = new ScanSession();
+        var model = new ScanViewModel(session, new FakeScannerService(), Dispatcher.CurrentDispatcher)
+        { Settings = new(Source: ScanSource.Duplex) };
+        model.ApplyPreset(preset);
+        Assert.Equal(dpi, model.Settings.Dpi);
+        Assert.Equal(color, model.Settings.ColorMode);
+        Assert.Equal(quality, model.Settings.JpegQuality);
+        Assert.Equal(ScanSource.Duplex, model.Settings.Source);
+    }
+
+    [Theory]
+    [InlineData(ScanPreset.TwoSidedCard)]
+    [InlineData(ScanPreset.Custom)]
+    public void Placeholder_and_custom_keep_normal_settings(ScanPreset preset)
+    {
+        using var session = new ScanSession();
+        var model = new ScanViewModel(session, new FakeScannerService(), Dispatcher.CurrentDispatcher)
+        { Settings = new(Dpi: 150, JpegQuality: 65) };
+        var original = model.Settings;
+        model.ApplyPreset(preset);
+        Assert.Equal(original, model.Settings);
+        Assert.Equal(preset, model.Preset);
+    }
+
+    [Fact]
+    public void Selection_supports_control_toggle_shift_range_and_navigation() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var model = CreateModel(session);
+        await model.LoadPagesAsync();
+        model.Select(0);
+        model.Select(2, control: true);
+        Assert.Equal(2, model.SelectedPages.Count);
+        model.Select(2, control: true);
+        Assert.Single(model.SelectedPages);
+        model.Select(0);
+        model.Select(2, shift: true);
+        Assert.Equal(3, model.SelectedPages.Count);
+        model.Navigate(-1);
+        Assert.Same(model.Pages[1], Assert.Single(model.SelectedPages));
+        model.Navigate(-1, extend: true);
+        Assert.Equal(2, model.SelectedPages.Count);
+    });
+
+    [Fact]
+    public void Batch_rotation_crop_delete_and_reorder_can_be_undone_and_redone() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var model = CreateModel(session);
+        await model.LoadPagesAsync();
+        var first = model.Pages[0];
+        model.Select(0); model.Select(1, control: true);
+        await model.RotateSelectedAsync(90);
+        Assert.Equal(90, model.Pages[0].Page.Rotation);
+        Assert.Equal(90, model.Pages[1].Page.Rotation);
+        Assert.Equal(0, model.Pages[2].Page.Rotation);
+        var crop = new NormalizedRect(0.1, 0.1, 0.5, 0.6);
+        await model.CropSelectedAsync(crop);
+        Assert.All(model.SelectedPages, p => Assert.Equal(crop, p.Page.Crop));
+        await model.UndoAsync();
+        Assert.All(model.SelectedPages, p => Assert.Null(p.Page.Crop));
+        await model.RedoAsync();
+        model.RemoveSelected();
+        Assert.Single(model.Pages);
+        Assert.Equal(3, session.Pages.Count); // Retain raw pages under the session lock for undo.
+        await model.UndoAsync();
+        Assert.Equal(3, model.Pages.Count);
+        Assert.All(model.SelectedPages, p => Assert.Equal(crop, p.Page.Crop));
+        model.Move(0, 2);
+        Assert.Same(first, model.Pages[2]);
+        await model.UndoAsync();
+        Assert.Same(first, model.Pages[0]);
+        await model.RedoAsync();
+        model.CommitPages();
+        Assert.Equal(model.Pages.Select(p => p.Page), session.Pages);
+        Assert.False(model.CanUndo);
+    });
+
+    [Fact]
+    public void New_edit_clears_redo_and_commit_deletes_only_removed_pages() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var model = CreateModel(session);
+        await model.LoadPagesAsync();
+        model.Select(1);
+        var removedPath = model.Current!.Page.FilePath;
+        await model.RotateSelectedAsync(-90);
+        await model.UndoAsync();
+        model.RemoveSelected();
+        Assert.False(model.CanRedo);
+        Assert.True(File.Exists(removedPath));
+        model.CommitPages();
+        Assert.False(File.Exists(removedPath));
+        Assert.Equal(2, session.Pages.Count);
+        Assert.All(session.Pages, p => Assert.True(File.Exists(p.FilePath)));
+    });
+
+    [Fact]
+    public void Estimate_matches_real_jpeg_encoding_and_updates_after_crop_delete_undo() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var model = CreateModel(session);
+        await model.LoadPagesAsync();
+        var processor = new ScanPageProcessor(new WpfImageCodec());
+        var expected = session.Pages.Sum(p => (long)processor.Process(session.Read(p), model.Settings, p.Rotation, p.Crop).Data.Length);
+        Assert.Equal(expected, model.EstimatedBytes);
+        model.Select(0);
+        await model.CropSelectedAsync(new(0, 0, 0.25, 0.25));
+        Assert.True(model.EstimatedBytes < expected);
+        await model.UndoAsync();
+        Assert.Equal(expected, model.EstimatedBytes);
+        model.RemoveSelected();
+        Assert.True(model.EstimatedBytes < expected);
+        await model.UndoAsync();
+        Assert.Equal(expected, model.EstimatedBytes);
+        model.Settings = model.Settings with { JpegQuality = 50 };
+        await model.RefreshAllAsync();
+        Assert.True(model.EstimatedBytes < expected);
+    });
+
+    [Theory]
+    [InlineData(FakeScanPageStyle.GrayFaintText)]
+    [InlineData(FakeScanPageStyle.CardOnWhiteGlass)]
+    public void Fake_scanner_exposes_extra_test_pages_without_changing_default(FakeScanPageStyle style) => Run(async () =>
+    {
+        Assert.Equal(FakeScanPageStyle.Default, new FakeScannerService().PageStyle);
+        using var session = new ScanSession();
+        var scanner = new FakeScannerService { PageCount = 1, PageStyle = style };
+        var model = new ScanViewModel(session, scanner, Dispatcher.CurrentDispatcher) { Settings = new(Dpi: 100) };
+        await model.ScanAsync(FakeScannerService.Device, () => { });
+        var page = session.Read(Assert.Single(session.Pages));
+        var corner = page.Bitmap.Pixels[0];
+        Assert.Equal(style == FakeScanPageStyle.GrayFaintText ? 211 : 255, corner);
+        Assert.True(model.EstimatedBytes > 0);
+    });
+
+    [Fact]
+    public void Bilevel_estimate_uses_compressed_pdf_bytes_instead_of_raw_bmp() => Run(async () =>
+    {
+        using var session = new ScanSession();
+        var pixels = new byte[1000 * 1400 * 4];
+        Array.Fill(pixels, (byte)255);
+        session.Add(new(new(1000, 1400, 4000, pixels), 300, 300));
+        var model = CreateModel(session);
+        model.Settings = model.Settings with { ColorMode = ScanColorMode.BlackAndWhite };
+        await model.LoadPagesAsync();
+        Assert.InRange(model.EstimatedBytes, 1, 20_000);
+    });
+
+    [Fact]
+    public void Appending_keeps_previous_pages_and_paper_size_crops_only_new_pages() => Run(async () =>
+    {
+        using var session = CreateSession();
+        var scanner = new FakeScannerService { PageCount = 1 };
+        var model = new ScanViewModel(session, scanner, Dispatcher.CurrentDispatcher)
+        { Settings = new(Dpi: 100, AutoStraighten: false, AutoCrop: false), PaperSize = "Letter" };
+        await model.LoadPagesAsync();
+        var original = model.Pages[0];
+        await model.ScanAsync(FakeScannerService.Device, () => { });
+        Assert.Equal(4, model.Pages.Count);
+        Assert.Same(original, model.Pages[0]);
+        Assert.NotNull(model.Pages[3].Page.Crop);
+        Assert.True(model.Pages[3].Page.Crop!.Value.Height < 1);
+        Assert.Same(model.Pages[3], Assert.Single(model.SelectedPages));
+        await model.UndoAsync();
+        Assert.Equal(3, model.Pages.Count);
+        await model.RedoAsync();
+        Assert.Equal(4, model.Pages.Count);
+    });
+
+    private static ScanViewModel CreateModel(ScanSession session) => new(session, new FakeScannerService(), Dispatcher.CurrentDispatcher)
+    { Settings = new(AutoStraighten: false, AutoCrop: false) };
+
+    private static ScanSession CreateSession()
+    {
+        var session = new ScanSession();
+        for (var n = 0; n < 3; n++)
+        {
+            var pixels = new byte[180 * 240 * 4];
+            for (var i = 0; i < pixels.Length; i += 4)
+            {
+                var value = (byte)((i / 4 * 37 + n * 17) % 256);
+                pixels[i] = value; pixels[i + 1] = (byte)(255 - value); pixels[i + 2] = value; pixels[i + 3] = 255;
+            }
+            session.Add(new(new(180, 240, 180 * 4, pixels), 300, 300));
+        }
+        return session;
+    }
+
+    private static void Run(Func<Task> action) => Sta.Run(() =>
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));
+        var task = action();
+        var frame = new DispatcherFrame();
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(10) };
+        timer.Tick += (_, _) => { if (task.IsCompleted) { timer.Stop(); frame.Continue = false; } };
+        timer.Start();
+        Dispatcher.PushFrame(frame);
+        task.GetAwaiter().GetResult();
+        return true;
+    });
+}
