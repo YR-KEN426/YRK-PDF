@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- Installer, portable package and updates (MIT). The vpk tool in dotnet-tools.json must have the same version. -->
     <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
