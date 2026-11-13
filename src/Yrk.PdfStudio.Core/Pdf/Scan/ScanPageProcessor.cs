@@ -108,9 +108,15 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec)
         for (var y = 0; y < h; y++)
         {
             ct.ThrowIfCancellationRequested();
+            // Span the complete source, including its last row/column. Dividing by
+            // scale skips the trailing edge (and thin scanner borders) after rounding.
+            var sy = h == 1 ? source.Height / 2 : (int)((long)y * (source.Height - 1) / (h - 1));
             for (var x = 0; x < w; x++)
-                source.Pixels.AsSpan((int)(y / scale) * source.Stride + (int)(x / scale) * 4, 4)
+            {
+                var sx = w == 1 ? source.Width / 2 : (int)((long)x * (source.Width - 1) / (w - 1));
+                source.Pixels.AsSpan(sy * source.Stride + sx * 4, 4)
                     .CopyTo(pixels.AsSpan((y * w + x) * 4, 4));
+            }
         }
         return new(w, h, w * 4, pixels);
     }
