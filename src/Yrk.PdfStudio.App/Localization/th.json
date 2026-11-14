@@ -1,4 +1,7 @@
 {
+  "Automatically rotated page {0} by {1}°": "หมุนหน้า {0} อัตโนมัติ {1}°",
+  "Front card edges were not found. Adjust the crop to fit the card, then press Continue.": "ไม่พบขอบบัตรด้านหน้า กรุณาปรับกรอบครอบให้พอดีกับบัตรแล้วกดต่อ",
+  "Back card edges were not found. Adjust the crop to fit the card, then press Continue.": "ไม่พบขอบบัตรด้านหลัง กรุณาปรับกรอบครอบให้พอดีกับบัตรแล้วกดต่อ",
   "Width": "กว้าง",
   "Height": "สูง",
 

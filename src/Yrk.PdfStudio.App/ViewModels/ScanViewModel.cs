@@ -29,10 +29,10 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     private int PendingPageCount => Pages.Count + (CardFront is null ? 0 : 1) + (CardBack is null ? 0 : 1);
     public int UnsavedPageCount => HasUnsavedPages ? PendingPageCount : 0;
     public bool HasUnsavedPages => PendingPageCount > 0 && (CardFront is not null || CardBack is not null ||
-        _savedSettings != Settings || !_savedPages.SequenceEqual(Snapshot().Pages.Select(p => p with { Selected = false })));
+        _savedSettings != Settings || !_savedPages.SequenceEqual(Snapshot().Pages.Select(p => p with { Selected = false, OrientationCheckedRotation = null })));
     public void MarkSaved()
     {
-        _savedPages = Snapshot().Pages.Select(p => p with { Selected = false }).ToArray();
+        _savedPages = Snapshot().Pages.Select(p => p with { Selected = false, OrientationCheckedRotation = null }).ToArray();
         _savedSettings = Settings;
     }
     public ScanPreset Preset { get; private set; } = ScanPreset.ColorDocument;
@@ -88,6 +88,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
 
     public async Task SetAutoOrientationAsync(bool enabled, OcrLanguageData data, Func<Task<bool>> consent, CancellationToken ct = default)
     {
+        AdjustmentMessage = string.Empty;
         AutoOrientationEnabled = false;
         if (!enabled) return;
         AutoOrientationEnabled = await data.EnsureOrientationDataAsync(async () =>
@@ -96,13 +97,29 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
             _orientationConsentAsked = true;
             return _orientationConsented = await consent();
         }, ct);
+        if (AutoOrientationEnabled)
+        {
+            var targets = AdjustmentScope switch
+            {
+                ScanAdjustmentScope.AllPages => Pages.ToArray(),
+                ScanAdjustmentScope.Selected => SelectedPages.ToArray(),
+                _ => Current is { } current ? new[] { current } : [],
+            };
+            var remembered = false;
+            foreach (var entry in targets)
+            {
+                await AutoOrientAsync(entry, () => { if (!remembered) { Remember(); remembered = true; } }, ct);
+                await RefreshAsync(entry);
+            }
+        }
     }
     public string AdjustmentMessage { get; private set; } = string.Empty;
-    internal ScanPageProcessor Processor { get; set; } = new(new WpfImageCodec());
+    internal ScanPageProcessor Processor { get; set; } = new(new WpfImageCodec(), log: App.LogMessage);
     public ScanPageEntry? GlassPreview { get; private set; }
     public ScanPageEntry? CardFront { get; private set; }
     public ScanPageEntry? CardBack { get; private set; }
-    public ScanPageEntry? TemporaryPreview => CardBack ?? CardFront ?? GlassPreview;
+    private ScanPageEntry? _cardCropRequired;
+    public ScanPageEntry? TemporaryPreview => _cardCropRequired ?? CardBack ?? CardFront ?? GlassPreview;
 
     public void ClearGlassPreview()
     {
@@ -115,6 +132,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         if (CardFront is { } front) Session.DeleteTemporary(front.Page);
         if (CardBack is { } back) Session.DeleteTemporary(back.Page);
         CardFront = CardBack = null;
+        _cardCropRequired = null;
     }
 
     private async Task<ScanPageEntry> CaptureTemporaryAsync(ScanDevice device, ScanSettings settings, CancellationToken ct)
@@ -155,8 +173,19 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
             var settings = Settings with { Source = ScanSource.Flatbed, Region = null, AutoStraighten = false, AutoCrop = true };
             if (CardBack is not null)
             {
-                var composed = await Task.Run(() => ScanPageProcessor.ComposeCard(Session.Read(CardFront!.Page), CardFront.Page.Crop,
-                    Session.Read(CardBack.Page), CardBack.Page.Crop, settings.Dpi, ct), ct);
+                var front = Session.Read(CardFront!.Page);
+                var back = Session.Read(CardBack.Page);
+                _cardCropRequired = !ScanPageProcessor.CanComposeCardSide(front, CardFront.Page.Crop, settings.Dpi) ? CardFront
+                    : !ScanPageProcessor.CanComposeCardSide(back, CardBack.Page.Crop, settings.Dpi) ? CardBack : null;
+                if (_cardCropRequired is not null)
+                {
+                    AdjustmentMessage = _cardCropRequired == CardFront
+                        ? Loc.T("Front card edges were not found. Adjust the crop to fit the card, then press Continue.")
+                        : Loc.T("Back card edges were not found. Adjust the crop to fit the card, then press Continue.");
+                    return;
+                }
+                var composed = await Task.Run(() => ScanPageProcessor.ComposeCard(front, CardFront.Page.Crop,
+                    back, CardBack.Page.Crop, settings.Dpi, ct), ct);
                 Remember();
                 var saved = Session.Add(composed with { ColorMode = settings.ColorMode }, ct);
                 saved.Crop = new(0, 0, 1, 1); // Keep the A4 canvas through the normal processing pipeline.
@@ -165,6 +194,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
                 Pages.Add(entry); Select(Pages.Count - 1); Renumber();
                 CancelCard();
                 await RefreshAsync(entry);
+                AdjustmentMessage = string.Empty;
                 return;
             }
             var side = await CaptureTemporaryAsync(device, settings, ct);
@@ -204,9 +234,9 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     }
 
     public void Navigate(int delta, bool extend = false) => Select(Math.Clamp(Pages.IndexOf(Current!) + delta, 0, Math.Max(0, Pages.Count - 1)), shift: extend);
-    private sealed record PageState(ScanPageEntry Entry, int Rotation, NormalizedRect? Crop, bool Selected, ScanPageAdjustments Adjustments);
+    private sealed record PageState(ScanPageEntry Entry, int Rotation, NormalizedRect? Crop, bool Selected, ScanPageAdjustments Adjustments, int? OrientationCheckedRotation);
     private sealed record EditorState(PageState[] Pages, ScanPageAdjustments? AllPageAdjustments);
-    private EditorState Snapshot() => new(Pages.Select(p => new PageState(p, p.Page.Rotation, p.Page.Crop, p.IsSelected, p.Page.Adjustments)).ToArray(), _allPageAdjustments);
+    private EditorState Snapshot() => new(Pages.Select(p => new PageState(p, p.Page.Rotation, p.Page.Crop, p.IsSelected, p.Page.Adjustments, p.OrientationCheckedRotation)).ToArray(), _allPageAdjustments);
     private void Remember() { _undo.Push(Snapshot()); _redo.Clear(); }
     private async Task RestoreAsync(EditorState state)
     {
@@ -217,6 +247,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         {
             s.Entry.Page.Rotation = s.Rotation; s.Entry.Page.Crop = s.Crop; s.Entry.IsSelected = s.Selected;
             s.Entry.Page.Adjustments = s.Adjustments;
+            s.Entry.OrientationCheckedRotation = s.OrientationCheckedRotation;
             Pages.Add(s.Entry);
             await RefreshAsync(s.Entry);
         }
@@ -234,16 +265,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         Remember();
         foreach (var entry in SelectedPages)
         {
-            var turn = (degrees % 360 + 360) % 360;
-            entry.Page.Rotation = (entry.Page.Rotation + turn) % 360;
-            if (entry.Page.Crop is { } crop)
-                entry.Page.Crop = turn switch
-                {
-                    90 => new(1 - crop.Y - crop.Height, crop.X, crop.Height, crop.Width),
-                    180 => new(1 - crop.X - crop.Width, 1 - crop.Y - crop.Height, crop.Width, crop.Height),
-                    270 => new(crop.Y, 1 - crop.X - crop.Width, crop.Height, crop.Width),
-                    _ => crop,
-                };
+            RotateEntry(entry, degrees);
             await RefreshAsync(entry);
         }
     }
@@ -318,6 +340,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
 
     public async Task ScanAsync(ScanDevice device, Action changed, CancellationToken ct = default)
     {
+        AdjustmentMessage = string.Empty;
         Remember();
         var pending = new List<Task>();
         var settings = Settings;
@@ -337,13 +360,50 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
                     Select(Pages.Count - 1);
                     foreach (var notice in saved.Notices) Notices.Add(TranslateNotice(notice));
                     Renumber();
-                    pending.Add(RefreshAsync(entry));
+                    pending.Add(FinishScannedPageAsync(entry, changed));
                     changed();
                 });
             }), ct);
         }
         catch (ScannerException ex) { throw await ScannerFailure.ResolveAsync(scanner, device, ex, ct); }
         finally { await Task.WhenAll(pending); }
+    }
+
+    private async Task FinishScannedPageAsync(ScanPageEntry entry, Action changed)
+    {
+        // Finish received pages even when acquisition is cancelled or the feeder reports an error.
+        if (AutoOrientationEnabled) await AutoOrientAsync(entry, () => { }); // ScanAsync already remembered the batch.
+        await RefreshAsync(entry);
+        changed();
+    }
+
+    private static void RotateEntry(ScanPageEntry entry, int degrees)
+    {
+        var turn = (degrees % 360 + 360) % 360;
+        entry.Page.Rotation = (entry.Page.Rotation + turn) % 360;
+        if (entry.Page.Crop is { } crop)
+            entry.Page.Crop = turn switch
+            {
+                90 => new(1 - crop.Y - crop.Height, crop.X, crop.Height, crop.Width),
+                180 => new(1 - crop.X - crop.Width, 1 - crop.Y - crop.Height, crop.Width, crop.Height),
+                270 => new(crop.Y, 1 - crop.X - crop.Width, crop.Height, crop.Width),
+                _ => crop,
+            };
+    }
+
+    private async Task AutoOrientAsync(ScanPageEntry entry, Action remember, CancellationToken ct = default)
+    {
+        var rotation = entry.Page.Rotation;
+        if (entry.OrientationCheckedRotation == rotation) return;
+        var correction = await Task.Run(() => Processor.DetectOrientation(Session.Read(entry.Page), rotation, ct), ct);
+        ct.ThrowIfCancellationRequested();
+        if (correction != 0)
+        {
+            remember();
+            RotateEntry(entry, correction);
+            AdjustmentMessage = Loc.F("Automatically rotated page {0} by {1}°", entry.Number, correction);
+        }
+        entry.OrientationCheckedRotation = entry.Page.Rotation;
     }
 
     public async Task RefreshAsync(ScanPageEntry entry)
@@ -509,8 +569,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
             entry.Page.Straighten = true;
             entry.Page.WhiteBackground = true;
             var page = entry.PreviewPage ??= await Task.Run(() => ScanPageProcessor.CreatePreviewPage(Session.Read(entry.Page), 1400));
-            var rotation = AutoOrientationEnabled ? await Task.Run(() => Processor.DetectOrientation(page, entry.Page.Rotation)) : 0;
-            entry.Page.Rotation = (entry.Page.Rotation + rotation) % 360;
+            if (AutoOrientationEnabled) await AutoOrientAsync(entry, () => { });
             entry.Page.Crop = (await Task.Run(() => Processor.Analyze(page with { Adjustments = entry.Page.Adjustments },
                 Settings with { AutoCrop = true, AutoStraighten = true }, entry.Page.Rotation))).Keep;
             if (entry.Page.Crop is null) AdjustmentMessage = Loc.T("No edges to crop were found");
@@ -568,6 +627,7 @@ public sealed record ScanPreviewFrame(BitmapSource Image, System.Windows.Size Im
 
 public sealed class ScanPageEntry(ScanSessionPage page) : ObservableObject
 {
+    internal int? OrientationCheckedRotation { get; set; }
     public ScanSessionPage Page { get; } = page;
     internal ScannedPage? PreviewPage { get; set; }
     public long EncodedBytes { get; set; }

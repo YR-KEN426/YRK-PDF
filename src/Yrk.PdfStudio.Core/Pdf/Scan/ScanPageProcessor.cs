@@ -9,8 +9,10 @@ public interface IScanOrientationDetector
     int? Detect(PdfBitmap bitmap, string tessdataFolder, CancellationToken cancellationToken);
 }
 
-public sealed class TesseractScanOrientationDetector : IScanOrientationDetector
+public sealed class TesseractScanOrientationDetector(Action<string>? log = null) : IScanOrientationDetector
 {
+    // Real 300 dpi English fixtures score 10.62–12.93 on 90/180/270 despite detecting the correct angle.
+    private const float MinimumConfidence = 10;
     public int? Detect(PdfBitmap bitmap, string tessdataFolder, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -21,17 +23,34 @@ public sealed class TesseractScanOrientationDetector : IScanOrientationDetector
             using var page = engine.Process(pix, PageSegMode.OsdOnly);
             page.DetectBestOrientation(out int orientation, out var confidence);
             cancellationToken.ThrowIfCancellationRequested();
-            if (confidence < 15) return null;
+            log?.Invoke(FormattableString.Invariant($"[INFO] Scan OSD: orientation={orientation}, confidence={confidence:0.00}"));
+            if (!float.IsFinite(confidence) || confidence < MinimumConfidence)
+            { log?.Invoke($"[INFO] Scan OSD skipped: low confidence (minimum {MinimumConfidence})."); return null; }
+            // Tesseract reports the clockwise orientation of the input, not the corrective turn.
             return (360 - orientation) % 360;
         }
         catch (Exception ex) when (ex is TesseractException or DllNotFoundException or BadImageFormatException or InvalidOperationException or IOException or UnauthorizedAccessException)
-        { return null; }
+        { log?.Invoke("[INFO] Scan OSD skipped: " + ex); return null; }
     }
 }
 
 /// <summary>Pixel operations stay independent of WPF; only the injected JPEG codec is platform-specific.</summary>
-public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDetector? orientationDetector = null, string? tessdataFolder = null)
+public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDetector? orientationDetector = null, string? tessdataFolder = null,
+    Action<string>? log = null)
 {
+    public static bool CanComposeCardSide(ScannedPage side, NormalizedRect? crop, int dpi)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(dpi);
+        Validate(side);
+        if (crop is not { } r || !double.IsFinite(r.X + r.Y + r.Width + r.Height) || r.X < 0 || r.Y < 0
+            || r.Width <= 0 || r.Height <= 0 || r.X + r.Width > 1 || r.Y + r.Height > 1) return false;
+        var x = Math.Min(side.Bitmap.Width - 1, (int)Math.Round(r.X * side.Bitmap.Width));
+        var y = Math.Min(side.Bitmap.Height - 1, (int)Math.Round(r.Y * side.Bitmap.Height));
+        var w = Math.Clamp((int)Math.Round(r.Width * side.Bitmap.Width), 1, side.Bitmap.Width - x);
+        var h = Math.Clamp((int)Math.Round(r.Height * side.Bitmap.Height), 1, side.Bitmap.Height - y);
+        return Math.Round(w * dpi / side.DpiX) <= Math.Round(210 / 25.4 * dpi)
+            && Math.Round(h * dpi / side.DpiY) <= (int)Math.Round(297 / 25.4 * dpi) / 2;
+    }
     /// <summary>Places cropped card sides at their measured physical size, without scaling to fit.</summary>
     public static ScannedPage ComposeCard(ScannedPage front, NormalizedRect? frontCrop, ScannedPage back,
         NormalizedRect? backCrop, int dpi, CancellationToken ct = default)
@@ -64,15 +83,20 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
         return new(new(width, height, width * 4, pixels), dpi, dpi, Adjustments: new(Straighten: false));
     }
 
-    /// <summary>Optional OSD is used only by Auto adjust. This path never downloads data.</summary>
+    /// <summary>Inspect original pixels at up to 300 dpi, independently of the 100 dpi cleanup preview.</summary>
     public int DetectOrientation(ScannedPage page, int rotation = 0, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
         var folder = tessdataFolder ?? new OcrLanguageData().Folder;
-        if (!File.Exists(Path.Combine(folder, "osd.traineddata"))) return 0;
-        var small = CreatePreviewPage(page, 1600, ct);
-        var image = Adjust(Rotate(small.Bitmap, rotation, ct), new(WhiteBackground: true), ct);
-        var correction = (orientationDetector ?? new TesseractScanOrientationDetector()).Detect(image, folder, ct);
+        if (!File.Exists(Path.Combine(folder, "osd.traineddata")))
+        { log?.Invoke("[INFO] Scan OSD skipped: osd.traineddata is missing."); return 0; }
+        Validate(page);
+        var scale = Math.Min(1, 300 / Math.Max(page.DpiX, page.DpiY));
+        var maxSide = Math.Min(3508, Math.Max(1, (int)Math.Round(Math.Max(page.Bitmap.Width, page.Bitmap.Height) * scale)));
+        var small = Preview(page.Bitmap, ScanCleanup.Dpi, ScanCleanup.Dpi, ct, maxSide);
+        var image = Rotate(small, rotation, ct);
+        // The detector converts to Gray8 without whitening or changing the source pixels.
+        var correction = (orientationDetector ?? new TesseractScanOrientationDetector(log)).Detect(image, folder, ct);
         return correction is 0 or 90 or 180 or 270 ? correction.Value : 0;
     }
 

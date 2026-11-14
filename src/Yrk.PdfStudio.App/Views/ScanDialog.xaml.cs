@@ -55,6 +55,7 @@ public partial class ScanDialog : Window
     public ScanDialog(ScanSession session, IScannerService scanner)
     {
         InitializeComponent();
+        AutoOrientation.Visibility = ScanFeatureFlags.AutoRotateVisible ? Visibility.Visible : Visibility.Collapsed;
         _scanner = scanner;
         _model = new(session, scanner, Dispatcher);
         _previewQueue = new(RenderQueuedPreviewAsync, busy => PreviewBusy.Visibility = busy ? Visibility.Visible : Visibility.Collapsed);
@@ -391,12 +392,13 @@ public partial class ScanDialog : Window
                 _cropping = _model.TemporaryPreview is not null;
                 Message.Text = _model.CardBack is not null ? Loc.T("Check the back crop, then press Combine card.")
                     : _model.CardFront is not null ? Loc.T("Check the front crop, flip the card, then press Continue.") : string.Empty;
-                if (_model.AdjustmentMessage.Length > 0 && _model.TemporaryPreview is not null) Message.Text += " " + _model.AdjustmentMessage;
+                if (_model.AdjustmentMessage.Length > 0 && _model.TemporaryPreview is not null) Message.Text = _model.AdjustmentMessage;
             }
             else
             {
                 _model.ClearGlassPreview(); _cropping = false;
                 await _model.ScanAsync(device, UpdateButtons, _cancel!.Token);
+                Message.Text = _model.AdjustmentMessage;
             }
         });
     }
@@ -542,6 +544,7 @@ public partial class ScanDialog : Window
             {
                 await _model.SetAutoOrientationAsync(enabled, OrientationData,
                     () => Task.FromResult(Confirm(Loc.T("Auto rotation needs orientation data.\n\nDownload it now from github.com/tesseract-ocr (about 10 MB)? It is downloaded only once."))), _cancel!.Token);
+                Message.Text = _model.AdjustmentMessage;
             }
             finally
             {
