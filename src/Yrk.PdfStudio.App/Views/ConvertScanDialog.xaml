@@ -1,0 +1,82 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.ConvertScanDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:Yrk.PdfStudio.App.Converters"
+        Title="Convert scanned documents" Width="680" Height="780" MinWidth="580" MinHeight="500"
+        ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
+        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Bottom">
+            <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Conversion error" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button x:Name="OkButton" Content="Convert" AutomationProperties.Name="Convert" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="90" Click="OnOk" />
+                <Button Content="Cancel" AutomationProperties.Name="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
+            </StackPanel>
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Convert scanned documents" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Text="Scans to searchable PDF, editable Word or text" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,12" />
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Margin="8,0,0,0" Width="150">
+                        <Button Content="Add files…" AutomationProperties.Name="Add files…" Style="{StaticResource SecondaryButton}" Click="OnAddFiles" Margin="0,0,0,6" />
+                        <Button Content="Add a folder…" AutomationProperties.Name="Add a folder…" Style="{StaticResource SecondaryButton}" Click="OnAddFolder" Margin="0,0,0,6" />
+                        <CheckBox x:Name="SubfoldersBox" Content="Include subfolders" AutomationProperties.Name="Include subfolders" Margin="2,0,0,10" />
+                        <Button x:Name="RemoveButton" Content="Remove" AutomationProperties.Name="Remove" Style="{StaticResource SecondaryButton}" Click="OnRemove" Margin="0,0,0,6" />
+                        <Button Content="Clear" AutomationProperties.Name="Clear" Style="{StaticResource SecondaryButton}" Click="OnClear" />
+                    </StackPanel>
+                    <ListBox x:Name="FileList" Height="170" SelectionMode="Extended" SelectionChanged="OnSelectionChanged" PreviewKeyDown="OnFileKeyDown"
+                             AutomationProperties.Name="Files" ToolTip="Drop PDF files, images or folders here">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem">
+                                <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
+                                <Setter Property="ToolTip" Value="{Binding Path}" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Name}" />
+                                    <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </DockPanel>
+                <TextBlock x:Name="CountText" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                <TextBlock Text="Languages in the document" FontWeight="SemiBold" Margin="0,12,0,4" />
+                <ItemsControl x:Name="LanguageList" Focusable="False">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Margin="0,3" Checked="OnChanged" Unchecked="OnChanged" AutomationProperties.Name="{Binding Name}">
+                                <TextBlock>
+                                    <Run Text="{Binding Name, Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" />
+                                    <Run Text="{Binding Note, Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" />
+                                </TextBlock>
+                            </CheckBox>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="Pages" FontWeight="SemiBold" Margin="0,12,0,4" />
+                <RadioButton x:Name="ScannedOnly" GroupName="Pages" Content="Only pages without text (scans)" AutomationProperties.Name="Only pages without text (scans)" IsChecked="True" />
+                <RadioButton x:Name="AllPages" GroupName="Pages" Content="All pages" AutomationProperties.Name="All pages" Margin="0,4,0,0" />
+                <TextBlock Text="Output formats" FontWeight="SemiBold" Margin="0,12,0,4" />
+                <WrapPanel>
+                    <CheckBox x:Name="PdfBox" Content="Searchable PDF" AutomationProperties.Name="Searchable PDF" IsChecked="True" Checked="OnChanged" Unchecked="OnChanged" Margin="0,0,20,0" />
+                    <CheckBox x:Name="WordBox" Content="Word" AutomationProperties.Name="Word" Checked="OnChanged" Unchecked="OnChanged" Margin="0,0,20,0" />
+                    <CheckBox x:Name="TextBoxOutput" Content="Text (.txt)" AutomationProperties.Name="Text (.txt)" Checked="OnChanged" Unchecked="OnChanged" />
+                </WrapPanel>
+                <CheckBox x:Name="ReviewBox" Content="Review uncertain words before saving" AutomationProperties.Name="Review uncertain words before saving" IsChecked="True" Margin="0,12,0,0" />
+                <TextBlock Text="Save the results in" FontWeight="SemiBold" Margin="0,12,0,4" />
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Browse…" AutomationProperties.Name="Browse…" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnBrowse" />
+                    <TextBox x:Name="FolderBox" Padding="4,3" AutomationProperties.Name="Output folder" TextChanged="OnChanged" />
+                </DockPanel>
+                <TextBlock Text="Leave blank to use each source file's folder." Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

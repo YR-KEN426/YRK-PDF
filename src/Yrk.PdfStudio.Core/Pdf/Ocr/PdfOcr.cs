@@ -82,6 +82,7 @@ public static class PdfOcr
         var pages = new List<int>();
         for (var i = 0; i < document.PageCount; i++)
         {
+            if (options.OnlyPages is not null && !options.OnlyPages.Contains(i)) continue;
             if (options.Pages == OcrPageSelection.AllPages
                 || (await document.GetPageTextAsync(i, cancellationToken).ConfigureAwait(false)).Count(c => !char.IsWhiteSpace(c)) < MinCharactersForTextPage)
             {

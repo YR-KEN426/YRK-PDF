@@ -47,6 +47,8 @@ public partial class MainWindow
             Loc.T("Images to PDF"), Loc.T("Make one PDF from photos and scans (JPG, PNG)"), NeedsDocument: false),
         new("batch", "organize", "\uE762",
             Loc.T("Process many files"), Loc.T("Compress, convert or mark a whole folder at once"), NeedsDocument: false, Accounting: true),
+        new("convertscan", "convert", "\uE8B7",
+            Loc.T("Convert scanned documents"), Loc.T("Scans to searchable PDF, editable Word or text"), NeedsDocument: false),
 
         new("word", "convert", "\uE8A5",
             Loc.T("PDF to Word"), Loc.T("Editable text with tables and pictures in place")),
@@ -219,6 +221,9 @@ public partial class MainWindow
                 return;
             case "batch":
                 await tab.BatchCommand.ExecuteAsync(null);
+                return;
+            case "convertscan":
+                await tab.ConvertScanCommand.ExecuteAsync(null);
                 return;
             case "etax":
                 await tab.ETaxInvoiceCommand.ExecuteAsync(null);

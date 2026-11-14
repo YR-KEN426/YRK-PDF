@@ -25,7 +25,7 @@ public sealed class PdfTemporaryFiles : IDisposable
 
     public string GetFolder(string area)
     {
-        if (area is not ("undo" or "drawings" or "revisions" or "signatures" or "redact" or "Working"))
+        if (area is not ("undo" or "drawings" or "revisions" or "signatures" or "redact" or "Working" or "convertscan"))
             throw new ArgumentException("Unknown temporary area.", nameof(area));
         return Guard(() =>
         {
@@ -59,7 +59,7 @@ public sealed class PdfTemporaryFiles : IDisposable
         return true;
     });
 
-    private IEnumerable<string> Roots() => new[] { "undo", "drawings", "revisions", "signatures", "redact", "Working" }.Select(Root);
+    private IEnumerable<string> Roots() => new[] { "undo", "drawings", "revisions", "signatures", "redact", "Working", "convertscan" }.Select(Root);
 
     /// <param name="includeLegacy">Only true when no older, unmarked instance can still own the legacy files.</param>
     public void Cleanup(bool includeLegacy = false) => Guard(() =>

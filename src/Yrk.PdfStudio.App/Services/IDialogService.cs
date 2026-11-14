@@ -25,6 +25,13 @@ public sealed record SplitPlan(string Folder, IReadOnlyList<IReadOnlyList<int>> 
 
 public sealed record ImagesToPdfRequest(IReadOnlyList<string> Files, ImagesToPdfOptions Options);
 
+/// <param name="OutputFolder">Null or empty means each source file's own folder.</param>
+public sealed record ConvertScanRequest(IReadOnlyList<string> Files, IReadOnlyList<string> Languages,
+    OcrPageSelection Pages = OcrPageSelection.PagesWithoutText, bool SearchablePdf = true,
+    bool Word = false, bool Text = false, bool ReviewUncertainWords = true, string? OutputFolder = null);
+
+public sealed record ConvertScanResult(string Summary, IReadOnlyList<string> OutputFiles, string AllText);
+
 /// <summary>What the user chose in the digital signature dialog. The caller owns (and disposes) the certificate.</summary>
 public sealed record DigitalSignOptions(
     X509Certificate2 Certificate,
@@ -109,6 +116,10 @@ public interface IDialogService
     bool ConfirmSignAgain(int signatureCount, bool hasUnsavedEdits);
 
     OcrOptions? AskOcr();
+
+    ConvertScanRequest? AskConvertScan(IEnumerable<string> initialFiles);
+
+    void ShowConvertScanResult(ConvertScanResult result);
 
     /// <summary>A real-world length for calibrating a scale, or null if cancelled.</summary>
     (double Value, string Unit)? AskLength(string defaultUnit);

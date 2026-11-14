@@ -210,6 +210,15 @@ public sealed class DialogService : IDialogService
         return dialog.ShowDialog() == true ? dialog.Options : null;
     }
 
+    public ConvertScanRequest? AskConvertScan(IEnumerable<string> initialFiles)
+    {
+        var dialog = new ConvertScanDialog(initialFiles) { Owner = Owner };
+        return dialog.ShowDialog() == true ? dialog.Request : null;
+    }
+
+    public void ShowConvertScanResult(ConvertScanResult result) =>
+        new ConvertScanResultDialog(result) { Owner = Owner }.ShowDialog();
+
     public void ShowInfo(string message) => Show(message, MessageBoxButton.OK, MessageBoxImage.Information);
 
     public (double Value, string Unit)? AskLength(string defaultUnit)

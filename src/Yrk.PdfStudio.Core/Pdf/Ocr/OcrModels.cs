@@ -23,7 +23,9 @@ public enum OcrPageSelection
 }
 
 /// <param name="Languages">Tesseract language codes, for example ["tha", "eng"].</param>
-public sealed record OcrOptions(IReadOnlyList<string> Languages, OcrPageSelection Pages = OcrPageSelection.PagesWithoutText, int Dpi = 300);
+/// <param name="OnlyPages">Optional 0-based page subset, intersected with Pages. Null preserves the original selection.</param>
+public sealed record OcrOptions(IReadOnlyList<string> Languages, OcrPageSelection Pages = OcrPageSelection.PagesWithoutText, int Dpi = 300,
+    IReadOnlyCollection<int>? OnlyPages = null);
 
 public sealed record OcrProgress(int Done, int Total, int PageIndex);
 

@@ -132,7 +132,7 @@ internal sealed class ScriptedDialogs
                 var answer = answers.Dequeue();
                 return answer is Func<object?[], object?> callback ? callback(args ?? []) : answer;
             }
-            if (method.Name is "ShowError" or "ShowInfo") return null;
+            if (method.Name is "ShowError" or "ShowInfo" or "ShowConvertScanResult") return null;
             throw new InvalidOperationException($"No scripted answer for {method.Name}");
         };
     }

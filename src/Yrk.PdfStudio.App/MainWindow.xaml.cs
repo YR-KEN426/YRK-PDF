@@ -1556,6 +1556,7 @@ public partial class MainWindow : Window
         menu.Items.Add(new MenuItem { Header = Loc.T("Scan to PDF…"), Command = _viewModel.ScanToPdfCommand });
         menu.Items.Add(new MenuItem { Header = "e-Tax Invoice…", Command = _viewModel.ETaxInvoiceCommand });
         menu.Items.Add(new MenuItem { Header = "Process many files…", Command = _viewModel.BatchCommand });
+        menu.Items.Add(new MenuItem { Header = Loc.T("Convert scanned documents…"), Command = _viewModel.ConvertScanCommand });
         menu.Items.Add(new Separator());
         menu.Items.Add(new MenuItem { Header = "Split this PDF…", Command = _viewModel.SplitCommand, IsEnabled = _viewModel.HasDocument });
         menu.Items.Add(new MenuItem { Header = "Compress this PDF…", Command = _viewModel.CompressCommand, IsEnabled = _viewModel.HasDocument });

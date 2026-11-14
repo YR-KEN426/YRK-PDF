@@ -1,0 +1,20 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.ConvertScanResultDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Scan conversion results" Width="600" SizeToContent="Height" MaxHeight="720"
+        ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
+    <DockPanel Margin="20">
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+            <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" AutomationProperties.Name="Conversion error" />
+            <WrapPanel HorizontalAlignment="Right" Margin="0,8,0,0">
+                <Button Content="Open folder" AutomationProperties.Name="Open folder" Style="{StaticResource SecondaryButton}" Click="OnOpenFolder" Margin="0,0,8,8" />
+                <Button x:Name="CopyTextButton" Content="Copy all text" AutomationProperties.Name="Copy all text" Style="{StaticResource SecondaryButton}" Click="OnCopyText" Margin="0,0,8,8" />
+                <Button Content="Close" AutomationProperties.Name="Close" Style="{StaticResource PrimaryButton}" IsDefault="True" IsCancel="True" Margin="0,0,0,8" />
+            </WrapPanel>
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
+            <TextBox x:Name="SummaryText" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="{StaticResource SurfaceBrush}" AutomationProperties.Name="Scan conversion results" />
+        </ScrollViewer>
+    </DockPanel>
+</Window>
