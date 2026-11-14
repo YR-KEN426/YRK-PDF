@@ -131,6 +131,10 @@ public sealed class AppScanLayoutTests
         application.Resources.MergedDictionaries.Add(new ResourceDictionary
         { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
         var oldLanguage = Loc.Language;
+        var saveSuspended = typeof(Yrk.PdfStudio.App.Services.AppSettings)
+            .GetField("s_saveSuspended", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var oldSaveSuspended = saveSuspended.GetValue(null);
+        saveSuspended.SetValue(null, true); // Exercise Scan without changing the user's preferences.
         try
         {
             foreach (var language in Languages)
@@ -162,19 +166,25 @@ public sealed class AppScanLayoutTests
                         Await(model.ApplyAdjustmentsAsync(new(Brightness: 15, Sharpness: 25, WhiteBackground: true, Straighten: false, Contrast: 20), false));
                     if (state == "card")
                     {
+                        // Use the button's complete workflow: it owns crop mode and awaits the preview.
+                        // Calling the model directly leaves crop mode dependent on intermediate renders.
+                        void ScanCard() => Await((Task)typeof(ScanDialog)
+                            .GetMethod("StartScanAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!);
                         model.ApplyPreset(ScanPreset.TwoSidedCard);
                         model.Settings = model.Settings with { Dpi = 100 };
                         typeof(ScanDialog).GetMethod("ShowPreset", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
-                        Await(model.ScanCardAsync(FakeScannerService.Device));
+                        ScanCard();
                         Assert.NotNull(model.CardFront);
                         Assert.NotNull(model.CardFront.Page.Crop);
                         Assert.Null(model.CardBack);
                         Assert.Empty(model.Pages);
-                        Await(model.ScanCardAsync(FakeScannerService.Device));
+                        Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("CropFrame")).Visibility);
+                        ScanCard();
                         Assert.NotNull(model.CardBack);
                         Assert.NotNull(model.CardBack.Page.Crop);
                         Assert.Empty(model.Pages);
-                        Await(model.ScanCardAsync(FakeScannerService.Device));
+                        Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("CropFrame")).Visibility);
+                        ScanCard();
                         var card = Assert.Single(model.Pages);
                         var composed = session.Read(card.Page).Bitmap;
                         Assert.Equal((int)Math.Round(210 / 25.4 * 100), composed.Width);
@@ -379,7 +389,7 @@ public sealed class AppScanLayoutTests
                 finally { window.CloseChoice = () => Yrk.PdfStudio.App.Services.SaveChangesChoice.Discard; window.Close(); }
             }
         }
-        finally { Loc.Language = oldLanguage; application.Shutdown(); ResetApplication(); }
+        finally { saveSuspended.SetValue(null, oldSaveSuspended); Loc.Language = oldLanguage; application.Shutdown(); ResetApplication(); }
         return true;
     });
 

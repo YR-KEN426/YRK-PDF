@@ -222,3 +222,4 @@
   - ยอมรับไม่แก้: PublishScanOutput check-then-move race (race ในเครื่อง ผู้ใช้เดียวกัน แคบลงแล้วด้วย length+timestamp; ทบทวนในการตรวจ 1.2.5)
 - [x] ขั้น 8 เอกสาร (release notes 1.2.2, version 1.2.2, คู่มือ th/en + PDF; เทสต์ผ่าน 1824 ข้าม 2; check-translations 12)
 - [ ] ขั้น 9 ปล่อยรุ่น
+  - แก้เทสต์ en-card ที่ล้มเป็นบางครั้ง (commit pending)
