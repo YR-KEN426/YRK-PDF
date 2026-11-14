@@ -40,7 +40,10 @@ public sealed class TesseractOcrEngine : IDisposable
     /// <summary>Recognises the words on a rendered page (BGRA pixels, as displayed).</summary>
     public IReadOnlyList<OcrWord> Recognize(PdfBitmap bitmap, CancellationToken cancellationToken = default)
     {
-        using var pix = Pix.LoadFromMemory(GrayBmp(bitmap));
+        // Scan conversion (SingleColumn) lets Tesseract estimate the resolution: photos and forwarded images are
+        // rendered at "300 dpi" but their text is far smaller, and the fixed hint lost whole phrases in testing
+        // (2026-11-14). Real 300 dpi scans read the same either way. The legacy OCR path keeps the hint.
+        using var pix = Pix.LoadFromMemory(GrayBmp(bitmap, resolutionHint: _segmentationMode == PageSegMode.Auto));
         using var page = _engine.Process(pix, _segmentationMode);
         using var iterator = page.GetIterator();
         var words = new List<OcrWord>();
@@ -135,8 +138,9 @@ public sealed class TesseractOcrEngine : IDisposable
     public void Dispose() => _engine.Dispose();
 
     /// <summary>An 8-bit greyscale BMP (Leptonica reads it directly; Tesseract works on grey anyway).</summary>
-    internal static byte[] GrayBmp(PdfBitmap bitmap)
+    internal static byte[] GrayBmp(PdfBitmap bitmap, bool resolutionHint = true)
     {
+        var pixelsPerMetre = resolutionHint ? 11811 : 0; // 300 dpi, or 0 = unknown (Tesseract estimates it)
         int width = bitmap.Width, height = bitmap.Height;
         var rowLength = (width + 3) & ~3;
         const int paletteLength = 256 * 4;
@@ -154,8 +158,8 @@ public sealed class TesseractOcrEngine : IDisposable
         BitConverter.TryWriteBytes(span[26..], (short)1);
         BitConverter.TryWriteBytes(span[28..], (short)8);
         BitConverter.TryWriteBytes(span[34..], rowLength * height);
-        BitConverter.TryWriteBytes(span[38..], 11811); // 300 dpi in pixels per metre
-        BitConverter.TryWriteBytes(span[42..], 11811);
+        BitConverter.TryWriteBytes(span[38..], pixelsPerMetre);
+        BitConverter.TryWriteBytes(span[42..], pixelsPerMetre);
         BitConverter.TryWriteBytes(span[46..], 256);
         for (var i = 0; i < 256; i++)
         {

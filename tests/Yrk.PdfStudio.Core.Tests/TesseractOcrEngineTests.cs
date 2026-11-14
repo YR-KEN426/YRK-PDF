@@ -6,6 +6,19 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class TesseractOcrEngineTests
 {
     [Fact]
+    public void Gray_bitmap_states_300_dpi_unless_Tesseract_should_estimate_the_resolution()
+    {
+        var bitmap = new PdfBitmap(2, 2, 8, new byte[16]);
+        // BITMAPINFOHEADER biXPelsPerMeter / biYPelsPerMeter at offsets 38 and 42.
+        var hinted = TesseractOcrEngine.GrayBmp(bitmap);
+        Assert.Equal(11811, BitConverter.ToInt32(hinted, 38));
+        Assert.Equal(11811, BitConverter.ToInt32(hinted, 42));
+        var estimated = TesseractOcrEngine.GrayBmp(bitmap, resolutionHint: false);
+        Assert.Equal(0, BitConverter.ToInt32(estimated, 38));
+        Assert.Equal(0, BitConverter.ToInt32(estimated, 42));
+    }
+
+    [Fact]
     public void Joining_keeps_low_confidence_English_and_Thai_runs_and_their_boxes()
     {
         OcrWord[] pieces =
