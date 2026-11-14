@@ -26,6 +26,54 @@ public sealed class OcrTests : IDisposable
 
     private bool HasData => _data.IsInstalled("tha") && _data.IsInstalled("eng");
 
+    [Theory]
+    [InlineData(OcrSegmentationMode.Auto)]
+    [InlineData(OcrSegmentationMode.SingleColumn)]
+    public async Task Mixed_Thai_English_lines_keep_every_character_returned_by_Tesseract(OcrSegmentationMode mode)
+    {
+        if (!HasData) return;
+        var image = RunSta(() => RenderLines([
+            "ค้นหาใน YouTube รู้จักผ่านเพื่อน",
+            "ค้นพบช่องของคุณอย่างไร ผู้ชมก็ยังอยู่",
+            "Invoice number 12345 YouTube",
+        ]));
+        var bitmap = new PdfBitmap(image.Width, image.Height, image.Width * 4, image.Pixels);
+        using var engine = new TesseractOcrEngine(_data, ["tha", "eng"], mode);
+        var words = engine.Recognize(bitmap);
+        var actual = words.GroupBy(w => w.Line).ToDictionary(g => g.Key,
+            g => TesseractOcrEngineTests.Compact(string.Concat(g.Select(w => w.Text))));
+
+        using var reference = new Tesseract.TesseractEngine(_data.Folder, "tha+eng", Tesseract.EngineMode.LstmOnly);
+        reference.SetVariable("preserve_interword_spaces", "1");
+        using var pix = Tesseract.Pix.LoadFromMemory(TesseractOcrEngine.GrayBmp(bitmap));
+        using var page = reference.Process(pix, mode == OcrSegmentationMode.Auto
+            ? Tesseract.PageSegMode.Auto : Tesseract.PageSegMode.SingleColumn);
+        using var iterator = page.GetIterator();
+        var expected = new Dictionary<int, string>();
+        iterator.Begin();
+        var index = 0;
+        do
+        {
+            var text = TesseractOcrEngineTests.Compact(iterator.GetText(Tesseract.PageIteratorLevel.TextLine) ?? "");
+            if (text.Length > 0) expected.Add(index, text);
+            index++;
+        }
+        while (iterator.Next(Tesseract.PageIteratorLevel.TextLine));
+        Assert.True(expected.Count >= 3);
+        Assert.Contains("YouTube", string.Concat(expected.Values), StringComparison.Ordinal);
+        Assert.Equal(expected.OrderBy(p => p.Key), actual.OrderBy(p => p.Key));
+
+        // Exercise the options route through PdfOcr as well as the engine constructor.
+        var scan = await CreateScanAsync(["ค้นหาใน YouTube รู้จักผ่านเพื่อน", "Invoice number 12345"], 0);
+        await using var document = await _engine.OpenAsync(scan);
+        var options = new OcrOptions(["tha", "eng"], SegmentationMode: mode);
+        var result = Assert.Single(await PdfOcr.RecognizePagesAsync(document, options, _data));
+        var size = document.PageSizes[0];
+        var rendered = await document.RenderPageAsync(0, (int)Math.Round(size.Width * 300 / 72),
+            (int)Math.Round(size.Height * 300 / 72));
+        Assert.Equal(engine.Recognize(rendered), result.Words);
+    }
+
     [Fact]
     public async Task Makes_a_scanned_page_searchable()
     {

@@ -549,6 +549,7 @@ public sealed class AppConvertScanTests
         app.Model.OcrDataFactory = () => new OcrLanguageData(folder);
         app.Model.ConvertScanOcrRunner = (_, pdf, options, _, orient, _, ct) =>
         {
+            Assert.Equal(OcrSegmentationMode.SingleColumn, options.SegmentationMode);
             Assert.True(orient);
             ct.ThrowIfCancellationRequested();
             return Task.FromResult(FakeResult(pdf, options));

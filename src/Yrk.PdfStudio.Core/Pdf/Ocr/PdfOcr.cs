@@ -95,7 +95,7 @@ public static class PdfOcr
             return [];
         }
 
-        using var engine = await Task.Run(() => new TesseractOcrEngine(data, options.Languages), cancellationToken).ConfigureAwait(false);
+        using var engine = await Task.Run(() => new TesseractOcrEngine(data, options.Languages, options.SegmentationMode), cancellationToken).ConfigureAwait(false);
         var results = new List<OcrPageResult>();
         for (var n = 0; n < pages.Count; n++)
         {

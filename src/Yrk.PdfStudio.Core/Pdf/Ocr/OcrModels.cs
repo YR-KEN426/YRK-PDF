@@ -22,10 +22,17 @@ public enum OcrPageSelection
     AllPages,
 }
 
+public enum OcrSegmentationMode
+{
+    Auto,
+    SingleColumn,
+}
+
 /// <param name="Languages">Tesseract language codes, for example ["tha", "eng"].</param>
 /// <param name="OnlyPages">Optional 0-based page subset, intersected with Pages. Null preserves the original selection.</param>
+/// <param name="SegmentationMode">Page layout assumption; Auto preserves legacy OCR and scanner behavior.</param>
 public sealed record OcrOptions(IReadOnlyList<string> Languages, OcrPageSelection Pages = OcrPageSelection.PagesWithoutText, int Dpi = 300,
-    IReadOnlyCollection<int>? OnlyPages = null);
+    IReadOnlyCollection<int>? OnlyPages = null, OcrSegmentationMode SegmentationMode = OcrSegmentationMode.Auto);
 
 public sealed record OcrProgress(int Done, int Total, int PageIndex);
 

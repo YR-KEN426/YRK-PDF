@@ -19,6 +19,8 @@ public static class OcrTuning
     public const double SmallLineFactor = 0.75;
     /// <summary>Lines of short words only and lower than this fraction of the body are stray marks.</summary>
     public const double StrayLineFactor = 0.5;
+    /// <summary>Thin band starting at the line center for Word/text; searchable PDF keeps real word boxes.</summary>
+    public const double LayoutLineHeightFraction = 0.2;
 }
 
 /// <summary>Filtered OCR for Word, plain text and review. Never used by the legacy PDF text layer.</summary>
@@ -34,7 +36,8 @@ public static class OcrPageText
         RetainedIndices(page).Where(i => page.Words[i].Confidence < OcrTuning.ReviewConfidence).ToHashSet();
 
     /// <summary>Converts normalized word boxes to displayed page points, preserving SpaceAfter.
-    /// Uses one font size per Tesseract line; old words without metadata fall back to their box heights.</summary>
+    /// Uses a thin band at the center of each Tesseract line and one font size per line.
+    /// Old words without line bounds keep their original boxes.</summary>
     public static PdfPageText ToPageText(OcrPageResult page, double widthPt, double heightPt, bool filtered = true)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(widthPt);
@@ -51,6 +54,11 @@ public static class OcrPageText
             var size = Math.Max(OcrTuning.FontSizeStepPt,
                 Math.Round(height * heightPt * OcrTuning.FontHeightMultiplier / OcrTuning.FontSizeStepPt,
                     MidpointRounding.AwayFromZero) * OcrTuning.FontSizeStepPt);
+            if (word.LineBounds is { Height: > 0 } line)
+            {
+                var bandHeight = line.Height * OcrTuning.LayoutLineHeightFraction;
+                box = box with { Y = line.Y + line.Height / 2, Height = bandHeight };
+            }
             return new PdfTextSpan(word.Text + (word.SpaceAfter ? " " : string.Empty),
                 box.X * widthPt, box.Y * heightPt, box.Width * widthPt, box.Height * heightPt,
                 size, "THSarabunNew", false, false, new PdfColor(0, 0, 0));

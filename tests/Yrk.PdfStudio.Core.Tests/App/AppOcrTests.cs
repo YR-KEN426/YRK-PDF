@@ -30,8 +30,9 @@ public sealed class AppOcrTests
             return new ScanRequest(session, ScanSettings, true, ["tha", "eng"]);
         }));
         var called = false;
-        app.Model.OcrRunner = async (document, bytes, _, _, _, token) =>
+        app.Model.OcrRunner = async (document, bytes, options, _, _, token) =>
         {
+            Assert.Equal(OcrSegmentationMode.Auto, options.SegmentationMode);
             called = true;
             var image = await document.RenderPageAsync(0, 827, 1169, cancellationToken: token);
             Assert.InRange(image.Pixels[0], 245, 255);
@@ -418,6 +419,7 @@ public sealed class AppOcrTests
         public Task<OcrSummary> RunAsync(IPdfDocument document, byte[] bytes, OcrOptions options,
             OcrLanguageData data, IProgress<OcrProgress>? progress, CancellationToken cancellationToken)
         {
+            Assert.Equal(OcrSegmentationMode.Auto, options.SegmentationMode);
             cancellationToken.ThrowIfCancellationRequested();
             Calls++;
             var pages = Enumerable.Range(0, document.PageCount)

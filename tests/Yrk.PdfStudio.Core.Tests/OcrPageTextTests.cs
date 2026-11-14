@@ -7,6 +7,41 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class OcrPageTextTests
 {
+    [Fact]
+    public void Slanted_words_use_thin_line_bands_for_text_layout_and_keep_real_boxes()
+    {
+        var firstLine = new NormalizedRect(.1, .1, .65, .1);
+        var secondLine = firstLine with { Y = .16 };
+        var garbageLine = firstLine with { Y = .3 };
+        var page = new OcrPageResult(0,
+        [
+            new("ค้นหาใน", new(.1, .1, .2, .03), 90, true, 0, .1, 90, firstLine),
+            new("YouTube", new(.35, .17, .25, .03), 90, false, 0, .1, 90, firstLine),
+            new("รู้จักผ่าน", new(.1, .16, .2, .03), 90, false, 1, .1, 90, secondLine),
+            new("เพื่อน", new(.35, .23, .25, .03), 90, false, 1, .1, 90, secondLine),
+            new("x", new(.1, .3, .01, .03), 20, true, 2, .1, 20, garbageLine),
+            new("๐", new(.2, .3, .01, .03), 20, false, 2, .1, 20, garbageLine),
+        ]);
+        var original = page.Words.ToArray();
+        var text = OcrPageText.ToPageText(page, 600, 800);
+        Assert.Equal(4, text.Spans.Count); // SingleColumn line metadata must still permit garbage filtering.
+        for (var i = 0; i < text.Spans.Count; i++)
+        {
+            var word = page.Words[i];
+            var span = text.Spans[i];
+            Assert.Equal((word.LineBounds!.Value.Y + .05) * 800, span.Y, 10);
+            Assert.Equal(.1 * OcrTuning.LayoutLineHeightFraction * 800, span.Height, 10);
+            Assert.Equal(word.Bounds.X * 600, span.X);
+            Assert.Equal(word.Bounds.Width * 600, span.Width);
+            Assert.Equal(88, span.FontSize); // Font sizing continues to use full line height.
+        }
+        var lines = TextLayout.Lines(text);
+        Assert.Equal(new[] { "ค้นหาใน YouTube", "รู้จักผ่านเพื่อน" },
+            lines.Select(line => string.Concat(line.Select(s => s.Text))));
+        Assert.Equal(6, OcrPageText.ToPageText(page, 600, 800, filtered: false).Spans.Count);
+        Assert.Equal(original, page.Words);
+    }
+
     [Theory]
     [InlineData("12", true)]
     [InlineData("๑๒", true)]
@@ -165,7 +200,8 @@ public sealed class OcrPageTextTests
             var path = TestPdfFactory.CreateLayeredPdf(Path.Combine(folder.FullName, "source.pdf"));
             var pdf = File.ReadAllBytes(path);
             var original = new OcrWord("xy", new NormalizedRect(0.1, 0.1, 0.1, 0.02), 30, true);
-            var enriched = original with { Line = 0, LineHeight = 0.03, LineConfidence = 20 };
+            var enriched = original with { Line = 0, LineHeight = 0.03, LineConfidence = 20,
+                LineBounds = new NormalizedRect(.05, .05, .6, .1) };
             Assert.Empty(OcrPageText.FilterWords(new(0, [enriched])));
             var expected = PdfOcr.AddTextLayer(pdf, [new(0, [original])]);
             var actual = PdfOcr.AddTextLayer(pdf, [new(0, [enriched])]);

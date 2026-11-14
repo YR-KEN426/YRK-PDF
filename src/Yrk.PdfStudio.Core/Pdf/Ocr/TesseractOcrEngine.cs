@@ -7,13 +7,19 @@ namespace Yrk.PdfStudio.Core.Pdf.Ocr;
 /// </summary>
 public sealed class TesseractOcrEngine : IDisposable
 {
-    private const float MinConfidence = 15;
-
     private readonly TesseractEngine _engine;
+    private readonly PageSegMode _segmentationMode;
 
     /// <exception cref="PdfException">The language data is missing or Tesseract could not start.</exception>
-    public TesseractOcrEngine(OcrLanguageData data, IReadOnlyList<string> languages)
+    public TesseractOcrEngine(OcrLanguageData data, IReadOnlyList<string> languages,
+        OcrSegmentationMode segmentationMode = OcrSegmentationMode.Auto)
     {
+        _segmentationMode = segmentationMode switch
+        {
+            OcrSegmentationMode.Auto => PageSegMode.Auto,
+            OcrSegmentationMode.SingleColumn => PageSegMode.SingleColumn,
+            _ => throw new ArgumentOutOfRangeException(nameof(segmentationMode)),
+        };
         var missing = languages.Where(l => !data.IsInstalled(l)).ToList();
         if (languages.Count == 0 || missing.Count > 0)
         {
@@ -35,7 +41,7 @@ public sealed class TesseractOcrEngine : IDisposable
     public IReadOnlyList<OcrWord> Recognize(PdfBitmap bitmap, CancellationToken cancellationToken = default)
     {
         using var pix = Pix.LoadFromMemory(GrayBmp(bitmap));
-        using var page = _engine.Process(pix, PageSegMode.Auto);
+        using var page = _engine.Process(pix, _segmentationMode);
         using var iterator = page.GetIterator();
         var words = new List<OcrWord>();
         var lineIndex = 0;
@@ -49,71 +55,80 @@ public sealed class TesseractOcrEngine : IDisposable
                 ? new NormalizedRect((double)lineBox.X1 / bitmap.Width, (double)lineBox.Y1 / bitmap.Height,
                     (double)lineBox.Width / bitmap.Width, (double)lineBox.Height / bitmap.Height)
                 : null;
-            var cursor = 0;
-
-            // Tesseract splits Thai into single characters (tone marks and upper vowels get boxes of their
-            // own). Pieces are joined up to the next real space, so each run is placed as one string.
-            var run = new System.Text.StringBuilder();
-            int left = int.MaxValue, top = int.MaxValue, right = int.MinValue, bottom = int.MinValue;
-            float confidenceSum = 0;
-            var pieces = 0;
-
-            void Flush(bool spaceAfter)
-            {
-                if (run.Length > 0 && confidenceSum / pieces >= MinConfidence)
-                {
-                    words.Add(new OcrWord(
-                        run.ToString(),
-                        new NormalizedRect(
-                            (double)left / bitmap.Width,
-                            (double)top / bitmap.Height,
-                            (double)(right - left) / bitmap.Width,
-                            (double)(bottom - top) / bitmap.Height),
-                        confidenceSum / pieces,
-                        spaceAfter, lineIndex, lineBounds?.Height ?? 0, lineConfidence, lineBounds));
-                }
-
-                run.Clear();
-                left = top = int.MaxValue;
-                right = bottom = int.MinValue;
-                confidenceSum = 0;
-                pieces = 0;
-            }
-
+            var fragments = new List<OcrWord>();
             do
             {
                 var text = iterator.GetText(PageIteratorLevel.Word)?.Trim();
-                if (string.IsNullOrEmpty(text) || !iterator.TryGetBoundingBox(PageIteratorLevel.Word, out var box))
-                {
-                    continue;
-                }
-
-                var at = line.IndexOf(text, cursor, StringComparison.Ordinal);
-                var spaceAfter = at >= 0 && at + text.Length < line.Length && line[at + text.Length] == ' ';
-                if (at >= 0)
-                {
-                    cursor = at + text.Length;
-                }
-
-                run.Append(text);
-                left = Math.Min(left, box.X1);
-                top = Math.Min(top, box.Y1);
-                right = Math.Max(right, box.X2);
-                bottom = Math.Max(bottom, box.Y2);
-                confidenceSum += iterator.GetConfidence(PageIteratorLevel.Word);
-                pieces++;
-                if (spaceAfter)
-                {
-                    Flush(spaceAfter: true);
-                }
+                if (string.IsNullOrEmpty(text)) continue;
+                var bounds = iterator.TryGetBoundingBox(PageIteratorLevel.Word, out var box)
+                    ? new NormalizedRect((double)box.X1 / bitmap.Width, (double)box.Y1 / bitmap.Height,
+                        (double)box.Width / bitmap.Width, (double)box.Height / bitmap.Height)
+                    : lineBounds ?? new NormalizedRect(0, 0, 0, 0);
+                fragments.Add(new OcrWord(text, bounds,
+                    iterator.GetConfidence(PageIteratorLevel.Word), false));
             }
             while (iterator.Next(PageIteratorLevel.TextLine, PageIteratorLevel.Word));
-
-            Flush(spaceAfter: false);
+            words.AddRange(MergeLinePieces(fragments, line, lineIndex, lineConfidence, lineBounds));
             lineIndex++;
         }
         while (iterator.Next(PageIteratorLevel.TextLine));
 
+        return words;
+    }
+
+    // Join Thai pieces up to real whitespace. Confidence is metadata for review, never a deletion rule.
+    internal static IReadOnlyList<OcrWord> MergeLinePieces(IReadOnlyList<OcrWord> fragments, string line,
+        int lineIndex = 0, float lineConfidence = 100, NormalizedRect? lineBounds = null)
+    {
+        var words = new List<OcrWord>();
+        var cursor = 0;
+        var run = new System.Text.StringBuilder();
+        double left = double.MaxValue, top = double.MaxValue, right = double.MinValue, bottom = double.MinValue;
+        float confidenceSum = 0;
+        var pieces = 0;
+        void Flush(bool spaceAfter)
+        {
+            if (run.Length > 0)
+                words.Add(new OcrWord(run.ToString(), new NormalizedRect(left, top, right - left, bottom - top),
+                    confidenceSum / pieces, spaceAfter, lineIndex, lineBounds?.Height ?? 0, lineConfidence, lineBounds));
+            run.Clear();
+            left = top = double.MaxValue;
+            right = bottom = double.MinValue;
+            confidenceSum = 0;
+            pieces = 0;
+        }
+        foreach (var fragment in fragments)
+        {
+            var text = fragment.Text.Trim();
+            if (text.Length == 0) continue;
+            var at = line.IndexOf(text, cursor, StringComparison.Ordinal);
+            var spaceAfter = at >= 0 && at + text.Length < line.Length
+                && char.IsWhiteSpace(line[at + text.Length]) && !string.IsNullOrWhiteSpace(line[(at + text.Length)..]);
+            if (at >= 0) cursor = at + text.Length;
+            run.Append(text);
+            left = Math.Min(left, fragment.Bounds.X);
+            top = Math.Min(top, fragment.Bounds.Y);
+            right = Math.Max(right, fragment.Bounds.X + fragment.Bounds.Width);
+            bottom = Math.Max(bottom, fragment.Bounds.Y + fragment.Bounds.Height);
+            confidenceSum += fragment.Confidence;
+            pieces++;
+            if (spaceAfter) Flush(true);
+        }
+        Flush(false);
+        // TextLine is authoritative if the word iterator omits or disagrees with a piece. Use the
+        // available line/union box rather than silently losing text or inventing individual word boxes.
+        static string Compact(string text) => new(text.Where(c => !char.IsWhiteSpace(c)).ToArray());
+        if (Compact(string.Concat(words.Select(w => w.Text))) != Compact(line))
+        {
+            if (string.IsNullOrWhiteSpace(line)) return [];
+            var bounds = lineBounds ?? (words.Count == 0 ? new NormalizedRect(0, 0, 0, 0)
+                : new NormalizedRect(words.Min(w => w.Bounds.X), words.Min(w => w.Bounds.Y),
+                    words.Max(w => w.Bounds.X + w.Bounds.Width) - words.Min(w => w.Bounds.X),
+                    words.Max(w => w.Bounds.Y + w.Bounds.Height) - words.Min(w => w.Bounds.Y)));
+            return [new OcrWord(line.Trim(), bounds,
+                fragments.Count == 0 ? lineConfidence : fragments.Average(w => w.Confidence), false,
+                lineIndex, lineBounds?.Height ?? 0, lineConfidence, lineBounds)];
+        }
         return words;
     }
 

@@ -169,7 +169,8 @@ public sealed partial class MainViewModel
                 scanPages = await OcrScanPages.FindAsync(document, bytes, ct);
                 var only = scanPages.Where(p => request.Pages == OcrPageSelection.AllPages || p.IsScan).Select(p => p.PageIndex).ToArray();
                 if (only.Length == 0) throw new ConvertScanSkipException(Loc.T("Every page already contains text."));
-                var options = new OcrOptions(request.Languages, OcrPageSelection.AllPages, OnlyPages: only);
+                var options = new OcrOptions(request.Languages, OcrPageSelection.AllPages, OnlyPages: only,
+                    SegmentationMode: OcrSegmentationMode.SingleColumn);
                 result = await ConvertScanOcrRunner(document, bytes, options, data, orient, progress, ct);
             }
 
