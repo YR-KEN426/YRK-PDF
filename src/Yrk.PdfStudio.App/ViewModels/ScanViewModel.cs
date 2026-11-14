@@ -5,6 +5,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Yrk.PdfStudio.App.Imaging;
+using Yrk.PdfStudio.App.Scanning;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf.Scan;
 using Yrk.PdfStudio.Core.Pdf;
@@ -349,25 +350,89 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         image.Freeze();
         return image;
     }
-    public Task<BitmapSource> PreviewAsync(ScanPageEntry entry) => RenderPreviewAsync(entry, true);
+    private readonly SemaphoreSlim _previewGate = new(1);
+    private sealed record GeometryKey(ScanPageEntry Entry, ScanSettings Settings, int Rotation, NormalizedRect? Crop,
+        bool ApplyCrop, bool? Straighten, bool White);
+    private GeometryKey? _proxyKey;
+    private PdfBitmap? _proxyGeometry;
+    private (GeometryKey Geometry, ScanPageAdjustments Edits, ScanPreviewFrame Frame)? _proxyRender;
+    private System.Windows.Size _sourceSize;
+    private sealed record RenderKey(GeometryKey Geometry, ScanPageAdjustments Edits, ScanRenderPlan Plan);
+    private (RenderKey Key, ScanPreviewFrame Frame)? _fullRender, _regionRender;
 
-    public Task<BitmapSource> CropPreviewAsync(ScanPageEntry entry) => RenderPreviewAsync(entry, false);
+    public async Task<BitmapSource> PreviewAsync(ScanPageEntry entry) => (await PreviewForViewAsync(entry, true)).Image;
 
-    private Task<BitmapSource> RenderPreviewAsync(ScanPageEntry entry, bool crop)
+    public async Task<BitmapSource> CropPreviewAsync(ScanPageEntry entry) => (await PreviewForViewAsync(entry, false)).Image;
+
+    public Task<ScanPreviewFrame> PreviewForViewAsync(ScanPageEntry entry, bool crop,
+        ScanRenderPlan? plan = null, CancellationToken ct = default)
     {
         var settings = TemporaryPreview == entry ? Settings with { AutoStraighten = false, AutoCrop = false } : Settings;
         var rotation = entry.Page.Rotation;
         var edits = entry.Page.Adjustments;
         var rectangle = entry.Page.Crop;
-        return Task.Run<BitmapSource>(() =>
+        var key = new GeometryKey(entry, settings, rotation, rectangle, crop, edits.Straighten, edits.WhiteBackground);
+        return Task.Run(async () =>
         {
-            var small = entry.PreviewPage ??= ScanPageProcessor.CreatePreviewPage(Session.Read(entry.Page), 1400);
-            var preview = Processor.RenderPreview(small with { Adjustments = edits }, settings, rotation, 1400,
-                crop: rectangle, applyCrop: crop);
-            var image = BitmapSource.Create(preview.Width, preview.Height, 96, 96, PixelFormats.Bgra32, null, preview.Pixels, preview.Stride);
-            image.Freeze();
-            return image;
-        });
+            await _previewGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                if (plan is not null)
+                {
+                    var renderKey = new RenderKey(key, edits, plan);
+                    var cached = plan.IsRegion ? _regionRender : _fullRender;
+                    if (cached is { } hit && hit.Key == renderKey) return hit.Frame;
+                }
+                else if (_proxyRender is { } proxyHit && proxyHit.Geometry == key && proxyHit.Edits == edits)
+                    return proxyHit.Frame;
+                if (_proxyKey != key)
+                {
+                    var source = entry.PreviewPage ?? Session.Read(entry.Page);
+                    var original = source.Bitmap;
+                    // The old thumbnail cache is 1400px. Read original dimensions only on a geometry miss.
+                    if (entry.PreviewPage is not null) original = Session.Read(entry.Page).Bitmap;
+                    var proxy = ScanPageProcessor.CreatePreviewPage(source, 1000, ct) with { Adjustments = edits };
+                    var geometry = Processor.PreparePreview(proxy, settings, rotation, 1000, rectangle, crop, ct);
+                    var ratio = Math.Max(original.Width, original.Height) / (double)Math.Max(proxy.Bitmap.Width, proxy.Bitmap.Height);
+                    _sourceSize = new(geometry.Width * ratio, geometry.Height * ratio);
+                    _proxyGeometry = geometry;
+                    _proxyKey = key;
+                    _fullRender = _regionRender = null;
+                }
+                var bitmap = _proxyGeometry!;
+                var region = new System.Windows.Rect(0, 0, 1, 1);
+                if (plan is not null)
+                {
+                    var source = Session.Read(entry.Page) with { Adjustments = edits };
+                    // Bound the geometry working set, including unusually large scanner pages.
+                    var capScale = Math.Min(1, Math.Sqrt(ScanPreviewSizing.PixelCap / ((double)source.Bitmap.Width * source.Bitmap.Height)));
+                    var maxSide = Math.Max(1, (int)(Math.Max(source.Bitmap.Width, source.Bitmap.Height) * capScale));
+                    if (!plan.IsRegion)
+                        maxSide = Math.Min(maxSide, (int)Math.Ceiling(plan.MaxSide / Math.Max(.001,
+                            Math.Max(_sourceSize.Width, _sourceSize.Height) / Math.Max(source.Bitmap.Width, source.Bitmap.Height))));
+                    bitmap = Processor.PreparePreview(source, settings, rotation, maxSide, rectangle, crop, ct);
+                    region = plan.Region;
+                    if (plan.IsRegion)
+                        bitmap = ScanRegion.Crop(bitmap, new(region.X, region.Y, region.Width, region.Height), ct);
+                    bitmap = ScanPageProcessor.CreatePreviewPage(new(bitmap, 96, 96), plan.MaxSide, ct).Bitmap;
+                }
+                var preview = ScanPageProcessor.RenderPreparedPreview(bitmap, edits, entry.Page.ColorMode ?? settings.ColorMode,
+                    toneReference: plan is null ? null : _proxyGeometry, ct: ct);
+                ct.ThrowIfCancellationRequested();
+                var image = BitmapSource.Create(preview.Width, preview.Height, 96, 96, PixelFormats.Bgra32, null, preview.Pixels, preview.Stride);
+                image.Freeze();
+                var frame = new ScanPreviewFrame(image, _sourceSize, region);
+                if (plan is not null)
+                {
+                    var cached = (new RenderKey(key, edits, plan), frame);
+                    if (plan.IsRegion) _regionRender = cached; else _fullRender = cached;
+                }
+                else _proxyRender = (key, edits, frame);
+                return frame;
+            }
+            finally { _previewGate.Release(); }
+        }, ct);
     }
 
     public void AdjustCurrent(ScanPageEntry entry, ScanPageAdjustments edits)
@@ -452,6 +517,8 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
 }
 
 public enum ScanPreset { BlackAndWhiteDocument, ColorDocument, Receipt, TwoSidedCard, Photo, Custom }
+
+public sealed record ScanPreviewFrame(BitmapSource Image, System.Windows.Size ImageSize, System.Windows.Rect Region);
 
 public sealed class ScanPageEntry(ScanSessionPage page) : ObservableObject
 {

@@ -83,6 +83,13 @@ public sealed class AppScanLayoutTests
                     }
                     typeof(ScanDialog).GetMethod("UpdateButtons", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
                     Await((Task)typeof(ScanDialog).GetMethod("RefreshPreviewAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!);
+                    if (state == "zoom")
+                    {
+                        window.ZoomTo(2, new Point(300, 250));
+                        Await((Task)typeof(ScanDialog).GetMethod("RefreshPreviewAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!);
+                        Assert.Equal("200%", ((TextBlock)window.FindName("ZoomText")).Text);
+                        Assert.NotNull(((Image)window.FindName("RegionImage")).Source);
+                    }
                     typeof(UiTranslator).GetMethod("TranslateNow", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [window]);
                     window.UpdateLayout();
                     window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
@@ -237,7 +244,7 @@ public sealed class AppScanLayoutTests
     });
 
     private static readonly string[] Languages = [Loc.Thai, Loc.English];
-    private static readonly string[] States = ["empty", "pages", "multi", "adjust", "card", "scope-all"];
+    private static readonly string[] States = ["empty", "pages", "multi", "adjust", "card", "scope-all", "zoom"];
     private static void Await(Task task) { PumpUntil(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
     private static void PumpUntil(Func<bool> done)
     {

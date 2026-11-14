@@ -46,6 +46,8 @@
   "Apply settings": "ใช้การตั้งค่า",
   "Auto adjust": "ปรับอัตโนมัติ",
   "Fit": "พอดี",
+  "Updating preview…": "กำลังปรับภาพตัวอย่าง…",
+  "{0:0}%": "{0:0}%",
   "Adjust page": "ปรับหน้า",
   "Page adjustments will be available later.": "การปรับหน้าจะเพิ่มภายหลัง",
   "Place a document on the glass, then press Scan": "วางเอกสารบนกระจก แล้วกด สแกน",

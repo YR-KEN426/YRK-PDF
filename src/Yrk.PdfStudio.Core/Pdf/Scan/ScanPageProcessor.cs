@@ -106,10 +106,22 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
     public PdfBitmap RenderPreview(ScannedPage page, ScanSettings settings, int rotation, int maxSide,
         NormalizedRect? crop = null, bool applyCrop = false, CancellationToken ct = default)
     {
+        var bitmap = PreparePreview(page, settings, rotation, maxSide, crop, applyCrop, ct);
+        return RenderPreparedPreview(bitmap, page.Adjustments ?? new(), page.ColorMode ?? settings.ColorMode, ct: ct);
+    }
+
+    /// <summary>Geometry can be reused for tone changes; whitening belongs in the geometry cache key.</summary>
+    public PdfBitmap PreparePreview(ScannedPage page, ScanSettings settings, int rotation, int maxSide,
+        NormalizedRect? crop = null, bool applyCrop = false, CancellationToken ct = default)
+    {
         var prepared = Prepare(CreatePreviewPage(page, maxSide, ct), settings, rotation, ct);
-        var bitmap = applyCrop ? Crop(prepared.Bitmap, crop ?? prepared.Analysis.Keep, ct) : prepared.Bitmap;
-        bitmap = Adjust(bitmap, page.Adjustments ?? new(), ct);
-        var colorMode = page.ColorMode ?? settings.ColorMode;
+        return applyCrop ? Crop(prepared.Bitmap, crop ?? prepared.Analysis.Keep, ct) : prepared.Bitmap;
+    }
+
+    public static PdfBitmap RenderPreparedPreview(PdfBitmap bitmap, ScanPageAdjustments edits,
+        ScanColorMode colorMode, PdfBitmap? toneReference = null, CancellationToken ct = default)
+    {
+        bitmap = Adjust(bitmap, edits, ct, toneReference);
         if (colorMode == ScanColorMode.Color) return bitmap;
         var gray = Gray(bitmap, ct);
         var threshold = colorMode == ScanColorMode.BlackAndWhite ? BilevelThreshold(gray) : -1;
@@ -168,7 +180,7 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
         return (bitmap, dpiX, dpiY, new(check.IsBlank, keep));
     }
 
-    private static PdfBitmap Adjust(PdfBitmap source, ScanPageAdjustments edits, CancellationToken ct)
+    private static PdfBitmap Adjust(PdfBitmap source, ScanPageAdjustments edits, CancellationToken ct, PdfBitmap? toneReference = null)
     {
         if (edits.Brightness == 0 && edits.Contrast == 0 && edits.Sharpness == 0 && !edits.WhiteBackground) return source;
         // Adjust each channel around middle gray after brightness, before measuring the paper tone.
@@ -176,6 +188,9 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
         {
             var adjusted = (byte[])source.Pixels.Clone();
             var factor = (100.0 + edits.Contrast) / (100.0 - edits.Contrast);
+            var tones = new byte[256];
+            for (var value = 0; value < tones.Length; value++)
+                tones[value] = (byte)Math.Clamp((int)Math.Round(128 + (Math.Clamp(value + edits.Brightness * 2, 0, 255) - 128) * factor), 0, 255);
             for (var y = 0; y < source.Height; y++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -183,8 +198,7 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
                     for (var c = 0; c < 3; c++)
                     {
                         var i = y * source.Stride + x * 4 + c;
-                        var value = Math.Clamp(source.Pixels[i] + edits.Brightness * 2, 0, 255);
-                        adjusted[i] = (byte)Math.Clamp((int)Math.Round(128 + (value - 128) * factor), 0, 255);
+                        adjusted[i] = tones[source.Pixels[i]];
                     }
             }
             source = source with { Pixels = adjusted };
@@ -194,16 +208,19 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
         var black = 0;
         if (edits.WhiteBackground)
         {
+            // Use the same full-page paper tone for every tile; panning must not change whitening.
+            var referenceGray = toneReference is null ? gray
+                : Gray(Adjust(toneReference, edits with { WhiteBackground = false, Sharpness = 0 }, ct), ct);
             var histogram = new int[256];
-            foreach (var value in gray) histogram[value]++;
+            foreach (var value in referenceGray) histogram[value]++;
             int Percentile(int count)
             {
                 var sum = 0;
                 for (var i = 0; i < 256; i++) { sum += histogram[i]; if (sum >= count) return i; }
                 return 255;
             }
-            background = Math.Max(1, Percentile(Math.Max(1, (int)(gray.Length * 0.90))));
-            black = Math.Min(background - 1, Percentile(Math.Max(1, (int)(gray.Length * 0.005))));
+            background = Math.Max(1, Percentile(Math.Max(1, (int)(referenceGray.Length * 0.90))));
+            black = Math.Min(background - 1, Percentile(Math.Max(1, (int)(referenceGray.Length * 0.005))));
             black = Math.Max(0, Math.Min(black, background - 32));
         }
         var pixels = new byte[checked(source.Width * source.Height * 4)];
@@ -213,7 +230,7 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
             for (var x = 0; x < source.Width; x++)
             {
                 var index = y * source.Width + x;
-                double tone = gray[index];
+                int tone = gray[index];
                 if (edits.WhiteBackground)
                 {
                     var stretched = Math.Clamp((tone - black) * 255 / (background - black), 0, 255);
@@ -223,29 +240,40 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
                 var delta = tone - gray[index];
                 for (var channel = 0; channel < 3; channel++)
                 {
-                    double value = source.Pixels[y * source.Stride + x * 4 + channel] + delta;
-                    pixels[index * 4 + channel] = (byte)Math.Clamp((int)Math.Round(value), 0, 255);
+                    var value = source.Pixels[y * source.Stride + x * 4 + channel] + delta;
+                    pixels[index * 4 + channel] = (byte)Math.Clamp(value, 0, 255);
                 }
                 pixels[index * 4 + 3] = 255;
             }
         }
-        if (edits.Sharpness == 0) return new(source.Width, source.Height, source.Width * 4, pixels);
+        if (edits.Sharpness == 0 || source.Width < 3 || source.Height < 3) return new(source.Width, source.Height, source.Width * 4, pixels);
         var result = (byte[])pixels.Clone();
         // Unsharp mask for positive values, the same local blur blended in for negative ones.
         var amount = edits.Sharpness / 25.0;
+        var blend = amount < 0 ? amount / 2 : amount;
         for (var y = 1; y < source.Height - 1; y++)
         {
             ct.ThrowIfCancellationRequested();
-            for (var x = 1; x < source.Width - 1; x++)
-                for (var c = 0; c < 3; c++)
+            for (var c = 0; c < 3; c++)
+            {
+                var top = ((y - 1) * source.Width) * 4 + c;
+                var middle = (y * source.Width) * 4 + c;
+                var bottom = ((y + 1) * source.Width) * 4 + c;
+                var sum = 0;
+                for (var column = 0; column < 3; column++)
+                    sum += pixels[top + column * 4] + pixels[middle + column * 4] + pixels[bottom + column * 4];
+                for (var x = 1; x < source.Width - 1; x++)
                 {
-                    var i = (y * source.Width + x) * 4 + c;
-                    var sum = 0;
-                    for (var dy = -1; dy <= 1; dy++)
-                        for (var dx = -1; dx <= 1; dx++) sum += pixels[((y + dy) * source.Width + x + dx) * 4 + c];
-                    var blend = amount < 0 ? amount / 2 : amount;
+                    var i = middle + x * 4;
                     result[i] = (byte)Math.Clamp((int)Math.Round(pixels[i] + blend * (pixels[i] - sum / 9.0)), 0, 255);
+                    if (x == source.Width - 2) continue;
+                    // Slide the exact same 3x3 box instead of rebuilding it for every pixel.
+                    var leaving = (x - 1) * 4;
+                    var entering = (x + 2) * 4;
+                    sum += pixels[top + entering] + pixels[middle + entering] + pixels[bottom + entering]
+                        - pixels[top + leaving] - pixels[middle + leaving] - pixels[bottom + leaving];
                 }
+            }
         }
         return new(source.Width, source.Height, source.Width * 4, result);
     }

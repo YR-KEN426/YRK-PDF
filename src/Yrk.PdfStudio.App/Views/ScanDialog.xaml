@@ -119,17 +119,22 @@
                         <Separator Style="{StaticResource ToolSeparator}"/>
                         <Button Content="Fit" Click="OnFit" ToolTip="Fit (F)" Style="{StaticResource ToolbarButton}"/>
                         <Button Content="100%" Click="OnActualSize" ToolTip="100% (Ctrl+1)" Style="{StaticResource ToolbarButton}"/>
+                        <Button Content="−" Click="OnZoomOut" ToolTip="Zoom out (Ctrl+-)" AutomationProperties.Name="Zoom out" Style="{StaticResource ToolbarButton}"/>
+                        <TextBlock x:Name="ZoomText" VerticalAlignment="Center" Margin="4,0"/>
+                        <Button Content="+" Click="OnZoomIn" ToolTip="Zoom in (Ctrl++)" AutomationProperties.Name="Zoom in" Style="{StaticResource ToolbarButton}"/>
                     </WrapPanel>
                     <Border Grid.Row="1" Background="#E5E7EB" ClipToBounds="True">
                         <Grid>
-                            <ScrollViewer x:Name="PreviewScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="OnPreviewSizeChanged">
-                                <Viewbox x:Name="PreviewBox" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                    <Canvas x:Name="PageCanvas" Background="Transparent" MouseLeftButtonDown="OnCropDown" MouseMove="OnCropMove" MouseLeftButtonUp="OnCropUp">
-                                        <Image x:Name="PageImage"/>
+                            <Canvas x:Name="PreviewScroll" Background="Transparent" ClipToBounds="True" SizeChanged="OnPreviewSizeChanged"
+                                    MouseWheel="OnPreviewWheel" MouseLeftButtonDown="OnCropDown" MouseMove="OnCropMove" MouseLeftButtonUp="OnCropUp" LostMouseCapture="OnPreviewCaptureLost">
+                                    <Canvas x:Name="PageCanvas" IsHitTestVisible="False">
+                                        <Image x:Name="PageImage" RenderOptions.BitmapScalingMode="HighQuality"/>
+                                        <Image x:Name="RegionImage" RenderOptions.BitmapScalingMode="HighQuality"/>
                                         <Rectangle x:Name="CropFrame" Stroke="#2563EB" StrokeThickness="3" Fill="#302563EB" Visibility="Collapsed" IsHitTestVisible="False"/>
                                     </Canvas>
-                                </Viewbox>
-                            </ScrollViewer>
+                            </Canvas>
+                            <TextBlock x:Name="PreviewBusy" Text="Updating preview…" Opacity="0.7" Margin="12" Padding="6,3"
+                                       Background="#EFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed" IsHitTestVisible="False"/>
                             <TextBlock x:Name="EmptyHint" Text="Place a document on the glass, then press Scan" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="300" FontSize="18"/>
                         </Grid>
                     </Border>
