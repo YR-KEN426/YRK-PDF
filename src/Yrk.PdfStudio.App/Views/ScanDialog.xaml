@@ -104,7 +104,7 @@
                     </StackPanel>
                 </ScrollViewer>
                 <Grid Grid.Column="2">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                     <WrapPanel x:Name="PageTools" Margin="0,0,0,8">
                         <Button Content="Rotate left" Click="OnLeft" ToolTip="Rotate left (Shift+R)" Style="{StaticResource ToolbarButton}"/>
                         <Button Content="Rotate right" Click="OnRight" ToolTip="Rotate right (R)" Style="{StaticResource ToolbarButton}"/>
@@ -130,13 +130,39 @@
                                     <Canvas x:Name="PageCanvas" IsHitTestVisible="False">
                                         <Image x:Name="PageImage" RenderOptions.BitmapScalingMode="HighQuality"/>
                                         <Image x:Name="RegionImage" RenderOptions.BitmapScalingMode="HighQuality"/>
-                                        <Rectangle x:Name="CropFrame" Stroke="#2563EB" StrokeThickness="3" Fill="#302563EB" Visibility="Collapsed" IsHitTestVisible="False"/>
+                                    </Canvas>
+                                    <Canvas x:Name="CropOverlay" IsHitTestVisible="False" Visibility="Collapsed">
+                                        <Path x:Name="CropShade" Fill="#80000000"/>
+                                        <Rectangle x:Name="CropFrame" Stroke="#2563EB" StrokeThickness="2" Visibility="Collapsed"/>
+                                        <Canvas x:Name="CropHandles"/>
+                                        <TextBlock x:Name="CropSize" Background="#F0FFFFFF" Padding="5,2"/>
                                     </Canvas>
                             </Canvas>
                             <TextBlock x:Name="PreviewBusy" Text="Updating preview…" Opacity="0.7" Margin="12" Padding="6,3"
                                        Background="#EFFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Top" Visibility="Collapsed" IsHitTestVisible="False"/>
                             <TextBlock x:Name="EmptyHint" Text="Place a document on the glass, then press Scan" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="300" FontSize="18"/>
                         </Grid>
+                    </Border>
+                    <Border x:Name="CropPanel" Grid.Row="2" Padding="8" Margin="0,8,0,0" Background="#F3F4F6" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock x:Name="CropPurpose" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <WrapPanel>
+                                <TextBlock Text="Left" VerticalAlignment="Center"/><TextBox x:Name="CropLeft" Width="78" Margin="4" TextChanged="OnCropNumberChanged" LostFocus="OnCropNumberCommit" KeyDown="OnCropNumberKey" AutomationProperties.Name="Left"/>
+                                <TextBlock Text="Top" VerticalAlignment="Center"/><TextBox x:Name="CropTop" Width="78" Margin="4" TextChanged="OnCropNumberChanged" LostFocus="OnCropNumberCommit" KeyDown="OnCropNumberKey" AutomationProperties.Name="Top"/>
+                                <TextBlock Text="Width" VerticalAlignment="Center"/><TextBox x:Name="CropWidth" Width="78" Margin="4" TextChanged="OnCropNumberChanged" LostFocus="OnCropNumberCommit" KeyDown="OnCropNumberKey" AutomationProperties.Name="Width"/>
+                                <TextBlock Text="Height" VerticalAlignment="Center"/><TextBox x:Name="CropHeight" Width="78" Margin="4" TextChanged="OnCropNumberChanged" LostFocus="OnCropNumberCommit" KeyDown="OnCropNumberKey" AutomationProperties.Name="Height"/>
+                                <TextBlock x:Name="CropUnits" VerticalAlignment="Center" Margin="4"/>
+                            </WrapPanel>
+                            <WrapPanel>
+                                <TextBlock Text="Aspect ratio" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <ComboBox x:Name="CropAspectChoice" Width="120" SelectedIndex="0" SelectionChanged="OnCropAspectChanged" AutomationProperties.Name="Aspect ratio">
+                                    <ComboBoxItem Content="Free"/><ComboBoxItem Content="Paper size"/><ComboBoxItem Content="Original"/>
+                                </ComboBox>
+                                <Button Content="Apply" Click="OnCropApply" Margin="8,0,0,0" Padding="10,4"/>
+                                <Button Content="Reset" Click="OnCropReset" Margin="8,0,0,0" Padding="10,4"/>
+                                <Button Content="Cancel" Click="OnCropCancel" Margin="8,0,0,0" Padding="10,4"/>
+                            </WrapPanel>
+                        </StackPanel>
                     </Border>
                 </Grid>
                 <Border Grid.Column="4" BorderBrush="#D1D5DB" BorderThickness="1" Padding="10">

@@ -234,9 +234,28 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     }
     public async Task CropSelectedAsync(NormalizedRect? crop)
     {
-        if (SelectedPages.Count == 0) return;
+        var targets = AdjustmentScope switch
+        {
+            ScanAdjustmentScope.AllPages => Pages.ToArray(),
+            ScanAdjustmentScope.Selected => SelectedPages.ToArray(),
+            _ => Current is { } current ? new[] { current } : [],
+        };
+        if (targets.Length == 0) return;
+        EndAdjustmentGesture();
         Remember();
-        foreach (var entry in SelectedPages) { entry.Page.Crop = crop; await RefreshAsync(entry); }
+        foreach (var entry in targets) { entry.Page.Crop = crop; await RefreshAsync(entry); }
+    }
+
+    public async Task<NormalizedRect?> DetectCropFrameAsync(ScanPageEntry entry, CancellationToken ct = default)
+    {
+        var settings = Settings with { AutoCrop = true };
+        var rotation = entry.Page.Rotation;
+        var edits = entry.Page.Adjustments;
+        return await Task.Run(() =>
+        {
+            var proxy = ScanPageProcessor.CreatePreviewPage(entry.PreviewPage ?? Session.Read(entry.Page), 1000, ct);
+            return Processor.Analyze(proxy with { Adjustments = edits }, settings, rotation, ct).Keep;
+        }, ct);
     }
     public void RemoveSelected()
     {

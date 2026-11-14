@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Input;
 using System.Windows.Threading;
 using Yrk.PdfStudio.App.Localization;
 using Yrk.PdfStudio.App.Scanning;
@@ -38,9 +39,9 @@ public sealed class AppScanLayoutTests
                 using var session = new ScanSession();
                 var scanner = new FakeScannerService
                 {
-                    PageCount = state is "adjust" or "card" ? 1 : 3,
+                    PageCount = state is "adjust" or "card" or "crop" ? 1 : 3,
                     PageStyle = state == "adjust" ? FakeScanPageStyle.GrayFaintText
-                        : state == "card" ? FakeScanPageStyle.CardOnWhiteGlass : FakeScanPageStyle.Default,
+                        : state is "card" or "crop" ? FakeScanPageStyle.CardOnWhiteGlass : FakeScanPageStyle.Default,
                 };
                 if (state is not ("empty" or "card"))
                 {
@@ -83,6 +84,16 @@ public sealed class AppScanLayoutTests
                     }
                     typeof(ScanDialog).GetMethod("UpdateButtons", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
                     Await((Task)typeof(ScanDialog).GetMethod("RefreshPreviewAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!);
+                    if (state == "crop")
+                    {
+                        model.Current!.Page.Crop = null;
+                        Await(window.EnterCropAsync());
+                        var draft = (ScanCropFrame)typeof(ScanDialog).GetField("_cropDraft", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+                        Assert.NotNull(draft.Detected);
+                        Assert.Equal(draft.Detected, draft.Box);
+                        Assert.Equal(8, ((Canvas)window.FindName("CropHandles")).Children.Count);
+                        Assert.True(((FrameworkElement)window.FindName("CropPanel")).IsVisible);
+                    }
                     if (state == "zoom")
                     {
                         window.ZoomTo(2, new Point(300, 250));
@@ -94,7 +105,7 @@ public sealed class AppScanLayoutTests
                     window.UpdateLayout();
                     window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
                     var list = (ListBox)window.FindName("PageList");
-                    Assert.Equal(state == "empty" ? 0 : state is "adjust" or "card" ? 1 : 3, list.Items.Count);
+                    Assert.Equal(state == "empty" ? 0 : state is "adjust" or "card" or "crop" ? 1 : 3, list.Items.Count);
                     Assert.Equal(state == "empty" ? 0 : state == "multi" ? 3 : 1, list.SelectedItems.Count);
                     var hint = (TextBlock)window.FindName("EmptyHint");
                     Assert.Equal(state == "empty", hint.IsVisible);
@@ -110,7 +121,7 @@ public sealed class AppScanLayoutTests
                     var adjustments = (FrameworkElement)window.FindName("AdjustmentPanel");
                     Assert.True(adjustments.IsVisible);
                     Assert.Equal(state != "empty", adjustments.IsEnabled);
-                    Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("CropFrame")).Visibility);
+                    Assert.True((state == "crop" ? Visibility.Visible : Visibility.Collapsed) == ((FrameworkElement)window.FindName("CropFrame")).Visibility, $"{language}-{state}");
                     Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("CancelCardButton")).Visibility);
                     var scopeRow = (WrapPanel)window.FindName("ScopeRow");
                     var scopeChip = Assert.Single(scopeRow.Children.OfType<RadioButton>(), chip => chip.IsChecked == true);
@@ -224,8 +235,9 @@ public sealed class AppScanLayoutTests
                     var folder = Directory.CreateDirectory(customDirectory ? shotDirectory! : Path.Combine(AppContext.BaseDirectory, "scan-screenshots")).FullName;
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(bitmap));
-                    using var output = File.Create(Path.Combine(folder, $"{(customDirectory || state == "scope-all" ? "6b" : "scan")}-{state}-{language}.png"));
+                    using var output = File.Create(Path.Combine(folder, $"{(customDirectory || state is "scope-all" or "crop" ? "6b" : "scan")}-{state}-{language}.png"));
                     encoder.Save(output);
+                    if (state == "crop") VerifyCropEditing(window, model, language);
                     if (state == "empty")
                     {
                         session.Add(ScanSessionTests.Page(300, 400));
@@ -244,8 +256,79 @@ public sealed class AppScanLayoutTests
     });
 
     private static readonly string[] Languages = [Loc.Thai, Loc.English];
-    private static readonly string[] States = ["empty", "pages", "multi", "adjust", "card", "scope-all", "zoom"];
+    private static readonly string[] States = ["empty", "pages", "multi", "adjust", "card", "scope-all", "zoom", "crop"];
     private static void Await(Task task) { PumpUntil(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
+    private static void VerifyCropEditing(ScanDialog window, ScanViewModel model, string language)
+    {
+        object? Invoke(string name, params object?[] args) => typeof(ScanDialog)
+            .GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)!.Invoke(window, args);
+        ScanCropFrame Draft() => (ScanCropFrame)typeof(ScanDialog).GetField("_cropDraft", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        void Key(Key key, string handler = "OnKeyDown")
+        {
+            Keyboard.ClearFocus();
+            var e = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, 0, key)
+            { RoutedEvent = Keyboard.PreviewKeyDownEvent };
+            if (handler == "OnKeyDown") window.RaiseEvent(e); else Invoke(handler, window, e);
+            Assert.True(e.Handled);
+        }
+        void Number(string field, double pixels, double dpi)
+        {
+            ((TextBox)window.FindName(field)).Text = ScanCropFrame.Format(pixels, dpi, System.Globalization.RegionInfo.CurrentRegion.IsMetric);
+            Key(System.Windows.Input.Key.Enter, "OnCropNumberKey");
+        }
+        var entry = model.Current!;
+        var previous = new Yrk.PdfStudio.Core.Pdf.NormalizedRect(.1, .1, .8, .8);
+        entry.Page.Crop = previous;
+        Await(window.EnterCropAsync());
+        Assert.Equal(previous, Draft().Normalized);
+        Number("CropLeft", 100, entry.Page.DpiX);
+        Assert.Equal(100, Draft().Box.X, 3);
+        Assert.Equal(previous, entry.Page.Crop); // Editing is a draft, with no undo records.
+        ((TextBox)window.FindName("CropWidth")).Text = "invalid";
+        Invoke("OnCropNumberCommit", window, new RoutedEventArgs());
+        Assert.NotEqual("invalid", ((TextBox)window.FindName("CropWidth")).Text);
+        var beforeArrow = Draft().Box.X;
+        Key(System.Windows.Input.Key.Right);
+        Assert.Equal(beforeArrow + 1, Draft().Box.X, 5);
+        Assert.Same(entry, model.Current); // Global page navigation must not receive the arrow.
+        Key(System.Windows.Input.Key.Escape);
+        Assert.Equal(previous, entry.Page.Crop);
+        Assert.False(model.CanUndo);
+        Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("CropPanel")).Visibility);
+        Await((Task)Invoke("RefreshPreviewAsync")!);
+        Await(window.EnterCropAsync());
+        Number("CropLeft", 120, entry.Page.DpiX);
+        var applied = Draft().Normalized;
+        Key(System.Windows.Input.Key.Enter);
+        PumpUntil(() => !(bool)typeof(ScanDialog).GetField("_working", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!);
+        Assert.Equal(applied, entry.Page.Crop);
+        Assert.True(model.CanUndo);
+        Await(model.UndoAsync()); Assert.Equal(previous, entry.Page.Crop); Assert.False(model.CanUndo);
+
+        // Glass acquisition is unchanged; its region shares the frame and restores on Esc.
+        Await(model.PreviewGlassAsync(FakeScannerService.Device));
+        Await((Task)Invoke("RefreshPreviewAsync")!);
+        Assert.Equal(Loc.T("Area for the next scan"), ((TextBlock)window.FindName("CropPurpose")).Text);
+        Assert.Equal(language == Loc.Thai ? "พื้นที่สำหรับการสแกนครั้งถัดไป" : "Area for the next scan",
+            ((TextBlock)window.FindName("CropPurpose")).Text);
+        Assert.Null(model.Settings.Region);
+        Number("CropLeft", 50, model.GlassPreview!.Page.DpiX);
+        Assert.NotNull(model.Settings.Region);
+        Key(System.Windows.Input.Key.Escape); Assert.Null(model.Settings.Region);
+        Await((Task)Invoke("RefreshPreviewAsync")!);
+        model.ClearGlassPreview();
+        model.ApplyPreset(ScanPreset.TwoSidedCard);
+        model.Settings = model.Settings with { Dpi = 100 };
+        Await(model.ScanCardAsync(FakeScannerService.Device));
+        Await((Task)Invoke("RefreshPreviewAsync")!);
+        var front = model.TemporaryPreview!;
+        Number("CropLeft", 60, front.Page.DpiX);
+        var frontCrop = Draft().Normalized;
+        Await((Task)Invoke("ApplyCropAsync", false)!);
+        Assert.Equal(frontCrop, front.Page.Crop);
+        Assert.False(model.CanUndo);
+        model.CancelCard();
+    }
     private static void PumpUntil(Func<bool> done)
     {
         var limit = DateTime.UtcNow.AddSeconds(30);

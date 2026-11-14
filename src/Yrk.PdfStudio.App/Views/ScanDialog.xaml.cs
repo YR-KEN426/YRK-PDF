@@ -32,7 +32,11 @@ public partial class ScanDialog : Window
     private bool _viewCrop;
     private ScanPreviewFrame? _basePreview;
     private bool _spaceUsed;
-    private Point _cropStart;
+    private ScanCropFrame? _cropDraft;
+    private ScanPageEntry? _cropEntry;
+    private int _cropVersion;
+    private bool _updatingCropNumbers;
+    private bool _cropNumbersDirty;
     private int _previewVersion;
     private int _adjustmentVersion;
     private bool _showingAdjustments;
@@ -67,6 +71,7 @@ public partial class ScanDialog : Window
     {
         ShowAdjustments();
         ShowPaperSizes();
+        UpdateCropNumbers();
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
@@ -301,7 +306,7 @@ public partial class ScanDialog : Window
         if (_model.GlassPreview is not null && !_closePending)
         {
             _cropping = true;
-            Message.Text = Loc.T("Drag a rectangle to select the scan area.");
+            await RefreshPreviewAsync();
         }
     }
     private async void OnClearArea(object sender, RoutedEventArgs e)
@@ -560,9 +565,98 @@ public partial class ScanDialog : Window
     {
         if (_working || (_model.Current is null && _model.TemporaryPreview is null)) return;
         if (!ReadSettings()) return;
-        _cropping = !_cropping;
+        if (_cropping) { OnCropCancel(sender, e); return; }
+        await EnterCropAsync();
+    }
+    internal async Task EnterCropAsync()
+    {
+        _cropping = true; _cropDraft = null; ++_cropVersion;
+        CropAspectChoice.SelectedIndex = 0;
         await RefreshPreviewAsync();
-        if (_cropping) Message.Text = Loc.T("Drag a rectangle on the image to crop selected pages.");
+    }
+    private void HideCrop() => CropOverlay.Visibility = CropPanel.Visibility = CropFrame.Visibility = Visibility.Collapsed;
+    private void ExitCrop()
+    {
+        _cropping = _drawingCrop = false; ++_cropVersion;
+        PreviewScroll.ReleaseMouseCapture(); HideCrop(); PreviewScroll.Cursor = Cursors.Arrow;
+    }
+    private void StoreTemporaryCrop(NormalizedRect? crop)
+    {
+        if (_cropEntry is null) return;
+        if (_cropEntry == _model.GlassPreview) _model.Settings = _model.Settings with { Region = crop };
+        else if (_cropEntry == _model.TemporaryPreview) _cropEntry.Page.Crop = crop;
+    }
+    private void OnCropCancel(object sender, RoutedEventArgs e)
+    {
+        if (_cropDraft is { } draft) StoreTemporaryCrop(draft.Cancel());
+        ExitCrop(); _ = RefreshPreviewAsync();
+    }
+    private async Task ApplyCropAsync(bool reset)
+    {
+        if (_working || _cropDraft is null) return;
+        CommitCropNumbers();
+        var crop = reset ? (NormalizedRect?)null : _cropDraft.Normalized;
+        var temporary = _cropEntry == _model.TemporaryPreview;
+        if (temporary) StoreTemporaryCrop(crop);
+        ExitCrop();
+        if (temporary) await RefreshPreviewAsync();
+        else await WorkAsync(() => _model.CropSelectedAsync(crop));
+    }
+    private async void OnCropApply(object sender, RoutedEventArgs e) => await ApplyCropAsync(false);
+    private async void OnCropReset(object sender, RoutedEventArgs e) => await ApplyCropAsync(true);
+    private bool CropMetric => System.Globalization.RegionInfo.CurrentRegion.IsMetric;
+    private (double X, double Y) CropDpi => _cropEntry is { } entry && entry.Page.Rotation % 180 != 0
+        ? (entry.Page.DpiY, entry.Page.DpiX) : (_cropEntry?.Page.DpiX ?? 96, _cropEntry?.Page.DpiY ?? 96);
+    private void UpdateCropNumbers()
+    {
+        if (_cropDraft is null) return;
+        _updatingCropNumbers = true;
+        try
+        {
+            var b = _cropDraft.Box; var dpi = CropDpi;
+            CropLeft.Text = ScanCropFrame.Format(b.X, dpi.X, CropMetric);
+            CropTop.Text = ScanCropFrame.Format(b.Y, dpi.Y, CropMetric);
+            CropWidth.Text = ScanCropFrame.Format(b.Width, dpi.X, CropMetric);
+            CropHeight.Text = ScanCropFrame.Format(b.Height, dpi.Y, CropMetric);
+            CropUnits.Text = CropMetric ? Loc.T("mm") : Loc.T("in");
+            CropSize.Text = Loc.F("{0:0.##} × {1:0.##} {2}", ScanCropFrame.ToUnits(b.Width, dpi.X, CropMetric),
+                ScanCropFrame.ToUnits(b.Height, dpi.Y, CropMetric), CropUnits.Text);
+            CropPurpose.Text = _cropEntry == _model.GlassPreview ? Loc.T("Area for the next scan") : Loc.T("Crop");
+            _cropNumbersDirty = false;
+        }
+        finally { _updatingCropNumbers = false; }
+    }
+    private void CommitCropNumbers()
+    {
+        if (_updatingCropNumbers || _cropDraft is null || !_cropping) return;
+        if (!_cropNumbersDirty) return;
+        var dpi = CropDpi;
+        if (ScanCropFrame.TryPixels(CropLeft.Text, dpi.X, CropMetric, out var x)
+            && ScanCropFrame.TryPixels(CropTop.Text, dpi.Y, CropMetric, out var y)
+            && ScanCropFrame.TryPixels(CropWidth.Text, dpi.X, CropMetric, out var w)
+            && ScanCropFrame.TryPixels(CropHeight.Text, dpi.Y, CropMetric, out var h))
+        {
+            _cropDraft.SetBox(new(x, y, w, h)); StoreTemporaryCrop(_cropDraft.Normalized);
+        }
+        DrawCrop(); UpdateCropNumbers();
+    }
+    private void OnCropNumberCommit(object sender, RoutedEventArgs e) => CommitCropNumbers();
+    private void OnCropNumberChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_updatingCropNumbers) _cropNumbersDirty = true;
+    }
+    private void OnCropNumberKey(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { CommitCropNumbers(); e.Handled = true; }
+    }
+    private void OnCropAspectChanged(object sender, SelectionChangedEventArgs? e)
+    {
+        if (_cropDraft is null || _model is null) return;
+        _cropDraft.Aspect = (CropAspect)Math.Max(0, CropAspectChoice.SelectedIndex);
+        var paper = _model.SelectedPaper;
+        var ratio = paper is null ? _cropDraft.ImageWidth / _cropDraft.ImageHeight
+            : paper.WidthMm * CropDpi.X / (paper.HeightMm * CropDpi.Y);
+        _cropDraft.PaperRatio = ScanCropFrame.MatchOrientation(ratio, _cropDraft.ImageWidth, _cropDraft.ImageHeight);
     }
     private async Task RefreshPreviewAsync()
     {
@@ -573,7 +667,7 @@ public partial class ScanDialog : Window
     {
         var version = ++_previewVersion;
         var entry = _model.TemporaryPreview ?? _model.Current ?? _model.Pages.FirstOrDefault();
-        if (entry is null) { PageImage.Source = RegionImage.Source = null; _viewEntry = null; _basePreview = null; CropFrame.Visibility = Visibility.Collapsed; return; }
+        if (entry is null) { PageImage.Source = RegionImage.Source = null; _viewEntry = null; _basePreview = null; ExitCrop(); _cropEntry = null; return; }
         try
         {
             var temporary = _model.TemporaryPreview is not null;
@@ -612,28 +706,57 @@ public partial class ScanDialog : Window
                 }
                 else { PageImage.Source = frame.Image; RegionImage.Source = null; }
             }
-            if (_drawingCrop) return;
-            CropFrame.Visibility = Visibility.Collapsed;
-            if (!applyCrop && (entry == _model.GlassPreview ? _model.Settings.Region : entry.Page.Crop) is { } r)
-                DrawCrop(new Rect(r.X * PageCanvas.Width, r.Y * PageCanvas.Height, r.Width * PageCanvas.Width, r.Height * PageCanvas.Height));
+            if (version != _previewVersion || (temporary && _model.TemporaryPreview != entry)) return; // stale render
+            if (temporary && _cropEntry != entry) { _cropping = true; _cropDraft = null; }
+            if (_cropping && (_cropDraft is null || _cropEntry != entry))
+            {
+                var generation = ++_cropVersion;
+                _cropEntry = entry;
+                var previous = entry == _model.GlassPreview ? _model.Settings.Region : entry.Page.Crop;
+                var detected = await _model.DetectCropFrameAsync(entry, ct);
+                ct.ThrowIfCancellationRequested();
+                if (!_cropping || generation != _cropVersion) return;
+                _cropDraft = new(PageCanvas.Width, PageCanvas.Height, previous, detected);
+                CropAspectChoice.SelectedIndex = 0;
+                OnCropAspectChanged(CropAspectChoice, null);
+                UpdateCropNumbers();
+            }
+            if (_cropping) DrawCrop(); else HideCrop();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
         catch (Exception ex) { Message.Text = ex.Message; }
     }
-    private void DrawCrop(Rect rect)
+    private void DrawCrop()
     {
+        if (!_cropping || _cropDraft is null) return;
+        var b = _cropDraft.Box;
+        var rect = new Rect(_view.ImageToView(new(b.X, b.Y)), _view.ImageToView(new(b.Right, b.Bottom)));
+        CropOverlay.Visibility = CropPanel.Visibility = CropFrame.Visibility = Visibility.Visible;
         Canvas.SetLeft(CropFrame, rect.Left); Canvas.SetTop(CropFrame, rect.Top);
         CropFrame.Width = rect.Width; CropFrame.Height = rect.Height;
-        CropFrame.Visibility = Visibility.Visible;
-    }
-    private Point CropPoint(MouseEventArgs e)
-    {
-        var p = _view.ViewToImage(e.GetPosition(PreviewScroll));
-        return new(Math.Clamp(p.X, 0, PageCanvas.Width), Math.Clamp(p.Y, 0, PageCanvas.Height));
+        var page = new Rect(_view.ImageToView(new(0, 0)), _view.ImageToView(new(PageCanvas.Width, PageCanvas.Height)));
+        CropShade.Data = new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(page), new RectangleGeometry(rect));
+        CropHandles.Children.Clear();
+        foreach (var handle in Enum.GetValues<CropHandle>().Skip(2))
+        {
+            var p = ScanCropFrame.HandlePoint(b, handle); var v = _view.ImageToView(new(p.X, p.Y));
+            var mark = new System.Windows.Shapes.Rectangle { Width = 10, Height = 10, Fill = Brushes.White, Stroke = Brushes.RoyalBlue, StrokeThickness = 2 };
+            Canvas.SetLeft(mark, v.X - 5); Canvas.SetTop(mark, v.Y - 5); CropHandles.Children.Add(mark);
+        }
+        Canvas.SetLeft(CropSize, Math.Clamp(rect.Left, 0, Math.Max(0, PreviewScroll.ActualWidth - 200)));
+        Canvas.SetTop(CropSize, Math.Clamp(rect.Bottom + 8, 0, Math.Max(0, PreviewScroll.ActualHeight - 28)));
     }
     private void OnCropDown(object sender, MouseButtonEventArgs e)
     {
         if (_working || PageImage.Source is null) return;
+        if (!_cropping && _model.TemporaryPreview is { } temporary && _cropDraft is { } old)
+        {
+            var previous = temporary == _model.GlassPreview ? _model.Settings.Region : temporary.Page.Crop;
+            var detected = old.Detected is { } d ? new NormalizedRect(d.X / old.ImageWidth, d.Y / old.ImageHeight,
+                d.Width / old.ImageWidth, d.Height / old.ImageHeight) : (NormalizedRect?)null;
+            _cropDraft = new(PageCanvas.Width, PageCanvas.Height, previous, detected);
+            _cropping = true; CropAspectChoice.SelectedIndex = 0; UpdateCropNumbers(); DrawCrop();
+        }
         if (e.ClickCount == 2)
         {
             if (_view.IsFit) OnActualSize(sender, e); else OnFit(sender, e);
@@ -644,12 +767,32 @@ public partial class ScanDialog : Window
             _panning = true; _panStart = e.GetPosition(PreviewScroll);
             _spaceUsed = Keyboard.IsKeyDown(Key.Space);
         }
-        else { _cropStart = CropPoint(e); _drawingCrop = true; }
+        else if (_cropDraft is { } draft && _cropping)
+        {
+            OnCropAspectChanged(CropAspectChoice, null);
+            var point = _view.ViewToImage(e.GetPosition(PreviewScroll));
+            draft.Begin(point.X, point.Y, draft.HitTest(point.X, point.Y, _view.Zoom));
+            _drawingCrop = true;
+        }
         PreviewScroll.CaptureMouse(); e.Handled = true;
     }
     private void OnCropMove(object sender, MouseEventArgs e)
     {
-        if (_drawingCrop) DrawCrop(new Rect(_cropStart, CropPoint(e)));
+        if (_cropping && _cropDraft is { } draft)
+        {
+            var point = _view.ViewToImage(e.GetPosition(PreviewScroll));
+            if (_drawingCrop)
+            {
+                draft.Drag(point.X, point.Y, _view.Zoom, Keyboard.Modifiers.HasFlag(ModifierKeys.Alt), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+                DrawCrop(); UpdateCropNumbers();
+            }
+            PreviewScroll.Cursor = draft.HitTest(point.X, point.Y, _view.Zoom) switch
+            {
+                CropHandle.NW or CropHandle.SE => Cursors.SizeNWSE, CropHandle.NE or CropHandle.SW => Cursors.SizeNESW,
+                CropHandle.W or CropHandle.E => Cursors.SizeWE, CropHandle.N or CropHandle.S => Cursors.SizeNS,
+                CropHandle.Move => Cursors.SizeAll, _ => Cursors.Cross,
+            };
+        }
         if (_panning)
         {
             var point = e.GetPosition(PreviewScroll);
@@ -658,23 +801,13 @@ public partial class ScanDialog : Window
         }
     }
     private void OnPreviewCaptureLost(object sender, MouseEventArgs e) { _panning = false; _drawingCrop = false; }
-    private async void OnCropUp(object sender, MouseButtonEventArgs e)
+    private void OnCropUp(object sender, MouseButtonEventArgs e)
     {
         if (_panning) { _panning = false; PreviewScroll.ReleaseMouseCapture(); _previewQueue.Request(); return; }
         if (!_drawingCrop) return;
+        OnCropMove(sender, e);
         _drawingCrop = false; PreviewScroll.ReleaseMouseCapture();
-        var rect = new Rect(_cropStart, CropPoint(e));
-        if (rect.Width < 3 || rect.Height < 3) return;
-        var crop = new NormalizedRect(rect.X / PageCanvas.Width, rect.Y / PageCanvas.Height, rect.Width / PageCanvas.Width, rect.Height / PageCanvas.Height);
-        if (_model.TemporaryPreview is { } temporary)
-        {
-            if (temporary == _model.GlassPreview) _model.Settings = _model.Settings with { Region = crop };
-            else temporary.Page.Crop = crop;
-            DrawCrop(rect);
-            return;
-        }
-        _cropping = false;
-        await WorkAsync(() => _model.CropSelectedAsync(crop));
+        if (_cropDraft is { } draft) StoreTemporaryCrop(draft.Normalized);
     }
     private async void OnUndo(object sender, RoutedEventArgs e) => await WorkAsync(_model.UndoAsync);
     private async void OnRedo(object sender, RoutedEventArgs e) => await WorkAsync(_model.RedoAsync);
@@ -701,7 +834,7 @@ public partial class ScanDialog : Window
     {
         if (PageCanvas is null) return;
         PageCanvas.RenderTransform = new MatrixTransform(_view.Zoom, 0, 0, _view.Zoom, _view.Offset.X, _view.Offset.Y);
-        CropFrame.StrokeThickness = 2 / _view.Zoom;
+        DrawCrop();
         ZoomText.Text = Loc.F("{0:0}%", _view.Zoom * 100);
     }
     private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -711,6 +844,21 @@ public partial class ScanDialog : Window
     }
     private async void OnKeyDown(object sender, KeyEventArgs e)
     {
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (_cropping && Keyboard.FocusedElement is not TextBox && !_working)
+        {
+            if (key == Key.Escape) { OnCropCancel(sender, e); e.Handled = true; return; }
+            if (key == Key.Enter) { e.Handled = true; await ApplyCropAsync(false); return; }
+            if (key is Key.Left or Key.Right or Key.Up or Key.Down)
+            {
+                _cropDraft?.Step(key == Key.Left ? -1 : key == Key.Right ? 1 : 0,
+                    key == Key.Up ? -1 : key == Key.Down ? 1 : 0,
+                    Keyboard.Modifiers.HasFlag(ModifierKeys.Shift), Keyboard.Modifiers.HasFlag(ModifierKeys.Alt));
+                DrawCrop(); UpdateCropNumbers();
+                if (_cropDraft is { } draft) StoreTemporaryCrop(draft.Normalized);
+                e.Handled = true; return;
+            }
+        }
         if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {
             if (e.Key is Key.D0 or Key.NumPad0) OnFit(sender, e);

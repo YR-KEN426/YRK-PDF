@@ -1671,5 +1671,11 @@
   "JPEG image|*.jpg": "รูป JPEG|*.jpg",
   "PNG image|*.png": "รูป PNG|*.png",
   "Scan output paths must not use symbolic links or junctions.": "ตำแหน่งบันทึกผลสแกนต้องไม่ผ่านลิงก์หรือจังก์ชัน",
-  "The scanner cannot scan the selected area. A full scan was cropped instead.": "เครื่องไม่รองรับการสแกนพื้นที่ที่เลือก จึงสแกนเต็มกระจกแล้วตัดภาพให้แทน"
+  "The scanner cannot scan the selected area. A full scan was cropped instead.": "เครื่องไม่รองรับการสแกนพื้นที่ที่เลือก จึงสแกนเต็มกระจกแล้วตัดภาพให้แทน",
+  "Area for the next scan": "พื้นที่สำหรับการสแกนครั้งถัดไป",
+  "Aspect ratio": "อัตราส่วนภาพ",
+  "Free": "อิสระ",
+  "Top": "บน",
+  "in": "นิ้ว",
+  "{0:0.##} × {1:0.##} {2}": "{0:0.##} × {1:0.##} {2}"
 }
