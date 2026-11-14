@@ -5,9 +5,12 @@ using System.Security.Cryptography.X509Certificates;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Yrk.PdfStudio.App;
+using Yrk.PdfStudio.App.Localization;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.App.Views;
 using Yrk.PdfStudio.Core.Pdf;
@@ -115,27 +118,68 @@ public sealed class AppConvertScanTests
     {
         var warning = Assert.IsType<TextBlock>(window.FindName("OcrWarningText"));
         var tip = Assert.IsType<TextBlock>(window.FindName("ScanTipText"));
-        Assert.Equal("Text is read from an image, so it can be wrong, especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it.", warning.Text);
-        Assert.Equal("Tip: scan at 300 dpi with the page straight for the best result.", tip.Text);
-        foreach (var block in new[] { warning, tip })
+        var runs = warning.Inlines.Cast<Run>().ToArray();
+        Assert.Equal(2, runs.Length);
+        Assert.Equal("Text is read from an image, so it can be wrong, especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it.", string.Concat(runs.Select(run => run.Text)));
+        Assert.Equal(FontWeights.Bold, runs[0].FontWeight);
+        Assert.Equal(FontWeights.Normal, runs[1].FontWeight);
+        var language = Loc.Language;
+        try
         {
-            Assert.Equal(11, block.FontSize);
-            Assert.Equal(TextWrapping.Wrap, block.TextWrapping);
-            Assert.Same(window.FindResource("SecondaryTextBrush"), block.Foreground);
+            Loc.Language = Loc.Thai;
+            foreach (var run in runs) BindingOperations.GetBindingExpression(run, Run.TextProperty)!.UpdateTarget();
+            Assert.Equal("โปรแกรมอ่านข้อความจากภาพ จึงอาจอ่านผิดได้ โดยเฉพาะภาพที่เบลอ เอียง ตัวเล็ก หรือลายมือ ควรตรวจทานผลลัพธ์ก่อนนำไปใช้ทุกครั้ง", string.Concat(runs.Select(run => run.Text)));
         }
-        var panel = Assert.IsType<StackPanel>(warning.Parent);
-        Assert.Same(panel, tip.Parent);
-        Assert.Equal(panel.Children.IndexOf(warning) + 1, panel.Children.IndexOf(tip));
+        finally
+        {
+            Loc.Language = language;
+            foreach (var run in runs) BindingOperations.GetBindingExpression(run, Run.TextProperty)!.UpdateTarget();
+        }
+        Assert.Equal("Tip: scan at 300 dpi with the page straight for the best result.", tip.Text);
+        Assert.Equal(11, tip.FontSize);
+        Assert.Equal(TextWrapping.Wrap, tip.TextWrapping);
+        Assert.Same(window.FindResource("SecondaryTextBrush"), tip.Foreground);
+        var border = AssertWarningBox(window, warning);
+        var panel = Assert.IsType<StackPanel>(border.Parent);
+        var buttons = Assert.IsType<StackPanel>(panel.Children[panel.Children.IndexOf(border) + 1]);
+        Assert.Contains(buttons.Children.OfType<Button>(), button => (string)button.Content == (window is OcrDialog ? "Recognize text" : "Convert"));
         if (window is OcrDialog)
         {
-            Assert.Equal(panel.Children.IndexOf((UIElement)window.FindName("AllPages")) + 1, panel.Children.IndexOf(warning));
+            Assert.Equal(panel.Children.IndexOf((UIElement)window.FindName("AllPages")) + 1, panel.Children.IndexOf(tip));
             Assert.Equal(panel.Children.IndexOf(tip) + 1, panel.Children.IndexOf((UIElement)window.FindName("ErrorText")));
         }
         else
         {
-            Assert.Equal(panel.Children.Count - 1, panel.Children.IndexOf(tip));
-            Assert.True(panel.Children.IndexOf((UIElement)((TextBox)window.FindName("FolderBox")).Parent) < panel.Children.IndexOf(warning));
+            Assert.Equal(Dock.Bottom, DockPanel.GetDock(panel));
+            var options = Assert.IsType<StackPanel>(tip.Parent);
+            Assert.Equal(options.Children.Count - 1, options.Children.IndexOf(tip));
+            Assert.IsType<ScrollViewer>(options.Parent);
+            Assert.True(options.Children.IndexOf((UIElement)((TextBox)window.FindName("FolderBox")).Parent) < options.Children.IndexOf(tip));
+            var root = Assert.IsType<DockPanel>(window.Content);
+            root.Measure(new Size(540, 460));
+            root.Arrange(new Rect(0, 0, 540, 460));
+            var position = border.TranslatePoint(new Point(), root);
+            Assert.InRange(position.Y, 0, root.ActualHeight - border.ActualHeight);
+            Assert.True(border.ActualHeight > 0);
         }
+    }
+
+    internal static Border AssertWarningBox(Window window, TextBlock warning)
+    {
+        Assert.Equal(window.FontSize, warning.FontSize);
+        Assert.Equal(TextWrapping.Wrap, warning.TextWrapping);
+        Assert.Same(window.FindResource("TextBrush"), warning.Foreground);
+        var content = Assert.IsType<DockPanel>(warning.Parent);
+        Assert.Equal("⚠", Assert.IsType<TextBlock>(content.Children[0]).Text);
+        var border = Assert.IsType<Border>(content.Parent);
+        Assert.Equal(Color.FromRgb(255, 244, 220), Assert.IsType<SolidColorBrush>(border.Background).Color);
+        Assert.Equal(Color.FromRgb(207, 155, 54), Assert.IsType<SolidColorBrush>(border.BorderBrush).Color);
+        Assert.Equal(new Thickness(1), border.BorderThickness);
+        Assert.Equal(new CornerRadius(6), border.CornerRadius);
+        Assert.Equal(new Thickness(12), border.Padding);
+        for (DependencyObject? ancestor = border; ancestor is not null; ancestor = LogicalTreeHelper.GetParent(ancestor))
+            Assert.IsNotType<ScrollViewer>(ancestor);
+        return border;
     }
 
     [Fact]

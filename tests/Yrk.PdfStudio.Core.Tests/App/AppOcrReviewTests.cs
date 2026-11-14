@@ -89,9 +89,10 @@ public sealed class AppOcrReviewTests
                 Assert.Equal("Words in orange boxes are ones the program is not sure about. Check and fix them before saving. Words without a box can be wrong too, so read the text through again.", warning.Text);
                 Assert.Equal(FontWeights.SemiBold, warning.FontWeight);
                 Assert.Equal(TextWrapping.Wrap, warning.TextWrapping);
-                var topPanel = Assert.IsType<StackPanel>(warning.Parent);
+                var border = AppConvertScanTests.AssertWarningBox(window, warning);
+                var topPanel = Assert.IsType<StackPanel>(border.Parent);
                 Assert.Equal(Dock.Top, DockPanel.GetDock(topPanel));
-                Assert.Same(warning, topPanel.Children[0]);
+                Assert.Same(border, topPanel.Children[0]);
                 model.NextWord();
                 window.Measure(new Size(1100, 800)); window.Arrange(new Rect(0, 0, 1100, 800));
                 Assert.False(window.IsVisible);

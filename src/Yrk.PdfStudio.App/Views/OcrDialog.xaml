@@ -41,10 +41,18 @@
         <RadioButton x:Name="ScannedOnly" Content="Only pages without text (scans)" IsChecked="True" />
         <RadioButton x:Name="AllPages" Content="All pages" Margin="0,4,0,0" />
 
-        <TextBlock x:Name="OcrWarningText" Text="Text is read from an image, so it can be wrong, especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it." FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
         <TextBlock x:Name="ScanTipText" Text="Tip: scan at 300 dpi with the page straight for the best result." FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
 
         <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" Margin="0,12,0,0" Visibility="Collapsed" />
+
+        <Border Background="#FFF4DC" BorderBrush="#CF9B36" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,12,0,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Text="⚠" Foreground="{StaticResource TextBrush}" Margin="0,0,8,0" />
+                <TextBlock x:Name="OcrWarningText" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap">
+                    <Run Text="{Binding Source='Text is read from an image, so it can be wrong,', Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}, StringFormat='{}{0} '}" FontWeight="Bold" /><Run Text="{Binding Source='especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it.', Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" />
+                </TextBlock>
+            </DockPanel>
+        </Border>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Recognize text" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnStart" />

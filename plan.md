@@ -203,6 +203,16 @@
 - ตรวจ: build, เทสต์ทั้งชุด, check-translations ยัง 12 คำ; Claude เปิดดูทั้ง 4 หน้าต่างใน Release
 - งานเอกสารที่ Ken ให้ทำ (ไม่ใช่ในขั้นนี้ ทำตอนขั้นเอกสารของ 1.2.3): หัวข้อ "ข้อจำกัดของ OCR" ในคู่มือ th/en; release notes ใช้คำว่า "ช่วยลดการพิมพ์ใหม่" ไม่ใช่ "แปลงได้ถูกต้อง"
 
+## ขั้นที่ 5d: คำเตือน OCR ให้เด่น (Ken อนุมัติ 2026-11-14)
+**ไฟล์:** `Views/ConvertScanDialog.xaml`, `Views/OcrDialog.xaml`, `Views/OcrReviewDialog.xaml`, `Localization/th.json`, เทสต์ App ที่ตรวจข้อความเหล่านี้
+**รุ่น:** `gpt-6.1-sol` · medium
+- คำเตือนเดิมเป็นตัวเทาเล็กจนไม่เด่น: เปลี่ยนเป็นกล่องสีอำพันแบบเดียวกับ `BackupDialog.xaml` (พื้น #FFF4DC ขอบ #CF9B36 หนา 1 มุม 6 Padding 12) ไอคอน ⚠ ข้อความขนาดปกติสีข้อความหลัก ตัดบรรทัดได้
+- ข้อความแยก 2 ส่วน ถ้อยคำรวมเท่าเดิม: ตัวหนา "Text is read from an image, so it can be wrong," / "โปรแกรมอ่านข้อความจากภาพ จึงอาจอ่านผิดได้" + ตัวปกติ "especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it." / "โดยเฉพาะภาพที่เบลอ เอียง ตัวเล็ก หรือลายมือ ควรตรวจทานผลลัพธ์ก่อนนำไปใช้ทุกครั้ง"
+- ConvertScanDialog / OcrDialog: กล่องอยู่เหนือปุ่มหลัก นอก ScrollViewer; "Tip: scan at 300 dpi…" คงเป็นตัวเทาเล็กเหมือนเดิม
+- OcrReviewDialog: ข้อความตัวหนาบนสุดเดิมใส่ในกล่องเดียวกัน
+- ไม่แตะ ConvertScanResultDialog
+- ตรวจ: build, เทสต์ทั้งชุด, check-translations ยัง 12 คำ, diff th.json มีแต่บรรทัดที่ตั้งใจ
+
 ## การส่งงาน
 - ขั้น 0 Claude ทำเอง
 - ขั้น 1–2 ส่ง implementer พร้อมกัน
@@ -220,3 +230,4 @@
 - [x] ขั้น 5a แก้จากการตรวจ (A–J)
 - [x] ขั้น 5b คุณภาพภาษาไทย (K–M)
 - [x] ขั้น 5c คำเตือน OCR อาจอ่านผิด
+- [x] ขั้น 5d คำเตือน OCR เป็นกล่องสีอำพัน
