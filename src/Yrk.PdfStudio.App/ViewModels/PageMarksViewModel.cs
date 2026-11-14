@@ -43,7 +43,7 @@ public sealed partial class PageMarksViewModel : ObservableObject
     private MarkColor _watermarkColor;
     private double _opacityPercent = 30;
     private double _angle = 45;
-    private bool _behind = true;
+    private bool _behind = false;
     private string _headerLeft = string.Empty;
     private string _headerCenter = string.Empty;
     private string _headerRight = string.Empty;
