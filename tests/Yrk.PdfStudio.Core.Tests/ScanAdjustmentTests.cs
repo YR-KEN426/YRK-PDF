@@ -11,6 +11,30 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class ScanAdjustmentTests
 {
+    [Fact]
+    public async Task Orientation_download_failure_can_retry_with_session_consent_without_prompting_again()
+    {
+        using var session = new ScanSession();
+        using var handler = new ModelHandler { FailFirst = true };
+        using var client = new HttpClient(handler);
+        var data = new OcrLanguageData(Path.Combine(session.DirectoryPath, "osd"), client,
+            new Dictionary<string, (string, long)>
+            { ["osd"] = (Convert.ToHexStringLower(SHA256.HashData(handler.Payload)), handler.Payload.Length) });
+        var model = new Yrk.PdfStudio.App.ViewModels.ScanViewModel(session, new FakeScannerService(),
+            System.Windows.Threading.Dispatcher.CurrentDispatcher);
+        var prompts = 0;
+        Task<bool> Consent() { prompts++; return Task.FromResult(true); }
+        await Assert.ThrowsAsync<HttpRequestException>(() => model.SetAutoOrientationAsync(true, data, Consent));
+        Assert.False(model.AutoOrientationEnabled);
+        Assert.False(data.IsInstalled("osd"));
+        await model.SetAutoOrientationAsync(false, data, Consent);
+        await model.SetAutoOrientationAsync(true, data, Consent);
+        Assert.True(model.AutoOrientationEnabled);
+        Assert.True(data.IsInstalled("osd"));
+        Assert.Equal(1, prompts);
+        Assert.Equal(2, handler.Calls);
+    }
+
     private static readonly ScanSettings Plain = new(AutoStraighten: false, AutoCrop: false);
 
     [Theory]
@@ -296,12 +320,14 @@ public sealed class ScanAdjustmentTests
 
     private sealed class ModelHandler : HttpMessageHandler
     {
+        public bool FailFirst { get; init; }
         public byte[] Payload { get; } = [1, 3, 7];
         public int Calls { get; private set; }
         public string? Uri { get; private set; }
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Calls++; Uri = request.RequestUri!.AbsoluteUri;
+            if (FailFirst && Calls == 1) return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Payload) });
         }
     }

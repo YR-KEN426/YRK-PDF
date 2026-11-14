@@ -165,8 +165,8 @@
                                 <ComboBox x:Name="CropAspectChoice" Width="120" SelectedIndex="0" SelectionChanged="OnCropAspectChanged" AutomationProperties.Name="Aspect ratio">
                                     <ComboBoxItem Content="Free"/><ComboBoxItem Content="Paper size"/><ComboBoxItem Content="Original"/>
                                 </ComboBox>
-                                <Button Content="Apply" Click="OnCropApply" Margin="8,0,0,0" Padding="10,4"/>
-                                <Button Content="Reset" Click="OnCropReset" Margin="8,0,0,0" Padding="10,4"/>
+                                <Button x:Name="CropApplyButton" Content="Apply" Click="OnCropApply" IsEnabled="False" Margin="8,0,0,0" Padding="10,4"/>
+                                <Button x:Name="CropResetButton" Content="Reset" Click="OnCropReset" IsEnabled="False" Margin="8,0,0,0" Padding="10,4"/>
                                 <Button Content="Cancel" Click="OnCropCancel" Margin="8,0,0,0" Padding="10,4"/>
                             </WrapPanel>
                         </StackPanel>

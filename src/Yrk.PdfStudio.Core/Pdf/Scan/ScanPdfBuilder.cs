@@ -11,22 +11,19 @@ public sealed class ScanPdfBuilder(IPdfEngine engine, ScanPageProcessor processo
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(session);
-        try
+        // The caller owns the scan session and may retry after a failed save.
+        var pages = session.Pages;
+        if (pages.Count == 0) throw new ArgumentException("Scan at least one page.", nameof(session));
+        using var document = NewDocument();
+        foreach (var page in pages)
         {
-            var pages = session.Pages;
-            if (pages.Count == 0) throw new ArgumentException("Scan at least one page.", nameof(session));
-            using var document = NewDocument();
-            foreach (var page in pages)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var processed = await Task.Run(() => processor.Process(session.Read(page), settings, page.Rotation, page.Crop, cancellationToken), cancellationToken)
-                    .ConfigureAwait(false);
-                page.IsBlank = processed.IsBlank;
-                await AddPageAsync(document, processed, session, cancellationToken).ConfigureAwait(false);
-            }
-            await SaveAsync(document, session, outputPath, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            var processed = await Task.Run(() => processor.Process(session.Read(page), settings, page.Rotation, page.Crop, cancellationToken), cancellationToken)
+                .ConfigureAwait(false);
+            page.IsBlank = processed.IsBlank;
+            await AddPageAsync(document, processed, session, cancellationToken).ConfigureAwait(false);
         }
-        catch { session.Dispose(); throw; }
+        await SaveAsync(document, session, outputPath, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Also accepts individually processed pages with different color modes.</summary>

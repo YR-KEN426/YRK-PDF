@@ -84,6 +84,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         : Loc.F("{0} pages · approximately {1:0.00} MB", Pages.Count, EstimatedBytes / 1_000_000.0);
     public bool AutoOrientationEnabled { get; private set; }
     private bool _orientationConsentAsked;
+    private bool _orientationConsented;
 
     public async Task SetAutoOrientationAsync(bool enabled, OcrLanguageData data, Func<Task<bool>> consent, CancellationToken ct = default)
     {
@@ -91,9 +92,9 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         if (!enabled) return;
         AutoOrientationEnabled = await data.EnsureOrientationDataAsync(async () =>
         {
-            if (_orientationConsentAsked) return false;
+            if (_orientationConsentAsked) return _orientationConsented;
             _orientationConsentAsked = true;
-            return await consent();
+            return _orientationConsented = await consent();
         }, ct);
     }
     public string AdjustmentMessage { get; private set; } = string.Empty;
@@ -233,7 +234,16 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         Remember();
         foreach (var entry in SelectedPages)
         {
-            entry.Page.Rotation = (entry.Page.Rotation + degrees + 360) % 360; entry.Page.Crop = null;
+            var turn = (degrees % 360 + 360) % 360;
+            entry.Page.Rotation = (entry.Page.Rotation + turn) % 360;
+            if (entry.Page.Crop is { } crop)
+                entry.Page.Crop = turn switch
+                {
+                    90 => new(1 - crop.Y - crop.Height, crop.X, crop.Height, crop.Width),
+                    180 => new(1 - crop.X - crop.Width, 1 - crop.Y - crop.Height, crop.Width, crop.Height),
+                    270 => new(crop.Y, 1 - crop.X - crop.Width, crop.Height, crop.Width),
+                    _ => crop,
+                };
             await RefreshAsync(entry);
         }
     }

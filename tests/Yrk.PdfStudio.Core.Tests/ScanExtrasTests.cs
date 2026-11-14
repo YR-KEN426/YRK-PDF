@@ -292,6 +292,7 @@ public sealed class ScanExtrasTests
         try
         {
             app.Dialogs.Answer("AskScan", ImageAnswer(ScanOutputFormat.Png));
+            app.Dialogs.Answer("AskScan", (object?)null);
             app.Dialogs.Answer("PickSaveFile", Path.Combine(link, "scan.png"));
             app.Dialogs.Answer("Confirm", true);
             await app.Model.ScanToPdfCommand.ExecuteAsync(null);
@@ -315,6 +316,7 @@ public sealed class ScanExtrasTests
         app.Dialogs.Answer("PickSaveFile", app.PathFor("scan.png"));
         if (existed) app.Dialogs.Answer("Confirm", true);
         byte[] competing = [5, 6, 7];
+        app.Dialogs.Answer("AskScan", (object?)null);
         app.Model.CommitEditsRequested += (_, _) => File.WriteAllBytes(output, competing);
         await app.Model.ScanToPdfCommand.ExecuteAsync(null);
         Assert.Equal(competing, File.ReadAllBytes(output));

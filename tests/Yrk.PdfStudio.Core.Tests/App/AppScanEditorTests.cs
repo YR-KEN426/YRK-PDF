@@ -10,6 +10,38 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class AppScanEditorTests
 {
+    [Theory]
+    [InlineData(90, .375, .125, .375, .5)]
+    [InlineData(180, .375, .375, .5, .375)]
+    [InlineData(270, .25, .375, .375, .5)]
+    [InlineData(-90, .25, .375, .375, .5)]
+    public void Rotation_transforms_existing_crop_and_undo_redo_restore_both(int turn, double x, double y, double w, double h) => Run(async () =>
+    {
+        using var session = CreateSession();
+        var model = CreateModel(session);
+        await model.LoadPagesAsync();
+        model.Select(0); model.Select(1, control: true);
+        var original = new NormalizedRect(.125, .25, .5, .375);
+        model.Pages[0].Page.Crop = original;
+        model.Pages[1].Page.Crop = original;
+        model.Pages[0].Page.Rotation = 90;
+        await model.RotateSelectedAsync(turn);
+        var rotated = new NormalizedRect(x, y, w, h);
+        Assert.Equal(rotated, model.Pages[0].Page.Crop);
+        Assert.Equal(rotated, model.Pages[1].Page.Crop);
+        Assert.Equal((90 + turn + 360) % 360, model.Pages[0].Page.Rotation);
+        Assert.Null(model.Pages[2].Page.Crop);
+        await model.UndoAsync();
+        Assert.Equal(original, model.Pages[0].Page.Crop);
+        Assert.Equal(original, model.Pages[1].Page.Crop);
+        Assert.Equal(90, model.Pages[0].Page.Rotation);
+        Assert.Equal(0, model.Pages[1].Page.Rotation);
+        await model.RedoAsync();
+        Assert.Equal(rotated, model.Pages[0].Page.Crop);
+        Assert.Equal(rotated, model.Pages[1].Page.Crop);
+        Assert.Equal((turn + 360) % 360, model.Pages[1].Page.Rotation);
+    });
+
     [Fact]
     public void Unsaved_state_tracks_successful_save_edits_undo_and_selection() => Run(async () =>
     {

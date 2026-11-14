@@ -51,8 +51,13 @@ public sealed class WiaScannerService : IScannerService
         var y = FindProperty(item, YResolution, objects);
         var dpi = SupportedNumbers(x).Intersect(SupportedNumbers(y)).Where(n => n > 0).Order().ToArray();
         if (dpi.Length == 0) dpi = [x is null ? 300 : Math.Max(1, Number(Get(x, "Value")))];
+        // WIA_IPS_MAX_HORIZONTAL_SIZE / MAX_VERTICAL_SIZE live on each WIA 2.0 source item.
+        ScanExtent? Extent(ScanSource source, int rootHorizontal, int rootVertical) => sources.Contains(source)
+            ? ReadExtent(ScanItem(connected, source, objects), 3074, 3075, objects)
+                ?? ReadExtent(connected, rootHorizontal, rootVertical, objects)
+            : null;
         return new ScanCapabilities(sources, dpi, Modes(FindProperty(item, Intent, objects)),
-            ReadExtent(connected, 3074, 3075, objects), ReadExtent(connected, 3076, 3077, objects));
+            Extent(ScanSource.Flatbed, 3074, 3075), Extent(ScanSource.Feeder, 3076, 3077));
     }, cancellationToken);
 
     public Task ScanAsync(ScanDevice device, ScanSettings settings, IProgress<ScannedPage> progress, CancellationToken cancellationToken = default)

@@ -40,6 +40,7 @@ public partial class ScanDialog : Window
     private bool _updatingCropNumbers;
     private bool _cropNumbersDirty;
     private int _previewVersion;
+    private int _cropPreviewVersion = -1;
     private int _adjustmentVersion;
     private bool _showingAdjustments;
     private ScanPageEntry? _adjustmentEntry;
@@ -58,7 +59,6 @@ public partial class ScanDialog : Window
         _model = new(session, scanner, Dispatcher);
         _previewQueue = new(RenderQueuedPreviewAsync, busy => PreviewBusy.Visibility = busy ? Visibility.Visible : Visibility.Collapsed);
         _cropScrollTimer.Tick += (_, _) => AutoScrollCrop(Mouse.GetPosition(PreviewScroll));
-        Closed += (_, _) => _cropScrollTimer.Stop();
         Deactivated += (_, _) => { _spaceHeld = false; PreviewScroll.ReleaseMouseCapture(); PreviewScroll.Cursor = Cursors.Arrow; };
         PreviewKeyUp += OnPreviewKeyUp;
         PageList.ItemsSource = _model.Pages;
@@ -66,10 +66,49 @@ public partial class ScanDialog : Window
         Ocr.IsChecked = _saved.ScanOcr;
         Loaded += OnLoaded;
         Closing += OnClosing;
-        Closed += (_, _) => { _previewQueue.Dispose(); ++_adjustmentVersion; ++_previewVersion; _model.ClearGlassPreview(); _model.CancelCard(); if (_ownsSession) session.Dispose(); };
+        Closed += OnClosed;
         Loc.LanguageChanged += OnLanguageChanged;
-        Closed += (_, _) => Loc.LanguageChanged -= OnLanguageChanged;
+        _model.PropertyChanged += OnModelPropertyChanged;
         UpdateButtons();
+    }
+
+    private void OnClosed(object? sender, EventArgs e)
+    {
+        try
+        {
+            foreach (var entry in new[] { _model.GlassPreview, _model.CardFront, _model.CardBack })
+            {
+                if (entry is null) continue;
+                try { _model.Session.DeleteTemporary(entry.Page); }
+                catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException) { }
+            }
+        }
+        finally
+        {
+            _cropScrollTimer.Stop();
+            ++_adjustmentVersion; ++_previewVersion;
+            try { _previewQueue.Dispose(); if (_ownsSession) _model.Session.Dispose(); }
+            finally
+            {
+                Loc.LanguageChanged -= OnLanguageChanged;
+                _model.PropertyChanged -= OnModelPropertyChanged;
+            }
+        }
+    }
+
+    private ScanPageEntry? PreviewEntry => _model.TemporaryPreview ?? _model.Current ?? _model.Pages.FirstOrDefault();
+    private bool CropReady => _cropping && _cropDraft is not null && _cropEntry == PreviewEntry
+        && _cropPreviewVersion == _previewVersion;
+    private void UpdateCropButtons() => CropApplyButton.IsEnabled = CropResetButton.IsEnabled = !_working && CropReady;
+    private void InvalidateCropDraft()
+    {
+        _cropDraft = null; _cropEntry = null; _cropNumbersDirty = false;
+        _drawingCrop = false; ++_cropVersion; ++_previewVersion;
+        _cropScrollTimer.Stop(); PreviewScroll.ReleaseMouseCapture(); HideCrop(); UpdateCropButtons();
+    }
+    private void OnModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ScanViewModel.Current)) InvalidateCropDraft();
     }
 
     private void OnLanguageChanged(object? sender, EventArgs e)
@@ -425,6 +464,7 @@ public partial class ScanDialog : Window
         RedoButton.IsEnabled = _model.CanRedo;
         CreateButton.IsEnabled = !_working && _model.Pages.Count > 0 && _model.CardFront is null;
         CloseButton.IsEnabled = !_working;
+        UpdateCropButtons();
         ProgressArea.Visibility = _working ? Visibility.Visible : Visibility.Collapsed;
         NoticeText.Text = string.Join(Environment.NewLine, _model.Notices);
         NoticeBand.Visibility = _model.Notices.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
@@ -587,7 +627,7 @@ public partial class ScanDialog : Window
     }
     internal async Task EnterCropAsync()
     {
-        _cropping = true; _cropDraft = null; ++_cropVersion;
+        InvalidateCropDraft(); _cropping = true;
         CropAspectChoice.SelectedIndex = 0;
         await RefreshPreviewAsync();
     }
@@ -595,6 +635,7 @@ public partial class ScanDialog : Window
     private void ExitCrop()
     {
         _cropping = _drawingCrop = false; ++_cropVersion;
+        UpdateCropButtons();
         PreviewScroll.ReleaseMouseCapture(); HideCrop(); PreviewScroll.Cursor = Cursors.Arrow;
     }
     private void StoreTemporaryCrop(NormalizedRect? crop)
@@ -610,9 +651,9 @@ public partial class ScanDialog : Window
     }
     private async Task ApplyCropAsync(bool reset)
     {
-        if (_working || _cropDraft is null) return;
+        if (_working || !CropReady) return;
         CommitCropNumbers();
-        var crop = reset ? (NormalizedRect?)null : _cropDraft.Normalized;
+        var crop = reset ? (NormalizedRect?)null : _cropDraft!.Normalized;
         var temporary = _cropEntry == _model.TemporaryPreview;
         if (temporary) StoreTemporaryCrop(crop);
         ExitCrop();
@@ -685,7 +726,8 @@ public partial class ScanDialog : Window
     private async Task RenderQueuedPreviewAsync(bool sharp, CancellationToken ct)
     {
         var version = ++_previewVersion;
-        var entry = _model.TemporaryPreview ?? _model.Current ?? _model.Pages.FirstOrDefault();
+        UpdateCropButtons();
+        var entry = PreviewEntry;
         if (entry is null) { PageImage.Source = RegionImage.Source = null; _viewEntry = null; _basePreview = null; ExitCrop(); _cropEntry = null; _view.Fit(); SetZoom(); return; }
         try
         {
@@ -695,6 +737,7 @@ public partial class ScanDialog : Window
             {
                 var proxy = await _model.PreviewForViewAsync(entry, applyCrop, ct: ct);
                 ct.ThrowIfCancellationRequested();
+                if (version != _previewVersion || entry != PreviewEntry) return;
                 var reset = _viewEntry != entry || _viewCrop != applyCrop;
                 _viewEntry = entry; _viewCrop = applyCrop;
                 PageCanvas.Width = PageImage.Width = proxy.ImageSize.Width;
@@ -725,7 +768,7 @@ public partial class ScanDialog : Window
                 }
                 else { PageImage.Source = frame.Image; RegionImage.Source = null; }
             }
-            if (version != _previewVersion || (temporary && _model.TemporaryPreview != entry)) return; // stale render
+            if (version != _previewVersion || entry != PreviewEntry) return; // stale render
             if (temporary && _cropEntry != entry) { _cropping = true; _cropDraft = null; }
             if (_cropping && (_cropDraft is null || _cropEntry != entry))
             {
@@ -734,7 +777,7 @@ public partial class ScanDialog : Window
                 var previous = entry == _model.GlassPreview ? _model.Settings.Region : entry.Page.Crop;
                 var detected = await _model.DetectCropBoundsAsync(entry, ct);
                 ct.ThrowIfCancellationRequested();
-                if (!_cropping || generation != _cropVersion) return;
+                if (!_cropping || generation != _cropVersion || version != _previewVersion || entry != PreviewEntry) return;
                 var dpi = CropDpi;
                 _cropDraft = new(PageCanvas.Width, PageCanvas.Height, previous, detected.Paper, detected.Content, dpi.X, dpi.Y);
                 if (detected.Paper is null && detected.Content is null) Message.Text = Loc.T("No edges to crop were found");
@@ -742,6 +785,8 @@ public partial class ScanDialog : Window
                 OnCropAspectChanged(CropAspectChoice, null);
                 UpdateCropNumbers();
             }
+            _cropPreviewVersion = version;
+            UpdateCropButtons();
             if (_cropping) DrawCrop(); else HideCrop();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }

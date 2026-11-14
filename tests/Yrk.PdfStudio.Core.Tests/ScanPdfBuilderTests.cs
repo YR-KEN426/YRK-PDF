@@ -143,7 +143,7 @@ public sealed class ScanPdfBuilderTests(ITestOutputHelper output) : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Builder_failure_or_cancellation_deletes_session_without_publishing_a_PDF(bool cancel)
+    public async Task Builder_failure_or_cancellation_preserves_session_without_publishing_a_PDF(bool cancel)
     {
         using var session = new ScanSession();
         var page = session.Add(ScanSessionTests.Page(120, 160));
@@ -152,7 +152,9 @@ public sealed class ScanPdfBuilderTests(ITestOutputHelper output) : IDisposable
         using var cancellation = new CancellationTokenSource();
         if (cancel) cancellation.Cancel();
         await Assert.ThrowsAnyAsync<Exception>(() => new ScanPdfBuilder(_engine, _processor).BuildAsync(session, new(), path, cancellation.Token));
-        Assert.False(Directory.Exists(session.DirectoryPath));
+        Assert.True(Directory.Exists(session.DirectoryPath));
+        Assert.Same(page, Assert.Single(session.Pages));
+        Assert.Equal(120, session.Read(page).Bitmap.Width);
         Assert.False(File.Exists(path));
     }
 

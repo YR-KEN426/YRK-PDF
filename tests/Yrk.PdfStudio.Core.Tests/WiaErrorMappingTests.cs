@@ -7,6 +7,47 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class WiaErrorMappingTests
 {
+    [Theory]
+    [InlineData("item")]
+    [InlineData("root")]
+    [InlineData("missing")]
+    [InlineData("partial")]
+    public async Task Capabilities_prefer_each_source_item_extent_then_legacy_root_or_unknown(string mode)
+    {
+        var driver = new TestDevice(false, 0);
+        var flatbed = driver.Acquisition;
+        var feeder = new TestAcquisition(0);
+        void Configure(TestAcquisition item, string category, int width, int height)
+        {
+            var properties = Enumerable.Range(1, item.Properties.Count).Select(i => item.Properties[i]).ToList();
+            properties.Add(new(4125, category));
+            if (mode is "item" or "partial") properties.Add(new(3074, width));
+            if (mode == "item") properties.Add(new(3075, height));
+            item.Properties = new(properties.ToArray());
+        }
+        Configure(flatbed, "{FB607B1F-43F3-488B-855B-FB703EC342A6}", 8500, 11700);
+        Configure(feeder, "{FE131934-F84C-42AD-8DA4-6129CDDD7288}", 9000, 17000);
+        driver.Items = new(flatbed, feeder);
+        driver.Properties = mode == "missing" ? new(new TestProperty(3086, 3)) : new(
+            new TestProperty(3086, 3), new(3074, 8000), new(3075, 11000), new(3076, 8500), new(3077, 14000));
+        var caps = await new WiaScannerService(() => new TestManager(driver)).GetCapabilitiesAsync(new("test-device", "Test"));
+        var glass = caps.Extent(ScanSource.Flatbed);
+        var feed = caps.Extent(ScanSource.Feeder);
+        if (mode == "missing")
+        {
+            Assert.Null(glass); Assert.Null(feed);
+            Assert.Equal(ScanPaperSizes.Standard.Count, ScanPaperSizes.Visible(glass, "Original").Count());
+        }
+        else
+        {
+            Assert.Equal((mode == "item" ? 8500 : 8000) * 25.4 / 1000, glass!.WidthMm, 6);
+            Assert.Equal((mode == "item" ? 11700 : 11000) * 25.4 / 1000, glass.HeightMm, 6);
+            Assert.Equal((mode == "item" ? 9000 : 8500) * 25.4 / 1000, feed!.WidthMm, 6);
+            Assert.Equal((mode == "item" ? 17000 : 14000) * 25.4 / 1000, feed.HeightMm, 6);
+            Assert.Equal(feed, caps.Extent(ScanSource.Duplex));
+        }
+    }
+
     [Fact]
     public async Task General_error_during_transfer_retains_hresult_and_transfer_context()
     {
@@ -224,13 +265,13 @@ public sealed class WiaErrorMappingTests
             Items = new(Acquisition);
         }
         public TestAcquisition Acquisition { get; }
-        public AutomationItems<TestProperty> Properties { get; }
-        public AutomationItems<TestAcquisition> Items { get; }
+        public AutomationItems<TestProperty> Properties { get; set; }
+        public AutomationItems<TestAcquisition> Items { get; set; }
     }
 
     public sealed class TestAcquisition(int availablePages, TestProperty? pages = null)
     {
-        public AutomationItems<TestProperty> Properties { get; } = new(
+        public AutomationItems<TestProperty> Properties { get; set; } = new(
             new TestProperty(6146, 1, 3, [1, 2]),
             new TestProperty(6147, 300, 1) { SubTypeMin = 300, SubTypeMax = 600, SubTypeStep = 300 },
             new TestProperty(6148, 300, 2, [300, 600]),

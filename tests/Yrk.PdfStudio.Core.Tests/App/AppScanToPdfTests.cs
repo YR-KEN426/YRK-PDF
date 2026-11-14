@@ -6,6 +6,47 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class AppScanToPdfTests
 {
+    [Theory]
+    [InlineData(ScanOutputFormat.Jpeg, false)]
+    [InlineData(ScanOutputFormat.Png, false)]
+    [InlineData(ScanOutputFormat.Pdf, false)]
+    [InlineData(ScanOutputFormat.Jpeg, true)]
+    [InlineData(ScanOutputFormat.Png, true)]
+    [InlineData(ScanOutputFormat.Pdf, true)]
+    public async Task Save_failure_reopens_intact_session_and_retry_succeeds(ScanOutputFormat format, bool beforeWrite)
+    {
+        await using var app = new AppTestHarness();
+        ScanSession? first = null;
+        ScanSessionPage? page = null;
+        app.Dialogs.Answer("AskScan", new Func<object?[], object?>(args =>
+        {
+            first = (ScanSession)args[0]!;
+            page = first.Add(ScanSessionTests.Page(40, 60));
+            page.Rotation = 90; page.Crop = new(.1, .2, .5, .6);
+            return new ScanRequest(first, Settings, false, [], format);
+        }), new Func<object?[], object?>(args =>
+        {
+            Assert.Same(first, args[0]);
+            Assert.Same(page, Assert.Single(first!.Pages));
+            Assert.Equal(90, page!.Rotation);
+            Assert.Equal(new(.1, .2, .5, .6), page.Crop);
+            Assert.Equal(40, first.Read(page).Bitmap.Width);
+            Assert.Single(app.Dialogs.Named("ShowError"));
+            return new ScanRequest(first, Settings, false, [], format);
+        }));
+        var chosen = app.PathFor("retry.pdf");
+        app.Dialogs.Answer(format == ScanOutputFormat.Pdf ? "PickSavePdfFile" : "PickSaveFile",
+            beforeWrite ? "invalid\0path" : app.PathFor("missing/scan.pdf"), chosen);
+
+        await app.Model.ScanToPdfCommand.ExecuteAsync(null);
+
+        Assert.Equal(2, app.Dialogs.Named("AskScan").Length);
+        Assert.True(File.Exists(format == ScanOutputFormat.Pdf ? chosen
+            : Yrk.PdfStudio.App.ViewModels.MainViewModel.ScanImagePath(chosen, 1, 1, format)));
+        Assert.False(Directory.Exists(first!.DirectoryPath));
+        Assert.Single(app.Dialogs.Named("ShowError"));
+    }
+
     private static readonly ScanSettings Settings = new(Dpi: 150, AutoStraighten: false, AutoCrop: false);
 
     private static Func<object?[], object?> ScanAnswer(Action<ScanSession>? observe = null) => args =>
@@ -67,6 +108,7 @@ public sealed class AppScanToPdfTests
         var output = app.PathFor("scan.pdf");
         byte[] competing = [1, 2, 3, 4];
         app.Dialogs.Answer("AskScan", ScanAnswer());
+        app.Dialogs.Answer("AskScan", (object?)null);
         app.Dialogs.Answer("PickSavePdfFile", output);
         app.Model.CommitEditsRequested += (_, _) => File.WriteAllBytes(output, competing);
 
@@ -110,6 +152,7 @@ public sealed class AppScanToPdfTests
         var original = File.ReadAllBytes(output);
         var written = File.GetLastWriteTimeUtc(output);
         app.Dialogs.Answer("AskScan", ScanAnswer());
+        app.Dialogs.Answer("AskScan", (object?)null);
         app.Dialogs.Answer("PickSavePdfFile", output);
         app.Dialogs.Answer("Confirm", true);
         app.Model.CommitEditsRequested += (_, _) =>
@@ -179,7 +222,7 @@ public sealed class AppScanToPdfTests
     }
 
     [Fact]
-    public async Task Build_failure_preserves_existing_destination_and_exits_disposed_session()
+    public async Task Build_failure_preserves_existing_destination_and_disposes_session_after_user_closes()
     {
         await using var app = new AppTestHarness();
         var original = app.CreatePdf();
@@ -192,11 +235,12 @@ public sealed class AppScanToPdfTests
             return new ScanRequest(scanned, new(JpegQuality: 0), false, []);
         }));
         app.Dialogs.Answer("PickSavePdfFile", original);
+        app.Dialogs.Answer("AskScan", (object?)null);
         app.Dialogs.Answer("Confirm", true);
         await app.Model.ScanToPdfCommand.ExecuteAsync(null);
         Assert.Equal(bytes, File.ReadAllBytes(original));
         Assert.False(Directory.Exists(scanned!.DirectoryPath));
-        Assert.Single(app.Dialogs.Named("AskScan"));
+        Assert.Equal(2, app.Dialogs.Named("AskScan").Length);
         Assert.Single(app.Dialogs.Named("ShowError"));
         Assert.Empty(Directory.GetFiles(app.Folder, "*.yrk-writing"));
     }

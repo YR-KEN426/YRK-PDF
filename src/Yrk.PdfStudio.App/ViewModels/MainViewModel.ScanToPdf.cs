@@ -32,54 +32,50 @@ public sealed partial class MainViewModel
         {
             var request = _dialogs.AskScan(session, scanner);
             if (request is null) return;
-            if (request.Format != ScanOutputFormat.Pdf)
-            {
-                try { if (await SaveScanImagesAsync(request)) return; }
-                catch (Exception ex) { _dialogs.ShowError(ex.Message); return; }
-                continue;
-            }
-            string? output;
-            ScanOutputStamp? outputStamp = null;
-            while (true)
-            {
-                output = _dialogs.PickSavePdfFile($"Scan {DateTime.Now:yyyy-MM-dd HHmm}.pdf",
-                    ScanPreferences.SaveFolder(AppSettings.Load().ScanSaveFolder, _document?.FilePath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)), "Save PDF");
-                if (output is null) break;
-                if (!CheckNotOpenFile(output)) continue;
-                try { outputStamp = ScanOutputStamp.Read(output); }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                { _dialogs.ShowError(ex.Message); return; }
-                if (outputStamp is not null && !_dialogs.Confirm(Loc.F("\"{0}\" already exists. Replace it?", Path.GetFileName(output)))) continue;
-                break;
-            }
-            if (output is null) continue;
-            var temp = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, $"~{Path.GetFileNameWithoutExtension(output)}.{Guid.NewGuid():N}.yrk-writing");
-            var count = session.Pages.Count;
-            var keepTemp = false;
-            var createdTemp = false;
             try
             {
-                var done = await RunBusyAsync("Creating PDF…", async () =>
+                if (request.Format != ScanOutputFormat.Pdf)
                 {
-                    await new ScanPdfBuilder(_engine, new ScanPageProcessor(new WpfImageCodec())).BuildAsync(session, request.Settings, temp);
-                    createdTemp = true;
-                    keepTemp = true;
-                    PublishScanOutput(temp, output, outputStamp);
-                    keepTemp = false;
-                });
-                if (!done) return;
-                RememberScanFolder(output);
-                var ocrStatus = request.Ocr ? await OcrScannedFileAsync(output, request.OcrLanguages) : null;
-                await OpenFileAsync(output);
-                StatusMessage = ocrStatus ?? Loc.F("Created a PDF with {0} page(s)", count);
-                return;
+                    if (await SaveScanImagesAsync(request)) return;
+                    continue;
+                }
+                string? output;
+                ScanOutputStamp? outputStamp = null;
+                while (true)
+                {
+                    output = _dialogs.PickSavePdfFile($"Scan {DateTime.Now:yyyy-MM-dd HHmm}.pdf",
+                        ScanPreferences.SaveFolder(AppSettings.Load().ScanSaveFolder, _document?.FilePath, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)), "Save PDF");
+                    if (output is null) break;
+                    if (!CheckNotOpenFile(output)) continue;
+                    outputStamp = ScanOutputStamp.Read(output);
+                    if (outputStamp is not null && !_dialogs.Confirm(Loc.F("\"{0}\" already exists. Replace it?", Path.GetFileName(output)))) continue;
+                    break;
+                }
+                if (output is null) continue;
+                var temp = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(output))!, $"~{Path.GetFileNameWithoutExtension(output)}.{Guid.NewGuid():N}.yrk-writing");
+                var count = session.Pages.Count;
+                var keepTemp = false;
+                var createdTemp = false;
+                try
+                {
+                    var done = await RunBusyAsync("Creating PDF…", async () =>
+                    {
+                        await new ScanPdfBuilder(_engine, new ScanPageProcessor(new WpfImageCodec())).BuildAsync(session, request.Settings, temp);
+                        createdTemp = true;
+                        keepTemp = true;
+                        PublishScanOutput(temp, output, outputStamp);
+                        keepTemp = false;
+                    });
+                    if (!done) continue;
+                    RememberScanFolder(output);
+                    var ocrStatus = request.Ocr ? await OcrScannedFileAsync(output, request.OcrLanguages) : null;
+                    await OpenFileAsync(output);
+                    StatusMessage = ocrStatus ?? Loc.F("Created a PDF with {0} page(s)", count);
+                    return;
+                }
+                finally { if (createdTemp && !keepTemp) TryDelete(temp); }
             }
-            catch (Exception ex)
-            {
-                _dialogs.ShowError(ex.Message);
-                return;
-            }
-            finally { if (createdTemp && !keepTemp) TryDelete(temp); }
+            catch (Exception ex) { _dialogs.ShowError(ex.Message); }
         }
     }
 
@@ -149,7 +145,7 @@ public sealed partial class MainViewModel
         });
         if (done) RememberScanFolder(outputs[0]);
         if (done) StatusMessage = Loc.F("Saved {0} image(s)", pages.Count);
-        return true;
+        return done;
     }
 
     internal static byte[] RenderScanImage(ScanSession session, ScanSessionPage page, ScanSettings settings, ScanOutputFormat format)

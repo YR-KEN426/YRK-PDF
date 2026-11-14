@@ -39,8 +39,11 @@ public sealed class OcrLanguageDataTests : IDisposable
         Assert.Equal(accept ? 1 : 0, handler.RequestCount);
         if (accept) Assert.EndsWith("/87416418657359cb625c412a48b6e1d6d41c29bd/osd.traineddata", handler.RequestUri!.AbsoluteUri);
         await model.SetAutoOrientationAsync(false, data, Consent);
-        await model.SetAutoOrientationAsync(true, data, Consent);
+        // A consented download that failed is retried without a second prompt.
+        if (accept && !valid) await Assert.ThrowsAnyAsync<Exception>(() => model.SetAutoOrientationAsync(true, data, Consent));
+        else await model.SetAutoOrientationAsync(true, data, Consent);
         Assert.Equal(1, prompts);
+        Assert.Equal(accept ? (valid ? 1 : 2) : 0, handler.RequestCount);
         Assert.Equal(accept && valid, model.AutoOrientationEnabled);
         if (!accept || !valid) Assert.Empty(_folder.GetFiles());
     }

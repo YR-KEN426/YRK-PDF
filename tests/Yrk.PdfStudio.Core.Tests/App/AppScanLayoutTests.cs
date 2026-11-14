@@ -20,6 +20,107 @@ public sealed class ScanWpfApplicationGroup;
 public sealed class AppScanLayoutTests
 {
     [Fact]
+    public void Switching_page_during_crop_discards_old_draft_and_blocks_apply_until_current_preview_is_ready() => WithScanWindow((window, model) =>
+    {
+        object? Invoke(string name, params object?[] args) => typeof(ScanDialog)
+            .GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, args);
+        var first = model.Pages[0]; var second = model.Pages[1];
+        Await(window.EnterCropAsync());
+        var draftField = typeof(ScanDialog).GetField("_cropDraft", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var oldDraft = (ScanCropFrame)draftField.GetValue(window)!;
+        oldDraft.SetBox(new(5, 7, 20, 25));
+        Assert.True(((Button)window.FindName("CropApplyButton")).IsEnabled);
+        var gate = (SemaphoreSlim)typeof(ScanViewModel).GetField("_previewGate", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(model)!;
+        gate.Wait();
+        Task loading;
+        try
+        {
+            model.Select(1);
+            Assert.Null(draftField.GetValue(window));
+            loading = (Task)Invoke("RefreshPreviewAsync")!;
+            Assert.False(loading.IsCompleted);
+            Assert.False(((Button)window.FindName("CropApplyButton")).IsEnabled);
+            Await((Task)Invoke("ApplyCropAsync", false)!);
+            Assert.Null(first.Page.Crop); Assert.Null(second.Page.Crop);
+            Assert.False(model.CanUndo);
+        }
+        finally { gate.Release(); }
+        Await(loading);
+        Assert.True(((Button)window.FindName("CropApplyButton")).IsEnabled);
+        var currentDraft = (ScanCropFrame)draftField.GetValue(window)!;
+        Assert.NotSame(oldDraft, currentDraft);
+        Assert.Same(second, typeof(ScanDialog).GetField("_cropEntry", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window));
+        currentDraft.SetBox(new(10, 12, 25, 30));
+        var crop = currentDraft.Normalized;
+        Await((Task)Invoke("ApplyCropAsync", false)!);
+        Assert.Null(first.Page.Crop); Assert.Equal(crop, second.Page.Crop);
+        Assert.True(model.CanUndo);
+    });
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Closing_with_locked_temporary_file_cleans_other_pages_disposes_and_unsubscribes(bool lockGlass) => WithScanWindow((window, model) =>
+    {
+        model.Settings = new(Dpi: 75, AutoStraighten: false, AutoCrop: false);
+        Await(model.ScanCardAsync(FakeScannerService.Device));
+        Await(model.ScanCardAsync(FakeScannerService.Device));
+        Await(model.PreviewGlassAsync(FakeScannerService.Device));
+        var glass = model.GlassPreview!.Page.FilePath;
+        var front = model.CardFront!.Page.FilePath;
+        var back = model.CardBack!.Page.FilePath;
+        var timer = (DispatcherTimer)typeof(ScanDialog).GetField("_cropScrollTimer", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        timer.Start();
+        using (var held = new FileStream(lockGlass ? glass : front, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            Exception? closeFailure = null;
+            DispatcherUnhandledExceptionEventHandler onFailure = (_, e) => { closeFailure = e.Exception; e.Handled = true; };
+            window.Dispatcher.UnhandledException += onFailure;
+            try
+            {
+                var directFailure = Record.Exception(window.Close);
+                closeFailure ??= directFailure;
+            }
+            finally { window.Dispatcher.UnhandledException -= onFailure; }
+            Assert.Null(closeFailure);
+            Assert.False(window.IsVisible);
+            Assert.False(timer.IsEnabled);
+            Assert.False(File.Exists(back));
+            Assert.False(File.Exists(lockGlass ? front : glass));
+            Assert.Throws<ObjectDisposedException>(() => model.Session.Add(ScanSessionTests.Page(2, 2)));
+            var handlers = (Delegate?)typeof(Loc).GetField("LanguageChanged", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null);
+            Assert.DoesNotContain(handlers?.GetInvocationList() ?? [], h => ReferenceEquals(h.Target, window) && h.Method.Name == "OnLanguageChanged");
+            var queue = typeof(ScanDialog).GetField("_previewQueue", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+            Assert.True((bool)typeof(ScanPreviewQueue).GetField("_disposed", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(queue)!);
+        }
+        File.Delete(lockGlass ? glass : front);
+        Directory.Delete(model.Session.DirectoryPath, true);
+    });
+
+    private static void WithScanWindow(Action<ScanDialog, ScanViewModel> action) => Sta.Run(() =>
+    {
+        SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+        ResetApplication();
+        typeof(Application).GetField("_resourceAssembly", BindingFlags.Static | BindingFlags.NonPublic)!.SetValue(null, typeof(ScanDialog).Assembly);
+        var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        application.Resources.MergedDictionaries.Add(new ResourceDictionary
+        { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
+        var window = new ScanDialog { ShowActivated = false, Left = -16000, Top = -16000, WindowStartupLocation = WindowStartupLocation.Manual,
+            CloseChoice = () => Yrk.PdfStudio.App.Services.SaveChangesChoice.Discard };
+        var model = (ScanViewModel)typeof(ScanDialog).GetField("_model", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        try
+        {
+            model.Session.Add(ScanSessionTests.Page(80, 100));
+            model.Session.Add(ScanSessionTests.Page(100, 120));
+            window.Show();
+            PumpUntil(() => !(bool)typeof(ScanDialog).GetField("_working", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!);
+            action(window, model);
+        }
+        finally { window.Close(); model.Session.Dispose(); application.Shutdown(); ResetApplication(); }
+        return true;
+    });
+
+    [Fact]
     public void Thai_and_English_layouts_render_empty_pages_multiple_selection_adjustments_and_card() => Sta.Run(() =>
     {
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
