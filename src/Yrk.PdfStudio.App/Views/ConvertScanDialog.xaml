@@ -27,7 +27,8 @@
                         <Button x:Name="RemoveButton" Content="Remove" AutomationProperties.Name="Remove" Style="{StaticResource SecondaryButton}" Click="OnRemove" Margin="0,0,0,6" />
                         <Button Content="Clear" AutomationProperties.Name="Clear" Style="{StaticResource SecondaryButton}" Click="OnClear" />
                     </StackPanel>
-                    <ListBox x:Name="FileList" Height="170" SelectionMode="Extended" SelectionChanged="OnSelectionChanged" PreviewKeyDown="OnFileKeyDown"
+                    <Grid Height="170">
+                    <ListBox x:Name="FileList" SelectionMode="Extended" SelectionChanged="OnSelectionChanged" PreviewKeyDown="OnFileKeyDown"
                              AutomationProperties.Name="Files" ToolTip="Drop PDF files, images or folders here">
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="ListBoxItem">
@@ -44,6 +45,10 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
+                    <TextBlock x:Name="EmptyFileHint" Text="Drop PDF files, images or folders here"
+                               Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" TextAlignment="Center"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12" IsHitTestVisible="False" />
+                    </Grid>
                 </DockPanel>
                 <TextBlock x:Name="CountText" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
                 <TextBlock Text="Languages in the document" FontWeight="SemiBold" Margin="0,12,0,4" />

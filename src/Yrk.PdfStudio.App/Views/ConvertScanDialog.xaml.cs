@@ -56,6 +56,7 @@ public partial class ConvertScanDialog : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             Update();
+            ErrorText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ErrorBrush");
             ErrorText.Text = Loc.F("Couldn't add files.\n\n{0}", ex.Message);
         }
     }
@@ -114,9 +115,12 @@ public partial class ConvertScanDialog : Window
     {
         if (OkButton is null || FolderBox is null || ErrorText is null) return;
         RemoveButton.IsEnabled = FileList.SelectedItems.Count > 0;
+        EmptyFileHint.Visibility = _files.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         CountText.Text = _files.Count == 1 ? Loc.T("1 file") : Loc.F("{0} files", _files.Count);
         var problem = Problem();
         ErrorText.Text = problem ?? string.Empty;
+        ErrorText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty,
+            _files.Count == 0 ? "SecondaryTextBrush" : "ErrorBrush");
         OkButton.IsEnabled = problem is null;
     }
 
