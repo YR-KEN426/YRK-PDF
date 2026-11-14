@@ -28,6 +28,26 @@ public sealed class OcrPageTextTests
         Assert.Equal(6, OcrPageText.ToPageText(page, 600, 800).Spans.Count);
     }
 
+    [Fact]
+    public void Body_lines_share_one_font_size_headings_keep_theirs_and_low_stray_marks_go()
+    {
+        static OcrWord Line(string text, int line, double lineHeight) =>
+            new(text, new NormalizedRect(0.1, 0.1 + line * 0.05, 0.1, lineHeight), 90, false, line, lineHeight, 95);
+        // Heights in points on an 800 pt page: body lines 14 and 15, heading 24, stray marks 4.
+        var page = new OcrPageResult(0,
+        [
+            Line("หัวเรื่อง", 0, 24 / 800.0),
+            Line("a", 1, 4 / 800.0), Line("๐", 1, 4 / 800.0),
+            Line("บรรทัดหนึ่ง", 2, 14 / 800.0), Line("12", 2, 14 / 800.0),
+            Line("บรรทัดสอง", 3, 15 / 800.0), Line("บรรทัดสาม", 4, 15 / 800.0),
+        ]);
+
+        var spans = OcrPageText.ToPageText(page, 600, 800).Spans;
+        Assert.Equal(["หัวเรื่อง", "บรรทัดหนึ่ง", "12", "บรรทัดสอง", "บรรทัดสาม"], spans.Select(s => s.Text));
+        Assert.Equal(26.5, spans[0].FontSize);
+        Assert.All(spans.Skip(1), s => Assert.Equal(16.5, s.FontSize));
+    }
+
     [Theory]
     [InlineData(74.99f, 3, false)]
     [InlineData(75f, 3, true)]

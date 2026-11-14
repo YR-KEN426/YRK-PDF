@@ -11,6 +11,12 @@ public static class OcrTuning
     public const double FontHeightMultiplier = 1.1;
     public const double FontSizeStepPt = 0.5;
     public const float ReviewConfidence = 60;
+    /// <summary>Body line height = median line height (robust to a heading on short pages); body lines share one font size.</summary>
+    public const double BodyLinePercentile = 0.5;
+    /// <summary>Lines at least this much taller than the body keep their own size (headings).</summary>
+    public const double HeadingLineFactor = 1.3;
+    /// <summary>Lines of short words only and lower than this fraction of the body are stray marks.</summary>
+    public const double StrayLineFactor = 0.5;
 }
 
 /// <summary>Filtered OCR for Word, plain text and review. Never used by the legacy PDF text layer.</summary>
@@ -32,12 +38,13 @@ public static class OcrPageText
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(widthPt);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(heightPt);
         var words = FilterWords(page);
-        var heights = words.Where(w => w.Line >= 0).GroupBy(w => w.Line)
-            .ToDictionary(g => g.Key, g => g.Max(LineHeight));
+        var heights = LineHeights(page, words);
+        var body = BodyHeight(heights);
         var spans = words.Select(word =>
         {
             var box = word.Bounds;
-            var height = word.Line >= 0 ? heights[word.Line] : LineHeight(word);
+            var height = word.Line < 0 ? LineHeight(word)
+                : heights[word.Line] >= body * OcrTuning.HeadingLineFactor ? heights[word.Line] : body;
             var size = Math.Max(OcrTuning.FontSizeStepPt,
                 Math.Round(height * heightPt * OcrTuning.FontHeightMultiplier / OcrTuning.FontSizeStepPt,
                     MidpointRounding.AwayFromZero) * OcrTuning.FontSizeStepPt);
@@ -62,6 +69,24 @@ public static class OcrPageText
                     >= g.Count() * OcrTuning.ShortWordFraction)
             .Select(g => g.Key).ToHashSet();
         // Length is character count, never numeric value: 123 and Thai ๑๒๓ are both long words.
-        return nonempty.Where(i => !garbage.Contains(page.Words[i].Line));
+        var kept = nonempty.Where(i => !garbage.Contains(page.Words[i].Line)).ToArray();
+        // Stray upper marks that Tesseract read confidently: a low line of short pieces only.
+        var heights = LineHeights(page, kept.Select(i => page.Words[i]));
+        var body = BodyHeight(heights);
+        var stray = kept.Where(i => page.Words[i].Line >= 0).GroupBy(i => page.Words[i].Line)
+            .Where(g => heights[g.Key] < body * OcrTuning.StrayLineFactor
+                && g.All(i => page.Words[i].Text.Trim().Length <= OcrTuning.ShortWordMaxLength))
+            .Select(g => g.Key).ToHashSet();
+        return kept.Where(i => !stray.Contains(page.Words[i].Line));
+    }
+
+    private static Dictionary<int, double> LineHeights(OcrPageResult page, IEnumerable<OcrWord> words) =>
+        words.Where(w => w.Line >= 0).GroupBy(w => w.Line).ToDictionary(g => g.Key, g => g.Max(LineHeight));
+
+    private static double BodyHeight(Dictionary<int, double> heights)
+    {
+        if (heights.Count == 0) return 0;
+        var sorted = heights.Values.Order().ToArray();
+        return sorted[Math.Min(sorted.Length - 1, (int)(sorted.Length * OcrTuning.BodyLinePercentile))];
     }
 }
