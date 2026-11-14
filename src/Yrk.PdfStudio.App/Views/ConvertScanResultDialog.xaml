@@ -13,6 +13,7 @@
                 <Button Content="Close" AutomationProperties.Name="Close" Style="{StaticResource PrimaryButton}" IsDefault="True" IsCancel="True" Margin="0,0,0,8" />
             </WrapPanel>
         </StackPanel>
+        <TextBlock x:Name="OutputWarningText" DockPanel.Dock="Top" Text="Check the text in the output files before you use it, especially names, numbers, dates and amounts." FontWeight="SemiBold" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,12" />
         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
             <TextBox x:Name="SummaryText" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="{StaticResource SurfaceBrush}" AutomationProperties.Name="Scan conversion results" />
         </ScrollViewer>

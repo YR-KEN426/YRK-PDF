@@ -7,6 +7,7 @@
         PreviewKeyDown="OnKeyDown" TextOptions.TextFormattingMode="Display">
     <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Top">
+            <TextBlock x:Name="ReviewWarningText" Text="Words in orange boxes are ones the program is not sure about. Check and fix them before saving. Words without a box can be wrong too, so read the text through again." FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,12" />
             <WrapPanel Margin="0,0,0,8">
                 <Button Content="Previous page" AutomationProperties.Name="Previous page" Style="{StaticResource SecondaryButton}" Click="OnPreviousPage" Margin="0,0,8,0" />
                 <Button Content="Next page" AutomationProperties.Name="Next page" Style="{StaticResource SecondaryButton}" Click="OnNextPage" Margin="0,0,8,0" />

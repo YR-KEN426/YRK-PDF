@@ -81,6 +81,8 @@
                     <TextBox x:Name="FolderBox" Padding="4,3" AutomationProperties.Name="Output folder" TextChanged="OnChanged" />
                 </DockPanel>
                 <TextBlock Text="Leave blank to use each source file's folder." Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <TextBlock x:Name="OcrWarningText" Text="Text is read from an image, so it can be wrong, especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it." FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,12,0,0" />
+                <TextBlock x:Name="ScanTipText" Text="Tip: scan at 300 dpi with the page straight for the best result." FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

@@ -1,4 +1,8 @@
 {
+  "Text is read from an image, so it can be wrong, especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it.": "โปรแกรมอ่านข้อความจากภาพ จึงอาจอ่านผิดได้ โดยเฉพาะภาพที่เบลอ เอียง ตัวเล็ก หรือลายมือ ควรตรวจทานผลลัพธ์ก่อนนำไปใช้ทุกครั้ง",
+  "Tip: scan at 300 dpi with the page straight for the best result.": "เคล็ดลับ: สแกนที่ 300 dpi วางกระดาษให้ตรง จะได้ผลดีที่สุด",
+  "Words in orange boxes are ones the program is not sure about. Check and fix them before saving. Words without a box can be wrong too, so read the text through again.": "คำในกรอบสีส้มคือคำที่โปรแกรมไม่แน่ใจ กรุณาตรวจและแก้ก่อนบันทึก คำที่ไม่มีกรอบก็อาจผิดได้ ควรอ่านทวนอีกครั้ง",
+  "Check the text in the output files before you use it, especially names, numbers, dates and amounts.": "ตรวจข้อความในไฟล์ผลลัพธ์อีกครั้งก่อนใช้งาน โดยเฉพาะชื่อ ตัวเลข วันที่ และจำนวนเงิน",
   "Review uncertain words": "ตรวจทานคำที่ไม่แน่ใจ",
   "Nested page content cannot be inspected.": "ตรวจสอบเนื้อหาหน้าซ้อนกันลึกเกินไปไม่ได้",
   "The existing OCR layer cannot be replaced safely.": "แทนที่ชั้นข้อความ OCR เดิมอย่างปลอดภัยไม่ได้",

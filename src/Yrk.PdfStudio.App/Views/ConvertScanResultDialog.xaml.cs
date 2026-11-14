@@ -13,6 +13,7 @@ public partial class ConvertScanResultDialog : Window
     {
         InitializeComponent();
         _result = result;
+        OutputWarningText.Visibility = _result.OutputFiles.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         SummaryText.Text = result.Summary;
     }
 

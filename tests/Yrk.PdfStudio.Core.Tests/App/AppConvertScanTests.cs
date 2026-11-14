@@ -37,6 +37,7 @@ public sealed class AppConvertScanTests
                 { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             var folder = Directory.CreateTempSubdirectory("convert-dialog-test-");
             ConvertScanDialog? input = null;
+            OcrDialog? ocr = null;
             ConvertScanResultDialog? output = null;
             try
             {
@@ -45,6 +46,10 @@ public sealed class AppConvertScanTests
                 input = new ConvertScanDialog([file]);
                 input.Measure(new Size(680, 780));
                 input.Arrange(new Rect(0, 0, 680, 780));
+                AssertOcrGuidance(input);
+                ocr = new OcrDialog();
+                AssertOcrGuidance(ocr);
+                Assert.False(ocr.IsVisible);
                 Assert.True(((CheckBox)input.FindName("PdfBox")).IsChecked);
                 Assert.True(((CheckBox)input.FindName("ReviewBox")).IsChecked);
                 Assert.False(((CheckBox)input.FindName("WordBox")).IsChecked);
@@ -76,12 +81,27 @@ public sealed class AppConvertScanTests
                     { CopyText = text => copied = text };
                 ((Button)output.FindName("CopyTextButton")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(combined, copied);
+                var outputWarning = Assert.IsType<TextBlock>(output.FindName("OutputWarningText"));
+                Assert.Equal(Visibility.Collapsed, outputWarning.Visibility);
+                output.Close();
+                // Partial success still needs the warning even when no whole file completed.
+                output = new ConvertScanResultDialog(new ConvertScanResult("Converted 0 of 1 files", [file], combined));
+                outputWarning = Assert.IsType<TextBlock>(output.FindName("OutputWarningText"));
+                Assert.Equal("Check the text in the output files before you use it, especially names, numbers, dates and amounts.", outputWarning.Text);
+                Assert.Equal(Visibility.Visible, outputWarning.Visibility);
+                Assert.Equal(FontWeights.SemiBold, outputWarning.FontWeight);
+                Assert.Equal(TextWrapping.Wrap, outputWarning.TextWrapping);
+                var resultPanel = Assert.IsType<DockPanel>(output.Content);
+                Assert.Equal(Dock.Top, DockPanel.GetDock(outputWarning));
+                var summaryScroller = Assert.IsType<ScrollViewer>(((TextBox)output.FindName("SummaryText")).Parent);
+                Assert.True(resultPanel.Children.IndexOf(outputWarning) < resultPanel.Children.IndexOf(summaryScroller));
                 Assert.False(input.IsVisible);
                 Assert.False(output.IsVisible);
             }
             finally
             {
                 input?.Close();
+                ocr?.Close();
                 output?.Close();
                 folder.Delete(true);
                 application.Shutdown();
@@ -89,6 +109,33 @@ public sealed class AppConvertScanTests
             }
             return true;
         });
+    }
+
+    private static void AssertOcrGuidance(Window window)
+    {
+        var warning = Assert.IsType<TextBlock>(window.FindName("OcrWarningText"));
+        var tip = Assert.IsType<TextBlock>(window.FindName("ScanTipText"));
+        Assert.Equal("Text is read from an image, so it can be wrong, especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it.", warning.Text);
+        Assert.Equal("Tip: scan at 300 dpi with the page straight for the best result.", tip.Text);
+        foreach (var block in new[] { warning, tip })
+        {
+            Assert.Equal(11, block.FontSize);
+            Assert.Equal(TextWrapping.Wrap, block.TextWrapping);
+            Assert.Same(window.FindResource("SecondaryTextBrush"), block.Foreground);
+        }
+        var panel = Assert.IsType<StackPanel>(warning.Parent);
+        Assert.Same(panel, tip.Parent);
+        Assert.Equal(panel.Children.IndexOf(warning) + 1, panel.Children.IndexOf(tip));
+        if (window is OcrDialog)
+        {
+            Assert.Equal(panel.Children.IndexOf((UIElement)window.FindName("AllPages")) + 1, panel.Children.IndexOf(warning));
+            Assert.Equal(panel.Children.IndexOf(tip) + 1, panel.Children.IndexOf((UIElement)window.FindName("ErrorText")));
+        }
+        else
+        {
+            Assert.Equal(panel.Children.Count - 1, panel.Children.IndexOf(tip));
+            Assert.True(panel.Children.IndexOf((UIElement)((TextBox)window.FindName("FolderBox")).Parent) < panel.Children.IndexOf(warning));
+        }
     }
 
     [Fact]
