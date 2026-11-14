@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using Yrk.PdfStudio.Core.Pdf.Cos;
+using Yrk.PdfStudio.Core.Pdf.Scan;
 
 namespace Yrk.PdfStudio.Core.Pdf.Ocr;
 
@@ -20,6 +21,64 @@ public static class PdfOcr
         IProgress<OcrProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        var results = await RecognizePagesAsync(document, options, data, progress, cancellationToken).ConfigureAwait(false);
+        // Keep the original no-op bytes, and never filter or auto-rotate this legacy path.
+        var output = results.Count == 0 ? pdf : AddTextLayer(pdf, results);
+        return new OcrSummary(output, results.Count, document.PageCount - results.Count, results.Sum(r => r.Words.Count));
+    }
+
+    /// <summary>Recognises unfiltered words without adding a PDF text layer or correcting orientation.</summary>
+    public static Task<IReadOnlyList<OcrPageResult>> RecognizePagesAsync(
+        IPdfDocument document,
+        OcrOptions options,
+        OcrLanguageData data,
+        IProgress<OcrProgress>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        RecognizePagesCoreAsync(document, options, data, progress, cancellationToken);
+
+    /// <summary>
+    /// Opt-in orientation correction followed by OCR on upright pixels. Returns PDF bytes with corrected
+    /// /Rotate entries and unfiltered words in that displayed coordinate system. Open the returned Pdf to
+    /// obtain corrected page sizes/previews. The caller installs OSD using EnsureOrientationDataAsync first.
+    /// </summary>
+    public static async Task<OcrDocumentResult> RecognizeOrientedPagesAsync(
+        IPdfDocument document,
+        byte[] pdf,
+        OcrOptions options,
+        OcrLanguageData data,
+        IProgress<OcrProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!data.IsInstalled("osd"))
+            throw new PdfException("OCR orientation data is missing. Install it using EnsureOrientationDataAsync first.");
+
+        var source = CosDocument.Load(pdf);
+        if (source.IsEncrypted)
+            throw new PdfException("Password-protected PDFs cannot be made searchable yet. Save an unprotected copy first.");
+        var rotations = new Dictionary<int, int>();
+        var results = await RecognizePagesCoreAsync(document, options, data, progress, cancellationToken,
+            new TesseractScanOrientationDetector(), rotations).ConfigureAwait(false);
+        if (rotations.Count == 0) return new OcrDocumentResult(pdf, results);
+
+        var pages = source.GetPages();
+        var update = new CosIncrementalUpdate(source);
+        foreach (var (index, correction) in rotations)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var page = pages[index];
+            var dictionary = page.Dictionary.Clone();
+            dictionary["Rotate"] = new CosInteger((page.Rotate + correction) % 360);
+            update.Replace(page.Id, dictionary);
+        }
+        return new OcrDocumentResult(update.Build().Bytes, results);
+    }
+
+    private static async Task<IReadOnlyList<OcrPageResult>> RecognizePagesCoreAsync(
+        IPdfDocument document, OcrOptions options, OcrLanguageData data,
+        IProgress<OcrProgress>? progress, CancellationToken cancellationToken,
+        IScanOrientationDetector? detector = null, Dictionary<int, int>? rotations = null)
+    {
         var pages = new List<int>();
         for (var i = 0; i < document.PageCount; i++)
         {
@@ -32,7 +91,7 @@ public static class PdfOcr
 
         if (pages.Count == 0)
         {
-            return new OcrSummary(pdf, 0, document.PageCount, 0);
+            return [];
         }
 
         using var engine = await Task.Run(() => new TesseractOcrEngine(data, options.Languages), cancellationToken).ConfigureAwait(false);
@@ -49,13 +108,21 @@ public static class PdfOcr
                 Math.Max(1, (int)Math.Round(size.Height * scale)),
                 PdfWorkPriority.Background,
                 cancellationToken).ConfigureAwait(false);
+            if (detector is not null)
+            {
+                var correction = await Task.Run(() => detector.Detect(bitmap, data.Folder, cancellationToken), cancellationToken).ConfigureAwait(false);
+                if (correction is 90 or 180 or 270)
+                {
+                    bitmap = ScanPageProcessor.Rotate(bitmap, correction.Value, cancellationToken);
+                    rotations!.Add(index, correction.Value);
+                }
+            }
             var words = await Task.Run(() => engine.Recognize(bitmap, cancellationToken), cancellationToken).ConfigureAwait(false);
             results.Add(new OcrPageResult(index, words));
         }
 
         progress?.Report(new OcrProgress(pages.Count, pages.Count, pages[^1]));
-        var output = AddTextLayer(pdf, results);
-        return new OcrSummary(output, pages.Count, document.PageCount - pages.Count, results.Sum(r => r.Words.Count));
+        return results;
     }
 
     /// <summary>

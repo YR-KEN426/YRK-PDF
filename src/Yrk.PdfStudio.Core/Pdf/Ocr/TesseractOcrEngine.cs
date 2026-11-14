@@ -38,11 +38,17 @@ public sealed class TesseractOcrEngine : IDisposable
         using var page = _engine.Process(pix, PageSegMode.Auto);
         using var iterator = page.GetIterator();
         var words = new List<OcrWord>();
+        var lineIndex = 0;
         iterator.Begin();
         do
         {
             cancellationToken.ThrowIfCancellationRequested();
             var line = iterator.GetText(PageIteratorLevel.TextLine) ?? string.Empty;
+            var lineConfidence = iterator.GetConfidence(PageIteratorLevel.TextLine);
+            NormalizedRect? lineBounds = iterator.TryGetBoundingBox(PageIteratorLevel.TextLine, out var lineBox)
+                ? new NormalizedRect((double)lineBox.X1 / bitmap.Width, (double)lineBox.Y1 / bitmap.Height,
+                    (double)lineBox.Width / bitmap.Width, (double)lineBox.Height / bitmap.Height)
+                : null;
             var cursor = 0;
 
             // Tesseract splits Thai into single characters (tone marks and upper vowels get boxes of their
@@ -64,7 +70,7 @@ public sealed class TesseractOcrEngine : IDisposable
                             (double)(right - left) / bitmap.Width,
                             (double)(bottom - top) / bitmap.Height),
                         confidenceSum / pieces,
-                        spaceAfter));
+                        spaceAfter, lineIndex, lineBounds?.Height ?? 0, lineConfidence, lineBounds));
                 }
 
                 run.Clear();
@@ -104,6 +110,7 @@ public sealed class TesseractOcrEngine : IDisposable
             while (iterator.Next(PageIteratorLevel.TextLine, PageIteratorLevel.Word));
 
             Flush(spaceAfter: false);
+            lineIndex++;
         }
         while (iterator.Next(PageIteratorLevel.TextLine));
 
