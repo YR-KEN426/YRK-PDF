@@ -39,6 +39,8 @@ public sealed partial class MainViewModel
         var outputs = new List<string>();
         var texts = new List<string>();
         var failed = new List<(string File, string Reason)>();
+        var cancelledFiles = new List<string>();
+        var skipReview = false;
         var succeeded = 0;
         var cancelled = false;
         try
@@ -60,7 +62,14 @@ public sealed partial class MainViewModel
                 });
                 try
                 {
-                    var converted = await ConvertScanFileAsync(file, request, data, orient, progress, operation.Token);
+                    var converted = await ConvertScanFileAsync(file, request, data, orient, progress,
+                        !skipReview && request.ReviewUncertainWords, i < request.Files.Count - 1,
+                        () => skipReview = true, operation.Token);
+                    if (converted.Cancelled)
+                    {
+                        cancelledFiles.Add(file);
+                        continue;
+                    }
                     outputs.AddRange(converted.Files);
                     texts.Add(Path.GetFileName(file) + Environment.NewLine + converted.Text);
                     succeeded++;
@@ -90,18 +99,23 @@ public sealed partial class MainViewModel
         StatusMessage = Loc.F("Converted {0} of {1} files", succeeded, request.Files.Count);
         var summary = StatusMessage;
         if (cancelled) summary += "\n" + Loc.T("Stopped before the end, as you asked.");
+        if (cancelledFiles.Count > 0)
+            summary += "\n\n" + string.Join("\n", cancelledFiles.Select(file =>
+                Path.GetFileName(file) + ": " + Loc.T("This file was cancelled by the user.")));
         if (failed.Count > 0)
         {
             summary += "\n\n" + Loc.F("Not done ({0}):", failed.Count) + "\n"
                 + string.Join("\n", failed.Take(15).Select(f => $"• {Path.GetFileName(f.File)}: {f.Reason}"));
             if (failed.Count > 15) summary += "\n" + Loc.F("…and {0} more", failed.Count - 15);
         }
-        if (succeeded == 0) _dialogs.ShowError(summary);
+        if (succeeded == 0 && failed.Count == 0 && cancelledFiles.Count > 0) _dialogs.ShowInfo(summary);
+        else if (succeeded == 0) _dialogs.ShowError(summary);
         else _dialogs.ShowConvertScanResult(new ConvertScanResult(summary, outputs, string.Join("\n\n", texts)));
     }
 
-    private async Task<(IReadOnlyList<string> Files, string Text)> ConvertScanFileAsync(string file, ConvertScanRequest request,
-        OcrLanguageData data, bool orient, IProgress<OcrProgress> progress, CancellationToken ct)
+    private async Task<(IReadOnlyList<string> Files, string Text, bool Cancelled)> ConvertScanFileAsync(string file, ConvertScanRequest request,
+        OcrLanguageData data, bool orient, IProgress<OcrProgress> progress, bool review, bool hasMoreFiles,
+        Action skipRemainingReview, CancellationToken ct)
     {
         var work = Path.Combine(PdfTemporaryFiles.Shared.GetFolder("convertscan"), Guid.NewGuid().ToString("N"));
         var staging = new List<string>();
@@ -132,15 +146,30 @@ public sealed partial class MainViewModel
                 result = await ConvertScanOcrRunner(document, bytes, options, data, orient, progress, ct);
             }
 
-            // Step 4 insertion point: review result.Pages here when request.ReviewUncertainWords is true,
-            // before any format is generated. Step 3 only retains the preference in the request.
+            // Step 4 insertion point: review before creating any output or staging file.
             var rotatedPath = Path.Combine(work, "rotated.pdf");
             await File.WriteAllBytesAsync(rotatedPath, result.Pdf, ct);
             string allText;
             await using (var rotated = await _engine.OpenAsync(rotatedPath, cancellationToken: ct))
             {
+                var reviewed = new Dictionary<int, OcrReviewEdits.Result>();
+                if (review && result.Pages.Any(p => OcrPageText.GetUncertainWordIndices(p).Count > 0))
+                {
+                    await using var model = new OcrReviewViewModel(result.Pages, rotated, hasMoreFiles);
+                    await model.RenderAsync();
+                    var choice = _dialogs.AskOcrReview(model);
+                    if (choice == OcrReviewChoice.CancelFile) return ([], string.Empty, true);
+                    if (choice == OcrReviewChoice.SkipRemaining) skipRemainingReview();
+                    foreach (var page in result.Pages)
+                    {
+                        var edits = model.EditsForPage(page.PageIndex);
+                        if (edits.Count > 0) reviewed[page.PageIndex] = OcrReviewEdits.Apply(page, edits);
+                    }
+                }
                 var ocrPages = result.Pages.ToDictionary(p => p.PageIndex, p =>
-                    OcrPageText.ToPageText(p, rotated.PageSizes[p.PageIndex].Width, rotated.PageSizes[p.PageIndex].Height));
+                    OcrPageText.ToPageText(reviewed.TryGetValue(p.PageIndex, out var edit) ? edit.ForText : p,
+                        rotated.PageSizes[p.PageIndex].Width, rotated.PageSizes[p.PageIndex].Height,
+                        filtered: !reviewed.ContainsKey(p.PageIndex)));
                 var allPages = Enumerable.Range(0, rotated.PageCount).ToArray();
                 var folder = string.IsNullOrWhiteSpace(request.OutputFolder) ? Path.GetDirectoryName(Path.GetFullPath(file))! : request.OutputFolder;
                 Directory.CreateDirectory(folder);
@@ -160,8 +189,10 @@ public sealed partial class MainViewModel
                 if (request.SearchablePdf)
                 {
                     var existing = scanPages.Where(p => p.HasOcrLayer).Select(p => p.PageIndex).ToHashSet();
-                    var searchable = await Task.Run(() => PdfOcr.AddTextLayer(result.Pdf,
-                        result.Pages.Where(p => !existing.Contains(p.PageIndex)).ToArray()), ct);
+                    var searchable = await Task.Run(() => PdfOcr.AddTextLayer(
+                        OcrReviewEdits.RemoveExistingPdfLayers(result.Pdf, reviewed.Keys.Where(existing.Contains).ToArray()),
+                        result.Pages.Where(p => !existing.Contains(p.PageIndex) || reviewed.ContainsKey(p.PageIndex))
+                            .Select(p => reviewed.TryGetValue(p.PageIndex, out var edit) ? edit.ForPdf : p).ToArray()), ct);
                     await File.WriteAllBytesAsync(Stage(".pdf"), searchable, ct);
                 }
                 var exportProgress = new ConvertScanExportProgress();
@@ -190,7 +221,7 @@ public sealed partial class MainViewModel
                 DeleteConvertScanFiles(moved);
                 throw;
             }
-            return (moved, allText);
+            return (moved, allText, false);
         }
         finally
         {

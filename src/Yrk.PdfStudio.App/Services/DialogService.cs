@@ -219,6 +219,12 @@ public sealed class DialogService : IDialogService
     public void ShowConvertScanResult(ConvertScanResult result) =>
         new ConvertScanResultDialog(result) { Owner = Owner }.ShowDialog();
 
+    public ViewModels.OcrReviewChoice AskOcrReview(ViewModels.OcrReviewViewModel model)
+    {
+        var dialog = new OcrReviewDialog(model) { Owner = Owner };
+        return dialog.ShowDialog() == true ? dialog.Choice : ViewModels.OcrReviewChoice.CancelFile;
+    }
+
     public void ShowInfo(string message) => Show(message, MessageBoxButton.OK, MessageBoxImage.Information);
 
     public (double Value, string Unit)? AskLength(string defaultUnit)

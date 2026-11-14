@@ -33,11 +33,11 @@ public static class OcrPageText
 
     /// <summary>Converts normalized word boxes to displayed page points, preserving SpaceAfter.
     /// Uses one font size per Tesseract line; old words without metadata fall back to their box heights.</summary>
-    public static PdfPageText ToPageText(OcrPageResult page, double widthPt, double heightPt)
+    public static PdfPageText ToPageText(OcrPageResult page, double widthPt, double heightPt, bool filtered = true)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(widthPt);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(heightPt);
-        var words = FilterWords(page);
+        var words = filtered ? FilterWords(page) : page.Words;
         var heights = LineHeights(page, words);
         var body = BodyHeight(heights);
         var spans = words.Select(word =>

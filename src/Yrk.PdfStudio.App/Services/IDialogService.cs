@@ -119,6 +119,8 @@ public interface IDialogService
 
     ConvertScanRequest? AskConvertScan(IEnumerable<string> initialFiles);
 
+    ViewModels.OcrReviewChoice AskOcrReview(ViewModels.OcrReviewViewModel model);
+
     void ShowConvertScanResult(ConvertScanResult result);
 
     /// <summary>A real-world length for calibrating a scale, or null if cancelled.</summary>
