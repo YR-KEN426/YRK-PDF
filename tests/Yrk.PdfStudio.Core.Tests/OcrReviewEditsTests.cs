@@ -1,11 +1,64 @@
 using Yrk.PdfStudio.Core.Pdf.Ocr;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Cos;
+using Yrk.PdfStudio.Core.Pdf;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class OcrReviewEditsTests
 {
+    [Fact]
+    public async Task Mixed_real_render_mode_keeps_visible_and_old_hidden_text()
+    {
+        var original = ScanPdfFixture.Build("BT /F1 12 Tf 10 300 Td 3 Tr (old) Tj 0.0 Tr (Visible) Tj ET");
+        var result = OcrReviewEdits.RemoveExistingPdfLayers(original, [0]);
+        await using var app = new AppTestHarness();
+        File.WriteAllBytes(app.PathFor("mixed.pdf"), result);
+        await using var document = await app.Engine.OpenAsync(app.PathFor("mixed.pdf"));
+        var text = await document.GetPageTextAsync(0);
+        Assert.Contains("Visible", text);
+        Assert.Contains("old", text);
+    }
+
+    [Theory]
+    [InlineData("/GS1 gs")]
+    [InlineData("/bad Tr")]
+    [InlineData("0 1 Tr")]
+    [InlineData("(bad) Tc")]
+    [InlineData("[120 /bad] TJ")]
+    [InlineData("Unknown")]
+    [InlineData("Q")]
+    [InlineData("q")]
+    [InlineData("42")]
+    [InlineData(") q Q")]
+    public void Unsupported_layer_removal_throws_PdfException_without_modifying_input(string operation)
+    {
+        var bytes = ScanPdfFixture.Build("BT /F1 12 Tf 3 Tr (old hidden words) Tj ET " + operation,
+            extGStateFont: true);
+        var original = bytes.ToArray();
+        Assert.Throws<PdfException>(() => OcrReviewEdits.RemoveExistingPdfLayers(bytes, [0]));
+        Assert.Equal(original, bytes);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Normal_ocr_only_layer_is_removed_including_real_render_mode_and_nested_forms(bool form)
+    {
+        var bytes = ScanPdfFixture.Build("q 0.2 g 20 30 40 50 re f Q BT /F1 12 Tf 3.0 Tr (old hidden words) Tj ET",
+            form: form, pages: 2);
+        await using var app = new AppTestHarness();
+        File.WriteAllBytes(app.PathFor("original.pdf"), bytes);
+        File.WriteAllBytes(app.PathFor("removed.pdf"), OcrReviewEdits.RemoveExistingPdfLayers(bytes, [0]));
+        await using var original = await app.Engine.OpenAsync(app.PathFor("original.pdf"));
+        await using var document = await app.Engine.OpenAsync(app.PathFor("removed.pdf"));
+        Assert.True(string.IsNullOrWhiteSpace(await document.GetPageTextAsync(0)));
+        Assert.Equal(await original.GetPageTextAsync(1), await document.GetPageTextAsync(1));
+        for (var index = 0; index < 2; index++)
+            Assert.Equal((await original.RenderPageAsync(index, 300, 400)).Pixels,
+                (await document.RenderPageAsync(index, 300, 400)).Pixels);
+    }
+
     private static OcrWord Word(string text, int line = 0, float lineConfidence = 90) =>
         new(text, new(.1, .1, .2, .04), 30, true, line, .04, lineConfidence);
 
@@ -52,7 +105,7 @@ public sealed class OcrReviewEditsTests
     }
 
     [Fact]
-    public async Task Replacing_hidden_text_preserves_visible_text_position_even_in_the_same_text_object()
+    public async Task Mixed_text_object_is_not_rewritten_and_preserves_visible_text_position()
     {
         var source = CosDocument.Load(ScanPdfFixture.Build(""));
         var update = new CosIncrementalUpdate(source);
@@ -61,20 +114,20 @@ public sealed class OcrReviewEditsTests
         edit.Append($"BT /{font} 14 Tf 1 0 0 1 10 300 Tm 3 Tr <0068006900640064> Tj /F1 12 Tf 0 Tr (Visible) Tj ET");
         edit.Commit(update);
         var original = update.Build().Bytes;
-        await AssertReplacement(original, [0]);
+        await AssertMixedPagePreserved(original, [0]);
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Replacing_shared_nested_forms_does_not_change_unedited_pages_or_visible_ink(bool form)
+    public async Task Shared_nested_forms_on_mixed_pages_remain_unchanged(bool form)
     {
         var original = ScanPdfFixture.Build("q BT /F1 12 Tf 3 Tr 10 300 Td (Hidden) Tj ET Q BT /F1 12 Tf 10 250 Td (Visible) Tj ET",
             form: form, pages: 2);
-        await AssertReplacement(original, [0]);
+        await AssertMixedPagePreserved(original, [0]);
     }
 
-    private static async Task AssertReplacement(byte[] original, int[] editedPages)
+    private static async Task AssertMixedPagePreserved(byte[] original, int[] editedPages)
     {
         Assert.Same(original, OcrReviewEdits.RemoveExistingPdfLayers(original, []));
         var folder = Directory.CreateTempSubdirectory("ocr-layer-");
@@ -91,8 +144,7 @@ public sealed class OcrReviewEditsTests
             {
                 var oldText = await before.GetPageTextAsync(page);
                 var text = await after.GetPageTextAsync(page);
-                if (editedPages.Contains(page)) Assert.Equal("Visible", text.Trim());
-                else Assert.Equal(oldText, text);
+                Assert.Equal(oldText, text); // Mixed pages retain both layers.
                 Assert.Equal((await before.RenderPageAsync(page, 600, 800)).Pixels, (await after.RenderPageAsync(page, 600, 800)).Pixels);
             }
         }

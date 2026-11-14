@@ -189,10 +189,33 @@ public sealed partial class MainViewModel
                 if (request.SearchablePdf)
                 {
                     var existing = scanPages.Where(p => p.HasOcrLayer).Select(p => p.PageIndex).ToHashSet();
-                    var searchable = await Task.Run(() => PdfOcr.AddTextLayer(
-                        OcrReviewEdits.RemoveExistingPdfLayers(result.Pdf, reviewed.Keys.Where(existing.Contains).ToArray()),
-                        result.Pages.Where(p => !existing.Contains(p.PageIndex) || reviewed.ContainsKey(p.PageIndex))
-                            .Select(p => reviewed.TryGetValue(p.PageIndex, out var edit) ? edit.ForPdf : p).ToArray()), ct);
+                    var removable = scanPages.Where(p => p.OcrLayerOnly).Select(p => p.PageIndex).ToHashSet();
+                    var searchable = await Task.Run(() =>
+                    {
+                        var pdf = result.Pdf;
+                        foreach (var page in reviewed.Keys.Where(existing.Contains))
+                        {
+                            if (!removable.Contains(page))
+                            {
+                                App.LogMessage($"OCR page {page + 1}: kept the existing layer because removal is unsafe; adding corrected text.");
+                                continue;
+                            }
+                            try
+                            {
+                                var stripped = OcrReviewEdits.RemoveExistingPdfLayers(pdf, [page]);
+                                if (ReferenceEquals(stripped, pdf))
+                                    App.LogMessage($"OCR page {page + 1}: kept the existing layer because the output page cannot be stripped; adding corrected text.");
+                                pdf = stripped;
+                            }
+                            catch (Exception ex) when (ex is not OperationCanceledException)
+                            {
+                                App.LogMessage($"OCR page {page + 1}: kept the existing layer after removal failed; adding corrected text. {ex}");
+                            }
+                        }
+                        return PdfOcr.AddTextLayer(pdf,
+                            result.Pages.Where(p => !existing.Contains(p.PageIndex) || reviewed.ContainsKey(p.PageIndex))
+                                .Select(p => reviewed.TryGetValue(p.PageIndex, out var edit) ? edit.ForPdf : p).ToArray());
+                    }, ct);
                     await File.WriteAllBytesAsync(Stage(".pdf"), searchable, ct);
                 }
                 var exportProgress = new ConvertScanExportProgress();

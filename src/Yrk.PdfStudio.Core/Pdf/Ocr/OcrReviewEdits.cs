@@ -32,21 +32,31 @@ public static class OcrReviewEdits
         return new(page with { Words = pdf }, page with { Words = text });
     }
 
-    /// <summary>Replaces an existing invisible OCR layer on edited pages. Unedited pages are untouched.</summary>
+    /// <summary>Removes OCR-only layers. Mixed pages stay untouched; unsupported content throws before publication.</summary>
     public static byte[] RemoveExistingPdfLayers(byte[] pdf, IReadOnlyCollection<int> pageIndices)
     {
         if (pageIndices.Count == 0) return pdf;
         var source = CosDocument.Load(pdf);
         var pages = source.GetPages();
         var update = new CosIncrementalUpdate(source);
+        var changed = false;
         foreach (var index in pageIndices.Distinct())
         {
+            var hidden = false;
+            var visible = false;
+            OcrScanPages.InspectPage(source, pages[index], isHidden =>
+            {
+                if (isHidden) hidden = true;
+                else visible = true;
+            });
+            if (!hidden || visible) continue;
             var edit = new CosPageEdit(source, pages[index]);
             var resources = edit.Resources;
             edit.ReplaceContent(Rewrite(edit.ReadContent(), resources, new TextState(), 0));
             edit.Commit(update);
+            changed = true;
         }
-        return update.Build().Bytes;
+        return changed ? update.Build().Bytes : pdf;
 
         byte[] Rewrite(byte[] content, CosDictionary resources, TextState state, int depth)
         {
@@ -64,7 +74,7 @@ public static class OcrReviewEdits
                     case "q": stack.Push(state); break;
                     case "Q": state = stack.Pop(); break;
                     case "BT" or "ET" or "Tm" or "Td" or "TD" or "T*": unknownAdvance = false; break;
-                    case "Tr" when op.Operands[0] is CosInteger value: state = state with { Mode = (int)value.Value }; break;
+                    case "Tr": state = state with { Mode = (int)Number(op.Operands[0]) }; break;
                     case "Tf" when op.Operands[0] is CosName fontName:
                         var fonts = source.Resolve(resources["Font"]) as CosDictionary;
                         state = state with { Font = ContentFont.Load(source, source.Resolve(fonts?[fontName.Value]) as CosDictionary),
@@ -132,7 +142,7 @@ public static class OcrReviewEdits
             return output.ToArray();
         }
 
-        static double Number(CosObject value) => value switch { CosInteger n => n.Value, CosReal n => n.Value, _ => 0 };
+        static double Number(CosObject value) => OcrScanPages.Number(value);
     }
 
     private sealed record TextState(int Mode = 0, ContentFont? Font = null, double Size = 0, double CharSpace = 0, double WordSpace = 0);

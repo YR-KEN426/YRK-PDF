@@ -10,6 +10,40 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class OcrScanPagesTests
 {
     [Theory]
+    [InlineData("() Tj", false)]
+    [InlineData("[120] TJ", false)]
+    [InlineData("[() 120 <>] TJ", false)]
+    [InlineData("() '", false)]
+    [InlineData("0 0 () \"", false)]
+    [InlineData("[(old) 120] TJ", true)]
+    [InlineData("<0061> Tj", true)]
+    public async Task Empty_text_and_numeric_adjustments_do_not_count_as_an_ocr_layer(string show, bool hidden)
+    {
+        await using var app = new AppTestHarness();
+        var bytes = ScanPdfFixture.Build("BT /F1 12 Tf 3 Tr " + show + " ET");
+        File.WriteAllBytes(app.PathFor("empty.pdf"), bytes);
+        await using var document = await app.Engine.OpenAsync(app.PathFor("empty.pdf"));
+        var page = Assert.Single(await OcrScanPages.FindAsync(document, bytes));
+        Assert.Equal(hidden, page.HasOcrLayer);
+        Assert.Equal(hidden, page.OcrLayerOnly);
+    }
+
+    [Theory]
+    [InlineData("BT /F1 12 Tf 3 Tr (old hidden words) Tj ET", false, true)]
+    [InlineData("BT /F1 12 Tf 3 Tr (old hidden words) Tj 0.0 Tr (Visible) Tj ET", false, false)]
+    [InlineData("BT /F1 12 Tf 3 Tr (old hidden words) Tj ET /GS1 gs", true, false)]
+    public async Task Ocr_presence_is_separate_from_safe_removal(string content, bool extFont, bool safe)
+    {
+        await using var app = new AppTestHarness();
+        var bytes = ScanPdfFixture.Build(content, extGStateFont: extFont);
+        File.WriteAllBytes(app.PathFor("flags.pdf"), bytes);
+        await using var document = await app.Engine.OpenAsync(app.PathFor("flags.pdf"));
+        var page = Assert.Single(await OcrScanPages.FindAsync(document, bytes));
+        Assert.True(page.HasOcrLayer);
+        Assert.Equal(safe, page.OcrLayerOnly);
+    }
+
+    [Theory]
     [InlineData("", true, false)]
     [InlineData("BT /F1 12 Tf (short) Tj ET", true, false)]
     [InlineData("BT /F1 12 Tf (This is a page with genuine visible text) Tj ET", false, false)]
@@ -98,7 +132,7 @@ public sealed class OcrScanPagesTests
 
 internal static class ScanPdfFixture
 {
-    public static byte[] Build(string content, bool form = false, int pages = 1)
+    public static byte[] Build(string content, bool form = false, int pages = 1, bool extGStateFont = false)
     {
         var pdf = new CosNewDocument();
         var root = pdf.Reserve();
@@ -106,6 +140,9 @@ internal static class ScanPdfFixture
         var font = pdf.Add(new CosDictionary().Set("Type", new CosName("Font")).Set("Subtype", new CosName("Type1"))
             .Set("BaseFont", new CosName("Helvetica")));
         var resources = new CosDictionary().Set("Font", new CosDictionary().Set("F1", font));
+        if (extGStateFont)
+            resources.Set("ExtGState", new CosDictionary().Set("GS1", new CosDictionary()
+                .Set("Font", new CosArray([font, new CosInteger(12)]))));
         var stream = pdf.Add(new CosStream(form
             ? new CosDictionary().Set("Type", new CosName("XObject")).Set("Subtype", new CosName("Form"))
                 .Set("BBox", CosArray.FromNumbers(0, 0, 300, 400)).Set("Resources", resources)

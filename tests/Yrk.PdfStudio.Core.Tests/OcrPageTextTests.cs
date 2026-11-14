@@ -7,6 +7,41 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class OcrPageTextTests
 {
+    [Theory]
+    [InlineData("12", true)]
+    [InlineData("๑๒", true)]
+    [InlineData("123", true)]
+    [InlineData("๑๒๓", true)]
+    [InlineData("1", false)]
+    [InlineData("๑", false)]
+    [InlineData("1a", false)]
+    public void Stray_filter_keeps_a_confident_six_point_page_number(string number, bool retained)
+    {
+        static OcrWord Line(string text, int line, double height) =>
+            new(text, new(.1, .1 + line * .1, .2, height / 800), 95, false, line, height / 800, 95);
+        var page = new OcrPageResult(0,
+        [
+            Line("BodyOne", 0, 16), Line("BodyTwo", 1, 16), Line("BodyThree", 2, 16),
+            Line(number, 3, 6), Line("x", 3, 6),
+        ]);
+        var words = OcrPageText.FilterWords(page);
+        Assert.Equal(retained, words.Any(w => w.Text == number));
+        Assert.Equal(retained, words.Any(w => w.Text == "x")); // Preserve the whole line.
+        Assert.Equal(retained ? 5 : 3, OcrPageText.ToPageText(page, 600, 800).Spans.Count);
+    }
+
+    [Fact]
+    public void Multiple_line_sizes_keep_headings_and_notes_and_normalize_only_body_lines()
+    {
+        double[] heights = [26, 25, 20, 20, 20, 20, 16, 15, 10];
+        var page = new OcrPageResult(0, heights.Select((height, line) =>
+            new OcrWord("Line" + line, new(.1, .05 + line * .08, .2, height / 800),
+                95, false, line, height / 800, 95)).ToArray());
+        var spans = OcrPageText.ToPageText(page, 600, 800).Spans;
+        // Body median is 20 pt; inclusive heading/note boundaries are 26 and 15 pt.
+        Assert.Equal(new[] { 28.5, 22, 22, 22, 22, 22, 22, 16.5, 11 }, spans.Select(s => s.FontSize));
+    }
+
     private static OcrWord Word(string text, int line = 0, float confidence = 90, float lineConfidence = 90,
         double x = 0.1, double y = 0.1, double height = 0.02, bool spaceAfter = false) =>
         new(text, new NormalizedRect(x, y, 0.1, height), confidence, spaceAfter,

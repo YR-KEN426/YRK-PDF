@@ -17,6 +17,48 @@ namespace Yrk.PdfStudio.Core.Tests;
 [Collection("WPF Application")]
 public sealed class AppOcrReviewTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Unsafe_or_failed_removal_keeps_old_layer_and_adds_corrections(bool extFont, bool failDuringRemoval)
+    {
+        await using var app = new AppTestHarness();
+        var file = Source(app);
+        var content = "BT /F1 12 Tf 3 Tr (Old hidden words) Tj ET";
+        if (!extFont && !failDuringRemoval) content += " BT /F1 12 Tf 0.0 Tr (Visible) Tj ET";
+        var original = ScanPdfFixture.Build(content + (extFont ? " /GS1 gs" : ""), extGStateFont: extFont);
+        File.WriteAllBytes(file, original);
+        Configure(app, [file], allPages: true);
+        if (failDuringRemoval)
+        {
+            var runner = app.Model.ConvertScanOcrRunner;
+            app.Model.ConvertScanOcrRunner = async (doc, bytes, options, data, orient, progress, ct) =>
+            {
+                var result = await runner(doc, bytes, options, data, orient, progress, ct);
+                // Classification succeeded on the source; rewriting the oriented result now fails.
+                return result with { Pdf = ScanPdfFixture.Build(content + " Unknown") };
+            };
+        }
+        Review(app, model =>
+        {
+            model.NextWord(); model.EditText = "Corrected"; model.ConfirmEdit();
+            return OcrReviewChoice.Save;
+        });
+        await app.Model.ConvertScanCommand.ExecuteAsync(null);
+        Assert.Equal(3, Result(app).OutputFiles.Count);
+        var logs = string.Join("\n", Directory.GetFiles(Yrk.PdfStudio.App.App.LogFolder, "*.log").Select(File.ReadAllText));
+        Assert.Contains(failDuringRemoval ? "kept the existing layer after removal failed"
+            : "kept the existing layer because removal is unsafe", logs);
+        await using var output = await app.Engine.OpenAsync(app.PathFor("scan (OCR).pdf"));
+        var text = await output.GetPageTextAsync(0);
+        Assert.Contains("Corrected", text);
+        Assert.Contains("Old hidden words", text);
+        if (!extFont && !failDuringRemoval) Assert.Contains("Visible", text);
+        Assert.Equal(original, File.ReadAllBytes(file));
+        AssertClean(app);
+    }
+
     [Fact]
     public void Review_dialog_constructs_without_showing_and_positions_accessible_editor_over_the_word()
     {
@@ -357,7 +399,7 @@ public sealed class AppOcrReviewTests
     }
 
     private static void Configure(AppTestHarness app, string[] files, bool review = true, string? folder = null,
-        bool confident = false, bool rotate = false)
+        bool confident = false, bool rotate = false, bool allPages = false)
     {
         var data = Directory.CreateDirectory(app.PathFor("tessdata")).FullName;
         foreach (var language in new[] { "tha", "eng", "osd" }) File.WriteAllBytes(Path.Combine(data, language + ".traineddata"), [1]);
@@ -374,7 +416,8 @@ public sealed class AppOcrReviewTests
             }
             return Task.FromResult(new OcrDocumentResult(bytes, options.OnlyPages!.Select(i => Page(i, confident)).ToArray()));
         };
-        app.Dialogs.Answer("AskConvertScan", new ConvertScanRequest(files, ["tha", "eng"], Word: true,
+        app.Dialogs.Answer("AskConvertScan", new ConvertScanRequest(files, ["tha", "eng"],
+            Pages: allPages ? OcrPageSelection.AllPages : OcrPageSelection.PagesWithoutText, Word: true,
             Text: true, ReviewUncertainWords: review, OutputFolder: folder));
     }
 

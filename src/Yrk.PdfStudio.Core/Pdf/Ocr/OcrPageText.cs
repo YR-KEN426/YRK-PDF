@@ -15,6 +15,8 @@ public static class OcrTuning
     public const double BodyLinePercentile = 0.5;
     /// <summary>Lines at least this much taller than the body keep their own size (headings).</summary>
     public const double HeadingLineFactor = 1.3;
+    /// <summary>Lines at most this fraction of the body keep their own size (notes/small text).</summary>
+    public const double SmallLineFactor = 0.75;
     /// <summary>Lines of short words only and lower than this fraction of the body are stray marks.</summary>
     public const double StrayLineFactor = 0.5;
 }
@@ -43,8 +45,9 @@ public static class OcrPageText
         var spans = words.Select(word =>
         {
             var box = word.Bounds;
-            var height = word.Line < 0 ? LineHeight(word)
-                : heights[word.Line] >= body * OcrTuning.HeadingLineFactor ? heights[word.Line] : body;
+            var lineHeight = word.Line < 0 ? LineHeight(word) : heights[word.Line];
+            var height = word.Line < 0 || lineHeight >= body * OcrTuning.HeadingLineFactor
+                || lineHeight <= body * OcrTuning.SmallLineFactor ? lineHeight : body;
             var size = Math.Max(OcrTuning.FontSizeStepPt,
                 Math.Round(height * heightPt * OcrTuning.FontHeightMultiplier / OcrTuning.FontSizeStepPt,
                     MidpointRounding.AwayFromZero) * OcrTuning.FontSizeStepPt);
@@ -75,9 +78,16 @@ public static class OcrPageText
         var body = BodyHeight(heights);
         var stray = kept.Where(i => page.Words[i].Line >= 0).GroupBy(i => page.Words[i].Line)
             .Where(g => heights[g.Key] < body * OcrTuning.StrayLineFactor
-                && g.All(i => page.Words[i].Text.Trim().Length <= OcrTuning.ShortWordMaxLength))
+                && g.All(i => page.Words[i].Text.Trim().Length <= OcrTuning.ShortWordMaxLength)
+                && !g.Any(i => IsPageNumber(page.Words[i].Text)))
             .Select(g => g.Key).ToHashSet();
         return kept.Where(i => !stray.Contains(page.Words[i].Line));
+    }
+
+    private static bool IsPageNumber(string text)
+    {
+        var word = text.Trim();
+        return word.Length >= 2 && word.All(char.IsDigit);
     }
 
     private static Dictionary<int, double> LineHeights(OcrPageResult page, IEnumerable<OcrWord> words) =>
