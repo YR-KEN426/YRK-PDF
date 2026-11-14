@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Xml.Linq;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Export;
+using Yrk.PdfStudio.Core.Pdf.Ocr;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
 
 namespace Yrk.PdfStudio.Core.Tests;
@@ -306,6 +307,82 @@ public sealed class ExportTests : IDisposable
         Assert.Equal(1, result.PicturePages);
         using var zip = ZipFile.OpenRead(output);
         Assert.True(zip.GetEntry("word/media/image1.jpg")!.Length > 1000);
+    }
+
+    private static PdfPageText OcrText(int page) => OcrPageText.ToPageText(new OcrPageResult(page,
+    [
+        new("ภาษาไทย", new(0.1, 0.1, 0.15, 0.02), 90, true, 0, 0.02, 90),
+        new("English", new(0.251, 0.1, 0.15, 0.02), 90, false, 0, 0.02, 90),
+        new("บรรทัดสอง", new(0.1, 0.125, 0.3, 0.02), 90, false, 1, 0.02, 90),
+    ]), 595, 842);
+
+    [Fact]
+    public async Task Ocr_page_exports_editable_Thai_word_text_without_a_scan_background()
+    {
+        var path = TestPdfFactory.CreateLayeredPdf(Path.Combine(_folder.FullName, "scan.pdf"));
+        await using var document = await _engine.OpenAsync(path);
+        var output = Path.Combine(_folder.FullName, "ocr.docx");
+        var settings = new App.Services.ExportSettings(App.Services.ExportFormat.Word, [0],
+            OcrPages: new Dictionary<int, PdfPageText> { [0] = OcrText(0) });
+        var result = await App.Services.PdfExporter.ExportAsync(document, settings, output, new Progress<int>(), default);
+
+        Assert.Equal(0, result.PicturePages);
+        using var zip = ZipFile.OpenRead(output);
+        Assert.DoesNotContain(zip.Entries, e => e.FullName.StartsWith("word/media/", StringComparison.Ordinal));
+        XNamespace w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+        var xml = Xml(zip, "word/document.xml");
+        var text = string.Concat(xml.Descendants(w + "t").Select(t => t.Value));
+        Assert.Contains("ภาษาไทย English", text, StringComparison.Ordinal);
+        Assert.Contains("บรรทัดสอง", text, StringComparison.Ordinal);
+        Assert.Contains(xml.Descendants(w + "rFonts"), f => (string?)f.Attribute(w + "ascii") == "TH Sarabun New");
+        Assert.False(File.Exists(output + ".yrk-tmp"));
+    }
+
+    [Fact]
+    public async Task Ocr_and_existing_text_and_unrecognised_pages_share_the_original_export_paths()
+    {
+        var scanPath = TestPdfFactory.CreateLayeredPdf(Path.Combine(_folder.FullName, "scan.pdf"));
+        var reportPath = TestPdfFactory.CreateReportPdf(Path.Combine(_folder.FullName, "report.pdf"));
+        await using var scan = await _engine.OpenAsync(scanPath);
+        await using var report = await _engine.OpenAsync(reportPath);
+        var path = Path.Combine(_folder.FullName, "mixed.pdf");
+        await _engine.CombineAsync([scan, report, scan], path);
+        await using var document = await _engine.OpenAsync(path);
+        var ocr = new Dictionary<int, PdfPageText> { [0] = OcrText(0) };
+        var wordOutput = Path.Combine(_folder.FullName, "mixed.docx");
+        var result = await App.Services.PdfExporter.ExportAsync(document,
+            new(App.Services.ExportFormat.Word, [0, 1, 2], OcrPages: ocr), wordOutput, new Progress<int>(), default);
+        Assert.Equal(1, result.PicturePages);
+        using (var zip = ZipFile.OpenRead(wordOutput))
+        {
+            Assert.Single(zip.Entries.Where(e => e.FullName.StartsWith("word/media/", StringComparison.Ordinal)));
+            var xml = Xml(zip, "word/document.xml").ToString();
+            Assert.Contains("Monthly report", xml, StringComparison.Ordinal);
+            Assert.Contains("ภาษาไทย", xml, StringComparison.Ordinal);
+        }
+
+        var textOutput = Path.Combine(_folder.FullName, "mixed.txt");
+        await App.Services.PdfExporter.ExportAsync(document,
+            new(App.Services.ExportFormat.Text, [0, 1, 2], OcrPages: ocr), textOutput, new Progress<int>(), default);
+        var expected = "ภาษาไทย English\r\nบรรทัดสอง\r\n\r\n"
+            + TextLayout.PlainText(await document.GetPageTextSpansAsync(1)).ReplaceLineEndings("\r\n") + "\r\n\r\n";
+        Assert.Equal(expected, File.ReadAllText(textOutput));
+        Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, File.ReadAllBytes(textOutput).Take(3));
+        Assert.False(File.Exists(textOutput + ".yrk-tmp"));
+    }
+
+    [Fact]
+    public async Task Empty_supplied_ocr_page_is_empty_text_instead_of_a_picture()
+    {
+        var path = TestPdfFactory.CreateLayeredPdf(Path.Combine(_folder.FullName, "scan.pdf"));
+        await using var document = await _engine.OpenAsync(path);
+        var output = Path.Combine(_folder.FullName, "empty.docx");
+        var result = await App.Services.PdfExporter.ExportAsync(document,
+            new(App.Services.ExportFormat.Word, [0], OcrPages: new Dictionary<int, PdfPageText> { [0] = new(595, 842, []) }),
+            output, new Progress<int>(), default);
+        Assert.Equal(0, result.PicturePages);
+        using var zip = ZipFile.OpenRead(output);
+        Assert.DoesNotContain(zip.Entries, e => e.FullName.StartsWith("word/media/", StringComparison.Ordinal));
     }
 
     [Fact]

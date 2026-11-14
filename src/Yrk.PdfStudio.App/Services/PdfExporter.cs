@@ -22,7 +22,8 @@ public enum ExportFormat
 /// <param name="Dpi">Resolution of exported images.</param>
 /// <param name="JpegQuality">40–100.</param>
 /// <param name="SheetPerPage">Excel: one worksheet per page, or all pages one after the other on one sheet.</param>
-public sealed record ExportSettings(ExportFormat Format, IReadOnlyList<int> Pages, int Dpi = 200, int JpegQuality = 85, bool SheetPerPage = true)
+public sealed record ExportSettings(ExportFormat Format, IReadOnlyList<int> Pages, int Dpi = 200, int JpegQuality = 85, bool SheetPerPage = true,
+    IReadOnlyDictionary<int, PdfPageText>? OcrPages = null)
 {
     public string Extension => Format switch
     {
@@ -102,6 +103,12 @@ public static class PdfExporter
                     progress.Report(i);
                     var page = settings.Pages[i];
                     var text = await document.GetPageTextSpansAsync(page, cancellationToken);
+                    if (settings.OcrPages?.TryGetValue(page, out var ocrText) == true)
+                    {
+                        var blocks = PageLayout.Analyze(ocrText, PdfPageGraphics.Empty(ocrText.Width, ocrText.Height));
+                        docxPages.Add(new DocxPage(ocrText.Width, ocrText.Height, [], Blocks: blocks));
+                        continue;
+                    }
                     if (text.Spans.Count > 0)
                     {
                         // Paragraphs, tables and pictures where they are on the page.
@@ -160,6 +167,8 @@ public static class PdfExporter
                 {
                     progress.Report(i);
                     var text = await document.GetPageTextSpansAsync(settings.Pages[i], cancellationToken);
+                    if (settings.OcrPages?.TryGetValue(settings.Pages[i], out var ocrText) == true)
+                        text = ocrText;
                     if (i > 0)
                     {
                         all.Append("\r\n\r\n");
