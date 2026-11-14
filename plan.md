@@ -185,6 +185,23 @@
 - ตัวกรองบรรทัดขยะเดิมยังต้องทำงานกับผลของ SingleColumn (บรรทัดขยะยังมี)
 
 ตรวจ: Claude รันกับไฟล์จริง 2 ไฟล์ เทียบกับผลก่อนแก้ (ห้ามส่งไฟล์ของ Ken ให้ Codex) แล้ว Ken ลองอีกรอบ
+ผล (2026-11-14): Ken ลองแล้ว "ดีขึ้นชัดเจน" ผิดบ้างแต่รับได้; Claude แก้เพิ่ม c8d13a4 (ไม่บอก 300 dpi ในโหมดแปลง)
+
+## ขั้นที่ 5c: คำเตือนว่า OCR อาจอ่านผิด (Ken ขอ 2026-11-14, ถ้อยคำ Ken อนุมัติแล้ว)
+**ไฟล์:** `Views/ConvertScanDialog.xaml`, `Views/OcrDialog.xaml`, `Views/OcrReviewDialog.xaml`, `Views/ConvertScanResultDialog.xaml` (หรือที่สร้างข้อความสรุปใน `MainViewModel.ConvertScan.cs`), `Localization/th.json`
+**รุ่น:** `gpt-6.1-sol` · medium
+- ห้ามใส่ตัวเลขความแม่น (เช่น 80%) เพราะต่างกันมากตามภาพ
+- ข้อความเป็นภาษาอังกฤษในโค้ด (key) และไทยใน `th.json` ใช้ตามนี้ตรงตัว:
+  1. หน้าต่างแปลงเอกสารสแกน + หน้าต่าง OCR เดิม: ข้อความสีเทาใต้ตัวเลือก ใช้ style ข้อความรองที่มีอยู่
+     - EN: "Text is read from an image, so it can be wrong, especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it." / TH: "โปรแกรมอ่านข้อความจากภาพ จึงอาจอ่านผิดได้ โดยเฉพาะภาพที่เบลอ เอียง ตัวเล็ก หรือลายมือ ควรตรวจทานผลลัพธ์ก่อนนำไปใช้ทุกครั้ง"
+     - EN: "Tip: scan at 300 dpi with the page straight for the best result." / TH: "เคล็ดลับ: สแกนที่ 300 dpi วางกระดาษให้ตรง จะได้ผลดีที่สุด"
+  2. หน้าต่างตรวจทาน: ตัวหนาบนสุดเหนือแถวปุ่ม/คำอธิบายเดิม
+     - EN: "Words in orange boxes are ones the program is not sure about. Check and fix them before saving. Words without a box can be wrong too, so read the text through again." / TH: "คำในกรอบสีส้มคือคำที่โปรแกรมไม่แน่ใจ กรุณาตรวจและแก้ก่อนบันทึก คำที่ไม่มีกรอบก็อาจผิดได้ ควรอ่านทวนอีกครั้ง"
+  3. หน้าต่างสรุปผลหลังแปลง (เมื่อมีไฟล์สำเร็จ):
+     - EN: "Check the text in the output files before you use it, especially names, numbers, dates and amounts." / TH: "ตรวจข้อความในไฟล์ผลลัพธ์อีกครั้งก่อนใช้งาน โดยเฉพาะชื่อ ตัวเลข วันที่ และจำนวนเงิน"
+- ข้อความต้องตัดบรรทัดได้ (TextWrapping) ไม่ล้นหน้าต่างทั้งไทย/อังกฤษ
+- ตรวจ: build, เทสต์ทั้งชุด, check-translations ยัง 12 คำ; Claude เปิดดูทั้ง 4 หน้าต่างใน Release
+- งานเอกสารที่ Ken ให้ทำ (ไม่ใช่ในขั้นนี้ ทำตอนขั้นเอกสารของ 1.2.3): หัวข้อ "ข้อจำกัดของ OCR" ในคู่มือ th/en; release notes ใช้คำว่า "ช่วยลดการพิมพ์ใหม่" ไม่ใช่ "แปลงได้ถูกต้อง"
 
 ## การส่งงาน
 - ขั้น 0 Claude ทำเอง
@@ -202,3 +219,4 @@
 - [ ] ขั้น 5 ตรวจ + Ken ลองจริง
 - [x] ขั้น 5a แก้จากการตรวจ (A–J)
 - [x] ขั้น 5b คุณภาพภาษาไทย (K–M)
+- [ ] ขั้น 5c คำเตือน OCR อาจอ่านผิด
