@@ -1677,5 +1677,11 @@
   "Free": "อิสระ",
   "Top": "บน",
   "in": "นิ้ว",
-  "{0:0.##} × {1:0.##} {2}": "{0:0.##} × {1:0.##} {2}"
+  "{0:0.##} × {1:0.##} {2}": "{0:0.##} × {1:0.##} {2}",
+  "Hold Space and drag to pan the image": "กด Space ค้างแล้วลากเพื่อเลื่อนภาพ",
+  "The scanner is not ready. Check its power and connection, then find scanners again.": "เครื่องสแกนยังไม่พร้อม ตรวจว่าเปิดเครื่องและต่อสายแล้ว แล้วกด ค้นหาเครื่องอีกครั้ง",
+  "The scanner connection was lost. Check the USB cable and turn on the scanner, then press Find scanners again.": "การเชื่อมต่อกับเครื่องสแกนขาดหาย ตรวจสาย USB และเปิดเครื่องสแกน แล้วกด ค้นหาเครื่องอีกครั้ง",
+  "The scanner reported an error. Try scanning again.": "เครื่องสแกนรายงานข้อผิดพลาด ลองสแกนอีกครั้ง",
+  "Scanning could not be completed. Try again.": "สแกนไม่สำเร็จ ลองอีกครั้ง",
+  "Details": "รายละเอียด"
 }

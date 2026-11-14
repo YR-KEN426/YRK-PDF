@@ -71,6 +71,60 @@ public static class ScanCleanup
         return new((double)left / width, (double)top / height, (double)(right - left + 1) / width, (double)(bottom - top + 1) / height);
     }
 
+    /// <summary>Ink bounds on an adjusted image, excluding the outer 1% and isolated dust.</summary>
+    public static NormalizedRect? ContentBounds(PdfBitmap bitmap)
+    {
+        var gray = Gray(bitmap);
+        var width = bitmap.Width; var height = bitmap.Height;
+        var edgeX = Math.Max(1, width / 100); var edgeY = Math.Max(1, height / 100);
+        var histogram = new long[256];
+        for (var y = edgeY; y < height - edgeY; y++)
+            for (var x = edgeX; x < width - edgeX; x++) histogram[gray[y * width + x]]++;
+        var total = histogram.Sum();
+        if (total == 0) return null;
+        var sum = histogram.Select((n, i) => n * i).Sum();
+        long count = 0, weighted = 0; double best = -1; var threshold = 0;
+        var background = Array.FindIndex(histogram, n => n > 0);
+        for (var i = 0; i < 256; i++)
+        {
+            count += histogram[i]; weighted += histogram[i] * i;
+            if (count < total * .9) background = i + 1;
+            if (count == 0 || count == total) continue;
+            var difference = (double)weighted / count - (double)(sum - weighted) / (total - count);
+            var score = (double)count * (total - count) * difference * difference;
+            if (score > best) { best = score; threshold = i; }
+        }
+        threshold = Math.Min(threshold, background - 12);
+        var visited = new bool[gray.Length]; var component = new List<int>();
+        var left = width; var right = -1; var top = height; var bottom = -1;
+        for (var y = edgeY; y < height - edgeY; y++)
+        for (var x = edgeX; x < width - edgeX; x++)
+        {
+            var start = y * width + x;
+            if (visited[start] || gray[start] > threshold) continue;
+            component.Clear(); component.Add(start); visited[start] = true;
+            var l = x; var r = x; var t = y; var b = y;
+            for (var n = 0; n < component.Count; n++)
+            {
+                var px = component[n] % width; var py = component[n] / width;
+                l = Math.Min(l, px); r = Math.Max(r, px); t = Math.Min(t, py); b = Math.Max(b, py);
+                Visit(px - 1, py); Visit(px + 1, py); Visit(px, py - 1); Visit(px, py + 1);
+            }
+            if (component.Count < 6 || r == l || b == t) continue;
+            left = Math.Min(left, l); right = Math.Max(right, r); top = Math.Min(top, t); bottom = Math.Max(bottom, b);
+        }
+        return right < left ? null : new((double)left / width, (double)top / height,
+            (double)(right - left + 1) / width, (double)(bottom - top + 1) / height);
+
+        void Visit(int x, int y)
+        {
+            if (x < edgeX || x >= width - edgeX || y < edgeY || y >= height - edgeY) return;
+            var next = y * width + x;
+            if (visited[next] || gray[next] > threshold) return;
+            visited[next] = true; component.Add(next);
+        }
+    }
+
     private static byte[] Gray(PdfBitmap bitmap)
     {
         var gray = new byte[bitmap.Width * bitmap.Height];

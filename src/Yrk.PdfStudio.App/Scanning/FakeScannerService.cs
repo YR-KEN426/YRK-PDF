@@ -15,13 +15,16 @@ public sealed class FakeScannerService : IScannerService
     public static ScanDevice Device { get; } = new("yrk-fake", "YRK test scanner");
     public ScannerErrorKind? SimulatedError { get; set; }
     public int ErrorAfterPages { get; set; }
+    public bool DisconnectOnError { get; set; }
+    public int? ErrorHResult { get; set; }
+    private bool _disconnected;
     public int PageCount { get; set; } = 3;
     public FakeScanPageStyle PageStyle { get; set; }
 
     public Task<IReadOnlyList<ScanDevice>> ListDevicesAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult<IReadOnlyList<ScanDevice>>([Device]);
+        return Task.FromResult<IReadOnlyList<ScanDevice>>(_disconnected ? [] : [Device]);
     }
 
     public Task<ScanCapabilities> GetCapabilitiesAsync(ScanDevice device, CancellationToken cancellationToken = default)
@@ -41,7 +44,10 @@ public sealed class FakeScannerService : IScannerService
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (SimulatedError is { } error && i >= ErrorAfterPages)
-                    throw new ScannerException(error, $"Simulated scanner error: {error}.");
+                {
+                    _disconnected = DisconnectOnError;
+                    throw new ScannerException(error, $"Simulated scanner error: {error}.", hresult: ErrorHResult) { TransferStarted = true };
+                }
                 var dpi = Resolutions.MinBy(n => Math.Abs((long)n - settings.Dpi));
                 var bitmap = CreateTestPage(i, dpi, PageStyle);
                 var notices = new List<string>();

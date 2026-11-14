@@ -137,6 +137,10 @@ public sealed class WiaScannerService : IScannerService
                     }
                     if (source == ScanSource.Flatbed) break;
                 }
+                catch (Exception ex) when (Unwrap(ex).HResult == unchecked((int)0x80210001))
+                {
+                    throw new ScannerException(ScannerErrorKind.Other, "Scanner transfer failed.", Unwrap(ex)) { TransferStarted = true };
+                }
                 catch (Exception ex) when (source != ScanSource.Flatbed && Unwrap(ex).HResult == unchecked((int)0x80210003))
                 {
                     cancellationToken.ThrowIfCancellationRequested();

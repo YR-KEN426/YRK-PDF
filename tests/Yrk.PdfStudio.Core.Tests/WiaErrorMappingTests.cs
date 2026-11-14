@@ -7,6 +7,19 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class WiaErrorMappingTests
 {
+    [Fact]
+    public async Task General_error_during_transfer_retains_hresult_and_transfer_context()
+    {
+        var driver = new TestDevice(feeder: false, availablePages: 1);
+        driver.Acquisition.OnTransfer = () => throw new System.Runtime.InteropServices.COMException("USB lost", unchecked((int)0x80210001));
+        var scanner = new WiaScannerService(() => new TestManager(driver));
+        var error = await Assert.ThrowsAsync<ScannerException>(() => scanner.ScanAsync(new("test-device", "Test"),
+            new(), new ScanSessionTests.Sink<ScannedPage>(_ => { })));
+        Assert.Equal(ScannerErrorKind.Other, error.Kind);
+        Assert.Equal(unchecked((int)0x80210001), error.HResult);
+        Assert.True(error.TransferStarted);
+    }
+
     [Theory]
     [InlineData(ScanSource.Flatbed, 0, 100, 2, 1)]
     [InlineData(ScanSource.Feeder, 0, 100, 1, 0)]

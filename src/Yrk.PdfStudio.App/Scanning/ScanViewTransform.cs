@@ -28,6 +28,16 @@ public sealed class ScanViewTransform
         ClampPan();
     }
     public void Pan(Vector delta) { Offset += delta; ClampPan(); }
+    public Vector ScrollMaximum => new(Math.Max(0, Image.Width * Zoom - View.Width), Math.Max(0, Image.Height * Zoom - View.Height));
+    public void ScrollTo(double x, double y) { Offset = new(-x, -y); ClampPan(); }
+    public static bool IsPanGesture(bool middle, bool space, bool cropping) => middle || space || !cropping;
+    public static Vector WheelPan(int delta, bool shift) => shift ? new(delta / 120.0 * 48, 0) : new(0, delta / 120.0 * 48);
+    public static Vector AutoScroll(Point pointer, Size viewport)
+    {
+        static double Axis(double p, double length) => p < 28 ? Math.Min(20, (28 - p) * .6)
+            : p > length - 28 ? -Math.Min(20, (p - length + 28) * .6) : 0;
+        return new(Axis(pointer.X, viewport.Width), Axis(pointer.Y, viewport.Height));
+    }
     private void ClampPan()
     {
         static double Axis(double offset, double image, double view) => image <= view

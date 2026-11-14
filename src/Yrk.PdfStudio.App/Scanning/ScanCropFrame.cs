@@ -19,6 +19,9 @@ public sealed class ScanCropFrame
     public NormalizedRect? Previous { get; }
     public CropBox Box { get; private set; }
     public CropBox? Detected { get; }
+    public CropBox? Content { get; }
+    public double? SnapX { get; private set; }
+    public double? SnapY { get; private set; }
     public CropAspect Aspect { get; set; }
     public double PaperRatio { get; set; }
     private CropBox _start;
@@ -27,12 +30,21 @@ public sealed class ScanCropFrame
     private double MinWidth => Math.Min(3, ImageWidth);
     private double MinHeight => Math.Min(3, ImageHeight);
 
-    public ScanCropFrame(double width, double height, NormalizedRect? previous, NormalizedRect? detected)
+    public ScanCropFrame(double width, double height, NormalizedRect? previous, NormalizedRect? detected,
+        NormalizedRect? content = null, double dpiX = 96, double dpiY = 96)
     {
         ImageWidth = Math.Max(1, width); ImageHeight = Math.Max(1, height); Previous = previous;
         CropBox Pixels(NormalizedRect r) => new(r.X * ImageWidth, r.Y * ImageHeight, r.Width * ImageWidth, r.Height * ImageHeight);
         Detected = detected is { } d ? Pixels(d) : null;
-        Box = Clamp(previous is { } p ? Pixels(p) : Detected ?? new(0, 0, ImageWidth, ImageHeight));
+        Content = content is { } c ? Pixels(c) : null;
+        CropBox? suggested = null;
+        if (Content is { } ink)
+        {
+            var l = Math.Max(0, ink.X - dpiX * 3 / 25.4); var t = Math.Max(0, ink.Y - dpiY * 3 / 25.4);
+            suggested = new(l, t, Math.Min(ImageWidth, ink.Right + dpiX * 3 / 25.4) - l,
+                Math.Min(ImageHeight, ink.Bottom + dpiY * 3 / 25.4) - t);
+        }
+        Box = Clamp(previous is { } p ? Pixels(p) : Detected ?? suggested ?? new(0, 0, ImageWidth, ImageHeight));
     }
     public NormalizedRect Normalized => new(Box.X / ImageWidth, Box.Y / ImageHeight, Box.Width / ImageWidth, Box.Height / ImageHeight);
     public NormalizedRect? Cancel() => Previous;
@@ -63,6 +75,7 @@ public sealed class ScanCropFrame
 
     public void Drag(double x, double y, double zoom, bool alt = false, bool shift = false)
     {
+        SnapX = SnapY = null;
         var dx = x - _startX; var dy = y - _startY;
         if (_handle == CropHandle.Move)
         {
@@ -70,10 +83,8 @@ public sealed class ScanCropFrame
             var top = Math.Clamp(_start.Y + dy, 0, ImageHeight - _start.Height);
             if (!alt)
             {
-                var sl = Snap(left, true, zoom); var sr = Snap(left + _start.Width, true, zoom) - _start.Width;
-                left = Math.Abs(sl - left) >= Math.Abs(sr - left) ? sl : sr;
-                var st = Snap(top, false, zoom); var sb = Snap(top + _start.Height, false, zoom) - _start.Height;
-                top = Math.Abs(st - top) >= Math.Abs(sb - top) ? st : sb;
+                left = SnapMove(left, _start.Width, true, zoom);
+                top = SnapMove(top, _start.Height, false, zoom);
             }
             Box = Clamp(new(left, top, _start.Width, _start.Height)); return;
         }
@@ -106,10 +117,30 @@ public sealed class ScanCropFrame
     }
     private double Snap(double value, bool horizontal, double zoom)
     {
-        var edges = new List<double> { 0, horizontal ? ImageWidth : ImageHeight };
-        if (Detected is { } d) edges.AddRange(horizontal ? [d.X, d.Right] : [d.Y, d.Bottom]);
-        var nearest = edges.MinBy(e => Math.Abs(e - value));
-        return Math.Abs(nearest - value) * zoom <= 8 ? nearest : value;
+        foreach (var box in new CropBox?[] { Detected, Content, new(0, 0, ImageWidth, ImageHeight) })
+        {
+            if (box is not { } edge) continue;
+            var edges = horizontal ? new[] { edge.X, edge.Right } : new[] { edge.Y, edge.Bottom };
+            var nearest = edges.MinBy(e => Math.Abs(e - value));
+            if (Math.Abs(nearest - value) * zoom > 8) continue;
+            if (horizontal) SnapX = nearest; else SnapY = nearest;
+            return nearest;
+        }
+        return value;
+    }
+    private double SnapMove(double value, double size, bool horizontal, double zoom)
+    {
+        foreach (var box in new CropBox?[] { Detected, Content, new(0, 0, ImageWidth, ImageHeight) })
+        {
+            if (box is not { } edge) continue;
+            var targets = horizontal ? new[] { edge.X, edge.Right } : new[] { edge.Y, edge.Bottom };
+            var candidates = targets.SelectMany(target => new[] { (Position: target, Target: target), (Position: target - size, Target: target) });
+            var nearest = candidates.MinBy(c => Math.Abs(c.Position - value));
+            if (Math.Abs(nearest.Position - value) * zoom > 8) continue;
+            if (horizontal) SnapX = nearest.Target; else SnapY = nearest.Target;
+            return nearest.Position;
+        }
+        return value;
     }
     private CropBox Clamp(CropBox b)
     {

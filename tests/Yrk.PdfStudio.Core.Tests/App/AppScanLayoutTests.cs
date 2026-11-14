@@ -240,8 +240,35 @@ public sealed class AppScanLayoutTests
                     if (state == "crop") VerifyCropEditing(window, model, language);
                     if (state == "empty")
                     {
+                        Assert.Equal(string.Empty, ((TextBlock)window.FindName("ZoomText")).Text);
+                        window.ZoomTo(8, new(100, 100));
+                        Assert.Equal(string.Empty, ((TextBlock)window.FindName("ZoomText")).Text);
+                        var oldLogFolder = Yrk.PdfStudio.App.App.LogFolder;
+                        try
+                        {
+                            Yrk.PdfStudio.App.App.LogFolder = session.DirectoryPath;
+                            foreach (var kind in Enum.GetValues<ScannerErrorKind>())
+                            {
+                                var error = new ScannerException(kind, "Raw driver error 0x80210001", hresult: unchecked((int)0x80210001));
+                                var message = ScanDialog.ErrorText(error);
+                                Assert.False(string.IsNullOrWhiteSpace(message)); Assert.DoesNotContain("0x", message);
+                                Assert.DoesNotContain("Raw driver", message);
+                                if (language == Loc.Thai) Assert.Matches("[ก-๙]", message);
+                                window.ShowError(error);
+                                Assert.Equal(message, ((TextBlock)window.FindName("Message")).Text);
+                                Assert.Contains("0x80210001", ((TextBlock)window.FindName("ErrorCode")).Text);
+                                Assert.Equal(Visibility.Visible, ((Expander)window.FindName("ErrorDetails")).Visibility);
+                                Assert.False(((Expander)window.FindName("ErrorDetails")).IsExpanded);
+                            }
+                            Assert.Contains("0x80210001", File.ReadAllText(Directory.GetFiles(session.DirectoryPath, "errors-*.log").Single()));
+                        }
+                        finally { Yrk.PdfStudio.App.App.LogFolder = oldLogFolder; }
                         session.Add(ScanSessionTests.Page(300, 400));
                         Await(model.LoadPagesAsync());
+                        Await((Task)typeof(ScanDialog).GetMethod("RefreshPreviewAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!);
+                        var view = (ScanViewTransform)typeof(ScanDialog).GetField("_view", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+                        Assert.True(view.IsFit);
+                        Assert.NotEqual(string.Empty, ((TextBlock)window.FindName("ZoomText")).Text);
                         typeof(ScanDialog).GetMethod("OnAutoCrop", BindingFlags.Instance | BindingFlags.NonPublic)!
                             .Invoke(window, [window, new RoutedEventArgs()]);
                         PumpUntil(() => !(bool)typeof(ScanDialog).GetField("_working", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!);
@@ -281,6 +308,7 @@ public sealed class AppScanLayoutTests
         entry.Page.Crop = previous;
         Await(window.EnterCropAsync());
         Assert.Equal(previous, Draft().Normalized);
+        VerifyPan(window);
         Number("CropLeft", 100, entry.Page.DpiX);
         Assert.Equal(100, Draft().Box.X, 3);
         Assert.Equal(previous, entry.Page.Crop); // Editing is a draft, with no undo records.
@@ -312,6 +340,7 @@ public sealed class AppScanLayoutTests
         Assert.Equal(language == Loc.Thai ? "พื้นที่สำหรับการสแกนครั้งถัดไป" : "Area for the next scan",
             ((TextBlock)window.FindName("CropPurpose")).Text);
         Assert.Null(model.Settings.Region);
+        VerifyPan(window);
         Number("CropLeft", 50, model.GlassPreview!.Page.DpiX);
         Assert.NotNull(model.Settings.Region);
         Key(System.Windows.Input.Key.Escape); Assert.Null(model.Settings.Region);
@@ -328,6 +357,60 @@ public sealed class AppScanLayoutTests
         Assert.Equal(frontCrop, front.Page.Crop);
         Assert.False(model.CanUndo);
         model.CancelCard();
+        // The same editor must initialize from ink on white glass, including its physical margin.
+        model.ApplyPreset(ScanPreset.ColorDocument);
+        model.Settings = model.Settings with { AutoStraighten = false };
+        var white = new ScanPageEntry(model.Session.Add(ScanGlassRegressionTests.WhiteGlass()));
+        model.Pages.Add(white); model.Select(model.Pages.Count - 1);
+        Await(window.EnterCropAsync());
+        Assert.Null(Draft().Detected); Assert.NotNull(Draft().Content);
+        Assert.Equal(150 - 3 * 100 / 25.4, Draft().Box.X, 5);
+        Assert.Equal(250 - 3 * 100 / 25.4, Draft().Box.Y, 5);
+        var blank = new ScanPageEntry(model.Session.Add(ScanGlassRegressionTests.WhiteGlass(false)));
+        model.Pages.Add(blank); model.Select(model.Pages.Count - 1);
+        Await(window.EnterCropAsync());
+        Assert.Null(Draft().Content); Assert.Null(Draft().Detected);
+        Assert.Equal(Loc.T("No edges to crop were found"), ((TextBlock)window.FindName("Message")).Text);
+    }
+    private static void VerifyPan(ScanDialog window)
+    {
+        var view = (ScanViewTransform)typeof(ScanDialog).GetField("_view", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+        var viewport = (Canvas)window.FindName("PreviewScroll");
+        window.ZoomTo(2, new(200, 200));
+        Await((Task)typeof(ScanDialog).GetMethod("RefreshPreviewAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!);
+        window.UpdateLayout();
+        Assert.True(((FrameworkElement)window.FindName("HorizontalPan")).IsVisible);
+        Assert.True(((FrameworkElement)window.FindName("VerticalPan")).IsVisible);
+        foreach (var middle in new[] { true, false })
+        {
+            Keyboard.ClearFocus();
+            if (!middle)
+                window.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, 0, System.Windows.Input.Key.Space)
+                { RoutedEvent = Keyboard.PreviewKeyDownEvent });
+            viewport.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, middle ? MouseButton.Middle : MouseButton.Left)
+            { RoutedEvent = Mouse.MouseDownEvent });
+            Assert.True((bool)typeof(ScanDialog).GetField("_panning", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!);
+            Assert.Same(Cursors.Hand, viewport.Cursor);
+            var start = (Point)typeof(ScanDialog).GetField("_panStart", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+            var before = view.Offset;
+            window.ContinuePan(start + new Vector(-50, -60));
+            Assert.True(view.Offset.X < before.X); Assert.True(view.Offset.Y < before.Y);
+            viewport.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, middle ? MouseButton.Middle : MouseButton.Left)
+            { RoutedEvent = Mouse.MouseUpEvent });
+            if (!middle)
+                window.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window)!, 0, System.Windows.Input.Key.Space)
+                { RoutedEvent = Keyboard.PreviewKeyUpEvent });
+        }
+        var bar = (System.Windows.Controls.Primitives.ScrollBar)window.FindName("HorizontalPan");
+        bar.Value = 100; Assert.Equal(-100, view.Offset.X, 5);
+        // A handle kept near the viewport edge continues scrolling, even with no new mouse move.
+        typeof(ScanDialog).GetField("_drawingCrop", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, true);
+        var old = view.Offset;
+        window.AutoScrollCrop(new(view.View.Width - 1, view.View.Height - 1));
+        Assert.True(view.Offset.X < old.X); Assert.True(view.Offset.Y < old.Y);
+        typeof(ScanDialog).GetField("_drawingCrop", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(window, false);
+        typeof(ScanDialog).GetMethod("OnFit", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, [window, new RoutedEventArgs()]);
+        Await((Task)typeof(ScanDialog).GetMethod("RefreshPreviewAsync", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null)!);
     }
     private static void PumpUntil(Func<bool> done)
     {

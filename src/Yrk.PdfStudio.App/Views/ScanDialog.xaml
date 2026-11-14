@@ -125,8 +125,12 @@
                     </WrapPanel>
                     <Border Grid.Row="1" Background="#E5E7EB" ClipToBounds="True">
                         <Grid>
+                            <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <ScrollBar x:Name="HorizontalPan" Grid.Row="1" Orientation="Horizontal" Visibility="Collapsed" ValueChanged="OnScrollPan" SmallChange="48"/>
+                            <ScrollBar x:Name="VerticalPan" Grid.Column="1" Orientation="Vertical" Visibility="Collapsed" ValueChanged="OnScrollPan" SmallChange="48"/>
                             <Canvas x:Name="PreviewScroll" Background="Transparent" ClipToBounds="True" SizeChanged="OnPreviewSizeChanged"
-                                    MouseWheel="OnPreviewWheel" MouseLeftButtonDown="OnCropDown" MouseMove="OnCropMove" MouseLeftButtonUp="OnCropUp" LostMouseCapture="OnPreviewCaptureLost">
+                                    MouseWheel="OnPreviewWheel" MouseDown="OnCropDown" MouseMove="OnCropMove" MouseUp="OnCropUp" LostMouseCapture="OnPreviewCaptureLost">
                                     <Canvas x:Name="PageCanvas" IsHitTestVisible="False">
                                         <Image x:Name="PageImage" RenderOptions.BitmapScalingMode="HighQuality"/>
                                         <Image x:Name="RegionImage" RenderOptions.BitmapScalingMode="HighQuality"/>
@@ -134,6 +138,8 @@
                                     <Canvas x:Name="CropOverlay" IsHitTestVisible="False" Visibility="Collapsed">
                                         <Path x:Name="CropShade" Fill="#80000000"/>
                                         <Rectangle x:Name="CropFrame" Stroke="#2563EB" StrokeThickness="2" Visibility="Collapsed"/>
+                                        <Line x:Name="SnapGuideX" Stroke="#2563EB" StrokeThickness="1" StrokeDashArray="4,4" Visibility="Collapsed"/>
+                                        <Line x:Name="SnapGuideY" Stroke="#2563EB" StrokeThickness="1" StrokeDashArray="4,4" Visibility="Collapsed"/>
                                         <Canvas x:Name="CropHandles"/>
                                         <TextBlock x:Name="CropSize" Background="#F0FFFFFF" Padding="5,2"/>
                                     </Canvas>
@@ -146,6 +152,7 @@
                     <Border x:Name="CropPanel" Grid.Row="2" Padding="8" Margin="0,8,0,0" Background="#F3F4F6" Visibility="Collapsed">
                         <StackPanel>
                             <TextBlock x:Name="CropPurpose" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <TextBlock Text="Hold Space and drag to pan the image" FontSize="11" Foreground="#6B7280" Margin="0,0,0,4"/>
                             <WrapPanel>
                                 <TextBlock Text="Left" VerticalAlignment="Center"/><TextBox x:Name="CropLeft" Width="78" Margin="4" TextChanged="OnCropNumberChanged" LostFocus="OnCropNumberCommit" KeyDown="OnCropNumberKey" AutomationProperties.Name="Left"/>
                                 <TextBlock Text="Top" VerticalAlignment="Center"/><TextBox x:Name="CropTop" Width="78" Margin="4" TextChanged="OnCropNumberChanged" LostFocus="OnCropNumberCommit" KeyDown="OnCropNumberKey" AutomationProperties.Name="Top"/>
@@ -197,6 +204,9 @@
         </Border>
         <StackPanel Grid.Row="2" Margin="0,8,0,0">
             <TextBlock x:Name="Message" TextWrapping="Wrap"/>
+            <Expander x:Name="ErrorDetails" Header="Details" FontSize="11" Visibility="Collapsed">
+                <TextBlock x:Name="ErrorCode" TextWrapping="Wrap"/>
+            </Expander>
             <DockPanel x:Name="ProgressArea" Visibility="Collapsed" Margin="0,8,0,0">
                 <Button Content="Cancel" DockPanel.Dock="Right" Click="OnCancel" Style="{StaticResource SecondaryButton}" Margin="10,0,0,0"/>
                 <ProgressBar IsIndeterminate="True" Height="6"/>

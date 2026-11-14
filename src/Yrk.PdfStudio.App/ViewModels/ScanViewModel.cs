@@ -130,6 +130,11 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
             foreach (var notice in saved.Notices) Notices.Add(TranslateNotice(notice));
             return new(saved);
         }
+        catch (ScannerException ex)
+        {
+            if (saved is not null) Session.DeleteTemporary(saved);
+            throw await ScannerFailure.ResolveAsync(scanner, device, ex, ct);
+        }
         catch { if (saved is not null) Session.DeleteTemporary(saved); throw; }
     }
 
@@ -246,6 +251,17 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         foreach (var entry in targets) { entry.Page.Crop = crop; await RefreshAsync(entry); }
     }
 
+    public Task<(NormalizedRect? Paper, NormalizedRect? Content)> DetectCropBoundsAsync(ScanPageEntry entry, CancellationToken ct = default)
+    {
+        var settings = TemporaryPreview == entry ? Settings with { AutoStraighten = false } : Settings;
+        var rotation = entry.Page.Rotation; var edits = entry.Page.Adjustments;
+        return Task.Run(() =>
+        {
+            var proxy = ScanPageProcessor.CreatePreviewPage(entry.PreviewPage ?? Session.Read(entry.Page), 1000, ct);
+            return Processor.DetectCropBounds(proxy with { Adjustments = edits }, settings, rotation, ct);
+        }, ct);
+    }
+
     public async Task<NormalizedRect?> DetectCropFrameAsync(ScanPageEntry entry, CancellationToken ct = default)
     {
         var settings = Settings with { AutoCrop = true };
@@ -316,6 +332,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
                 });
             }), ct);
         }
+        catch (ScannerException ex) { throw await ScannerFailure.ResolveAsync(scanner, device, ex, ct); }
         finally { await Task.WhenAll(pending); }
     }
 

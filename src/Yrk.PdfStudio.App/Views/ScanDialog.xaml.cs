@@ -32,6 +32,8 @@ public partial class ScanDialog : Window
     private bool _viewCrop;
     private ScanPreviewFrame? _basePreview;
     private bool _spaceUsed;
+    private bool _spaceHeld, _syncingScroll;
+    private readonly System.Windows.Threading.DispatcherTimer _cropScrollTimer = new() { Interval = TimeSpan.FromMilliseconds(30) };
     private ScanCropFrame? _cropDraft;
     private ScanPageEntry? _cropEntry;
     private int _cropVersion;
@@ -55,6 +57,9 @@ public partial class ScanDialog : Window
         _scanner = scanner;
         _model = new(session, scanner, Dispatcher);
         _previewQueue = new(RenderQueuedPreviewAsync, busy => PreviewBusy.Visibility = busy ? Visibility.Visible : Visibility.Collapsed);
+        _cropScrollTimer.Tick += (_, _) => AutoScrollCrop(Mouse.GetPosition(PreviewScroll));
+        Closed += (_, _) => _cropScrollTimer.Stop();
+        Deactivated += (_, _) => { _spaceHeld = false; PreviewScroll.ReleaseMouseCapture(); PreviewScroll.Cursor = Cursors.Arrow; };
         PreviewKeyUp += OnPreviewKeyUp;
         PageList.ItemsSource = _model.Pages;
         Quality.Value = Math.Clamp(_saved.ScanJpegQuality, 50, 95);
@@ -363,11 +368,13 @@ public partial class ScanDialog : Window
         _working = true;
         _cancel = new();
         Message.Text = string.Empty;
+        ErrorDetails.Visibility = Visibility.Collapsed;
+        ErrorDetails.IsExpanded = false;
         UpdateButtons();
         try { await work(); }
-        catch (ScannerException ex) { Message.Text = ErrorText(ex); }
+        catch (ScannerException ex) { ShowError(ex); }
         catch (OperationCanceledException) { Message.Text = Loc.T("Scanning cancelled. Scanned pages have been kept."); }
-        catch (Exception ex) { Message.Text = Loc.T(ex.Message); }
+        catch (Exception ex) { ShowError(ex); }
         finally
         {
             _cancel.Dispose();
@@ -379,16 +386,26 @@ public partial class ScanDialog : Window
         }
     }
 
-    private string ErrorText(ScannerException ex) => ex.Kind switch
+    internal static string ErrorText(ScannerException ex, bool hasPages = false) => ex.Kind switch
     {
         ScannerErrorKind.NoDevice => Loc.T("No scanner found. Connect your scanner and try again."),
         ScannerErrorKind.DeviceBusy => Loc.T("The scanner is busy. Wait and try again. Scanned pages have been kept."),
         ScannerErrorKind.PaperJam => Loc.T("Paper is jammed. Clear the paper and try Scan more. Scanned pages have been kept."),
-        ScannerErrorKind.FeederEmpty => _model.Pages.Count == 0 ? Loc.T("Put paper in the feeder and try again.") : Loc.T("The feeder is empty. Scanned pages have been kept."),
+        ScannerErrorKind.FeederEmpty => !hasPages ? Loc.T("Put paper in the feeder and try again.") : Loc.T("The feeder is empty. Scanned pages have been kept."),
         ScannerErrorKind.Cancelled => Loc.T("Scanning cancelled. Scanned pages have been kept."),
-        ScannerErrorKind.Unavailable => Loc.T("The Windows scanning service is unavailable."),
-        _ => ex.Message,
+        ScannerErrorKind.Unavailable => Loc.T("The scanner is not ready. Check its power and connection, then find scanners again."),
+        ScannerErrorKind.Disconnected => Loc.T("The scanner connection was lost. Check the USB cable and turn on the scanner, then press Find scanners again."),
+        _ => Loc.T("The scanner reported an error. Try scanning again."),
     };
+
+    internal void ShowError(Exception ex)
+    {
+        Message.Text = ex is ScannerException scanner ? ErrorText(scanner, _model.Pages.Count > 0)
+            : Loc.T("Scanning could not be completed. Try again.");
+        ErrorCode.Text = $"HRESULT: 0x{ex.HResult:X8}";
+        ErrorDetails.Visibility = Visibility.Visible;
+        App.LogMessage($"Scan error: 0x{ex.HResult:X8} {ex}");
+    }
 
     private void UpdateButtons()
     {
@@ -540,7 +557,7 @@ public partial class ScanDialog : Window
             foreach (var target in pending) await _model.RefreshAsync(target);
             if (version == _adjustmentVersion) { _pendingAdjustments.ExceptWith(pending); UpdateButtons(); }
         }
-        catch (Exception ex) { Message.Text = ex.Message; }
+        catch (Exception ex) { ShowError(ex); }
     }
 
     private void OnScope(object sender, RoutedEventArgs e)
@@ -661,13 +678,15 @@ public partial class ScanDialog : Window
     private async Task RefreshPreviewAsync()
     {
         _previewQueue.Request(endGesture: true);
-        await _previewQueue.Completion;
+        Task completion;
+        do { completion = _previewQueue.Completion; await completion; }
+        while (completion != _previewQueue.Completion);
     }
     private async Task RenderQueuedPreviewAsync(bool sharp, CancellationToken ct)
     {
         var version = ++_previewVersion;
         var entry = _model.TemporaryPreview ?? _model.Current ?? _model.Pages.FirstOrDefault();
-        if (entry is null) { PageImage.Source = RegionImage.Source = null; _viewEntry = null; _basePreview = null; ExitCrop(); _cropEntry = null; return; }
+        if (entry is null) { PageImage.Source = RegionImage.Source = null; _viewEntry = null; _basePreview = null; ExitCrop(); _cropEntry = null; _view.Fit(); SetZoom(); return; }
         try
         {
             var temporary = _model.TemporaryPreview is not null;
@@ -713,10 +732,12 @@ public partial class ScanDialog : Window
                 var generation = ++_cropVersion;
                 _cropEntry = entry;
                 var previous = entry == _model.GlassPreview ? _model.Settings.Region : entry.Page.Crop;
-                var detected = await _model.DetectCropFrameAsync(entry, ct);
+                var detected = await _model.DetectCropBoundsAsync(entry, ct);
                 ct.ThrowIfCancellationRequested();
                 if (!_cropping || generation != _cropVersion) return;
-                _cropDraft = new(PageCanvas.Width, PageCanvas.Height, previous, detected);
+                var dpi = CropDpi;
+                _cropDraft = new(PageCanvas.Width, PageCanvas.Height, previous, detected.Paper, detected.Content, dpi.X, dpi.Y);
+                if (detected.Paper is null && detected.Content is null) Message.Text = Loc.T("No edges to crop were found");
                 CropAspectChoice.SelectedIndex = 0;
                 OnCropAspectChanged(CropAspectChoice, null);
                 UpdateCropNumbers();
@@ -724,7 +745,7 @@ public partial class ScanDialog : Window
             if (_cropping) DrawCrop(); else HideCrop();
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (Exception ex) { Message.Text = ex.Message; }
+        catch (Exception ex) { ShowError(ex); }
     }
     private void DrawCrop()
     {
@@ -734,6 +755,7 @@ public partial class ScanDialog : Window
         CropOverlay.Visibility = CropPanel.Visibility = CropFrame.Visibility = Visibility.Visible;
         Canvas.SetLeft(CropFrame, rect.Left); Canvas.SetTop(CropFrame, rect.Top);
         CropFrame.Width = rect.Width; CropFrame.Height = rect.Height;
+        DrawSnapGuides();
         var page = new Rect(_view.ImageToView(new(0, 0)), _view.ImageToView(new(PageCanvas.Width, PageCanvas.Height)));
         CropShade.Data = new CombinedGeometry(GeometryCombineMode.Exclude, new RectangleGeometry(page), new RectangleGeometry(rect));
         CropHandles.Children.Clear();
@@ -748,24 +770,26 @@ public partial class ScanDialog : Window
     }
     private void OnCropDown(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton is not (MouseButton.Left or MouseButton.Middle)) return;
         if (_working || PageImage.Source is null) return;
         if (!_cropping && _model.TemporaryPreview is { } temporary && _cropDraft is { } old)
         {
             var previous = temporary == _model.GlassPreview ? _model.Settings.Region : temporary.Page.Crop;
             var detected = old.Detected is { } d ? new NormalizedRect(d.X / old.ImageWidth, d.Y / old.ImageHeight,
                 d.Width / old.ImageWidth, d.Height / old.ImageHeight) : (NormalizedRect?)null;
-            _cropDraft = new(PageCanvas.Width, PageCanvas.Height, previous, detected);
+            var content = old.Content is { } ink ? new NormalizedRect(ink.X / old.ImageWidth, ink.Y / old.ImageHeight,
+                ink.Width / old.ImageWidth, ink.Height / old.ImageHeight) : (NormalizedRect?)null;
+            _cropDraft = new(PageCanvas.Width, PageCanvas.Height, previous, detected, content, CropDpi.X, CropDpi.Y);
             _cropping = true; CropAspectChoice.SelectedIndex = 0; UpdateCropNumbers(); DrawCrop();
         }
-        if (e.ClickCount == 2)
+        if (e.ClickCount == 2 && e.ChangedButton == MouseButton.Left && !_spaceHeld)
         {
             if (_view.IsFit) OnActualSize(sender, e); else OnFit(sender, e);
             e.Handled = true; return;
         }
-        if (Keyboard.IsKeyDown(Key.Space) || (!_cropping && _model.TemporaryPreview is null))
+        if (ScanViewTransform.IsPanGesture(e.ChangedButton == MouseButton.Middle, _spaceHeld, _cropping || _model.TemporaryPreview is not null))
         {
-            _panning = true; _panStart = e.GetPosition(PreviewScroll);
-            _spaceUsed = Keyboard.IsKeyDown(Key.Space);
+            BeginPan(e.GetPosition(PreviewScroll));
         }
         else if (_cropDraft is { } draft && _cropping)
         {
@@ -773,11 +797,17 @@ public partial class ScanDialog : Window
             var point = _view.ViewToImage(e.GetPosition(PreviewScroll));
             draft.Begin(point.X, point.Y, draft.HitTest(point.X, point.Y, _view.Zoom));
             _drawingCrop = true;
+            _cropScrollTimer.Start();
         }
         PreviewScroll.CaptureMouse(); e.Handled = true;
     }
     private void OnCropMove(object sender, MouseEventArgs e)
     {
+        if (_panning)
+        {
+            ContinuePan(e.GetPosition(PreviewScroll));
+            return;
+        }
         if (_cropping && _cropDraft is { } draft)
         {
             var point = _view.ViewToImage(e.GetPosition(PreviewScroll));
@@ -786,23 +816,34 @@ public partial class ScanDialog : Window
                 draft.Drag(point.X, point.Y, _view.Zoom, Keyboard.Modifiers.HasFlag(ModifierKeys.Alt), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
                 DrawCrop(); UpdateCropNumbers();
             }
-            PreviewScroll.Cursor = draft.HitTest(point.X, point.Y, _view.Zoom) switch
+            PreviewScroll.Cursor = _spaceHeld ? Cursors.Hand : draft.HitTest(point.X, point.Y, _view.Zoom) switch
             {
                 CropHandle.NW or CropHandle.SE => Cursors.SizeNWSE, CropHandle.NE or CropHandle.SW => Cursors.SizeNESW,
                 CropHandle.W or CropHandle.E => Cursors.SizeWE, CropHandle.N or CropHandle.S => Cursors.SizeNS,
                 CropHandle.Move => Cursors.SizeAll, _ => Cursors.Cross,
             };
         }
-        if (_panning)
-        {
-            var point = e.GetPosition(PreviewScroll);
-            _view.Pan(point - _panStart); _panStart = point;
-            SetZoom(); _previewQueue.Request();
-        }
     }
-    private void OnPreviewCaptureLost(object sender, MouseEventArgs e) { _panning = false; _drawingCrop = false; }
+    internal void BeginPan(Point point) { _panning = true; _panStart = point; _spaceUsed = _spaceHeld; PreviewScroll.Cursor = Cursors.Hand; }
+    internal void ContinuePan(Point point)
+    {
+        if (!_panning) return;
+        _view.Pan(point - _panStart); _panStart = point;
+        SetZoom(); _previewQueue.Request();
+    }
+    internal void AutoScrollCrop(Point pointer)
+    {
+        if (!_drawingCrop || _cropDraft is null) return;
+        _view.Pan(ScanViewTransform.AutoScroll(pointer, _view.View));
+        var point = _view.ViewToImage(pointer);
+        _cropDraft.Drag(point.X, point.Y, _view.Zoom, Keyboard.Modifiers.HasFlag(ModifierKeys.Alt), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+        SetZoom(); UpdateCropNumbers(); _previewQueue.Request();
+    }
+    private void OnPreviewCaptureLost(object sender, MouseEventArgs e) { _panning = false; _drawingCrop = false; _cropScrollTimer.Stop(); }
     private void OnCropUp(object sender, MouseButtonEventArgs e)
     {
+        if (e.ChangedButton is not (MouseButton.Left or MouseButton.Middle)) return;
+        _cropScrollTimer.Stop();
         if (_panning) { _panning = false; PreviewScroll.ReleaseMouseCapture(); _previewQueue.Request(); return; }
         if (!_drawingCrop) return;
         OnCropMove(sender, e);
@@ -818,12 +859,15 @@ public partial class ScanDialog : Window
     private void OnZoomOut(object sender, RoutedEventArgs e) => ZoomTo(_view.Zoom / 1.25, ViewCenter);
     internal void ZoomTo(double zoom, Point anchor)
     {
+        if (PageImage.Source is null) return;
         _view.ZoomAt(zoom, anchor); SetZoom(); _previewQueue.Request();
     }
     private void OnPreviewWheel(object sender, MouseWheelEventArgs e)
     {
-        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
-        ZoomTo(_view.Zoom * Math.Pow(1.25, e.Delta / 120.0), e.GetPosition(PreviewScroll)); e.Handled = true;
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            ZoomTo(_view.Zoom * Math.Pow(1.25, e.Delta / 120.0), e.GetPosition(PreviewScroll));
+        else { _view.Pan(ScanViewTransform.WheelPan(e.Delta, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))); SetZoom(); _previewQueue.Request(); }
+        e.Handled = true;
     }
     private void OnPreviewSizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -835,7 +879,37 @@ public partial class ScanDialog : Window
         if (PageCanvas is null) return;
         PageCanvas.RenderTransform = new MatrixTransform(_view.Zoom, 0, 0, _view.Zoom, _view.Offset.X, _view.Offset.Y);
         DrawCrop();
-        ZoomText.Text = Loc.F("{0:0}%", _view.Zoom * 100);
+        var hasImage = PageImage.Source is not null;
+        ZoomText.Text = hasImage ? Loc.F("{0:0}%", _view.Zoom * 100) : string.Empty;
+        if (HorizontalPan is null || VerticalPan is null) return;
+        _syncingScroll = true;
+        try
+        {
+            var maximum = hasImage ? _view.ScrollMaximum : new Vector();
+            HorizontalPan.Visibility = maximum.X > .5 ? Visibility.Visible : Visibility.Collapsed;
+            VerticalPan.Visibility = maximum.Y > .5 ? Visibility.Visible : Visibility.Collapsed;
+            HorizontalPan.Maximum = maximum.X; VerticalPan.Maximum = maximum.Y;
+            HorizontalPan.ViewportSize = _view.View.Width; VerticalPan.ViewportSize = _view.View.Height;
+            HorizontalPan.LargeChange = _view.View.Width; VerticalPan.LargeChange = _view.View.Height;
+            HorizontalPan.Value = Math.Max(0, -_view.Offset.X); VerticalPan.Value = Math.Max(0, -_view.Offset.Y);
+        }
+        finally { _syncingScroll = false; }
+    }
+    private void OnScrollPan(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_syncingScroll) return;
+        _view.ScrollTo(HorizontalPan.Value, VerticalPan.Value); SetZoom(); _previewQueue.Request();
+    }
+    private void DrawSnapGuides()
+    {
+        var alt = Keyboard.Modifiers.HasFlag(ModifierKeys.Alt);
+        var box = _cropDraft?.Box ?? default;
+        SnapGuideX.Visibility = !alt && _cropDraft?.SnapX is { } sx && (Math.Abs(sx - box.X) < .01 || Math.Abs(sx - box.Right) < .01) ? Visibility.Visible : Visibility.Collapsed;
+        SnapGuideY.Visibility = !alt && _cropDraft?.SnapY is { } sy && (Math.Abs(sy - box.Y) < .01 || Math.Abs(sy - box.Bottom) < .01) ? Visibility.Visible : Visibility.Collapsed;
+        if (_cropDraft?.SnapX is { } x)
+        { SnapGuideX.X1 = SnapGuideX.X2 = _view.ImageToView(new(x, 0)).X; SnapGuideX.Y1 = 0; SnapGuideX.Y2 = _view.View.Height; }
+        if (_cropDraft?.SnapY is { } y)
+        { SnapGuideY.Y1 = SnapGuideY.Y2 = _view.ImageToView(new(0, y)).Y; SnapGuideY.X1 = 0; SnapGuideY.X2 = _view.View.Width; }
     }
     private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -845,6 +919,9 @@ public partial class ScanDialog : Window
     private async void OnKeyDown(object sender, KeyEventArgs e)
     {
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key is Key.LeftAlt or Key.RightAlt) DrawSnapGuides();
+        if (key == Key.Space && Keyboard.FocusedElement is not (TextBox or ComboBox or Slider or RadioButton or CheckBox))
+        { _spaceHeld = true; PreviewScroll.Cursor = Cursors.Hand; e.Handled = true; return; }
         if (_cropping && Keyboard.FocusedElement is not TextBox && !_working)
         {
             if (key == Key.Escape) { OnCropCancel(sender, e); e.Handled = true; return; }
@@ -897,8 +974,11 @@ public partial class ScanDialog : Window
     }
     private async void OnPreviewKeyUp(object sender, KeyEventArgs e)
     {
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+        if (key is Key.LeftAlt or Key.RightAlt) DrawSnapGuides();
         if (e.Key != Key.Space || Keyboard.FocusedElement is TextBox or ComboBox or Slider or RadioButton or CheckBox) return;
-        if (!_spaceUsed && !_panning) await StartScanAsync();
+        _spaceHeld = false; PreviewScroll.Cursor = Cursors.Arrow;
+        if (!_spaceUsed && !_panning && !_cropping && _model.TemporaryPreview is null) await StartScanAsync();
         _spaceUsed = false; e.Handled = true;
     }
     private void OnDragStart(object sender, MouseButtonEventArgs e)

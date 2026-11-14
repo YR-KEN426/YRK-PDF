@@ -103,6 +103,14 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
     public ScanPageAnalysis Analyze(ScannedPage page, ScanSettings settings, int rotation = 0, CancellationToken ct = default)
         => Prepare(page, settings, rotation, ct).Analysis;
 
+    public (NormalizedRect? Paper, NormalizedRect? Content) DetectCropBounds(ScannedPage page, ScanSettings settings,
+        int rotation = 0, CancellationToken ct = default)
+    {
+        var prepared = Prepare(page, settings with { AutoCrop = true }, rotation, ct);
+        var adjusted = Adjust(prepared.Bitmap, page.Adjustments ?? new(), ct);
+        return (prepared.Analysis.Keep, ScanCleanup.ContentBounds(adjusted));
+    }
+
     public PdfBitmap RenderPreview(ScannedPage page, ScanSettings settings, int rotation, int maxSide,
         NormalizedRect? crop = null, bool applyCrop = false, CancellationToken ct = default)
     {
