@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Text;
 
@@ -23,7 +24,7 @@ public sealed record PageMarkSettings
     /// <summary>Degrees, counter-clockwise.</summary>
     public double WatermarkAngle { get; init; } = 45;
 
-    public bool WatermarkBehind { get; init; } = true;
+    public bool WatermarkBehind { get; init; }
 
     public string HeaderLeft { get; init; } = string.Empty;
 
@@ -82,30 +83,64 @@ internal static class PageMarks
             .Replace("{date}", today.ToString("d", CultureInfo.CurrentCulture), StringComparison.OrdinalIgnoreCase)
             .Replace("{file}", Path.GetFileNameWithoutExtension(fileName), StringComparison.OrdinalIgnoreCase);
 
-        var watermark = Fill(settings.Watermark).Trim();
-        if (watermark.Length > 0)
+        var watermark = Fill(settings.Watermark);
+        var texts = watermark.Split(["\r\n", "\n", "\r"], StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (texts.Length > 0)
         {
             var angle = settings.WatermarkAngle * Math.PI / 180;
             double cos = Math.Abs(Math.Cos(angle)), sin = Math.Abs(Math.Sin(angle));
             var size = settings.WatermarkSize;
             if (size <= 0)
             {
-                // Fit the turned text inside the page: its bounding box may use 80 % of each side.
-                var unit = TextShaper.Shape(watermark, settings.FontFamily, bold: true, italic: false, 100);
-                var scale = Math.Min(
-                    FitShare * width / ((unit.Width * cos) + (unit.Height * sin)),
-                    FitShare * height / ((unit.Width * sin) + (unit.Height * cos)));
-                size = Math.Min(MaxWatermarkSize, 100 * scale);
+                double Fit(string[] candidate)
+                {
+                    var units = candidate.Select(text => TextShaper.Shape(text, settings.FontFamily, bold: true, italic: false, 100)).ToArray();
+                    double w = units.Max(line => line.Width), h = units.Sum(line => line.Height);
+                    var scale = Math.Min(FitShare * width / ((w * cos) + (h * sin)), FitShare * height / ((w * sin) + (h * cos)));
+                    return Math.Min(MaxWatermarkSize, 100 * scale);
+                }
+
+                size = Fit(texts);
+                if (texts.Length == 1 && watermark.IndexOfAny(['\r', '\n']) < 0 && size < MaxWatermarkSize)
+                {
+                    var singleSize = size;
+                    var bestTexts = texts;
+                    foreach (var candidate in BalancedWatermarkLines(texts[0], settings.FontFamily))
+                    {
+                        var candidateSize = Fit(candidate);
+                        // Candidates arrive in line-count order; ties retain fewer lines.
+                        if (candidateSize > size)
+                        {
+                            bestTexts = candidate;
+                            size = candidateSize;
+                        }
+                    }
+
+                    // Wrapping must improve on the single line by at least ten percent.
+                    if (size >= singleSize * 1.1)
+                    {
+                        texts = bestTexts;
+                    }
+                    else
+                    {
+                        size = singleSize;
+                    }
+                }
             }
 
-            var line = TextShaper.Shape(watermark, settings.FontFamily, bold: true, italic: false, size);
-
-            // Centre the turned box on the page: the box's middle, turned counter-clockwise, lands on the page's middle.
-            var a = settings.WatermarkAngle * Math.PI / 180;
-            double cx = line.Width / 2, cy = line.Height / 2;
-            var dx = (cx * Math.Cos(a)) + (cy * Math.Sin(a));
-            var dy = (-cx * Math.Sin(a)) + (cy * Math.Cos(a));
-            marks.Add(new PageMark(watermark, line, (width / 2) - dx, (height / 2) - dy, settings.WatermarkAngle, settings.WatermarkColor, settings.WatermarkOpacity, settings.WatermarkBehind, size, Bold: true));
+            var lines = texts.Select(text => TextShaper.Shape(text, settings.FontFamily, bold: true, italic: false, size)).ToArray();
+            var totalHeight = lines.Sum(line => line.Height);
+            var y = 0.0;
+            for (var i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                // Rotate each centred line's top-left around the middle of the whole stack.
+                double vx = -line.Width / 2, vy = y - (totalHeight / 2);
+                var left = (width / 2) + (vx * Math.Cos(angle)) + (vy * Math.Sin(angle));
+                var top = (height / 2) - (vx * Math.Sin(angle)) + (vy * Math.Cos(angle));
+                marks.Add(new PageMark(texts[i], line, left, top, settings.WatermarkAngle, settings.WatermarkColor, settings.WatermarkOpacity, settings.WatermarkBehind, size, Bold: true));
+                y += line.Height;
+            }
         }
 
         var margin = settings.MarginMm * PointsPerMm;
@@ -135,6 +170,66 @@ internal static class PageMarks
         Add(settings.FooterCenter, false, 1);
         Add(settings.FooterRight, false, 2);
         return marks;
+    }
+
+    /// <summary>For each line count, minimise the widest line using actual shaped widths.</summary>
+    private static IEnumerable<string[]> BalancedWatermarkLines(string text, string fontFamily)
+    {
+        var words = Regex.Matches(text, @"\S+");
+        var count = words.Count;
+        var maxLines = Math.Min(4, count);
+        if (maxLines < 2)
+        {
+            yield break;
+        }
+
+        string Segment(int start, int end) => text[words[start].Index..(words[end - 1].Index + words[end - 1].Length)];
+        var widths = new Dictionary<(int Start, int End), double>();
+        double Width(int start, int end)
+        {
+            if (!widths.TryGetValue((start, end), out var value))
+            {
+                value = TextShaper.Shape(Segment(start, end), fontFamily, bold: true, italic: false, 100).Width;
+                widths[(start, end)] = value;
+            }
+
+            return value;
+        }
+
+        var widest = new double[maxLines + 1, count + 1];
+        var cuts = new int[maxLines + 1, count + 1];
+        for (var end = 1; end <= count; end++)
+        {
+            widest[1, end] = Width(0, end);
+        }
+
+        for (var n = 2; n <= maxLines; n++)
+        {
+            for (var end = n; end <= count; end++)
+            {
+                widest[n, end] = double.PositiveInfinity;
+                for (var cut = n - 1; cut < end; cut++)
+                {
+                    var candidate = Math.Max(widest[n - 1, cut], Width(cut, end));
+                    if (candidate < widest[n, end])
+                    {
+                        widest[n, end] = candidate;
+                        cuts[n, end] = cut;
+                    }
+                }
+            }
+
+            var lines = new string[n];
+            var last = count;
+            for (var row = n; row > 0; row--)
+            {
+                var first = row == 1 ? 0 : cuts[row, last];
+                lines[row - 1] = Segment(first, last);
+                last = first;
+            }
+
+            yield return lines;
+        }
     }
 
     /// <summary>The marks of the chosen pages as PDF text blocks (fonts embedded once for all pages).</summary>
