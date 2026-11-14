@@ -125,7 +125,6 @@ public sealed partial class MainViewModel
         }
         var done = await RunBusyAsync("Saving images…", async () =>
         {
-            var processor = new ScanPageProcessor(new WpfImageCodec());
             for (var i = 0; i < pages.Count; i++)
             {
                 var page = pages[i];
@@ -135,21 +134,7 @@ public sealed partial class MainViewModel
                 try
                 {
                     RequireScanOutputNoLinks(temp);
-                    var bytes = await Task.Run(() =>
-                    {
-                        var raw = request.Session.Read(page);
-                        // Same preparation, crop, tone and bilevel operations as the PDF processor, at full resolution.
-                        var bitmap = processor.RenderPreview(raw, request.Settings, page.Rotation, int.MaxValue, page.Crop, true);
-                        var swapped = page.Rotation % 180 != 0;
-                        var source = BitmapSource.Create(bitmap.Width, bitmap.Height, swapped ? raw.DpiY : raw.DpiX,
-                            swapped ? raw.DpiX : raw.DpiY, PixelFormats.Bgra32, null, bitmap.Pixels, bitmap.Stride);
-                        BitmapEncoder encoder = request.Format == ScanOutputFormat.Jpeg
-                            ? new JpegBitmapEncoder { QualityLevel = request.Settings.JpegQuality } : new PngBitmapEncoder();
-                        encoder.Frames.Add(BitmapFrame.Create(source));
-                        using var memory = new MemoryStream();
-                        encoder.Save(memory);
-                        return memory.ToArray();
-                    });
+                    var bytes = await Task.Run(() => RenderScanImage(request.Session, page, request.Settings, request.Format));
                     using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                     {
                         createdTemp = true;
@@ -165,6 +150,23 @@ public sealed partial class MainViewModel
         if (done) RememberScanFolder(outputs[0]);
         if (done) StatusMessage = Loc.F("Saved {0} image(s)", pages.Count);
         return true;
+    }
+
+    internal static byte[] RenderScanImage(ScanSession session, ScanSessionPage page, ScanSettings settings, ScanOutputFormat format)
+    {
+        var raw = session.Read(page);
+        var processor = new ScanPageProcessor(new WpfImageCodec());
+        // Full-resolution preparation shares rotation, deskew, crop, adjustments and per-page mode with PDF output.
+        var bitmap = processor.RenderPreview(raw, settings, page.Rotation, int.MaxValue, page.Crop, true);
+        var swapped = page.Rotation % 180 != 0;
+        var source = BitmapSource.Create(bitmap.Width, bitmap.Height, swapped ? raw.DpiY : raw.DpiX,
+            swapped ? raw.DpiX : raw.DpiY, PixelFormats.Bgra32, null, bitmap.Pixels, bitmap.Stride);
+        BitmapEncoder encoder = format == ScanOutputFormat.Jpeg
+            ? new JpegBitmapEncoder { QualityLevel = settings.JpegQuality } : new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(source));
+        using var memory = new MemoryStream();
+        encoder.Save(memory);
+        return memory.ToArray();
     }
 
     private static void RequireScanOutputNoLinks(string path)

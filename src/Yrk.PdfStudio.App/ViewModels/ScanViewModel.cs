@@ -122,7 +122,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
         {
             await scanner.ScanAsync(device, settings, new PageSink(page =>
             {
-                saved ??= Session.AddTemporary(page, ct);
+                saved ??= Session.AddTemporary(page with { ColorMode = settings.ColorMode }, ct);
             }), ct);
             ct.ThrowIfCancellationRequested();
             if (saved is null) throw new InvalidOperationException(Loc.T("No scanned page was returned."));
@@ -151,7 +151,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
                 var composed = await Task.Run(() => ScanPageProcessor.ComposeCard(Session.Read(CardFront!.Page), CardFront.Page.Crop,
                     Session.Read(CardBack.Page), CardBack.Page.Crop, settings.Dpi, ct), ct);
                 Remember();
-                var saved = Session.Add(composed, ct);
+                var saved = Session.Add(composed with { ColorMode = settings.ColorMode }, ct);
                 saved.Crop = new(0, 0, 1, 1); // Keep the A4 canvas through the normal processing pipeline.
                 if (AdjustmentScope == ScanAdjustmentScope.AllPages && _allPageAdjustments is { } all) saved.Adjustments = all;
                 var entry = new ScanPageEntry(saved);
@@ -274,11 +274,12 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
     {
         Remember();
         var pending = new List<Task>();
+        var settings = Settings;
         try
         {
-            await scanner.ScanAsync(device, Settings, new PageSink(page =>
+            await scanner.ScanAsync(device, settings, new PageSink(page =>
             {
-                var saved = Session.Add(page, CancellationToken.None);
+                var saved = Session.Add(page with { ColorMode = settings.ColorMode }, CancellationToken.None);
                 dispatcher.Invoke(() =>
                 {
                     var entry = new ScanPageEntry(saved);
@@ -319,7 +320,7 @@ public sealed class ScanViewModel(ScanSession session, IScannerService scanner, 
             source.Render(visual);
             source.Freeze();
             var bytes = processed.Data.LongLength;
-            if (settings.ColorMode == ScanColorMode.BlackAndWhite)
+            if ((page.ColorMode ?? settings.ColorMode) == ScanColorMode.BlackAndWhite)
             {
                 using var document = new PdfSharp.Pdf.PdfDocument();
                 document.Options.EnableCcittCompressionForBilevelImages = true;

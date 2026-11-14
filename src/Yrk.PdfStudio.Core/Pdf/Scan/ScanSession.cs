@@ -7,6 +7,7 @@ public sealed class ScanSessionPage
         FilePath = path;
         DpiX = page.DpiX;
         DpiY = page.DpiY;
+        ColorMode = page.ColorMode;
         Notices = page.Notices?.ToArray() ?? [];
         Adjustments = page.Adjustments ?? new();
     }
@@ -14,6 +15,8 @@ public sealed class ScanSessionPage
     public string FilePath { get; }
     public double DpiX { get; }
     public double DpiY { get; }
+    /// <summary>Acquisition mode; null preserves the settings fallback for callers adding legacy raw pages.</summary>
+    public ScanColorMode? ColorMode { get; }
     public IReadOnlyList<string> Notices { get; }
     public int Rotation { get; set; }
     public NormalizedRect? Crop { get; set; }
@@ -124,7 +127,7 @@ public sealed class ScanSession : IDisposable
         {
             await scanner.ScanAsync(device, settings, new PageSink(page =>
             {
-                var saved = Add(page, cancellationToken);
+                var saved = Add(page with { ColorMode = settings.ColorMode }, cancellationToken);
                 progress?.Report(saved);
             }), cancellationToken)
                 .ConfigureAwait(false);
@@ -154,7 +157,7 @@ public sealed class ScanSession : IDisposable
             var count = checked(stride * h);
             if (w <= 0 || h <= 0 || stride < checked(w * 4) || stream.Length - stream.Position != count)
                 throw new InvalidDataException("Invalid scan page file.");
-            return new(new(w, h, stride, reader.ReadBytes(count)), page.DpiX, page.DpiY, page.Notices, page.Adjustments);
+            return new(new(w, h, stride, reader.ReadBytes(count)), page.DpiX, page.DpiY, page.Notices, page.Adjustments, page.ColorMode);
         }
     }
 

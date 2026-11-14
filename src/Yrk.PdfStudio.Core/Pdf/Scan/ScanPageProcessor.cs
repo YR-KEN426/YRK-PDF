@@ -83,9 +83,10 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
         var (bitmap, dpiX, dpiY, analysis) = Prepare(page, settings, rotation, ct);
         bitmap = Crop(bitmap, crop ?? analysis.Keep, ct);
         bitmap = Adjust(bitmap, page.Adjustments ?? new(), ct);
-        var gray = settings.ColorMode == ScanColorMode.Color ? null : Gray(bitmap, ct);
+        var colorMode = page.ColorMode ?? settings.ColorMode;
+        var gray = colorMode == ScanColorMode.Color ? null : Gray(bitmap, ct);
         byte[] data;
-        if (settings.ColorMode == ScanColorMode.BlackAndWhite)
+        if (colorMode == ScanColorMode.BlackAndWhite)
             data = BilevelBmp(gray!, bitmap.Width, bitmap.Height, ct);
         else
         {
@@ -96,7 +97,7 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
             data = codec.EncodeJpeg(pixels, bitmap.Width, bitmap.Height, settings.JpegQuality);
         }
         ct.ThrowIfCancellationRequested();
-        return new(bitmap.Width, bitmap.Height, dpiX, dpiY, settings.ColorMode, data, analysis.IsBlank);
+        return new(bitmap.Width, bitmap.Height, dpiX, dpiY, colorMode, data, analysis.IsBlank);
     }
 
     public ScanPageAnalysis Analyze(ScannedPage page, ScanSettings settings, int rotation = 0, CancellationToken ct = default)
@@ -108,9 +109,10 @@ public sealed class ScanPageProcessor(IPdfImageCodec codec, IScanOrientationDete
         var prepared = Prepare(CreatePreviewPage(page, maxSide, ct), settings, rotation, ct);
         var bitmap = applyCrop ? Crop(prepared.Bitmap, crop ?? prepared.Analysis.Keep, ct) : prepared.Bitmap;
         bitmap = Adjust(bitmap, page.Adjustments ?? new(), ct);
-        if (settings.ColorMode == ScanColorMode.Color) return bitmap;
+        var colorMode = page.ColorMode ?? settings.ColorMode;
+        if (colorMode == ScanColorMode.Color) return bitmap;
         var gray = Gray(bitmap, ct);
-        var threshold = settings.ColorMode == ScanColorMode.BlackAndWhite ? BilevelThreshold(gray) : -1;
+        var threshold = colorMode == ScanColorMode.BlackAndWhite ? BilevelThreshold(gray) : -1;
         var pixels = new byte[checked(bitmap.Width * bitmap.Height * 4)];
         for (var y = 0; y < bitmap.Height; y++)
         {

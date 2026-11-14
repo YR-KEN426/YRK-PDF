@@ -70,7 +70,7 @@ public enum ScanOutputFormat { Pdf, Jpeg, Png }
 
 /// <summary>Opaque BGRA pixels at the device's actual, independently measured X/Y resolution.</summary>
 public sealed record ScannedPage(PdfBitmap Bitmap, double DpiX, double DpiY, IReadOnlyList<string>? Notices = null,
-    ScanPageAdjustments? Adjustments = null);
+    ScanPageAdjustments? Adjustments = null, ScanColorMode? ColorMode = null);
 
 /// <summary>Immutable so background previews and output use one consistent set of page edits.</summary>
 public sealed record ScanPageAdjustments(int Brightness = 0, int Sharpness = 0, bool WhiteBackground = false, bool? Straighten = null, int Contrast = 0)
