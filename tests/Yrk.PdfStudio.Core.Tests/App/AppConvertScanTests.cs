@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -11,8 +12,10 @@ using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.App.Views;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Cos;
+using Yrk.PdfStudio.Core.Pdf.Export;
 using Yrk.PdfStudio.Core.Pdf.Ocr;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
+using Yrk.PdfStudio.Core.Pdf.Signatures;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
@@ -51,6 +54,21 @@ public sealed class AppConvertScanTests
                 Assert.Equal(new[] { "tha", "eng" }, choices.Where(c => c.IsChecked).Select(c => c.Code));
                 Assert.True(((Button)input.FindName("OkButton")).IsEnabled);
                 Assert.False(string.IsNullOrEmpty(AutomationProperties.GetName((Button)input.FindName("OkButton"))));
+
+                input.Close();
+                input = new ConvertScanDialog([]);
+                input.Measure(new Size(680, 780));
+                input.Arrange(new Rect(0, 0, 680, 780));
+                var hint = Assert.IsType<TextBlock>(input.FindName("EmptyFileHint"));
+                var list = (ListBox)input.FindName("FileList");
+                Assert.Equal(Visibility.Visible, hint.Visibility);
+                var position = hint.TranslatePoint(new Point(hint.ActualWidth / 2, hint.ActualHeight / 2), list);
+                Assert.InRange(position.X, list.ActualWidth / 2 - 1, list.ActualWidth / 2 + 1);
+                Assert.InRange(position.Y, list.ActualHeight / 2 - 1, list.ActualHeight / 2 + 1);
+                Assert.Same(input.FindResource("SecondaryTextBrush"), ((TextBlock)input.FindName("ErrorText")).Foreground);
+                typeof(ConvertScanDialog).GetMethod("AddFiles", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(input, [new[] { file }]);
+                Assert.Equal(Visibility.Collapsed, hint.Visibility);
 
                 var combined = "scan.pdf\nFirst OCR text\n\nphoto.png\nSecond OCR text";
                 string? copied = null;
@@ -273,7 +291,7 @@ public sealed class AppConvertScanTests
     }
 
     [Fact]
-    public async Task A_failed_move_rolls_back_previously_moved_outputs_and_preserves_competing_entry()
+    public async Task A_failed_move_keeps_created_outputs_and_reports_created_and_uncreated_files()
     {
         string? collision = null;
         await using var app = new AppTestHarness(wrapOpenedDocument: document =>
@@ -295,10 +313,157 @@ public sealed class AppConvertScanTests
 
         await app.Model.ConvertScanCommand.ExecuteAsync(null);
 
-        Assert.Single(app.Dialogs.Named("ShowError"));
-        Assert.False(File.Exists(app.PathFor("scan (OCR).pdf")));
+        var result = Result(app);
+        Assert.Equal(new[] { app.PathFor("scan (OCR).pdf") }, result.OutputFiles);
+        Assert.Contains("Converted 0 of 1 files", result.Summary);
+        Assert.Contains("Not done (1):", result.Summary);
+        Assert.Contains("Created files:", result.Summary);
+        Assert.Contains(app.PathFor("scan (OCR).pdf"), result.Summary);
+        Assert.Contains("Files not created:", result.Summary);
+        Assert.Contains(app.PathFor("scan.docx"), result.Summary);
+        Assert.Contains(app.PathFor("scan.txt"), result.Summary);
+        Assert.True(File.Exists(app.PathFor("scan (OCR).pdf")));
         Assert.Equal("Competing writer's document", File.ReadAllText(collision));
         Assert.False(File.Exists(app.PathFor("scan.txt")));
+        AssertClean(app);
+    }
+
+    [Theory]
+    [InlineData("ocr")]
+    [InlineData("export")]
+    [InlineData("dispose")]
+    public async Task Unexpected_cancellation_fails_one_file_logs_stack_and_continues(string phase)
+    {
+        var unexpected = new OperationCanceledException("Unexpected cancellation " + Guid.NewGuid());
+        var injected = false;
+        await using var app = new AppTestHarness(wrapOpenedDocument: document =>
+        {
+            if (!document.FilePath.EndsWith("rotated.pdf", StringComparison.Ordinal)) return document;
+            var proxy = DispatchProxy.Create<IPdfDocument, SignatureSecurityTests.TestProxy>();
+            ((SignatureSecurityTests.TestProxy)(object)proxy).Handle = (method, args) =>
+            {
+                if (method.Name == nameof(IAsyncDisposable.DisposeAsync)) return DisposeAsync();
+                if (!injected && phase == "export" && method.Name == nameof(IPdfDocument.GetPageTextSpansAsync))
+                {
+                    injected = true;
+                    return Task.FromException<PdfPageText>(unexpected);
+                }
+                return method.Invoke(document, args);
+            };
+            async ValueTask DisposeAsync()
+            {
+                await document.DisposeAsync();
+                if (!injected && phase == "dispose") { injected = true; throw unexpected; }
+            }
+            return proxy;
+        });
+        var first = WritePdf(app);
+        var second = WritePdf(app, name: "second.pdf");
+        Configure(app, [first, second]);
+        var runner = app.Model.ConvertScanOcrRunner;
+        app.Model.ConvertScanOcrRunner = (doc, pdf, options, data, orient, progress, ct) =>
+        {
+            if (!injected && phase == "ocr") { injected = true; return Task.FromException<OcrDocumentResult>(unexpected); }
+            return runner(doc, pdf, options, data, orient, progress, ct);
+        };
+
+        await app.Model.ConvertScanCommand.ExecuteAsync(null);
+
+        var result = Result(app);
+        Assert.Contains("Converted 1 of 2 files", result.Summary);
+        Assert.Contains("Not done (1):", result.Summary);
+        Assert.Contains(unexpected.Message, result.Summary);
+        Assert.DoesNotContain("Stopped before the end", result.Summary);
+        var logs = string.Join("\n", Directory.GetFiles(Yrk.PdfStudio.App.App.LogFolder, "*.log").Select(File.ReadAllText));
+        Assert.Contains(unexpected.ToString(), logs);
+        AssertClean(app);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Cleanup_is_best_effort_preserves_result_and_removes_nested_export_temporary_files(bool fail)
+    {
+        string[] locked = [];
+        string? work = null;
+        string? outputFolder = null;
+        await using var app = new AppTestHarness(wrapOpenedDocument: document =>
+        {
+            if (!document.FilePath.EndsWith("rotated.pdf", StringComparison.Ordinal)) return document;
+            var proxy = DispatchProxy.Create<IPdfDocument, SignatureSecurityTests.TestProxy>();
+            ((SignatureSecurityTests.TestProxy)(object)proxy).Handle = (method, args) =>
+                method.Name == nameof(IAsyncDisposable.DisposeAsync) ? DisposeAsync() : method.Invoke(document, args);
+            async ValueTask DisposeAsync()
+            {
+                await document.DisposeAsync();
+                work = Path.GetDirectoryName(document.FilePath)!;
+                // Use the source folder captured below, never any user's document.
+                var stages = Directory.GetFiles(outputFolder!, "*.yrk-tmp");
+                Assert.Equal(3, stages.Length);
+                foreach (var stage in stages) File.WriteAllText(stage + ".yrk-tmp", "Nested exporter temporary file");
+                var workFile = Path.Combine(work, "locked.tmp");
+                File.WriteAllText(workFile, "Work cleanup failure");
+                // The unrequested clipboard text stage is left behind on success.
+                locked = [.. stages, workFile];
+                foreach (var path in locked) File.SetAttributes(path, FileAttributes.ReadOnly);
+                if (fail) throw new IOException("Original export disposal failure");
+            }
+            return proxy;
+        });
+        outputFolder = app.Folder;
+        var source = WritePdf(app);
+        Configure(app, [source], text: false);
+        try
+        {
+            await app.Model.ConvertScanCommand.ExecuteAsync(null);
+            if (fail)
+            {
+                var summary = (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!;
+                Assert.Contains("Original export disposal failure", summary);
+            }
+            else Assert.Equal(2, Result(app).OutputFiles.Count);
+            Assert.Empty(Directory.GetFiles(app.Folder, "*.yrk-tmp.yrk-tmp"));
+            var logs = string.Join("\n", Directory.GetFiles(Yrk.PdfStudio.App.App.LogFolder, "*.log").Select(File.ReadAllText));
+            Assert.Contains("Convert scan cleanup failed (" + work, logs);
+            Assert.Contains(locked.First(File.Exists), logs);
+        }
+        finally
+        {
+            foreach (var path in Directory.GetFiles(app.Folder, "*", SearchOption.AllDirectories)) File.SetAttributes(path, FileAttributes.Normal);
+            foreach (var path in Directory.GetFiles(app.Folder, "*.yrk-tmp")) File.Delete(path);
+            if (work is not null && Directory.Exists(work))
+            {
+                foreach (var path in Directory.GetFiles(work)) File.SetAttributes(path, FileAttributes.Normal);
+                Directory.Delete(work, true);
+            }
+        }
+        AssertClean(app);
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Signature_notice_is_in_summary_only_for_signed_searchable_pdf(bool signed, bool searchable)
+    {
+        await using var app = new AppTestHarness();
+        using var key = RSA.Create(2048);
+        var certificateRequest = new CertificateRequest("CN=Generated test signer", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var certificate = certificateRequest.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
+        var bytes = ScanPdfFixture.Build("");
+        if (signed) bytes = await PdfSigner.SignAsync(bytes, new PdfSignRequest(certificate));
+        var source = WritePdf(app, bytes);
+        var request = Configure(app, [source]);
+        // Configure queues one request; consume it before replacing its output selection.
+        app.Dialogs.Service.AskConvertScan([]);
+        app.Dialogs.Answer("AskConvertScan", request with { SearchablePdf = searchable });
+
+        await app.Model.ConvertScanCommand.ExecuteAsync(null);
+
+        const string notice = "The signature in the output PDF will show that the document was modified. The original file remains valid.";
+        Assert.Equal(signed && searchable, Result(app).Summary.Contains(notice, StringComparison.Ordinal));
+        Assert.Empty(app.Dialogs.Named("Confirm"));
+        Assert.Equal(bytes, File.ReadAllBytes(source));
         AssertClean(app);
     }
 

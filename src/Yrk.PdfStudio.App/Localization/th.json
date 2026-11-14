@@ -1729,5 +1729,10 @@
   "File {0} of {1} · Page {2} of {3}": "ไฟล์ {0} จาก {1} · หน้า {2} จาก {3}",
   "Converted {0} of {1} files": "แปลงสำเร็จ {0} จาก {1} ไฟล์",
   "Every page already contains text.": "ทุกหน้ามีข้อความอยู่แล้ว",
+  "Created files:": "ไฟล์ที่สร้างแล้ว:",
+  "Files not created:": "ไฟล์ที่ยังไม่ได้สร้าง:",
+  "Couldn't create all output files. {0}": "สร้างไฟล์ผลลัพธ์ได้ไม่ครบ {0}",
+  "Conversion was interrupted unexpectedly. {0}": "การแปลงหยุดลงโดยไม่คาดคิด {0}",
+  "The signature in the output PDF will show that the document was modified. The original file remains valid.": "ลายเซ็นในไฟล์ PDF ผลลัพธ์จะขึ้นว่าเอกสารถูกแก้ไข ไฟล์ต้นฉบับยังถูกต้อง",
   "Password-protected PDFs cannot be made searchable yet. Save an unprotected copy first.": "ยังทำ OCR ไฟล์ PDF ที่เข้ารหัสไม่ได้ กรุณาบันทึกสำเนาที่ไม่มีการป้องกันก่อน"
 }

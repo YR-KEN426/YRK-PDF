@@ -6,6 +6,7 @@ using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Ocr;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
+using Yrk.PdfStudio.Core.Pdf.Signatures;
 
 namespace Yrk.PdfStudio.App.ViewModels;
 
@@ -40,6 +41,7 @@ public sealed partial class MainViewModel
         var texts = new List<string>();
         var failed = new List<(string File, string Reason)>();
         var cancelledFiles = new List<string>();
+        var signedPdfFiles = new List<string>();
         var skipReview = false;
         var succeeded = 0;
         var cancelled = false;
@@ -71,10 +73,21 @@ public sealed partial class MainViewModel
                         continue;
                     }
                     outputs.AddRange(converted.Files);
+                    if (converted.SignedPdf) signedPdfFiles.Add(file);
+                    if (converted.Failure is { } failure)
+                    {
+                        failed.Add((file, failure));
+                        continue;
+                    }
                     texts.Add(Path.GetFileName(file) + Environment.NewLine + converted.Text);
                     succeeded++;
                 }
-                catch (OperationCanceledException) { throw; }
+                catch (OperationCanceledException) when (operation.IsCancellationRequested) { throw; }
+                catch (OperationCanceledException ex)
+                {
+                    App.LogMessage($"Convert scan failed without operation cancellation ({file}): {ex}");
+                    failed.Add((file, Loc.F("Conversion was interrupted unexpectedly. {0}", ex.Message)));
+                }
                 catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException
                     or InvalidOperationException or NotSupportedException or ArgumentException)
                 {
@@ -82,7 +95,12 @@ public sealed partial class MainViewModel
                 }
             }
         }
-        catch (OperationCanceledException) { cancelled = true; }
+        catch (OperationCanceledException) when (operation.IsCancellationRequested) { cancelled = true; }
+        catch (OperationCanceledException ex)
+        {
+            App.LogMessage($"Convert scan setup failed without operation cancellation: {ex}");
+            failed.Add((string.Empty, Loc.F("Conversion was interrupted unexpectedly. {0}", ex.Message)));
+        }
         catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
         {
             failed.Add((string.Empty, Loc.F("The language data could not be downloaded. Check the internet connection and try again.\n\n{0}", ex.Message)));
@@ -108,12 +126,18 @@ public sealed partial class MainViewModel
                 + string.Join("\n", failed.Take(15).Select(f => $"• {Path.GetFileName(f.File)}: {f.Reason}"));
             if (failed.Count > 15) summary += "\n" + Loc.F("…and {0} more", failed.Count - 15);
         }
+        if (signedPdfFiles.Count > 0)
+            summary += "\n\n" + Loc.T("The signature in the output PDF will show that the document was modified. The original file remains valid.")
+                + "\n" + string.Join("\n", signedPdfFiles.Select(Path.GetFileName));
         if (succeeded == 0 && failed.Count == 0 && cancelledFiles.Count > 0) _dialogs.ShowInfo(summary);
-        else if (succeeded == 0) _dialogs.ShowError(summary);
+        else if (succeeded == 0 && outputs.Count == 0) _dialogs.ShowError(summary);
         else _dialogs.ShowConvertScanResult(new ConvertScanResult(summary, outputs, string.Join("\n\n", texts)));
     }
 
-    private async Task<(IReadOnlyList<string> Files, string Text, bool Cancelled)> ConvertScanFileAsync(string file, ConvertScanRequest request,
+    private sealed record ConvertScanFileResult(IReadOnlyList<string> Files, string Text, bool Cancelled = false,
+        string? Failure = null, bool SignedPdf = false);
+
+    private async Task<ConvertScanFileResult> ConvertScanFileAsync(string file, ConvertScanRequest request,
         OcrLanguageData data, bool orient, IProgress<OcrProgress> progress, bool review, bool hasMoreFiles,
         Action skipRemainingReview, CancellationToken ct)
     {
@@ -134,6 +158,9 @@ public sealed partial class MainViewModel
             var bytes = await File.ReadAllBytesAsync(input, ct);
             if (PdfFiles.IsEncrypted(bytes))
                 throw new PdfException(Loc.T("Password-protected PDFs cannot be made searchable yet. Save an unprotected copy first."));
+            // Reuse the existing detector without revocation/network checks; only presence matters here.
+            var signedPdf = request.SearchablePdf && (await Task.Run(() =>
+                PdfSignatureVerifier.Verify(bytes, new PdfVerifyOptions(CheckRevocation: false), ct), ct)).Count > 0;
 
             OcrDocumentResult result;
             IReadOnlyList<OcrScanPage> scanPages;
@@ -158,7 +185,7 @@ public sealed partial class MainViewModel
                     await using var model = new OcrReviewViewModel(result.Pages, rotated, hasMoreFiles);
                     await model.RenderAsync();
                     var choice = _dialogs.AskOcrReview(model);
-                    if (choice == OcrReviewChoice.CancelFile) return ([], string.Empty, true);
+                    if (choice == OcrReviewChoice.CancelFile) return new([], string.Empty, Cancelled: true);
                     if (choice == OcrReviewChoice.SkipRemaining) skipRemainingReview();
                     foreach (var page in result.Pages)
                     {
@@ -239,34 +266,40 @@ public sealed partial class MainViewModel
                     moved.Add(output.Target);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                DeleteConvertScanFiles(moved);
-                throw;
+                // Published paths may already belong to another writer. Never roll them back by name.
+                var reason = Loc.F("Couldn't create all output files. {0}", ex.Message);
+                if (moved.Count > 0)
+                    reason += "\n" + Loc.T("Created files:") + "\n" + string.Join("\n", moved);
+                reason += "\n" + Loc.T("Files not created:") + "\n"
+                    + string.Join("\n", publish.Skip(moved.Count).Select(p => p.Target));
+                return new(moved, allText, Failure: reason, SignedPdf: signedPdf && moved.Count > 0);
             }
-            return (moved, allText, false);
+            return new(moved, allText, SignedPdf: signedPdf);
         }
         finally
         {
-            try
+            foreach (var stage in staging)
             {
-                DeleteConvertScanFiles(staging);
+                CleanupConvertScan(() => File.Delete(stage), stage);
+                // PdfExporter.WriteAtomicallyAsync appends this suffix even to an existing stage name.
+                var nested = stage + ".yrk-tmp";
+                CleanupConvertScan(() => File.Delete(nested), nested);
             }
-            finally { Directory.Delete(work, recursive: true); }
+            CleanupConvertScan(() => Directory.Delete(work, recursive: true), work);
         }
     }
 
     private sealed class ConvertScanSkipException(string message) : InvalidOperationException(message);
 
-    private static void DeleteConvertScanFiles(IEnumerable<string> paths)
+    private static void CleanupConvertScan(Action delete, string path)
     {
-        Exception? failure = null;
-        foreach (var path in paths)
+        try { delete(); }
+        catch (Exception ex)
         {
-            try { File.Delete(path); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { failure ??= ex; }
+            App.LogMessage($"Convert scan cleanup failed ({path}): {ex}");
         }
-        if (failure is not null) throw new IOException(failure.Message, failure);
     }
 
     private sealed class ConvertScanExportProgress : IProgress<int>
