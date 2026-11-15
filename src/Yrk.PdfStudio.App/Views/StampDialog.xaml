@@ -4,7 +4,7 @@
         Title="Rubber stamp"
         Width="760"
         SizeToContent="Height"
-        ResizeMode="NoResize"
+        ResizeMode="CanResizeWithGrip" MinWidth="760" MinHeight="320"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource SurfaceBrush}"
@@ -38,110 +38,120 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
     </Window.Resources>
-    <StackPanel Margin="20">
-        <TextBlock Text="Rubber stamp" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock Text="Choose a stamp, or change the words, colour and date. Save your own, such as a company stamp, to use again."
-                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,10" TextWrapping="Wrap" />
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled" Focusable="False"
+                      KeyboardNavigation.TabNavigation="Continue">
+            <StackPanel>
+                <TextBlock Text="Rubber stamp" FontSize="16" FontWeight="SemiBold" />
+                <TextBlock Text="Choose a stamp, or change the words, colour and date. Save your own, such as a company stamp, to use again."
+                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,10" TextWrapping="Wrap" />
 
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="340" />
-                <ColumnDefinition Width="20" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <StackPanel Grid.Column="0">
-                <DockPanel Margin="0,0,0,4">
-                    <TextBlock Text="Ready-made" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <RadioButton x:Name="ThaiWords" Content="Thai" GroupName="Language" Margin="0,0,10,0" Checked="OnLanguageChanged" />
-                        <RadioButton x:Name="EnglishWords" Content="English" GroupName="Language" Margin="0,0,10,0" Checked="OnLanguageChanged" />
-                        <RadioButton x:Name="BothWords" Content="Thai + English" GroupName="Language" Checked="OnLanguageChanged"
-                                     ToolTip="The Thai word with the English one under it" />
-                    </StackPanel>
-                </DockPanel>
-                <ListBox x:Name="PresetList" Style="{StaticResource StampList}" SelectionChanged="OnStampChosen" />
-                <TextBlock Text="My stamps" FontWeight="SemiBold" Margin="0,12,0,4" />
-                <ListBox x:Name="MyList" Style="{StaticResource StampList}" SelectionChanged="OnStampChosen" MaxHeight="200" />
-                <TextBlock x:Name="NoMyStamps" Text="None yet. Make one on the right and click Save to my stamps."
-                           Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" />
-                <TextBlock x:Name="ManyFilesLink" Margin="0,14,0,0">
-                    <Hyperlink Click="OnManyFiles"><Run Text="Stamp many files at once…" /></Hyperlink>
-                </TextBlock>
-            </StackPanel>
-
-            <StackPanel Grid.Column="2">
-                <TextBlock Text="Words" Margin="0,0,0,4" />
-                <TextBox x:Name="WordsInput" Padding="6,5" FontSize="14" TextChanged="OnDesignChanged" />
-
-                <TextBlock Text="Smaller lines (company, name; optional)" Style="{StaticResource Label}" />
-                <TextBox x:Name="DetailInput" Padding="6,5" AcceptsReturn="True" Height="48" VerticalScrollBarVisibility="Auto"
-                         TextChanged="OnDesignChanged" ToolTip="For example: ABC Co., Ltd." />
-
-                <TextBlock Text="Colour" Style="{StaticResource Label}" />
-                <StackPanel Orientation="Horizontal">
-                    <RadioButton x:Name="RedInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
-                        <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#C62828" Margin="0,0,5,0" /><TextBlock Text="Red" /></StackPanel>
-                    </RadioButton>
-                    <RadioButton x:Name="BlueInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
-                        <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#1D3F9A" Margin="0,0,5,0" /><TextBlock Text="Blue" /></StackPanel>
-                    </RadioButton>
-                    <RadioButton x:Name="GreenInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
-                        <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#1B7A3A" Margin="0,0,5,0" /><TextBlock Text="Green" /></StackPanel>
-                    </RadioButton>
-                    <RadioButton x:Name="BlackInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
-                        <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#202020" Margin="0,0,5,0" /><TextBlock Text="Black" /></StackPanel>
-                    </RadioButton>
-                </StackPanel>
-
-                <Grid Margin="0,10,0,0">
+                <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="340" />
+                        <ColumnDefinition Width="20" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <StackPanel>
-                        <TextBlock Text="Shape" Margin="0,0,0,4" />
-                        <ComboBox x:Name="ShapeChoice" SelectionChanged="OnDesignChanged" />
+
+                    <StackPanel Grid.Column="0">
+                        <DockPanel Margin="0,0,0,4">
+                            <TextBlock Text="Ready-made" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <RadioButton x:Name="ThaiWords" Content="Thai" GroupName="Language" Margin="0,0,10,0" Checked="OnLanguageChanged" />
+                                <RadioButton x:Name="EnglishWords" Content="English" GroupName="Language" Margin="0,0,10,0" Checked="OnLanguageChanged" />
+                                <RadioButton x:Name="BothWords" Content="Thai + English" GroupName="Language" Checked="OnLanguageChanged"
+                                             ToolTip="The Thai word with the English one under it" />
+                            </StackPanel>
+                        </DockPanel>
+                        <ListBox x:Name="PresetList" Style="{StaticResource StampList}" SelectionChanged="OnStampChosen" />
+                        <TextBlock Text="My stamps" FontWeight="SemiBold" Margin="0,12,0,4" />
+                        <ListBox x:Name="MyList" Style="{StaticResource StampList}" SelectionChanged="OnStampChosen" MaxHeight="200" />
+                        <TextBlock x:Name="NoMyStamps" Text="None yet. Make one on the right and click Save to my stamps."
+                                   Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" />
+                        <TextBlock x:Name="ManyFilesLink" Margin="0,14,0,0">
+                            <Hyperlink Click="OnManyFiles"><Run Text="Stamp many files at once…" /></Hyperlink>
+                        </TextBlock>
                     </StackPanel>
+
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Date" Margin="0,0,0,4" />
-                        <ComboBox x:Name="DateChoice" SelectionChanged="OnDesignChanged" />
-                    </StackPanel>
-                </Grid>
-                <DatePicker x:Name="DateInput" Margin="0,8,0,0" SelectedDateChanged="OnDesignChanged" ToolTip="The date on the stamp" />
+                        <TextBlock Text="Words" Margin="0,0,0,4" />
+                        <TextBox x:Name="WordsInput" Padding="6,5" FontSize="14" TextChanged="OnDesignChanged" />
 
-                <TextBlock Text="Preview" Style="{StaticResource Label}" />
-                <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="1" Background="White" Height="96">
-                    <Image x:Name="Preview" Stretch="Uniform" Margin="10" />
-                </Border>
+                        <TextBlock Text="Smaller lines (company, name; optional)" Style="{StaticResource Label}" />
+                        <TextBox x:Name="DetailInput" Padding="6,5" AcceptsReturn="True" Height="48" VerticalScrollBarVisibility="Auto"
+                                 TextChanged="OnDesignChanged" ToolTip="For example: ABC Co., Ltd." />
 
-                <!-- Where it goes: a click on the page, or the same spot on every page. -->
-                <StackPanel x:Name="PlacePanel" Margin="0,10,0,0">
-                    <RadioButton x:Name="ClickPlace" Content="Click where it goes" GroupName="Where" IsChecked="True" />
-                    <RadioButton x:Name="EveryPagePlace" Content="Same place on every page (click once)" GroupName="Where" Margin="0,4,0,0" />
-                </StackPanel>
+                        <TextBlock Text="Colour" Style="{StaticResource Label}" />
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RedInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
+                                <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#C62828" Margin="0,0,5,0" /><TextBlock Text="Red" /></StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="BlueInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
+                                <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#1D3F9A" Margin="0,0,5,0" /><TextBlock Text="Blue" /></StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="GreenInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
+                                <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#1B7A3A" Margin="0,0,5,0" /><TextBlock Text="Green" /></StackPanel>
+                            </RadioButton>
+                            <RadioButton x:Name="BlackInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
+                                <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#202020" Margin="0,0,5,0" /><TextBlock Text="Black" /></StackPanel>
+                            </RadioButton>
+                        </StackPanel>
 
-                <!-- Many files: no click, so a corner of the page, and which pages. -->
-                <Grid x:Name="BatchPanel" Margin="0,10,0,0" Visibility="Collapsed">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel>
-                        <TextBlock Text="Position" Margin="0,0,0,4" />
-                        <ComboBox x:Name="PositionChoice" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Pages" Margin="0,0,0,4" />
-                        <ComboBox x:Name="PagesChoice" />
+                        <Grid Margin="0,10,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Shape" Margin="0,0,0,4" />
+                                <ComboBox x:Name="ShapeChoice" SelectionChanged="OnDesignChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Date" Margin="0,0,0,4" />
+                                <ComboBox x:Name="DateChoice" SelectionChanged="OnDesignChanged" />
+                            </StackPanel>
+                        </Grid>
+                        <DatePicker x:Name="DateInput" Margin="0,8,0,0" SelectedDateChanged="OnDesignChanged" ToolTip="The date on the stamp" />
+
+                        <TextBlock Text="Preview" Style="{StaticResource Label}" />
+                        <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="1" Background="White" Height="96">
+                            <Image x:Name="Preview" Stretch="Uniform" Margin="10" />
+                        </Border>
+
+                        <!-- Where it goes: a click on the page, or the same spot on every page. -->
+                        <StackPanel x:Name="PlacePanel" Margin="0,10,0,0">
+                            <RadioButton x:Name="ClickPlace" Content="Click where it goes" GroupName="Where" IsChecked="True" />
+                            <RadioButton x:Name="EveryPagePlace" Content="Same place on every page (click once)" GroupName="Where" Margin="0,4,0,0" />
+                        </StackPanel>
+
+                        <!-- Many files: no click, so a corner of the page, and which pages. -->
+                        <Grid x:Name="BatchPanel" Margin="0,10,0,0" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="Position" Margin="0,0,0,4" />
+                                <ComboBox x:Name="PositionChoice" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Pages" Margin="0,0,0,4" />
+                                <ComboBox x:Name="PagesChoice" />
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </Grid>
             </StackPanel>
-        </Grid>
+        </ScrollViewer>
 
-        <DockPanel Margin="0,16,0,0">
+        <DockPanel Grid.Row="1" Margin="0,16,0,0">
             <StackPanel Orientation="Horizontal">
                 <Button x:Name="SaveButton" Content="Save to my stamps" Style="{StaticResource SecondaryButton}" Click="OnSave" />
                 <Button x:Name="DeleteButton" Content="Delete from my stamps" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnDelete" />
@@ -151,5 +161,5 @@
                 <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
             </StackPanel>
         </DockPanel>
-    </StackPanel>
+    </Grid>
 </Window>

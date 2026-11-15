@@ -23,6 +23,8 @@ public partial class ImportDialog : Window
         _data = data;
         _temp = temp;
         InitializeComponent();
+        MaxHeight = SystemParameters.WorkArea.Height - 24;
+        MinHeight = Math.Min(MinHeight, MaxHeight);
         Closing += (_, e) => { if (_busy) e.Cancel = true; };
         Closed += (_, _) => PasswordInput.Clear();
     }

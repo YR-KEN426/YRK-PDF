@@ -28,6 +28,8 @@ public partial class StampDialog : Window
     public StampDialog(StampSettings settings, bool manyFiles = false)
     {
         InitializeComponent();
+        MaxHeight = SystemParameters.WorkArea.Height - 24;
+        MinHeight = Math.Min(MinHeight, MaxHeight);
         _settings = settings;
         _manyFiles = manyFiles;
 

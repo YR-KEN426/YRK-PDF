@@ -19,6 +19,8 @@ public partial class DigitalSignDialog : Window
     public DigitalSignDialog(DigitalIdStore store, IReadOnlyList<SavedSignature> signatures, bool lockOnly = false, bool alreadySigned = false)
     {
         InitializeComponent();
+        MaxHeight = SystemParameters.WorkArea.Height - 24;
+        MinHeight = Math.Min(MinHeight, MaxHeight);
         _store = store;
         _lockOnly = lockOnly;
         _alreadySigned = alreadySigned;
