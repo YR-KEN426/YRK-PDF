@@ -1930,5 +1930,18 @@
   "The copied pages are no longer available. Please copy them again.": "หน้าที่คัดลอกไว้ไม่มีแล้ว กรุณาคัดลอกใหม่",
   "Copy the pages again from the source document.": "คัดลอกหน้าอีกครั้งจากไฟล์ต้นทาง",
   "The page clipboard could not be accessed.": "เข้าถึงคลิปบอร์ดหน้าไม่ได้",
-  "Try copying or pasting the pages again.": "ลองคัดลอกหรือวางหน้าอีกครั้ง"
+  "Try copying or pasting the pages again.": "ลองคัดลอกหรือวางหน้าอีกครั้ง",
+  "Add": "เพิ่ม",
+  "Reading marks": "ที่คั่น",
+  "Reading marks (Ctrl+D)": "ที่คั่น (Ctrl+D)",
+  "Keep a place to return to. Use Reading marks or Ctrl+D on the current page.": "คั่นหน้าเพื่อกลับมาอ่าน กดปุ่มที่คั่นหรือ Ctrl+D บนหน้าปัจจุบัน",
+  "Name (up to 40 characters)": "ชื่อ (ไม่เกิน 40 ตัวอักษร)",
+  "Reading mark name": "ชื่อที่คั่น",
+  "Reading mark colour": "สีที่คั่น",
+  "Orange": "ส้ม",
+  "Yellow": "เหลือง",
+  "Purple": "ม่วง",
+  "Rename": "เปลี่ยนชื่อ",
+  "Change colour": "เปลี่ยนสี",
+  "You can keep up to {0} reading marks per file.": "เก็บที่คั่นได้สูงสุด {0} อันต่อไฟล์"
 }

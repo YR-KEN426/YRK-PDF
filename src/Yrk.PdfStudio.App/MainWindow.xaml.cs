@@ -699,6 +699,33 @@ public partial class MainWindow : Window
     private void OnBookmarkSelected(object sender, RoutedPropertyChangedEventArgs<object> e) =>
         _viewModel.NavigateTo(e.NewValue as BookmarkViewModel);
 
+    private void OnReadingMarkClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ReadingMarkViewModel mark })
+        {
+            _viewModel.GoToPage(mark.PageIndex);
+            e.Handled = true;
+        }
+    }
+
+    private void OnReadingMarkRename(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ReadingMarkViewModel mark })
+            _viewModel.EditReadingMark(mark.PageIndex);
+    }
+
+    private void OnReadingMarkColour(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ReadingMarkViewModel mark })
+            _viewModel.EditReadingMark(mark.PageIndex, focusColour: true);
+    }
+
+    private void OnReadingMarkRemove(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: ReadingMarkViewModel mark })
+            _viewModel.RemoveReadingMark(mark.PageIndex);
+    }
+
     // --- Toolbar -----------------------------------------------------------------------------
 
     private void OnOpenExecuted(object sender, ExecutedRoutedEventArgs e) => _viewModel.OpenCommand.Execute(null);

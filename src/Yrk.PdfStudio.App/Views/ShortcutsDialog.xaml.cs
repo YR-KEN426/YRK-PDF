@@ -12,6 +12,7 @@ public partial class ShortcutsDialog : Window
         ("Editing", [("Ctrl+Z", "Undo"), ("Ctrl+Y", "Redo"), ("Ctrl+C", "Copy selected text"), ("Delete", "Delete the selected item"), ("Esc", "Cancel")]),
         ("Find", [("Ctrl+F", "Find in document"), ("F3", "Next result"), ("Shift+F3", "Previous result")]),
         ("View", [("Ctrl++ / Ctrl+-", "Zoom in / out"), ("Ctrl+0", "Fit page"), ("Ctrl+1", "Actual size"), ("Ctrl+2", "Fit width"),
+            ("Ctrl+D", "Reading marks"),
             ("Ctrl+Home / Ctrl+End", "First / last page"), ("H", "Hand tool"), ("Space (hold)", "Hand tool while held"), ("Ctrl+R", "Rulers")]),
         ("Menus", [("F1", "User guide"), ("Alt+F", "File"), ("Alt+V", "View"), ("Alt+T", "Tools"), ("Alt+S", "Settings"), ("Alt+H", "Help")]),
         ("Measuring", [("Shift", "Keep lines at 45° steps"), ("Enter", "Finish an area or length (or double-click)")]),

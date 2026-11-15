@@ -536,6 +536,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         Pages = new ObservableCollection<PageViewModel>(pages);
+        RefreshReadingMarks();
         Bookmarks = []; // The replacement is ready; do not keep its predecessor's outline if loading fails.
         _currentPageIndex = restore is null ? 0 : Math.Clamp(restore.PageIndex, 0, Math.Max(0, pages.Count - 1));
         _zoomMode = restore?.ZoomMode ?? ZoomMode.FitWidth;
@@ -617,6 +618,7 @@ public sealed partial class MainViewModel : ObservableObject
     private void ClearDocumentView()
     {
         Pages = [];
+        ReadingMarks = [];
         Bookmarks = [];
         _pageTops = [];
         _totalHeight = 0;
@@ -635,6 +637,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void RaiseDocumentPropertiesChanged()
     {
+        _readingMarkCommand?.NotifyCanExecuteChanged();
         OnPropertyChanged(nameof(HasDocument));
         OnPropertyChanged(nameof(ShowsDocument));
         OnPropertyChanged(nameof(IsDirty));

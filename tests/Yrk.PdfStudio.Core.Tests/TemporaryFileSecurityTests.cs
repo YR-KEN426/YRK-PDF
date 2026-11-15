@@ -69,8 +69,8 @@ public sealed class TemporaryFileSecurityTests : IDisposable
             Assert.Null(snapshot.GetType().GetProperty("Path")!.GetValue(snapshot));
             await document.DeletePagesAsync([0, 2]);
             Assert.Equal(1, document.PageCount);
-            var restore = typeof(MainViewModel).GetMethod("RestorePagesAsync", BindingFlags.Static | BindingFlags.NonPublic)!;
-            await (Task)restore.Invoke(null, [document, snapshot, new[] { 0, 2 }])!;
+            var restore = typeof(MainViewModel).GetMethod("RestorePagesAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            await (Task)restore.Invoke(model, [document, snapshot, new[] { 0, 2 }])!;
             Assert.Equal(3, document.PageCount);
             Assert.Contains("Chapter 1", await document.GetPageTextAsync(0));
             Assert.Contains("Chapter 3", await document.GetPageTextAsync(2));

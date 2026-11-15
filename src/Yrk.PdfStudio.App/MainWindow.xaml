@@ -23,6 +23,19 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <vm:ReadingMarkConverter x:Key="ReadingMarkForPage" />
+        <Style x:Key="ReadingMarkOverlay" TargetType="ContentControl">
+            <Style.Triggers>
+                <Trigger Property="Content" Value="{x:Null}">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Reader-only decoration: never part of PDF rendering, printing or exporting. -->
+        <DataTemplate x:Key="ReadingMarkRibbon">
+            <Path Data="M 0,0 L 18,0 L 18,28 L 9,21 L 0,28 Z" Stretch="Fill" Fill="{Binding Brush}"
+                  Stroke="#60000000" StrokeThickness="0.7" />
+        </DataTemplate>
 
         <!-- Right-click menu of the boxes text is typed into on a page: the usual editing commands, and an amount in words. -->
         <ContextMenu x:Key="TypingMenu" x:Shared="False" Opened="OnTypingMenuOpened">
@@ -305,6 +318,7 @@
     </Window.CommandBindings>
 
     <Window.InputBindings>
+        <KeyBinding Key="D" Modifiers="Ctrl" Command="{Binding ReadingMarkCommand}" />
         <KeyBinding Gesture="Ctrl+W" Command="{Binding CloseCommand}" />
         <KeyBinding Key="F3" Command="{Binding FindNextCommand}" />
         <KeyBinding Key="F3" Modifiers="Shift" Command="{Binding FindPreviousCommand}" />
@@ -421,6 +435,13 @@
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding PrintCommand}" IsEnabled="{Binding HasDocument}"
                             ToolTip="Print (Ctrl+P)" AutomationProperties.Name="Print">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE749;" />
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" Command="{Binding ReadingMarkCommand}"
+                            ToolTip="Reading marks (Ctrl+D)" AutomationProperties.Name="Reading marks">
+                        <StackPanel Orientation="Horizontal">
+                            <Path Data="M 0,0 L 12,0 L 12,18 L 6,13 L 0,18 Z" Fill="{StaticResource AccentBrush}" Width="12" Height="18" />
+                            <TextBlock Text="Reading marks" Margin="6,0,2,0" VerticalAlignment="Center" />
+                        </StackPanel>
                     </Button>
                     <Border Style="{StaticResource ToolbarDivider}" />
 
@@ -1016,8 +1037,19 @@
                                     <StackPanel Margin="0,6">
                                         <Border Width="{Binding ThumbnailWidth}" Height="{Binding ThumbnailHeight}" Background="White"
                                                 BorderBrush="{StaticResource DividerBrush}" BorderThickness="1">
-                                            <Image Source="{Binding Thumbnail}" Stretch="Fill"
-                                                   Loaded="OnThumbnailLoaded" Unloaded="OnThumbnailUnloaded" />
+                                            <Grid>
+                                                <Image Source="{Binding Thumbnail}" Stretch="Fill"
+                                                       Loaded="OnThumbnailLoaded" Unloaded="OnThumbnailUnloaded" />
+                                                <ContentControl Style="{StaticResource ReadingMarkOverlay}" Width="12" Height="19" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                                Margin="0,0,5,0" IsHitTestVisible="False" ContentTemplate="{StaticResource ReadingMarkRibbon}">
+                                                    <ContentControl.Content>
+                                                        <MultiBinding Converter="{StaticResource ReadingMarkForPage}">
+                                                            <Binding Path="DataContext.ReadingMarks" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                                            <Binding Path="Index" />
+                                                        </MultiBinding>
+                                                    </ContentControl.Content>
+                                                </ContentControl>
+                                            </Grid>
                                         </Border>
                                         <TextBlock Text="{Binding Number}" HorizontalAlignment="Center" Margin="0,4,0,0" Foreground="{StaticResource SecondaryTextBrush}" />
                                     </StackPanel>
@@ -1195,6 +1227,50 @@
                             </TextBlock>
                         </Grid>
                     </TabItem>
+                    <TabItem Header="Reading marks">
+                        <Grid>
+                            <ListBox x:Name="ReadingMarkList" ItemsSource="{Binding ReadingMarks}"
+                                     Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:ReadingMarkViewModel}">
+                                        <Border Background="Transparent" Padding="2,6" MouseLeftButtonUp="OnReadingMarkClick">
+                                            <Border.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Rename" Click="OnReadingMarkRename" />
+                                                    <MenuItem Header="Change colour" Click="OnReadingMarkColour" />
+                                                    <MenuItem Header="Remove" Click="OnReadingMarkRemove" />
+                                                </ContextMenu>
+                                            </Border.ContextMenu>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="5" /><ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Background="{Binding Brush}" />
+                                                <StackPanel Grid.Column="1" Margin="8,0,2,0">
+                                                    <TextBlock Text="{Binding Name}" ToolTip="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding PageLabel}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="Keep a place to return to. Use Reading marks or Ctrl+D on the current page."
+                                       Margin="12" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasReadingMarks}" Value="False">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </TabItem>
                 </TabControl>
             </Border>
 
@@ -1348,6 +1424,16 @@
                                            Width="{Binding DetailRect.Width}" Height="{Binding DetailRect.Height}" />
                                 </Canvas>
                                 <Image Source="{Binding OpacityPreview}" Stretch="Fill" IsHitTestVisible="False" />
+                                <ContentControl Style="{StaticResource ReadingMarkOverlay}" Width="18" Height="28" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                Margin="0,0,12,0" Panel.ZIndex="50" IsHitTestVisible="False"
+                                                ContentTemplate="{StaticResource ReadingMarkRibbon}">
+                                    <ContentControl.Content>
+                                        <MultiBinding Converter="{StaticResource ReadingMarkForPage}">
+                                            <Binding Path="DataContext.ReadingMarks" RelativeSource="{RelativeSource AncestorType=Window}" />
+                                            <Binding Path="Index" />
+                                        </MultiBinding>
+                                    </ContentControl.Content>
+                                </ContentControl>
                                 <Viewbox Stretch="Fill" Opacity="0.4" IsHitTestVisible="False"
                                          Visibility="{Binding HasHighlights, Converter={StaticResource BoolToVisibility}}">
                                     <ItemsControl ItemsSource="{Binding Highlights}" Width="1000" Height="1000">

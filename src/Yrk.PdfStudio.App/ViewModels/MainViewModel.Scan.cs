@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.Input;
+using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Scan;
 
@@ -66,6 +67,7 @@ public sealed partial class MainViewModel
             return;
         }
 
+        IReadOnlyList<ReaderBookmark> removedMarks = [];
         // Edges first (found on the page as scanned), then the turn about the trimmed page's centre, then the deletes.
         async Task Forward(IPdfDocument d)
         {
@@ -81,7 +83,7 @@ public sealed partial class MainViewModel
 
             if (deletes.Length > 0)
             {
-                await d.DeletePagesAsync(deletes);
+                removedMarks = await DeletePagesWithReadingMarksAsync(d, deletes);
             }
         }
 
@@ -101,6 +103,7 @@ public sealed partial class MainViewModel
                     if (removed is not null)
                     {
                         await RestorePagesAsync(u, removed, deletes);
+                        RestoreReadingMarks(u, removedMarks);
                     }
 
                     foreach (var (page, degrees) in turns)

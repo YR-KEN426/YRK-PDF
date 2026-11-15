@@ -1,0 +1,31 @@
+<Window x:Class="Yrk.PdfStudio.App.Views.ReaderBookmarkDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Reading marks" Width="380" SizeToContent="Height" ResizeMode="NoResize"
+        ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
+        TextOptions.TextFormattingMode="Display">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="20">
+            <TextBlock Text="Reading marks" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12" />
+            <Label Target="{Binding ElementName=NameInput}" Padding="0,0,0,4">
+                <TextBlock Text="Name (up to 40 characters)" TextWrapping="Wrap" />
+            </Label>
+            <TextBox x:Name="NameInput" MaxLength="40" Padding="6,5" AutomationProperties.Name="Reading mark name" />
+            <TextBlock Text="Colour" Margin="0,12,0,4" />
+            <ComboBox x:Name="ColourInput" SelectedValuePath="Tag" AutomationProperties.Name="Reading mark colour">
+                <ComboBoxItem Tag="red"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="Crimson" Margin="0,0,8,0" /><TextBlock Text="Red" /></StackPanel></ComboBoxItem>
+                <ComboBoxItem Tag="orange"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="DarkOrange" Margin="0,0,8,0" /><TextBlock Text="Orange" /></StackPanel></ComboBoxItem>
+                <ComboBoxItem Tag="yellow"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="Gold" Margin="0,0,8,0" /><TextBlock Text="Yellow" /></StackPanel></ComboBoxItem>
+                <ComboBoxItem Tag="green"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="SeaGreen" Margin="0,0,8,0" /><TextBlock Text="Green" /></StackPanel></ComboBoxItem>
+                <ComboBoxItem Tag="blue"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="DodgerBlue" Margin="0,0,8,0" /><TextBlock Text="Blue" /></StackPanel></ComboBoxItem>
+                <ComboBoxItem Tag="purple"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="MediumPurple" Margin="0,0,8,0" /><TextBlock Text="Purple" /></StackPanel></ComboBoxItem>
+            </ComboBox>
+            <WrapPanel HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button x:Name="RemoveButton" Content="Remove" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" Click="OnRemove" />
+                <Button x:Name="OkButton" Content="Add" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="70" Margin="0,0,8,8" Click="OnOk" />
+                <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" MinWidth="70" Margin="0,0,0,8" />
+            </WrapPanel>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

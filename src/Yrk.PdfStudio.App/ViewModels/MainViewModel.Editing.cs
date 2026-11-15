@@ -80,6 +80,7 @@ public sealed partial class MainViewModel
             {
                 UndoCommand?.NotifyCanExecuteChanged();
                 RedoCommand?.NotifyCanExecuteChanged();
+                _readingMarkCommand?.NotifyCanExecuteChanged();
             }
         }
     }
@@ -880,6 +881,7 @@ public sealed partial class MainViewModel
         IsBusy = true;
         StatusMessage = "Saving…";
         var restore = CaptureViewState();
+        var readingMarksPath = document.FilePath;
         var tempPath = Path.Combine(
             Path.GetDirectoryName(Path.GetFullPath(targetPath))!,
             $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-saving");
@@ -914,6 +916,7 @@ public sealed partial class MainViewModel
                 _dialogs.ShowError(ErrorCatalog.FileReplace, ex);
             }
 
+            ReaderBookmarks.Move(readingMarksPath, savedPath);
             ClearEdits();
             await OpenDocumentAsync(savedPath, _password, restore, keepEdits: false);
             RecentFiles.Add(savedPath);

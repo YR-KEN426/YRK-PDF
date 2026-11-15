@@ -130,17 +130,18 @@ public sealed partial class MainViewModel
         return await RunPageToolAsync("Deleting pages…", async document =>
         {
             var removed = await SnapshotPagesAsync(document, sorted);
-            await document.DeletePagesAsync(sorted);
+            var removedMarks = await DeletePagesWithReadingMarksAsync(document, sorted);
             _undo.KeepOnlyPageSteps();
             _undo.Push(
                 () => _ = RunPageToolAsync("Restoring pages…", async d =>
                 {
                     await RestorePagesAsync(d, removed, sorted);
+                    RestoreReadingMarks(d, removedMarks);
                     if (cutPath is not null) clipboard.CancelCut(cutPath);
                 }, sorted[0]),
                 () => _ = RunPageToolAsync("Deleting pages…", async d =>
                 {
-                    await d.DeletePagesAsync(sorted);
+                    removedMarks = await DeletePagesWithReadingMarksAsync(d, sorted);
                     if (cutPath is not null) clipboard.MarkCut(cutPath);
                 }, focus),
                 pageStep: true);
@@ -165,7 +166,7 @@ public sealed partial class MainViewModel
 
         return RunPageToolAsync("Moving pages…", async document =>
         {
-            await document.MovePagesAsync(sorted, destination);
+            await MovePagesWithReadingMarksAsync(document, sorted, destination);
             _undo.KeepOnlyPageSteps(); // Other steps (e.g. annotations) refer to the old page numbers.
             _undo.Push(
                 () => _ = RunPageToolAsync("Moving pages…", d => ReorderAsync(d, after, before), sorted[0]),
@@ -197,17 +198,23 @@ public sealed partial class MainViewModel
             var count = source.PageCount;
             return await RunPageToolAsync("Inserting pages…", async document =>
             {
-                await document.InsertPagesAsync(source, insertIndex);
+                await InsertPagesWithReadingMarksAsync(document, source, insertIndex);
                 var inserted = Enumerable.Range(insertIndex, count).ToArray();
                 PageSnapshot? copy = null; // Taken when first undone, for redo (the source file may change).
+                IReadOnlyList<ReaderBookmark> removedMarks = [];
                 _undo.KeepOnlyPageSteps();
                 _undo.Push(
                     () => _ = RunPageToolAsync("Removing inserted pages…", async d =>
                     {
                         copy ??= await SnapshotPagesAsync(d, inserted);
-                        await d.DeletePagesAsync(inserted);
+                        removedMarks = await DeletePagesWithReadingMarksAsync(d, inserted);
                     }, Math.Max(0, insertIndex - 1)),
-                    () => _ = RunPageToolAsync("Inserting pages…", d => copy is null ? Task.CompletedTask : d.InsertPagesAsync(copy.Document, insertIndex), insertIndex),
+                    () => _ = RunPageToolAsync("Inserting pages…", async d =>
+                    {
+                        if (copy is null) return;
+                        await InsertPagesWithReadingMarksAsync(d, copy.Document, insertIndex);
+                        RestoreReadingMarks(d, removedMarks);
+                    }, insertIndex),
                     pageStep: true);
                 StatusMessage = pasted ? Loc.F("Pasted {0} pages", count) : count == 1
                     ? Loc.F("Inserted 1 page from {0}", Path.GetFileName(path))
@@ -511,11 +518,11 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>Puts copied pages back where they were: page i of the copy goes to <paramref name="sortedPages"/>[i].</summary>
-    private static async Task RestorePagesAsync(IPdfDocument document, PageSnapshot snapshot, IReadOnlyList<int> sortedPages)
+    private async Task RestorePagesAsync(IPdfDocument document, PageSnapshot snapshot, IReadOnlyList<int> sortedPages)
     {
         for (var i = 0; i < sortedPages.Count; i++)
         {
-            await document.InsertPagesAsync(snapshot.Document, sortedPages[i], [i]);
+            await InsertPagesWithReadingMarksAsync(document, snapshot.Document, sortedPages[i], [i]);
         }
     }
 
@@ -556,6 +563,7 @@ public sealed partial class MainViewModel
         var pages = document.PageSizes.Select((size, index) => new PageViewModel(index, size)).ToList();
         _maxPageWidthPoints = pages.Count == 0 ? 0 : pages.Max(page => page.WidthPoints);
         Pages = new ObservableCollection<PageViewModel>(pages);
+        RefreshReadingMarks();
         // Page tools discard text editors. Their old page numbers/coordinates must go too.
         _textEditFrames.Clear();
         var focus = Math.Clamp(focusPage, 0, Math.Max(0, pages.Count - 1));
@@ -643,7 +651,7 @@ public sealed partial class MainViewModel
     }
 
     /// <summary>Applies the moves that turn page order <paramref name="from"/> into <paramref name="to"/>.</summary>
-    private static async Task ReorderAsync(IPdfDocument document, IReadOnlyList<int> from, IReadOnlyList<int> to)
+    private async Task ReorderAsync(IPdfDocument document, IReadOnlyList<int> from, IReadOnlyList<int> to)
     {
         var current = from.ToList();
         for (var position = 0; position < to.Count; position++)
@@ -651,7 +659,7 @@ public sealed partial class MainViewModel
             var at = current.IndexOf(to[position]);
             if (at != position)
             {
-                await document.MovePagesAsync([at], position);
+                await MovePagesWithReadingMarksAsync(document, [at], position);
                 current = SimulateMove(current, [at], position);
             }
         }

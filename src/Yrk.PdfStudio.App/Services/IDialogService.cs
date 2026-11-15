@@ -21,6 +21,8 @@ public sealed record SignatureDialogResult(SignatureArt Art, bool Remember, bool
 /// <param name="Titles">The bookmark title of each part when split at bookmarks (empty: the pages before the first one).</param>
 public sealed record ScanCleanupChoice(bool Straighten, bool TrimEdges, bool DeleteBlank);
 
+public sealed record ReaderBookmarkAnswer(string Name, string Color, bool Remove = false);
+
 public sealed record SplitPlan(string Folder, IReadOnlyList<IReadOnlyList<int>> Parts, IReadOnlyList<string>? Titles = null);
 
 public sealed record ImagesToPdfRequest(IReadOnlyList<string> Files, ImagesToPdfOptions Options);
@@ -50,6 +52,8 @@ public sealed record ScanRequest(ScanSession Session, ScanSettings Settings, boo
 /// <summary>Keeps view models free of window and dialog code.</summary>
 public interface IDialogService
 {
+    ReaderBookmarkAnswer? AskReaderBookmark(string name, string color, bool existing, bool focusColour = false);
+
     string? PickPdfFile(string title = "Open");
 
     /// <returns>A picture file (PNG, JPEG, BMP, GIF, TIFF), or null if the user cancelled.</returns>

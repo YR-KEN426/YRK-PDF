@@ -28,6 +28,12 @@ public sealed class DialogService : IDialogService
 
     public const string Caption = "YRK PDF";
 
+    public ReaderBookmarkAnswer? AskReaderBookmark(string name, string color, bool existing, bool focusColour = false)
+    {
+        var dialog = new ReaderBookmarkDialog(name, color, existing, focusColour) { Owner = Owner };
+        return dialog.ShowDialog() == true ? dialog.Answer : null;
+    }
+
     private const string PdfFilter = "PDF documents (*.pdf)|*.pdf|All files (*.*)|*.*";
 
     private const string OpenFilter = "All supported files (*.pdf;*.ai;*.dwg;*.dxf)|*.pdf;*.ai;*.dwg;*.dxf|PDF documents (*.pdf)|*.pdf|" +

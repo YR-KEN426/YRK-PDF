@@ -55,6 +55,7 @@ public sealed partial class MainViewModel
     {
         _onLanguageChanged = (_, _) =>
         {
+            RefreshReadingMarks();
             OnPropertyChanged(string.Empty); // Recompute every translated text.
             _selectedItem?.RefreshLanguage();
         };
