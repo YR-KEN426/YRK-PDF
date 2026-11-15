@@ -273,13 +273,13 @@ public partial class ScanDialog : Window
         {
             if (!double.TryParse(CustomWidth.Text, out var w) || !double.TryParse(CustomHeight.Text, out var h))
             {
-                Message.Text = Loc.T("Enter a valid paper width and height.");
+                Message.Text = Loc.T("Enter a paper width and height that fit the scanner.");
                 return false;
             }
             try { _model.CustomPaperSize = ScanPaperSizes.Custom(w, h, CustomUnit.SelectedIndex == 1, _capabilities?.Extent(settings.Source)); }
             catch (ArgumentOutOfRangeException)
             {
-                Message.Text = Loc.T("Enter a valid paper width and height.");
+                Message.Text = Loc.T("Enter a paper width and height that fit the scanner.");
                 return false;
             }
         }

@@ -77,28 +77,28 @@
 | --- | --- | --- | --- |
 | YRK-SIG-023 | เก็บลายเซ็นไว้ใช้ภายหลังไม่ได้ | The signature could not be saved for later use. | ตรวจสิทธิ์เข้าถึงโฟลเดอร์ลายเซ็น แล้วลองอีกครั้ง<br>Check access to the signature folder and try again. |
 | YRK-SIG-024 | ลบลายเซ็นที่เก็บไว้ไม่ได้ | The saved signature could not be deleted. | ตรวจสิทธิ์เข้าถึงโฟลเดอร์ลายเซ็น แล้วลองอีกครั้ง<br>Check access to the signature folder and try again. |
-| YRK-SIG-001 | เพิ่มใบรับรองที่เชื่อถือไม่ได้ | The certificate could not be trusted. | ลองเพิ่มใบรับรองอีกครั้ง<br>Try adding the certificate again. |
+| YRK-SIG-001 | เพิ่มใบรับรองเข้ารายการที่เชื่อถือไม่สำเร็จ | The certificate could not be trusted. | ลองเพิ่มใบรับรองอีกครั้ง<br>Try adding the certificate again. |
 | YRK-SIG-002 | เปิดเอกสารฉบับที่เซ็นแล้วไม่ได้ | The signed version could not be opened. | ลองอีกครั้งหรือบันทึกสำเนาก่อน<br>Try again or save a copy first. |
 | YRK-SIG-003 | ไฟล์นี้ไม่มีเอกสารฉบับก่อนเซ็นเก็บไว้ | No version before signing is stored in this file. | ใช้สำเนาสำรองของเอกสารฉบับก่อนหน้า<br>Use an earlier backup of the document. |
 | YRK-SIG-004 | บันทึกฉบับก่อนเซ็นไม่ได้ เพราะข้อมูลลายเซ็นไม่ถูกต้อง | The version before signing cannot be saved because the signature data is invalid. | ใช้สำเนาสำรองของเอกสารฉบับก่อนหน้า<br>Use an earlier backup of the document. |
 | YRK-SIG-005 | ฉบับก่อนเซ็นแทนที่เอกสารที่เปิดอยู่ไม่ได้ | The version before signing cannot replace the open document. | เลือกชื่อไฟล์อื่น<br>Choose a different file name. |
 | YRK-SIG-006 | บันทึกเอกสารฉบับก่อนเซ็นไม่ได้ | The version before signing could not be saved. | เลือกโฟลเดอร์อื่นแล้วลองอีกครั้ง<br>Choose another folder and try again. |
 | YRK-SIG-007 | ส่งออกใบรับรองไม่ได้ | The certificate could not be exported. | เลือกโฟลเดอร์อื่นแล้วลองอีกครั้ง<br>Choose another folder and try again. |
-| YRK-SIG-008 | เปิดใบรับรองไม่ได้ | The certificate could not be opened. | เลือกดิจิทัลไอดีที่ใช้ได้แล้วลองอีกครั้ง<br>Choose a valid digital ID and try again. |
-| YRK-SIG-009 | สร้างดิจิทัลไอดีไม่ได้ | The digital ID could not be created. | ตรวจสอบข้อมูลแล้วลองอีกครั้ง<br>Check the information and try again. |
-| YRK-SIG-010 | รหัสผ่านดิจิทัลไอดีไม่ถูกต้อง | The digital ID password is incorrect. | ใส่รหัสผ่านที่ถูกต้องแล้วลองอีกครั้ง<br>Enter the correct password and try again. |
-| YRK-SIG-011 | คัดลอกดิจิทัลไอดีไม่ได้ | The digital ID could not be copied. | เลือกโฟลเดอร์อื่นแล้วลองอีกครั้ง<br>Choose another folder and try again. |
-| YRK-SIG-012 | เปลี่ยนรหัสผ่านดิจิทัลไอดีไม่ได้ | The digital ID password could not be changed. | ตรวจสอบรหัสผ่านปัจจุบันแล้วลองอีกครั้ง<br>Check the current password and try again. |
-| YRK-SIG-013 | ใส่รหัสผ่านของ ID นี้ก่อน | Enter the password of this ID first. | พิมพ์รหัสผ่านดิจิทัลไอดีแล้วลองอีกครั้ง<br>Type the digital ID password and try again. |
-| YRK-SIG-014 | เพิ่มดิจิทัลไอดีไม่ได้ | The digital ID could not be added. | เลือกไฟล์ดิจิทัลไอดีที่ใช้ได้แล้วลองอีกครั้ง<br>Choose a valid digital ID file and try again. |
-| YRK-SIG-015 | เลือก Digital ID ก่อน | Choose a digital ID first. | เลือกดิจิทัลไอดีจากรายการ<br>Select a digital ID from the list. |
+| YRK-SIG-008 | เปิดใบรับรองไม่ได้ | The certificate could not be opened. | เลือก Digital ID ที่ใช้ได้แล้วลองอีกครั้ง<br>Choose a valid digital ID and try again. |
+| YRK-SIG-009 | สร้าง Digital ID ไม่ได้ | The digital ID could not be created. | ตรวจสอบข้อมูลแล้วลองอีกครั้ง<br>Check the information and try again. |
+| YRK-SIG-010 | รหัสผ่าน Digital ID ไม่ถูกต้อง | The digital ID password is incorrect. | ใส่รหัสผ่านที่ถูกต้องแล้วลองอีกครั้ง<br>Enter the correct password and try again. |
+| YRK-SIG-011 | คัดลอก Digital ID ไม่ได้ | The digital ID could not be copied. | เลือกโฟลเดอร์อื่นแล้วลองอีกครั้ง<br>Choose another folder and try again. |
+| YRK-SIG-012 | เปลี่ยนรหัสผ่าน Digital ID ไม่ได้ | The digital ID password could not be changed. | ตรวจสอบรหัสผ่านปัจจุบันแล้วลองอีกครั้ง<br>Check the current password and try again. |
+| YRK-SIG-013 | ใส่รหัสผ่านของ ID นี้ก่อน | Enter the password of this ID first. | พิมพ์รหัสผ่าน Digital ID แล้วลองอีกครั้ง<br>Type the digital ID password and try again. |
+| YRK-SIG-014 | เพิ่ม Digital ID ไม่ได้ | The digital ID could not be added. | เลือกไฟล์ Digital ID ที่ใช้ได้แล้วลองอีกครั้ง<br>Choose a valid digital ID file and try again. |
+| YRK-SIG-015 | เลือก Digital ID ก่อน | Choose a digital ID first. | เลือก Digital ID จากรายการ<br>Select a digital ID from the list. |
 | YRK-SIG-016 | ที่อยู่เซิร์ฟเวอร์ประทับเวลาไม่ถูกต้อง | The timestamp server address is invalid. | ใส่ที่อยู่ HTTP หรือ HTTPS ที่ถูกต้อง<br>Enter a valid HTTP or HTTPS address. |
-| YRK-SIG-017 | ID นี้ไม่มีกุญแจส่วนตัว จึงใช้เซ็นไม่ได้ | This ID has no private key, so it cannot sign. | เลือกดิจิทัลไอดีที่มีกุญแจส่วนตัว<br>Choose a digital ID with a private key. |
-| YRK-SIG-018 | ดิจิทัลไอดีนี้หมดอายุแล้ว | This digital ID has expired. | เลือกดิจิทัลไอดีที่ยังใช้ได้<br>Choose a valid digital ID. |
-| YRK-SIG-019 | ID นี้ยังไม่เริ่มใช้งาน | This ID is not valid yet. | ตรวจสอบวันที่ในคอมพิวเตอร์หรือเลือกดิจิทัลไอดีอื่น<br>Check the computer date or choose another digital ID. |
+| YRK-SIG-017 | ID นี้ไม่มีกุญแจส่วนตัว จึงใช้เซ็นไม่ได้ | This ID has no private key, so it cannot sign. | เลือก Digital ID ที่มีกุญแจส่วนตัว<br>Choose a digital ID with a private key. |
+| YRK-SIG-018 | Digital ID นี้หมดอายุแล้ว | This digital ID has expired. | เลือก Digital ID ที่ยังใช้ได้<br>Choose a valid digital ID. |
+| YRK-SIG-019 | ID นี้ยังไม่เริ่มใช้งาน | This ID is not valid yet. | ตรวจสอบวันที่ในคอมพิวเตอร์หรือเลือก Digital ID อื่น<br>Check the computer date or choose another digital ID. |
 | YRK-SIG-020 | ใช้ไฟล์นี้เป็นลายเซ็นไม่ได้ | The file could not be used as a signature. | เลือกไฟล์รูปภาพหรือ PDF อื่น<br>Choose another image or PDF file. |
-| YRK-SIG-021 | ปรับปรุงใบรับรองที่เชื่อถือไม่ได้ | The trusted certificates could not be updated. | ตรวจสอบสิทธิ์เข้าถึงไฟล์ใบรับรองแล้วลองอีกครั้ง<br>Check access to the certificate files and try again. |
-| YRK-SIG-022 | โหลดดิจิทัลไอดีไม่ได้ | The digital IDs could not be loaded. | ตรวจสอบสิทธิ์เข้าถึงไฟล์ดิจิทัลไอดีแล้วลองอีกครั้ง<br>Check access to the digital ID files and try again. |
+| YRK-SIG-021 | อัปเดตรายการใบรับรองที่เชื่อถือไม่สำเร็จ | The trusted certificates could not be updated. | ตรวจสอบสิทธิ์เข้าถึงไฟล์ใบรับรองแล้วลองอีกครั้ง<br>Check access to the certificate files and try again. |
+| YRK-SIG-022 | โหลด Digital ID ไม่ได้ | The digital IDs could not be loaded. | ตรวจสอบสิทธิ์เข้าถึงไฟล์ Digital ID แล้วลองอีกครั้ง<br>Check access to the digital ID files and try again. |
 
 ## APP
 
@@ -137,7 +137,7 @@
 | รหัส | ข้อความ (ไทย) | Message (English) | สิ่งที่ทำได้ / What you can do |
 | --- | --- | --- | --- |
 | YRK-UPD-001 | ดาวน์โหลดอัปเดตไม่ทันเวลาที่กำหนด | The update download timed out. | ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้ง<br>Check the internet connection and try again. |
-| YRK-UPD-002 | พบอัปเดต แต่ไม่ได้เซ็นรับรองโดย YRK จึงลบทิ้งและไม่ติดตั้ง | An update was found but it is not signed by YRK, so it was deleted and not installed. | ลองตรวจสอบอัปเดตอีกครั้งภายหลัง<br>Try checking for updates again later. |
+| YRK-UPD-002 | พบอัปเดต แต่ไม่ได้เซ็นรับรองโดย YRK จึงลบทิ้งและไม่ติดตั้ง | An update was found, but it was not signed by YRK. It was deleted and not installed. | ลองตรวจสอบอัปเดตอีกครั้งภายหลัง<br>Try checking for updates again later. |
 | YRK-UPD-003 | ตรวจสอบอัปเดตไม่ได้ | Updates could not be checked. | ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้งภายหลัง<br>Check the internet connection and try again later. |
 | YRK-UPD-004 | ติดตั้งอัปเดตไม่ได้ | The update could not be installed. | ตรวจสอบอัปเดตแล้วดาวน์โหลดอีกครั้ง<br>Check for updates and download it again. |
 

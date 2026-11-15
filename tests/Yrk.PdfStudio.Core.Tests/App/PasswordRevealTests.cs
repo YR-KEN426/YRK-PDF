@@ -181,7 +181,7 @@ public sealed class PasswordRevealTests
                     Assert.True(PasswordReveal.GetEnabled(box));
                     var button = Assert.Single(VisualChildren<Button>(box), b => b.Name == "PART_RevealButton");
                     typeof(UiTranslator).GetMethod("TranslateNow", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [box]);
-                    Assert.Equal(language == "th" ? "แสดงรหัส" : "Show password", AutomationProperties.GetName(button));
+                    Assert.Equal(language == "th" ? "แสดงรหัสผ่าน" : "Show password", AutomationProperties.GetName(button));
                     Assert.Equal(Loc.T("Show password"), button.ToolTip);
                     Assert.False(Part<TextBox>(box, "PART_RevealText").IsUndoEnabled);
                     box.Password = "test-only-password";

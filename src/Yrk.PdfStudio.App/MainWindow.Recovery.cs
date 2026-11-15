@@ -21,7 +21,7 @@ public partial class MainWindow
         var list = string.Join("\n", entries.Select(e => Loc.F("• {0} (changes of {1})", e.Name, e.SavedAt.ToString("g", culture))));
         var dialogs = new DialogService();
         if (!dialogs.AskYesNo(Loc.F(
-                "YRK PDF closed before these changes were saved:\n\n{0}\n\nOpen the recovered copies? They are saved next to the originals as \"(recovered)\". No deletes them.",
+                "YRK PDF closed before these changes were saved:\n\n{0}\n\nOpen the recovered copies? They are saved next to the originals as \"(recovered)\". If you choose No, they are deleted.",
                 list)))
         {
             RecoveryStore.DeleteAllButWritten();

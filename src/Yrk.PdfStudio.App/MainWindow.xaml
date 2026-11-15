@@ -1787,7 +1787,7 @@
                         </Button>
                         <StackPanel Margin="18,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="or drag a file onto this window" FontSize="14" />
-                            <TextBlock Text="PDF, and AutoCAD drawings (DWG, DXF) and Illustrator files (AI)" Foreground="{StaticResource SecondaryTextBrush}" />
+                            <TextBlock Text="PDF, AutoCAD drawings (DWG, DXF) and Illustrator files (AI)" Foreground="{StaticResource SecondaryTextBrush}" />
                         </StackPanel>
                     </DockPanel>
                 </Border>

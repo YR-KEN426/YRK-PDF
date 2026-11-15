@@ -73,7 +73,7 @@ public static class ErrorCatalog
     public static ErrorInfo SecurityUnlock { get; } = new("YRK-SEC-002", "The document could not be unlocked.", "Check the password and try again.");
     public static ErrorInfo SecurityRedactionSearch { get; } = new("YRK-SEC-003", "The search for text to redact failed.", "Try searching again.");
     public static ErrorInfo UpdateTimeout { get; } = new("YRK-UPD-001", "The update download timed out.", "Check the internet connection and try again.");
-    public static ErrorInfo UpdateVerification { get; } = new("YRK-UPD-002", "An update was found but it is not signed by YRK, so it was deleted and not installed.", "Try checking for updates again later.");
+    public static ErrorInfo UpdateVerification { get; } = new("YRK-UPD-002", "An update was found, but it was not signed by YRK. It was deleted and not installed.", "Try checking for updates again later.");
     public static ErrorInfo UpdateCheck { get; } = new("YRK-UPD-003", "Updates could not be checked.", "Check the internet connection and try again later.");
     public static ErrorInfo UpdateApply { get; } = new("YRK-UPD-004", "The update could not be installed.", "Check for updates and download it again.");
     public static ErrorInfo OcrLanguageDownload { get; } = new("YRK-OCR-001", "The language data could not be downloaded.", "Check the internet connection and try again.");
