@@ -1032,9 +1032,12 @@ public partial class MainWindow : Window
 
     private void OnThumbnailRightButtonDown(object sender, MouseButtonEventArgs e)
     {
-        _thumbnailContextPage = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject)?.DataContext as PageViewModel;
-        // Right click chooses a menu target, without navigating or replacing the Copy/Cut selection.
-        e.Handled = true;
+        var item = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject);
+        _thumbnailContextPage = item?.DataContext as PageViewModel;
+        // Right click on a page that is already selected keeps the multi-page selection for Copy/Cut/Delete.
+        // Right click on an unselected page lets the list select it (as before), so every menu command
+        // acts on the page the user clicked instead of an older selection.
+        if (item is null || item.IsSelected) e.Handled = true;
     }
 
     private void OnThumbnailContextMenuOpened(object sender, RoutedEventArgs e) =>
