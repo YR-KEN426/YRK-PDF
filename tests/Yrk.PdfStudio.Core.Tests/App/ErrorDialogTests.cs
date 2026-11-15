@@ -22,17 +22,19 @@ public sealed class ErrorDialogTests
         {
             PdfApp.LogFolder = folder.FullName;
             var error = ErrorCatalog.ScannerNoDevice;
-            var exception = new IOException(@"Cannot open C:\Users\PrivateName\secret.pdf; contact private@example.com");
+            var exception = new IOException(@"Cannot open C:\Users\PrivateName\secret.pdf; 'ลับ.pdf'; contact private@example.com");
 
             PdfApp.LogError(error, exception);
 
             var line = File.ReadLines(Assert.Single(Directory.GetFiles(folder.FullName))).First();
             var payload = line[(line.IndexOf("] ", StringComparison.Ordinal) + 2)..];
             Assert.StartsWith(error.Code + " " + exception, payload);
-            var report = ProblemReport.Build(new AppUpdater().CurrentVersion, error, exception, folder.FullName, DateTime.Now);
+            var report = ProblemReport.Build(AppUpdater.AssemblyVersion, error, exception, folder.FullName, DateTime.Now);
             Assert.Contains(error.Code, report);
             Assert.Contains("<path>", report);
             Assert.Contains("<email>", report);
+            Assert.Contains("'<file>'", report);
+            Assert.DoesNotContain("ลับ.pdf", report);
             Assert.DoesNotContain("PrivateName", report);
             Assert.DoesNotContain("secret.pdf", report);
             Assert.DoesNotContain("private@example.com", report);
@@ -45,6 +47,14 @@ public sealed class ErrorDialogTests
             PdfApp.LogFolder = previous;
             folder.Delete(recursive: true);
         }
+    }
+
+    [Fact]
+    public void Assembly_version_helper_reads_the_version_without_build_metadata()
+    {
+        var version = typeof(AppUpdater).Assembly.GetName().Version!;
+        Assert.StartsWith($"{version.Major}.{version.Minor}.{version.Build}", AppUpdater.AssemblyVersion);
+        Assert.DoesNotContain("+", AppUpdater.AssemblyVersion);
     }
 
     [Fact]
@@ -78,7 +88,7 @@ public sealed class ErrorDialogTests
             ErrorDialog? dialog = null;
             try
             {
-                var exception = new IOException(@"Cannot open C:\Users\PrivateName\secret.pdf");
+                var exception = new IOException("Cannot open C:\\Users\\PrivateName\\secret.pdf; “สัญญา ลูกค้า.docx”");
                 dialog = new ErrorDialog(new ErrorInfo("YRK-SCN-009", "Page {0}", "Try scanning again."), exception, 3);
                 Assert.Equal(Loc.F("Page {0}", 3), ((TextBlock)dialog.FindName("MessageText")).Text);
                 Assert.False(((Expander)dialog.FindName("DetailsExpander")).IsExpanded);
@@ -92,12 +102,15 @@ public sealed class ErrorDialogTests
                 Assert.Contains(nameof(IOException), details);
                 Assert.Contains($"HRESULT: 0x{exception.HResult:X8}", details);
                 Assert.Contains("<path>", details);
+                Assert.Contains("“<file>”", details);
+                Assert.DoesNotContain("สัญญา ลูกค้า.docx", details);
                 Assert.DoesNotContain("secret.pdf", details);
 
                 string? copied = null;
                 dialog.CopyText = text => copied = text;
                 copy.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Contains("YRK-SCN-009", copied!);
+                Assert.Contains(ReportRedactor.Redact(Feedback.ProgramInfo(AppUpdater.AssemblyVersion)), copied!);
                 Assert.DoesNotContain("secret.pdf", copied!);
                 Assert.Equal(Loc.T("Copied"), ((TextBlock)dialog.FindName("CopyFeedback")).Text);
                 dialog.CopyText = _ => throw new System.Runtime.InteropServices.COMException("Clipboard busy");

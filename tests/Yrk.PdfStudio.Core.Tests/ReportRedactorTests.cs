@@ -54,6 +54,56 @@ public sealed class ReportRedactorTests
         Assert.Equal(expected, Redact(text));
     }
 
+    [Theory]
+    [InlineData("pdf")]
+    [InlineData("doc")]
+    [InlineData("docx")]
+    [InlineData("xls")]
+    [InlineData("xlsx")]
+    [InlineData("txt")]
+    [InlineData("csv")]
+    [InlineData("rtf")]
+    [InlineData("png")]
+    [InlineData("jpg")]
+    [InlineData("jpeg")]
+    [InlineData("tif")]
+    [InlineData("tiff")]
+    [InlineData("bmp")]
+    [InlineData("gif")]
+    [InlineData("webp")]
+    [InlineData("heic")]
+    [InlineData("dwg")]
+    [InlineData("dxf")]
+    [InlineData("xml")]
+    [InlineData("json")]
+    [InlineData("p12")]
+    [InlineData("pfx")]
+    [InlineData("cer")]
+    [InlineData("crt")]
+    [InlineData("zip")]
+    public void Bare_and_quoted_file_names_are_redacted_for_supported_extensions(string extension)
+    {
+        Assert.Equal("Could not open '<file>'", Redact($"Could not open 'ลับ.{extension}'"));
+        Assert.Equal("Open \"<file>\" failed.", Redact($"Open \"สัญญา ลูกค้า.{extension.ToUpperInvariant()}\" failed."));
+        Assert.Equal("Open “<file>” failed.", Redact($"Open “สัญญา ลูกค้า.{extension}” failed."));
+        Assert.Equal("Open <file>, then (<file>).", Redact($"Open ลับ.{extension}, then (private.{extension})."));
+    }
+
+    [Theory]
+    [InlineData("'สัญญา ลูกค้า.docx' -> \"ลับ.pdf\"", "'<file>' -> \"<file>\"")]
+    [InlineData("\"customer's contract.pdf\"", "\"<file>\"")]
+    [InlineData("'report.pdf copy.pdf'", "'<file>'")]
+    [InlineData("Open “C:\\private\\ลับ.pdf” then 'ลับ.pdf'", "Open “<path>” then '<file>'")]
+    [InlineData("MainViewModel.cs:line 42", "MainViewModel.cs:line 42")]
+    [InlineData("'Main ViewModel.cs:line 42'", "'Main ViewModel.cs:line 42'")]
+    [InlineData("report.pdfx report.docxml report.json2", "report.pdfx report.docxml report.json2")]
+    [InlineData("report.pdf.exe MainViewModel.pdf.cs:line 42", "report.pdf.exe MainViewModel.pdf.cs:line 42")]
+    [InlineData("Open ลับ.pdf. Retry.", "Open <file>. Retry.")]
+    public void File_names_preserve_quotes_paths_and_unlisted_extensions(string text, string expected)
+    {
+        Assert.Equal(expected, Redact(text));
+    }
+
     [Fact]
     public void User_and_machine_names_are_redacted_case_insensitively_inside_text()
     {
@@ -62,11 +112,24 @@ public sealed class ReportRedactorTests
     }
 
     [Theory]
-    [InlineData("a", "b", "ZAZ ZbZ \"C:\\secret\\file.pdf\" a@b.test")]
-    [InlineData("p", "e", "ZPZ ZeZ \"C:\\secret\\file.pdf\" p@e.test")]
-    public void Very_short_names_are_redacted_without_damaging_generated_markers(string user, string pc, string text)
+    [InlineData("a", "b", "ZAZ ZbZ \"C:\\secret\\file.pdf\" a@b.test A B", "ZAZ ZbZ \"<path>\" <email> <user> <pc>")]
+    [InlineData("p", "e", "ZPZ ZeZ \"C:\\secret\\file.pdf\" p@e.test P E", "ZPZ ZeZ \"<path>\" <email> <user> <pc>")]
+    public void Very_short_names_are_redacted_without_damaging_generated_markers(string user, string pc, string text, string expected)
     {
-        Assert.Equal("Z<user>Z Z<pc>Z \"<path>\" <email>", ReportRedactor.Redact(text, user, pc, ""));
+        Assert.Equal(expected, ReportRedactor.Redact(text, user, pc, ""));
+    }
+
+    [Theory]
+    [InlineData("a", "b")]
+    [InlineData("ab", "cd")]
+    public void Short_identities_require_letter_or_digit_boundaries_on_both_sides(string user, string pc)
+    {
+        var embedded = $"x{user} {user}x 1{user} {user}2 ก{user} {user}ก x{pc} {pc}x 1{pc} {pc}2 ก{pc} {pc}ก";
+        Assert.Equal(embedded, ReportRedactor.Redact(embedded, user, pc, ""));
+        Assert.Equal("<user>,(<pc>);_<user>_ '<pc>'", ReportRedactor.Redact(
+            $"{user.ToUpperInvariant()},({pc.ToUpperInvariant()});_{user}_ '{pc}'", user, pc, ""));
+        Assert.Equal("<user>", ReportRedactor.Redact(user, user, pc, ""));
+        Assert.Equal("<pc>", ReportRedactor.Redact(pc, user, pc, ""));
     }
 
     [Fact]
@@ -117,5 +180,10 @@ public sealed class ReportRedactorTests
     {
         var text = new string('x', 100_000);
         Assert.Equal(text, Redact(text));
+        Assert.Equal("\"" + text + ".pdfx", Redact("\"" + text + ".pdfx"));
+        Assert.Equal("\"<file>\"", Redact("\"" + text + " ลับ.pdf\""));
+        Assert.Equal(text, ReportRedactor.Redact(text, "x", "xx", ""));
+        Assert.Equal(string.Concat(Enumerable.Repeat("“<file> ", 1_000)),
+            Redact(string.Concat(Enumerable.Repeat("“ลับ.pdf ", 1_000))));
     }
 }

@@ -81,7 +81,10 @@ public sealed class AppUpdater
     public string CurrentVersion =>
         _manager is { IsInstalled: true } manager && manager.CurrentVersion is { } version
             ? version.ToString()
-            : typeof(AppUpdater).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
+            : AssemblyVersion;
+
+    public static string AssemblyVersion =>
+        typeof(AppUpdater).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0] ?? "0.0.0";
 
     /// <summary>A downloaded update waiting for a restart.</summary>
     public UpdateInfo? Ready { get; private set; }

@@ -7,6 +7,7 @@ namespace Yrk.PdfStudio.App.Services;
 public static class ReportRedactor
 {
     private const RegexOptions Options = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
+    private const string FileExtension = @"\.(?:pdf|doc|docx|xls|xlsx|txt|csv|rtf|png|jpg|jpeg|tif|tiff|bmp|gif|webp|heic|dwg|dxf|xml|json|p12|pfx|cer|crt|zip)";
     private static readonly Regex FileEnding = new(@"\.[\p{L}\p{N}]{1,16}(?=$|\s|\.(?=\s|$)|[)\]}])", Options);
 
     public static string Redact(string text) => Redact(text, Environment.UserName,
@@ -24,29 +25,56 @@ public static class ReportRedactor
         }
 
         var pattern = "(?<path>" + roots + ")" +
-            @"|(?<email>[\p{L}\p{M}\p{N}._%+!#$&'*=/^`{|}~-]+@[\p{L}\p{M}\p{N}-]+(?:\.[\p{L}\p{M}\p{N}-]+)+)";
-        // Longer identities win when names overlap. No word boundaries: even very short
-        // names embedded in other text must be removed. Replacement markers are never rescanned.
+            @"|(?<email>[\p{L}\p{M}\p{N}._%+!#$&'*=/^`{|}~-]+@[\p{L}\p{M}\p{N}-]+(?:\.[\p{L}\p{M}\p{N}-]+)+)" +
+            @"|(?<quotedFile>""[^""\\/\r\n]+" + FileExtension + @"""|'[^'\\/\r\n]+" + FileExtension +
+            @"'|“[^“”\\/\r\n]+" + FileExtension + @"”)" +
+            @"|(?<file>[^\\/\s""'“”‘’<>|?:;,!()\[\]{}]+" + FileExtension +
+            @")(?<fileEnd>$|\.(?:$|\s)|[\\/\s""'“”‘’<>|?:;,!()\[\]{}])";
+        // Match identities separately so an early identity cannot cause repeated scans of
+        // a long possible email or filename. Longer identities win when names overlap.
         var identities = new[] { (Name: userName, Group: "user"), (Name: machineName, Group: "pc") };
-        foreach (var identity in identities.OrderByDescending(i => i.Name.Length))
-            if (identity.Name.Length > 0)
-                pattern += "|(?<" + identity.Group + ">" + Regex.Escape(identity.Name) + ")";
+        var identityPattern = string.Join("|", identities.OrderByDescending(i => i.Name.Length)
+            .Where(i => i.Name.Length > 0).Select(i => "(?<" + i.Group + ">" + Regex.Escape(i.Name) + ")"));
+        var identityRegex = identityPattern.Length == 0 ? null : new Regex(identityPattern, Options | RegexOptions.NonBacktracking);
         // Logs may contain long unbroken text. Keep matching linear even when no email is present.
         var sensitive = new Regex(pattern, Options | RegexOptions.NonBacktracking);
         var result = new StringBuilder(text.Length);
+        void AppendText(int start, int length)
+        {
+            var plain = text.Substring(start, length);
+            // Only original text is scanned; replacement markers never become input.
+            result.Append(identityRegex is null ? plain : identityRegex.Replace(plain, match =>
+            {
+                var index = start + match.Index;
+                var end = index + match.Length;
+                if (match.Length < 3 &&
+                    ((index > 0 && char.IsLetterOrDigit(text[index - 1])) ||
+                     (end < text.Length && char.IsLetterOrDigit(text[end]))))
+                    return match.Value;
+                return match.Groups["user"].Success ? "<user>" : "<pc>";
+            }));
+        }
         var position = 0;
         while (sensitive.Match(text, position) is { Success: true } match)
         {
-            result.Append(text, position, match.Index - position);
+            AppendText(position, match.Index - position);
             position = match.Index + match.Length;
             if (match.Groups["path"].Success)
             {
                 position = PathEnd(text, position);
                 result.Append("<path>");
             }
-            else result.Append(match.Groups["email"].Success ? "<email>" : match.Groups["user"].Success ? "<user>" : "<pc>");
+            else if (match.Groups["quotedFile"].Success)
+                result.Append(text[match.Index]).Append("<file>").Append(text[position - 1]);
+            else if (match.Groups["file"].Success)
+            {
+                result.Append("<file>");
+                // The delimiter establishes the extension boundary but remains original input.
+                position -= match.Groups["fileEnd"].Length;
+            }
+            else result.Append("<email>");
         }
-        result.Append(text, position, text.Length - position);
+        AppendText(position, text.Length - position);
         return result.ToString();
     }
 

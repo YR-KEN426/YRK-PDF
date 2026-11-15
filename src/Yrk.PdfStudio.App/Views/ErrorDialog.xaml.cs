@@ -25,7 +25,7 @@ public partial class ErrorDialog : Window
     {
         try
         {
-            CopyText(ProblemReport.Build(new AppUpdater().CurrentVersion, _error, _exception, App.LogFolder, DateTime.Now));
+            CopyText(ProblemReport.Build(AppUpdater.AssemblyVersion, _error, _exception, App.LogFolder, DateTime.Now));
             CopyFeedback.Text = Loc.T("Copied");
         }
         catch (Exception)
