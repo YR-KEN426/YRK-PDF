@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Yrk.PdfStudio.App;
@@ -18,6 +19,90 @@ namespace Yrk.PdfStudio.Core.Tests;
 [Collection("WPF Application")] // Only one System.Windows.Application can exist at a time; shared with ETaxTests.
 public sealed class MainWindowLayoutTests
 {
+    [Fact]
+    public void Page_clipboard_keeps_text_copy_and_localizes_the_cut_close_dialog()
+    {
+        Sta.Run(() =>
+        {
+            typeof(Application).GetField("_resourceAssembly", BindingFlags.NonPublic | BindingFlags.Static)!
+                .SetValue(null, typeof(MainWindow).Assembly);
+            ForgetApplicationFromEarlierTest();
+            var application = new Application();
+            var priorContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
+            { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
+            var language = Yrk.PdfStudio.App.Localization.Loc.Language;
+            var app = new AppTestHarness();
+            var os = new AppPageClipboardTests.MemoryClipboard();
+            using var clipboard = new PageClipboard(os, app.PathFor("clipboard"));
+            app.Model.PageClipboard = clipboard;
+            try
+            {
+                var opening = app.OpenAsync(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf"));
+                Await(opening);
+                Assert.True(opening.Result);
+                var window = new MainWindow(app.Model, () => throw new NotSupportedException());
+                window.Measure(new Size(1200, 800));
+                window.Arrange(new Rect(0, 0, 1200, 800));
+                Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                var editor = (TextBox)window.FindName("SearchBox");
+                editor.Text = "ordinary selected text";
+                editor.SelectAll();
+                string? copied = null;
+                DataObject.AddCopyingHandler(editor, (_, e) =>
+                {
+                    copied = e.DataObject.GetData(DataFormats.UnicodeText) as string;
+                    e.CancelCommand(); // Observe the real TextBox copy without changing the machine's clipboard.
+                });
+
+                Assert.True(ApplicationCommands.Copy.CanExecute(null, editor));
+                ApplicationCommands.Copy.Execute(null, editor);
+
+                Assert.Equal("ordinary selected text", copied);
+                Assert.Null(os.Data.Pages);
+                Assert.False(app.Model.IsDirty);
+                var thumbnails = (ListBox)window.FindName("ThumbnailList");
+                Assert.True(ApplicationCommands.Copy.CanExecute(null, thumbnails));
+                thumbnails.SelectAll();
+                Assert.False(ApplicationCommands.Cut.CanExecute(null, thumbnails));
+                _ = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+
+                foreach (var lang in new[] { "en", "th" })
+                {
+                    Yrk.PdfStudio.App.Localization.Loc.Language = lang;
+                    var dialog = (Window)typeof(MainWindow).GetMethod("CreateCutPagesCloseDialog", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .Invoke(window, ["message"])!;
+                    var content = Assert.IsType<StackPanel>(dialog.Content);
+                    var buttons = Assert.IsType<StackPanel>(content.Children[1]);
+                    Assert.Equal(lang == "th" ? "ปิดต่อ" : "Continue closing", Assert.IsType<Button>(buttons.Children[0]).Content);
+                    var cancel = Assert.IsType<Button>(buttons.Children[1]);
+                    Assert.True(cancel.IsCancel);
+                    Assert.True(cancel.IsDefault);
+                    Assert.Equal(lang == "th" ? "ยกเลิก" : "Cancel", cancel.Content);
+                    dialog.Close();
+                }
+                return true;
+            }
+            finally
+            {
+                Yrk.PdfStudio.App.Localization.Loc.Language = language;
+                Await(app.DisposeAsync().AsTask());
+                application.Shutdown();
+                ForgetApplicationFromEarlierTest();
+                SynchronizationContext.SetSynchronizationContext(priorContext);
+            }
+            static void Await(Task task)
+            {
+                var dispatcher = Dispatcher.CurrentDispatcher;
+                var frame = new DispatcherFrame();
+                _ = task.ContinueWith(_ => dispatcher.BeginInvoke(() => frame.Continue = false), TaskScheduler.Default);
+                Dispatcher.PushFrame(frame);
+                task.GetAwaiter().GetResult();
+            }
+        });
+    }
+
     [Fact]
     public void Main_window_lays_out_without_binding_errors_and_shows_download_progress_banner()
     {

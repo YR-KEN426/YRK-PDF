@@ -23,6 +23,8 @@
 | YRK-PAGE-003 | ทำงานกับ PDF ไม่สำเร็จ | The PDF operation could not be completed. | ตรวจเอกสารต้นฉบับ แล้วลองอีกครั้ง<br>Check the source documents and try again. |
 | YRK-PAGE-004 | ไฟล์ผลลัพธ์แทนที่เอกสารที่เปิดอยู่ไม่ได้ | The output cannot replace the open document. | เลือกชื่ออื่น หรือใช้บันทึกเพื่ออัปเดตเอกสารที่เปิดอยู่<br>Choose another name, or use Save to update the open document. |
 | YRK-PAGE-005 | ช่วงหน้าไม่ถูกต้อง | The page range is invalid. | ใส่เลขหน้าที่มีในเอกสาร เช่น 1-3, 5<br>Enter page numbers within the document, for example 1-3, 5. |
+| YRK-PAGE-006 | หน้าที่คัดลอกไว้ไม่มีแล้ว กรุณาคัดลอกใหม่ | The copied pages are no longer available. Please copy them again. | คัดลอกหน้าอีกครั้งจากไฟล์ต้นทาง<br>Copy the pages again from the source document. |
+| YRK-PAGE-007 | เข้าถึงคลิปบอร์ดหน้าไม่ได้ | The page clipboard could not be accessed. | ลองคัดลอกหรือวางหน้าอีกครั้ง<br>Try copying or pasting the pages again. |
 
 ## EXP
 

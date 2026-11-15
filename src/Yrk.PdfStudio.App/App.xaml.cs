@@ -18,6 +18,7 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        PageClipboard.Shared.SweepStale(DateTime.UtcNow);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnTaskUnobservedException;
@@ -100,6 +101,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        PageClipboard.Shared.Dispose();
         _engine?.Dispose();
         PdfTemporaryFiles.Shared.Dispose();
         RecoveryStore.DeleteWritten(); // Closing normally: every change was saved or discarded.

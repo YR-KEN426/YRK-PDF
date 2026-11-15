@@ -102,6 +102,8 @@ public static class ErrorCatalog
     public static ErrorInfo PageOperation { get; } = new("YRK-PAGE-003", "The PDF operation could not be completed.", "Check the source documents and try again.");
     public static ErrorInfo PageOutputName { get; } = new("YRK-PAGE-004", "The output cannot replace the open document.", "Choose another name, or use Save to update the open document.");
     public static ErrorInfo PageRange { get; } = new("YRK-PAGE-005", "The page range is invalid.", "Enter page numbers within the document, for example 1-3, 5.");
+    public static ErrorInfo PageClipboardMissing { get; } = new("YRK-PAGE-006", "The copied pages are no longer available. Please copy them again.", "Copy the pages again from the source document.");
+    public static ErrorInfo PageClipboardWrite { get; } = new("YRK-PAGE-007", "The page clipboard could not be accessed.", "Try copying or pasting the pages again.");
     public static ErrorInfo ExportPdfAUnsupported { get; } = new("YRK-EXP-001", "This document cannot be saved as PDF/A without changing its appearance. Nothing was saved.", "Use a regular PDF or adjust the document before trying PDF/A again.");
     public static ErrorInfo ExportPdfA { get; } = new("YRK-EXP-002", "The PDF/A document could not be saved.", "Check folder access and try again.");
     public static ErrorInfo ExportFailed { get; } = new("YRK-EXP-003", "The document could not be exported.", "Check the export settings and destination folder, then try again.");
@@ -151,6 +153,8 @@ public static class ErrorCatalog
         PageOperation,
         PageOutputName,
         PageRange,
+        PageClipboardMissing,
+        PageClipboardWrite,
         ExportPdfAUnsupported,
         ExportPdfA,
         ExportFailed,

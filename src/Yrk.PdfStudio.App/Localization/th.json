@@ -1920,5 +1920,15 @@
   "The certificate revocation list was downloaded but could not be validated.": "ดาวน์โหลดรายการเพิกถอนใบรับรองแล้ว แต่ตรวจสอบไม่ผ่าน",
   "Try again later, or sign without long-term validation.": "ลองอีกครั้งภายหลัง หรือเซ็นโดยไม่เพิ่มข้อมูลตรวจสอบระยะยาว",
   "An update was found, but it was not signed by YRK. It was not installed. The downloaded file could not be deleted.": "พบอัปเดตที่ไม่ได้เซ็นโดย YRK จึงไม่ได้ติดตั้ง แต่ลบไฟล์ที่ดาวน์โหลดมาไม่ได้",
-  "Restart the computer, then check for updates again.": "เริ่มคอมพิวเตอร์ใหม่ แล้วตรวจหาอัปเดตอีกครั้ง"
+  "Restart the computer, then check for updates again.": "เริ่มคอมพิวเตอร์ใหม่ แล้วตรวจหาอัปเดตอีกครั้ง",
+  "Copy pages": "คัดลอกหน้า",
+  "Cut pages": "ตัดหน้า",
+  "Paste pages": "วางหน้า",
+  "Pasted {0} pages": "วาง {0} หน้าแล้ว",
+  "Cut pages have not been pasted yet. Closing the app will lose them.\n\nContinue closing?": "หน้าที่ตัดไว้ยังไม่ได้วาง ถ้าปิดโปรแกรมจะหายไป\n\nปิดต่อหรือไม่?",
+  "Continue closing": "ปิดต่อ",
+  "The copied pages are no longer available. Please copy them again.": "หน้าที่คัดลอกไว้ไม่มีแล้ว กรุณาคัดลอกใหม่",
+  "Copy the pages again from the source document.": "คัดลอกหน้าอีกครั้งจากไฟล์ต้นทาง",
+  "The page clipboard could not be accessed.": "เข้าถึงคลิปบอร์ดหน้าไม่ได้",
+  "Try copying or pasting the pages again.": "ลองคัดลอกหรือวางหน้าอีกครั้ง"
 }

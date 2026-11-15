@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Yrk.PdfStudio.App.ViewModels;
+using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
 
 namespace Yrk.PdfStudio.App;
@@ -18,6 +19,7 @@ public partial class MainWindow : Window
     private MainViewModel _viewModel;
     private bool _syncingThumbnailSelection;
     private bool _closeConfirmed;
+    private bool _closeInProgress;
     private bool _restoringScroll;
 
     /// <param name="createTab">Makes the view model for a new tab (one per open file).</param>
@@ -59,7 +61,7 @@ public partial class MainWindow : Window
     protected override async void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);
-        if (_closeConfirmed || !Tabs.Any(t => t.IsDirty))
+        if (_closeConfirmed || (!Tabs.Any(t => t.IsDirty) && !PageClipboard.Shared.HasUnpastedCut))
         {
             if (!e.Cancel)
                 foreach (var tab in Tabs) tab.SaveReadingPosition();
@@ -70,17 +72,24 @@ public partial class MainWindow : Window
         // The questions run after Closing has returned: WPF refuses Close() and new dialogs while a window is
         // closing, and a "Don't save" answer finishes without ever yielding.
         e.Cancel = true;
+        if (_closeInProgress) return;
+        _closeInProgress = true;
         await Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
-        if (await ConfirmAllTabsAsync())
+        try
         {
-            _closeConfirmed = true;
-            Close();
+            if (await ConfirmAllTabsAsync())
+            {
+                _closeConfirmed = true;
+                Close();
+            }
         }
+        finally { _closeInProgress = false; }
     }
 
     /// <summary>Asks to save or discard each tab with changes. False when the user cancels.</summary>
     private async Task<bool> ConfirmAllTabsAsync()
     {
+        if (!PageClipboard.Shared.ConfirmClose(message => CreateCutPagesCloseDialog(message).ShowDialog() == true)) return false;
         CommitInPlaceEdits();
         foreach (var tab in Tabs.Where(t => t.IsDirty).ToList())
         {
@@ -92,6 +101,32 @@ public partial class MainWindow : Window
         }
 
         return true;
+    }
+
+    // Same layout, styles and default-to-Cancel behavior as SignAgainDialog.
+    private Window CreateCutPagesCloseDialog(string message)
+    {
+        var dialog = new Window
+        {
+            Owner = this, Title = DialogService.Caption, Width = 500, SizeToContent = SizeToContent.Height,
+            ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = (Brush)FindResource("SurfaceBrush"), Foreground = (Brush)FindResource("TextBrush"),
+            FontFamily = (FontFamily)FindResource("UiFont"),
+        };
+        var content = new StackPanel { Margin = new Thickness(20) };
+        content.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
+        var proceed = new Button { Content = Loc.T("Continue closing"), Style = (Style)FindResource("PrimaryButton") };
+        proceed.Click += (_, _) => dialog.DialogResult = true;
+        buttons.Children.Add(proceed);
+        buttons.Children.Add(new Button
+        {
+            Content = Loc.T("Cancel"), IsCancel = true, IsDefault = true,
+            Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(8, 0, 0, 0),
+        });
+        content.Children.Add(buttons);
+        dialog.Content = content;
+        return dialog;
     }
 
     // --- Tabs ----------------------------------------------------------------------------------
@@ -335,8 +370,10 @@ public partial class MainWindow : Window
             }
         }
 
-        // Ctrl+V with a picture on the clipboard, outside text boxes: it goes on the current page.
-        if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control && _viewModel.HasDocument && !IsTyping() && _viewModel.PastePicture())
+        // Page data wins on thumbnails; an image-only clipboard still follows the existing picture path.
+        if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control
+            && (!ThumbnailList.IsKeyboardFocusWithin || !_viewModel.PageClipboard.HasContent)
+            && _viewModel.HasDocument && !IsTyping() && _viewModel.PastePicture())
         {
             e.Handled = true;
             return;
@@ -1238,6 +1275,33 @@ public partial class MainWindow : Window
     }
 
     // --- Page tools ----------------------------------------------------------------------------
+
+    // These bindings live on ThumbnailList: text controls retain WPF's own copy/cut/paste commands.
+    private void OnPageClipboardCanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        var pages = ClipboardTargetPages();
+        e.CanExecute = !IsTyping() && (e.Command == ApplicationCommands.Copy ? _viewModel.CanCopyPages && pages.Count > 0
+            : e.Command == ApplicationCommands.Cut ? _viewModel.CanCutPages(pages)
+            : e.Command == ApplicationCommands.Paste && _viewModel.CanPastePages && _viewModel.PageClipboard.HasContent);
+        e.Handled = true;
+    }
+
+    private async void OnPageClipboardExecuted(object sender, ExecutedRoutedEventArgs e)
+    {
+        e.Handled = true;
+        var model = _viewModel;
+        var pages = ClipboardTargetPages(); // Capture before page changes rebuild the selection.
+        if (e.Command == ApplicationCommands.Paste)
+            await _viewModel.PastePagesAsync((pages.Count > 0 ? pages.Max() : _viewModel.CurrentPageIndex) + 1);
+        else if (pages.Count > 0)
+            await _viewModel.CopyPagesAsync(pages, cut: e.Command == ApplicationCommands.Cut);
+        // RunBusyAsync commits text editors by moving focus to the page. Keep page shortcuts usable.
+        if (IsActive && model == _viewModel && !IsTyping()) ThumbnailList.Focus();
+    }
+
+    private List<int> ClipboardTargetPages() => ThumbnailList.SelectedItems.Count > 0
+        ? ThumbnailList.SelectedItems.OfType<PageViewModel>().Select(p => p.Index).Order().ToList()
+        : _viewModel.HasDocument ? [_viewModel.CurrentPageIndex] : [];
 
     /// <summary>The pages selected in the sidebar, or the current page when at most one is selected.</summary>
     private List<int> TargetPages()

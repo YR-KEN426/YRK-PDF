@@ -30,6 +30,69 @@ public sealed partial class MainViewModel
 
     // --- Page tools (called by the view with the selected pages) ----------------------------------
 
+    public PageClipboard PageClipboard { get; set; } = Services.PageClipboard.Shared;
+
+    public bool CanCopyPages => HasDocument && !IsBusy && _document is { } document
+        && (document.Permissions & (Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble))
+            == (Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble);
+
+    public bool CanPastePages => HasDocument && !IsBusy && _document is { } document
+        && (document.Permissions & Core.Pdf.Security.PdfPermissions.Assemble) != 0;
+
+    public bool CanCutPages(IReadOnlyList<int> pages) => CanCopyPages && CanPastePages
+        && pages.Count > 0 && pages.Distinct().Count() < Pages.Count;
+
+    public async Task<bool> CopyPagesAsync(IReadOnlyList<int> pages, bool cut = false)
+    {
+        if (!CanCopyPages || (cut && !CanCutPages(pages)) || _document is not { } document
+            || pages.Count == 0 || pages.Any(p => p < 0 || p >= document.PageCount)
+            || !await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble, "extract its pages")
+            || BlockedByTextEdits()) return false;
+
+        var sorted = pages.Distinct().Order().ToArray();
+        string? path = null;
+        var published = false;
+        var done = await RunBusyAsync("Extracting pages…", async () =>
+        {
+            path = PageClipboard.Allocate();
+            if (_placedItems.Count > 0 || _fieldEdits.Count > 0)
+            {
+                // Flatten pending items into a private document, preserving the source and its undo history.
+                await using var copy = await _engine.OpenBytesAsync(await document.SaveToBytesAsync(), document.FilePath, document.OpenPassword);
+                await CommitOverlaysAsync(copy);
+                await copy.ExtractPagesAsync(sorted, path);
+            }
+            else await document.ExtractPagesAsync(sorted, path);
+            try
+            {
+                PageClipboard.Publish(path, sorted.Length, cut);
+                published = true;
+            }
+            catch (Exception ex) { _dialogs.ShowError(ErrorCatalog.PageClipboardWrite, ex); }
+        });
+        if (!done || !published)
+        {
+            if (path is not null) PageClipboard.DeleteOwned(path);
+            return false;
+        }
+        if (cut && await DeletePagesCoreAsync(sorted, confirm: false, cutPath: path)) PageClipboard.MarkCut(path!);
+        return true;
+    }
+
+    public async Task PastePagesAsync(int insertIndex)
+    {
+        if (!CanPastePages) return;
+        PageClipboard.Source? source;
+        try { source = PageClipboard.ReadSource(); }
+        catch (Exception ex) { _dialogs.ShowError(ErrorCatalog.PageClipboardWrite, ex); return; }
+        if (source is null)
+        {
+            _dialogs.ShowError(ErrorCatalog.PageClipboardMissing);
+            return;
+        }
+        if (await InsertPagesAsync(source.Path, insertIndex, pasted: true)) PageClipboard.MarkPasted(source);
+    }
+
     public Task RotatePagesAsync(IReadOnlyList<int> pages, int quarterTurns) =>
         RunPageToolAsync("Rotating…", async document =>
         {
@@ -40,35 +103,46 @@ public sealed partial class MainViewModel
                 pageStep: true);
         }, pages[0], commitFirst: true);
 
-    public async Task DeletePagesAsync(IReadOnlyList<int> pages)
+    public Task DeletePagesAsync(IReadOnlyList<int> pages) => DeletePagesCoreAsync(pages);
+
+    private async Task<bool> DeletePagesCoreAsync(IReadOnlyList<int> pages, bool confirm = true, string? cutPath = null)
     {
         if (_document is null)
         {
-            return;
+            return false;
         }
 
         if (pages.Count >= _document.PageCount)
         {
             _dialogs.ShowError(ErrorCatalog.PageKeepOne);
-            return;
+            return false;
         }
 
         var label = pages.Count == 1 ? Loc.F("page {0}", pages[0] + 1) : Loc.F("{0} pages ({1})", pages.Count, FormatPageList(pages));
-        if (!_dialogs.Confirm(Loc.F("Delete {0}?\n\nUndo (Ctrl+Z) brings the pages back. Nothing changes on disk until you save.", label)))
+        if (confirm && !_dialogs.Confirm(Loc.F("Delete {0}?\n\nUndo (Ctrl+Z) brings the pages back. Nothing changes on disk until you save.", label)))
         {
-            return;
+            return false;
         }
 
         var sorted = pages.Distinct().Order().ToArray();
         var focus = Math.Max(0, sorted[0] - 1);
-        await RunPageToolAsync("Deleting pages…", async document =>
+        var clipboard = PageClipboard;
+        return await RunPageToolAsync("Deleting pages…", async document =>
         {
             var removed = await SnapshotPagesAsync(document, sorted);
             await document.DeletePagesAsync(sorted);
             _undo.KeepOnlyPageSteps();
             _undo.Push(
-                () => _ = RunPageToolAsync("Restoring pages…", d => RestorePagesAsync(d, removed, sorted), sorted[0]),
-                () => _ = RunPageToolAsync("Deleting pages…", d => d.DeletePagesAsync(sorted), focus),
+                () => _ = RunPageToolAsync("Restoring pages…", async d =>
+                {
+                    await RestorePagesAsync(d, removed, sorted);
+                    if (cutPath is not null) clipboard.CancelCut(cutPath);
+                }, sorted[0]),
+                () => _ = RunPageToolAsync("Deleting pages…", async d =>
+                {
+                    await d.DeletePagesAsync(sorted);
+                    if (cutPath is not null) clipboard.MarkCut(cutPath);
+                }, focus),
                 pageStep: true);
         }, focus, commitFirst: true);
     }
@@ -107,16 +181,21 @@ public sealed partial class MainViewModel
             return;
         }
 
+        await InsertPagesAsync(path, insertIndex);
+    }
+
+    private async Task<bool> InsertPagesAsync(string path, int insertIndex, bool pasted = false)
+    {
         var source = await OpenSourceAsync(path);
         if (source is null)
         {
-            return;
+            return false;
         }
 
         await using (source)
         {
             var count = source.PageCount;
-            await RunPageToolAsync("Inserting pages…", async document =>
+            return await RunPageToolAsync("Inserting pages…", async document =>
             {
                 await document.InsertPagesAsync(source, insertIndex);
                 var inserted = Enumerable.Range(insertIndex, count).ToArray();
@@ -130,7 +209,7 @@ public sealed partial class MainViewModel
                     }, Math.Max(0, insertIndex - 1)),
                     () => _ = RunPageToolAsync("Inserting pages…", d => copy is null ? Task.CompletedTask : d.InsertPagesAsync(copy.Document, insertIndex), insertIndex),
                     pageStep: true);
-                StatusMessage = count == 1
+                StatusMessage = pasted ? Loc.F("Pasted {0} pages", count) : count == 1
                     ? Loc.F("Inserted 1 page from {0}", Path.GetFileName(path))
                     : Loc.F("Inserted {0} pages from {1}", count, Path.GetFileName(path));
             }, insertIndex, commitFirst: true);
@@ -354,26 +433,34 @@ public sealed partial class MainViewModel
     /// Runs a page-structure change on the open document, then rebuilds the page list around
     /// <paramref name="focusPage"/>. Overlays are committed first because page numbers change.
     /// </summary>
-    private async Task RunPageToolAsync(string busyText, Func<IPdfDocument, Task> change, int focusPage, bool commitFirst = false)
+    private async Task<bool> RunPageToolAsync(string busyText, Func<IPdfDocument, Task> change, int focusPage, bool commitFirst = false)
     {
         if (!ConfirmFirstEdit() || !await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.Assemble, "rearrange its pages") || _document is not { } document)
         {
-            return;
+            return false;
         }
 
         if (BlockedByTextEdits())
         {
-            return;
+            return false;
         }
 
         if (_fieldLooks.Count > 0)
         {
             // Field fonts and pictures are written when saving, by each widget's place on its page.
             _dialogs.ShowInfo("Save the filled-in form first (Ctrl+S), then use the page tools.");
-            return;
+            return false;
         }
 
-        await RunBusyAsync(busyText, async () =>
+        if (commitFirst)
+        {
+            await _signatureFirstPassTask;
+            if (document != _document) return false;
+            if (HasSignatures && !_dialogs.Confirm(Loc.T("Editing this item will make digital signatures show that the document was changed after signing. Continue?")))
+                return false;
+        }
+
+        return await RunBusyAsync(busyText, async () =>
         {
             try
             {

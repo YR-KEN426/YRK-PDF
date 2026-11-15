@@ -991,8 +991,17 @@
                                  Drop="OnThumbnailDrop"
                                  KeyDown="OnThumbnailKeyDown"
                                  ToolTip="Ctrl/Shift-click to select several pages. Drag a page to move it.">
+                            <ListBox.CommandBindings>
+                                <CommandBinding Command="ApplicationCommands.Copy" CanExecute="OnPageClipboardCanExecute" Executed="OnPageClipboardExecuted" />
+                                <CommandBinding Command="ApplicationCommands.Cut" CanExecute="OnPageClipboardCanExecute" Executed="OnPageClipboardExecuted" />
+                                <CommandBinding Command="ApplicationCommands.Paste" CanExecute="OnPageClipboardCanExecute" Executed="OnPageClipboardExecuted" />
+                            </ListBox.CommandBindings>
                             <ListBox.ContextMenu>
                                 <ContextMenu>
+                                    <MenuItem Header="Copy pages" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Cut pages" Command="ApplicationCommands.Cut" InputGestureText="Ctrl+X" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <MenuItem Header="Paste pages" Command="ApplicationCommands.Paste" InputGestureText="Ctrl+V" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                    <Separator />
                                     <MenuItem Header="Rotate right" Click="OnRotateRight" />
                                     <MenuItem Header="Rotate left" Click="OnRotateLeft" />
                                     <Separator />
