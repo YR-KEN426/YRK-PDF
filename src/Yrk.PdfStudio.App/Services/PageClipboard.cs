@@ -70,6 +70,11 @@ public sealed class PageClipboard : IDisposable
 
     public bool HasUnpastedCut => _pendingCuts.Any(path => !_cuts[path].WaitOne(0));
 
+    public bool ConfirmReplace(IDialogService dialogs) => ConfirmReplace(dialogs.Confirm);
+
+    public bool ConfirmReplace(Func<string, bool> confirm) => !HasUnpastedCut || confirm(Loc.T(
+        "Cut pages have not been pasted yet. Copying again will lose them.\n\nContinue?"));
+
     public bool ConfirmClose(IDialogService dialogs) => ConfirmClose(dialogs.Confirm);
 
     public bool ConfirmClose(Func<string, bool> confirm) => !HasUnpastedCut || confirm(Loc.T(

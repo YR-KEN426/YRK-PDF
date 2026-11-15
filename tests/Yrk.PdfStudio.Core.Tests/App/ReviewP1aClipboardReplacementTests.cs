@@ -7,9 +7,35 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class ReviewP1aClipboardReplacementTests
 {
     [Theory]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Close_and_update_without_window_warn_before_save(bool update, bool proceed)
+    {
+        await using var app = new AppTestHarness();
+        using var clipboard = new PageClipboard(new AppPageClipboardTests.MemoryClipboard(), app.PathFor("clipboard"));
+        app.Model.PageClipboard = clipboard;
+        Assert.True(await app.OpenAsync(Sample(app)));
+        Assert.True(await app.Model.CopyPagesAsync([1], cut: true));
+        app.Dialogs.Calls.Clear();
+        app.Dialogs.Answer("Confirm", proceed);
+        app.Dialogs.Answer("AskSaveChanges", SaveChangesChoice.Discard);
+
+        if (update)
+            Assert.Equal(proceed, await (Task<bool>)typeof(Yrk.PdfStudio.App.ViewModels.MainViewModel)
+                .GetMethod("ConfirmCloseForUpdateAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .Invoke(app.Model, null)!);
+        else
+            await app.Model.CloseCommand.ExecuteAsync(null);
+
+        Assert.Equal(proceed ? new[] { "Confirm", "AskSaveChanges" } : new[] { "Confirm" },
+            app.Dialogs.Calls.Select(call => call.Name));
+        Assert.Equal(update || !proceed, app.Model.HasDocument);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Replacement_of_saved_unpasted_cut_requires_existing_close_dialog_and_cancel_is_noop(bool nextCut)
+    public async Task Replacement_of_saved_unpasted_cut_requires_replace_dialog_and_cancel_is_noop(bool nextCut)
     {
         await using var app = new AppTestHarness();
         var os = new AppPageClipboardTests.MemoryClipboard();
@@ -32,7 +58,7 @@ public sealed class ReviewP1aClipboardReplacementTests
         Assert.False(app.Model.IsDirty);
         Assert.Equal(disk, File.ReadAllBytes(source));
         Assert.True(clipboard.HasUnpastedCut);
-        Assert.Equal(Loc.T("Cut pages have not been pasted yet. Closing the app will lose them.\n\nContinue closing?"),
+        Assert.Equal(Loc.T("Cut pages have not been pasted yet. Copying again will lose them.\n\nContinue?"),
             Assert.Single(app.Dialogs.Named("Confirm")).Arguments[0]);
 
         Assert.True(await app.Model.CopyPagesAsync([0], cut: nextCut));

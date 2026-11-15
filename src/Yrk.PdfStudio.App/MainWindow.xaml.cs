@@ -61,7 +61,7 @@ public partial class MainWindow : Window
     protected override async void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);
-        if (_closeConfirmed || (!Tabs.Any(t => t.IsDirty) && !PageClipboard.Shared.HasUnpastedCut))
+        if (_closeConfirmed || (!Tabs.Any(t => t.IsDirty) && !Tabs.Any(t => t.PageClipboard.HasUnpastedCut)))
         {
             if (!e.Cancel)
                 foreach (var tab in Tabs) tab.SaveReadingPosition();
@@ -89,7 +89,7 @@ public partial class MainWindow : Window
     /// <summary>Asks to save or discard each tab with changes. False when the user cancels.</summary>
     private async Task<bool> ConfirmAllTabsAsync()
     {
-        if (!PageClipboard.Shared.ConfirmClose(message => CreateCutPagesCloseDialog(message).ShowDialog() == true)) return false;
+        if (!ConfirmCutPagesClose()) return false;
         CommitInPlaceEdits();
         foreach (var tab in Tabs.Where(t => t.IsDirty).ToList())
         {
@@ -102,6 +102,10 @@ public partial class MainWindow : Window
 
         return true;
     }
+
+    // All tabs normally share one clipboard. Confirm each distinct owner only once.
+    private bool ConfirmCutPagesClose() => Tabs.Select(t => t.PageClipboard).Distinct().All(clipboard =>
+        clipboard.ConfirmClose(message => CreateCutPagesCloseDialog(message).ShowDialog() == true));
 
     // Same layout, styles and default-to-Cancel behavior as SignAgainDialog.
     private Window CreateCutPagesCloseDialog(string message)

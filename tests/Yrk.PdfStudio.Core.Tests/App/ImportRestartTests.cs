@@ -258,6 +258,99 @@ public sealed class ImportRestartTests
         }
     });
 
+    [Theory]
+    [InlineData("window", false)]
+    [InlineData("window", true)]
+    [InlineData("restart", false)]
+    [InlineData("restart", true)]
+    [InlineData("update", false)]
+    [InlineData("update", true)]
+    public void Cut_warning_precedes_save_and_cancel_stops_closing(string route, bool proceed) => RunUi(_ =>
+    {
+        var app = new AppTestHarness();
+        var second = new AppTestHarness();
+        using var clipboard = new PageClipboard(new AppPageClipboardTests.MemoryClipboard(), app.PathFor("clipboard"));
+        app.Model.PageClipboard = second.Model.PageClipboard = clipboard;
+        MainWindow? window = null;
+        var version = typeof(MainViewModel).GetField("s_readyVersion", BindingFlags.Static | BindingFlags.NonPublic)!;
+        var oldVersion = version.GetValue(null);
+        var warnings = 0;
+        var closed = false;
+        var launched = false;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(5) };
+        try
+        {
+            Assert.True(Await(app.OpenAsync(PageReviewTestSupport.Sample(app))));
+            Assert.True(Await(second.OpenAsync(second.CreatePdf())));
+            Assert.True(Await(app.Model.CopyPagesAsync([1], cut: true)));
+            Await(second.RotateAsync());
+            window = new MainWindow(app.Model, () => throw new NotSupportedException());
+            window.Tabs.Add(second.Model);
+            new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+            window.Closed += (_, _) => closed = true;
+            app.Dialogs.Answer("AskSaveChanges", SaveChangesChoice.Discard);
+            second.Dialogs.Answer("AskSaveChanges", SaveChangesChoice.Discard);
+            timer.Tick += (_, _) =>
+            {
+                var dialog = Application.Current.Windows.Cast<Window>().FirstOrDefault(w => w.Owner == window && w.IsVisible);
+                if (dialog is null) return;
+                warnings++;
+                Assert.Empty(app.Dialogs.Named("AskSaveChanges"));
+                Assert.Empty(second.Dialogs.Named("AskSaveChanges"));
+                var content = Assert.IsType<StackPanel>(dialog.Content);
+                Assert.Equal("Cut pages have not been pasted yet. Closing the app will lose them.\n\nContinue closing?",
+                    Assert.IsType<TextBlock>(content.Children[0]).Text);
+                dialog.DialogResult = proceed;
+            };
+            timer.Start();
+            switch (route)
+            {
+                case "window":
+                    window.Close();
+                    PumpUntil(() => !(bool)typeof(MainWindow).GetField("_closeInProgress", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!);
+                    Assert.Equal(proceed, closed);
+                    break;
+                case "tab":
+                    Await((Task)typeof(MainWindow).GetMethod("CloseTabAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .Invoke(window, [app.Model])!);
+                    Assert.Equal(proceed ? 1 : 2, window.Tabs.Count);
+                    break;
+                case "restart":
+                    var result = Await((Task<bool>)typeof(MainWindow).GetMethod("RestartAfterImportAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .Invoke(window, [(Func<bool>)(() => launched = true)])!);
+                    Assert.Equal(proceed, result);
+                    Assert.Equal(proceed, launched);
+                    Assert.Equal(proceed, closed);
+                    break;
+                case "update":
+                    version.SetValue(null, "test");
+                    Await(app.Model.RestartToUpdateCommand.ExecuteAsync(null));
+                    break;
+            }
+            Assert.Equal(1, warnings);
+            Assert.Equal(proceed ? 1 : 0, app.Dialogs.Named("AskSaveChanges").Length);
+            Assert.Equal(proceed && route != "tab" ? 1 : 0, second.Dialogs.Named("AskSaveChanges").Length);
+            if (!proceed)
+            {
+                Assert.False(closed);
+                Assert.True(app.Model.HasDocument);
+                Assert.True(clipboard.HasUnpastedCut);
+            }
+        }
+        finally
+        {
+            timer.Stop();
+            version.SetValue(null, oldVersion);
+            if (window is not null && !closed)
+            {
+                typeof(MainWindow).GetField("_closeConfirmed", BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(window, true);
+                window.Close();
+            }
+            Await(app.DisposeAsync().AsTask());
+            Await(second.DisposeAsync().AsTask());
+        }
+    });
+
     [Fact]
     public void Import_restart_and_save_notice_have_Thai_translations() => RunUi(_ =>
     {

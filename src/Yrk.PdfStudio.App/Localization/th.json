@@ -1923,6 +1923,7 @@
   "An update was found, but it was not signed by YRK. It was not installed. The downloaded file could not be deleted.": "พบอัปเดตที่ไม่ได้เซ็นโดย YRK จึงไม่ได้ติดตั้ง แต่ลบไฟล์ที่ดาวน์โหลดมาไม่ได้",
   "Restart the computer, then check for updates again.": "เริ่มคอมพิวเตอร์ใหม่ แล้วตรวจหาอัปเดตอีกครั้ง",
   "Copy pages": "คัดลอกหน้า",
+  "Cut pages have not been pasted yet. Copying again will lose them.\n\nContinue?": "หน้าที่ตัดไว้ยังไม่ได้วาง ถ้าคัดลอกใหม่ หน้าเหล่านั้นจะหายไป\n\nต้องการทำต่อไหม",
   "Cut pages": "ตัดหน้า",
   "Paste pages": "วางหน้า",
   "Pasted {0} pages": "วาง {0} หน้าแล้ว",

@@ -145,6 +145,8 @@ public sealed class AppPageClipboardTests
         Assert.False(clipboard.ConfirmClose(app.Dialogs.Service));
         Assert.True(clipboard.ConfirmClose(app.Dialogs.Service));
         Assert.Equal(2, app.Dialogs.Named("Confirm").Length);
+        Assert.All(app.Dialogs.Named("Confirm"), call => Assert.Equal(
+            Loc.T("Cut pages have not been pasted yet. Closing the app will lose them.\n\nContinue closing?"), call.Arguments[0]));
         app.Model.UndoCommand.Execute(null);
         await Idle(app);
         await AssertOrder(app, 1, 2, 3);

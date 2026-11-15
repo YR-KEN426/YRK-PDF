@@ -46,7 +46,7 @@ public sealed partial class MainViewModel
         if (!CanCopyPages || (cut && !CanCutPages(pages)) || _document is not { } document
             || pages.Count == 0 || pages.Any(p => p < 0 || p >= document.PageCount)
             || !await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble, "extract its pages")
-            || BlockedByTextEdits() || !PageClipboard.ConfirmClose(_dialogs)) return false;
+            || BlockedByTextEdits() || !PageClipboard.ConfirmReplace(_dialogs)) return false;
 
         var sorted = pages.Distinct().Order().ToArray();
         string? path = null;

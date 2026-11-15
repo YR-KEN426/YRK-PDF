@@ -287,7 +287,7 @@ public sealed partial class MainViewModel
 
     private async Task RestartToUpdateAsync()
     {
-        if (s_readyVersion is null || IsBusy || !await (ConfirmAllTabsAsync ?? ConfirmDiscardOrSaveAsync)())
+        if (s_readyVersion is null || IsBusy || !await (ConfirmAllTabsAsync ?? ConfirmCloseForUpdateAsync)())
         {
             return;
         }
@@ -305,6 +305,9 @@ public sealed partial class MainViewModel
             ReportUpdateApplyFailure(ErrorCatalog.UpdateApply, ex);
         }
     }
+
+    private async Task<bool> ConfirmCloseForUpdateAsync() =>
+        PageClipboard.ConfirmClose(_dialogs) && await ConfirmDiscardOrSaveAsync();
 
     internal static ErrorInfo UpdateVerificationError(UpdateVerificationException ex) =>
         ex.DeleteFailed ? ErrorCatalog.UpdateVerificationDeleteFailed : ErrorCatalog.UpdateVerification;
