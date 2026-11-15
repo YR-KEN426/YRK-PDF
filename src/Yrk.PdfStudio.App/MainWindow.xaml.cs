@@ -981,6 +981,16 @@ public partial class MainWindow : Window
 
     private void OnPageMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (e.Handled || sender is not FrameworkElement { DataContext: PageViewModel clickedPage } pageElement)
+            return;
+        // Leave editors, form controls and child menus to handle their own right clicks.
+        for (var source = e.OriginalSource as DependencyObject; source is not null && source != pageElement;
+             source = source is Visual ? VisualTreeHelper.GetParent(source) : LogicalTreeHelper.GetParent(source))
+        {
+            if (source is TextBoxBase or PasswordBox or ComboBox or ButtonBase ||
+                source is FrameworkElement { ContextMenu: not null }) return;
+        }
+
         // A measurement label or count mark: offer to remove it.
         if (sender is FrameworkElement { DataContext: PageViewModel page } element && element.ActualWidth > 0
             && _viewModel.MeasureItemAt(page, Relative(element, e)) is { } measureItem)
@@ -989,28 +999,65 @@ public partial class MainWindow : Window
             delete.Click += (_, _) => _viewModel.DeleteMeasureItem(measureItem);
             var itemMenu = new ContextMenu();
             itemMenu.Items.Add(delete);
+            itemMenu.Items.Add(CreatePageReadingMarkItem(clickedPage));
             itemMenu.IsOpen = true;
             e.Handled = true;
             return;
         }
 
-        if (!_viewModel.HasTextSelection)
+        var menu = new ContextMenu { PlacementTarget = pageElement };
+        if (_viewModel.HasTextSelection)
         {
-            return;
+            menu.Items.Add(new MenuItem { Header = "Copy", Command = ApplicationCommands.Copy, CommandTarget = this });
+            menu.Items.Add(new Separator());
+            foreach (var (header, kind) in new[] { ("Highlight", PdfAnnotationKind.Highlight), ("Underline", PdfAnnotationKind.Underline), ("Strike out", PdfAnnotationKind.StrikeOut) })
+            {
+                var item = new MenuItem { Header = header };
+                item.Click += async (_, _) => await _viewModel.MarkupSelectionAsync(kind);
+                menu.Items.Add(item);
+            }
         }
 
-        var menu = new ContextMenu();
-        menu.Items.Add(new MenuItem { Header = "Copy", Command = ApplicationCommands.Copy, CommandTarget = this });
-        menu.Items.Add(new Separator());
-        foreach (var (header, kind) in new[] { ("Highlight", PdfAnnotationKind.Highlight), ("Underline", PdfAnnotationKind.Underline), ("Strike out", PdfAnnotationKind.StrikeOut) })
-        {
-            var item = new MenuItem { Header = header };
-            item.Click += async (_, _) => await _viewModel.MarkupSelectionAsync(kind);
-            menu.Items.Add(item);
-        }
+        menu.Items.Add(CreatePageReadingMarkItem(clickedPage));
 
         menu.IsOpen = true;
         e.Handled = true;
+    }
+
+    private PageViewModel? _thumbnailContextPage;
+
+    private void OnThumbnailRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _thumbnailContextPage = FindAncestor<ListBoxItem>(e.OriginalSource as DependencyObject)?.DataContext as PageViewModel;
+        // Right click chooses a menu target, without navigating or replacing the Copy/Cut selection.
+        e.Handled = true;
+    }
+
+    private void OnThumbnailContextMenuOpened(object sender, RoutedEventArgs e) =>
+        UpdatePageReadingMarkItem(ThumbnailReadingMarkItem, _thumbnailContextPage);
+
+    private void OnThumbnailContextMenuClosed(object sender, RoutedEventArgs e) => _thumbnailContextPage = null;
+
+    private MenuItem CreatePageReadingMarkItem(PageViewModel page)
+    {
+        var item = new MenuItem();
+        UpdatePageReadingMarkItem(item, page);
+        item.Click += OnPageReadingMarkClick;
+        return item;
+    }
+
+    private void UpdatePageReadingMarkItem(MenuItem item, PageViewModel? page)
+    {
+        item.Tag = page;
+        item.Visibility = page is null ? Visibility.Collapsed : Visibility.Visible;
+        item.Header = _viewModel.ReadingMarks.Any(mark => mark.PageIndex == page?.Index)
+            ? Loc.T("Edit reading mark…") : Loc.T("Add reading mark…");
+        item.IsEnabled = page is not null && _viewModel.HasDocument && !_viewModel.IsBusy;
+    }
+
+    private void OnPageReadingMarkClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem { Tag: PageViewModel page }) _viewModel.EditReadingMark(page.Index);
     }
 
     /// <summary>Mouse position as a fraction of the page, kept inside the page.</summary>

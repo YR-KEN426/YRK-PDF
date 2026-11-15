@@ -1007,6 +1007,7 @@
                                  AllowDrop="True"
                                  SelectionChanged="OnThumbnailSelectionChanged"
                                  PreviewMouseLeftButtonDown="OnThumbnailMouseDown"
+                                 PreviewMouseRightButtonDown="OnThumbnailRightButtonDown"
                                  PreviewMouseMove="OnThumbnailMouseMove"
                                  DragOver="OnThumbnailDragOver"
                                  Drop="OnThumbnailDrop"
@@ -1018,7 +1019,8 @@
                                 <CommandBinding Command="ApplicationCommands.Paste" CanExecute="OnPageClipboardCanExecute" Executed="OnPageClipboardExecuted" />
                             </ListBox.CommandBindings>
                             <ListBox.ContextMenu>
-                                <ContextMenu>
+                                <ContextMenu Opened="OnThumbnailContextMenuOpened" Closed="OnThumbnailContextMenuClosed">
+                                    <MenuItem x:Name="ThumbnailReadingMarkItem" Visibility="Collapsed" Click="OnPageReadingMarkClick" />
                                     <MenuItem Header="Copy pages" Command="ApplicationCommands.Copy" InputGestureText="Ctrl+C" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     <MenuItem Header="Cut pages" Command="ApplicationCommands.Cut" InputGestureText="Ctrl+X" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                     <MenuItem Header="Paste pages" Command="ApplicationCommands.Paste" InputGestureText="Ctrl+V" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />

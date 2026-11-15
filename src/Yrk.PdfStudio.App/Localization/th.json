@@ -1936,6 +1936,8 @@
   "Open the source document with its owner password before copying pages.": "เปิดไฟล์ต้นทางด้วยรหัสผ่านเจ้าของก่อนคัดลอกหน้า",
   "Add": "เพิ่ม",
   "Reading marks": "ที่คั่น",
+  "Add reading mark…": "เพิ่มที่คั่น…",
+  "Edit reading mark…": "แก้ที่คั่น…",
   "Reading marks (Ctrl+D)": "ที่คั่น (Ctrl+D)",
   "Keep a place to return to. Use Reading marks or Ctrl+D on the current page.": "คั่นหน้าเพื่อกลับมาอ่าน กดปุ่มที่คั่นหรือ Ctrl+D บนหน้าปัจจุบัน",
   "Name (up to 40 characters)": "ชื่อ (ไม่เกิน 40 ตัวอักษร)",
