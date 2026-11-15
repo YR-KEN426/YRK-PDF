@@ -19,6 +19,129 @@ namespace Yrk.PdfStudio.Core.Tests;
 [Collection("WPF Application")] // Only one System.Windows.Application can exist at a time; shared with ETaxTests.
 public sealed class MainWindowLayoutTests
 {
+    [Theory]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void Multiple_files_skip_failures_reuse_tabs_and_finish_on_first_success(bool fromDialog, bool alreadyOpen)
+    {
+        Sta.Run(() =>
+        {
+            typeof(Application).GetField("_resourceAssembly", BindingFlags.NonPublic | BindingFlags.Static)!
+                .SetValue(null, typeof(MainWindow).Assembly);
+            ForgetApplicationFromEarlierTest();
+            var application = new Application();
+            var priorContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
+            { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
+            var models = new List<AppTestHarness>();
+            AppTestHarness Create()
+            {
+                var app = new AppTestHarness();
+                app.Dialogs.Answer("PromptPassword", (object?)null);
+                models.Add(app);
+                return app;
+            }
+            var first = Create();
+            try
+            {
+                var a = first.CreatePdf();
+                var b = first.PathFor("second.pdf");
+                File.Copy(a, b);
+                var bad = first.PathFor("bad.pdf");
+                File.WriteAllText(bad, "Not a PDF");
+                var locked = first.PathFor("locked.pdf");
+                File.WriteAllBytes(locked, Yrk.PdfStudio.Core.Pdf.Security.PdfSecurity.Protect(
+                    File.ReadAllBytes(a), new("secret", "owner", Yrk.PdfStudio.Core.Pdf.Security.PdfPermissions.All)));
+                if (alreadyOpen) AwaitBatch(first.Model.OpenFileAsync(b));
+                var window = new MainWindow(first.Model, () => Create().Model);
+                var paths = new[] { bad, locked, a, a, b };
+                if (fromDialog)
+                {
+                    first.Dialogs.Answer("PickPdfFiles", (object)paths);
+                    AwaitBatch(first.Model.OpenCommand.ExecuteAsync(null));
+                }
+                else AwaitBatch(window.OpenManyInTabsAsync(paths));
+
+                Assert.Equal(2, window.Tabs.Count);
+                Assert.Equal(alreadyOpen ? new[] { b, a } : new[] { a, b }, window.Tabs.Select(t => t.DocumentPath));
+                Assert.Equal(a, Assert.Single(window.Tabs.Where(t => t.IsActiveTab)).DocumentPath);
+                if (!alreadyOpen) Assert.Same(first.Model, window.Tabs[0]);
+                Assert.Single(models.SelectMany(m => m.Dialogs.Named("ShowError")));
+                Assert.Single(models.SelectMany(m => m.Dialogs.Named("PromptPassword")));
+                Assert.Empty(models.SelectMany(m => m.Dialogs.Named("Confirm")));
+
+                // The same path always selects its existing tab, including single-file Open.
+                var active = models.Single(m => m.Model.IsActiveTab);
+                active.Dialogs.Answer("PickPdfFiles", (object)new[] { b });
+                AwaitBatch(active.Model.OpenCommand.ExecuteAsync(null));
+                Assert.Equal(2, window.Tabs.Count);
+                Assert.Equal(b, Assert.Single(window.Tabs.Where(t => t.IsActiveTab)).DocumentPath);
+                return true;
+            }
+            finally
+            {
+                foreach (var app in models) AwaitBatch(app.DisposeAsync().AsTask());
+                application.Shutdown();
+                ForgetApplicationFromEarlierTest();
+                SynchronizationContext.SetSynchronizationContext(priorContext);
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Opening_more_than_twenty_files_requires_confirmation(bool accept)
+    {
+        Sta.Run(() =>
+        {
+            typeof(Application).GetField("_resourceAssembly", BindingFlags.NonPublic | BindingFlags.Static)!
+                .SetValue(null, typeof(MainWindow).Assembly);
+            ForgetApplicationFromEarlierTest();
+            var application = new Application();
+            var priorContext = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
+            { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
+            var app = new AppTestHarness();
+            try
+            {
+                var path = app.CreatePdf();
+                var window = new MainWindow(app.Model, () => throw new InvalidOperationException("Duplicate created a tab"));
+                app.Dialogs.Answer("Confirm", accept);
+                app.Dialogs.Answer("PickPdfFiles", (object)Enumerable.Repeat(path, 21).ToArray());
+                AwaitBatch(app.Model.OpenCommand.ExecuteAsync(null));
+                Assert.Single(app.Dialogs.Named("Confirm"));
+                Assert.Equal(accept, app.Model.HasDocument);
+                Assert.Single(window.Tabs);
+                Assert.Equal(accept ? path : null, app.Model.DocumentPath);
+                // Exactly 20 needs no confirmation.
+                AwaitBatch(window.OpenManyInTabsAsync(Enumerable.Repeat(path, 20).ToArray()));
+                Assert.Single(app.Dialogs.Named("Confirm"));
+                Assert.Equal(path, app.Model.DocumentPath);
+                return true;
+            }
+            finally
+            {
+                AwaitBatch(app.DisposeAsync().AsTask());
+                application.Shutdown();
+                ForgetApplicationFromEarlierTest();
+                SynchronizationContext.SetSynchronizationContext(priorContext);
+            }
+        });
+    }
+
+    private static void AwaitBatch(Task task)
+    {
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        var frame = new DispatcherFrame();
+        _ = task.ContinueWith(_ => dispatcher.BeginInvoke(() => frame.Continue = false), TaskScheduler.Default);
+        Dispatcher.PushFrame(frame);
+        task.GetAwaiter().GetResult();
+    }
+
     [Fact]
     public void Page_clipboard_keeps_text_copy_and_localizes_the_cut_close_dialog()
     {

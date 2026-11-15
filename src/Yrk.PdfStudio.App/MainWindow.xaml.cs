@@ -140,6 +140,7 @@ public partial class MainWindow : Window
         tab.CommentEditRequested += OnCommentEditRequested;
         tab.SignaturePanelRequested += OnSignaturePanelRequested;
         tab.OpenInNewTabRequested += OnOpenInNewTabRequested;
+        tab.OpenManyInTabsRequested += OpenManyInTabsAsync;
         tab.CloseTabRequested += OnCloseTabRequested;
         tab.IsActiveTab = true;
         tab.ConfirmAllTabsAsync = ConfirmAllTabsAsync;
@@ -174,6 +175,7 @@ public partial class MainWindow : Window
         tab.CommentEditRequested -= OnCommentEditRequested;
         tab.SignaturePanelRequested -= OnSignaturePanelRequested;
         tab.OpenInNewTabRequested -= OnOpenInNewTabRequested;
+        tab.OpenManyInTabsRequested -= OpenManyInTabsAsync;
         tab.CloseTabRequested -= OnCloseTabRequested;
         tab.IsActiveTab = false;
     }
@@ -190,6 +192,20 @@ public partial class MainWindow : Window
         _rulerPage = null;
         Detach(_viewModel);
         Attach(tab);
+    }
+
+    /// <summary>Opens files in order and selects the first one that opened successfully.</summary>
+    public async Task OpenManyInTabsAsync(IReadOnlyList<string> paths)
+    {
+        if (!_viewModel.ConfirmOpenManyFiles(paths.Count)) return;
+        MainViewModel? firstOpened = null;
+        foreach (var path in paths)
+        {
+            await OpenInTabAsync(path);
+            firstOpened ??= Tabs.FirstOrDefault(t => t.DocumentPath is { } open &&
+                string.Equals(Path.GetFullPath(open), Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase));
+        }
+        if (firstOpened is not null) SwitchTo(firstOpened);
     }
 
     /// <summary>
@@ -1839,10 +1855,7 @@ public partial class MainWindow : Window
         {
             e.Handled = true;
             Activate();
-            foreach (var path in paths)
-            {
-                await OpenInTabAsync(path); // Several files: one tab each.
-            }
+            await OpenManyInTabsAsync(paths);
         }
     }
 

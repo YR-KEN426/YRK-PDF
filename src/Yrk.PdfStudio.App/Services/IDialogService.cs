@@ -56,6 +56,9 @@ public interface IDialogService
 
     string? PickPdfFile(string title = "Open");
 
+    /// <returns>Chosen paths in order, or an empty list when cancelled.</returns>
+    IReadOnlyList<string> PickPdfFiles(string title = "Open");
+
     /// <returns>A picture file (PNG, JPEG, BMP, GIF, TIFF), or null if the user cancelled.</returns>
     string? PickImageFile(string title);
 

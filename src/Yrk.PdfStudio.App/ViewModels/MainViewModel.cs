@@ -518,10 +518,14 @@ public sealed partial class MainViewModel : ObservableObject
 
     private async Task OpenWithDialogAsync()
     {
-        var path = _dialogs.PickPdfFile();
-        if (path is not null && !RequestOpenInNewTab(path))
+        var paths = _dialogs.PickPdfFiles();
+        if (paths.Count == 1)
         {
-            await OpenFileAsync(path);
+            if (!RequestOpenInNewTab(paths[0])) await OpenFileAsync(paths[0]);
+        }
+        else if (paths.Count > 1 && OpenManyInTabsRequested is { } openMany)
+        {
+            await openMany(paths);
         }
     }
 

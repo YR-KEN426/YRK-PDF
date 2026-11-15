@@ -52,6 +52,18 @@ public sealed class DialogService : IDialogService
         return ShowDialog(dialog) ? dialog.FileName : null;
     }
 
+    public IReadOnlyList<string> PickPdfFiles(string title = "Open")
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = Loc.T(title),
+            Filter = Loc.T(OpenFilter),
+            CheckFileExists = true,
+            Multiselect = true,
+        };
+        return ShowDialog(dialog) ? dialog.FileNames : [];
+    }
+
     public string? PickImageFile(string title)
     {
         var dialog = new OpenFileDialog

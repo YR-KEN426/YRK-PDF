@@ -14,6 +14,12 @@ public sealed partial class MainViewModel
     /// <summary>The user chose a file to open while this tab already shows one: open it in a new tab.</summary>
     public event EventHandler<string>? OpenInNewTabRequested;
 
+    /// <summary>The window opens the selected files sequentially in tabs.</summary>
+    public event Func<IReadOnlyList<string>, Task>? OpenManyInTabsRequested;
+
+    public bool ConfirmOpenManyFiles(int count) => count <= 20 || _dialogs.Confirm(
+        string.Format(Loc.T("Open {0} files in tabs? This may take a while."), count));
+
     /// <summary>Close was chosen (Ctrl+W): the window closes this tab.</summary>
     public event EventHandler? CloseTabRequested;
 
