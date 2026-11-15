@@ -1,233 +1,191 @@
-# แผน: แปลงเอกสารสแกน (1.2.3)
+# แผน: ข้อความ error ทั้งโปรแกรม + ปุ่มคัดลอกข้อมูลแจ้งปัญหา + ตัวดักแครชกลาง + ตรวจข้อความสองภาษา (1.2.3)
+
 
 ## ที่มา
-- ตอนนี้ทำ OCR ได้ทีละไฟล์ที่เปิดอยู่ และได้ผลเป็น PDF ค้นหาได้อย่างเดียว
-- ถ้าส่งออก Word จากไฟล์สแกน แต่ละหน้าจะเป็นรูปทั้งหน้า แก้ข้อความไม่ได้
-- Ken ขอหน้าต่างเดียวที่ทำครบ (2026-11-13):
-  1. เลือกไฟล์สแกนได้หลายไฟล์
-  2. OCR หน้าที่ยังไม่มีข้อความ
-  3. ตรวจทานคำที่ไม่แน่ใจ
-  4. ได้ผลเป็น PDF ค้นหาได้ / Word แก้ไขได้ / .txt หรือคัดลอกทั้งหมด
-- Ken เลือกแล้ว (2026-11-14):
-  - รับทั้ง PDF และรูป
-  - ตรวจทานแบบภาพหน้า + ไฮไลต์คำ
-  - หลายไฟล์ได้ผลแยกไฟล์ละชุด
+- ตอนนี้กล่อง error เป็น `MessageBox` ธรรมดา (`IDialogService.ShowError(string)` ที่ `Services/DialogService.cs:306`) มีจุดเรียกประมาณ 50 จุด และมีอีกประมาณ 60 จุดที่โชว์ `ex.Message` ดิบ ซึ่งเป็นภาษาอังกฤษเชิงเทคนิค บางที่มี path เต็มติดมาด้วย
+- ยังไม่มีรหัส error ของโปรแกรมเอง มีแค่ HRESULT ในหน้าต่างสแกน (`Views/ScanDialog.xaml.cs:430–448`)
+- ตัวดักแครชมีแค่ `DispatcherUnhandledException` (`App.xaml.cs:156`) ยังไม่ดัก exception จาก thread อื่นและจาก Task
+- log เก็บ `ex.ToString()` เต็มๆ ซึ่งมี path และชื่อผู้ใช้อยู่ด้วย และยังไม่มีตัวลบข้อมูลส่วนตัวออก
+- ระบบแปลภาษาใช้ข้อความอังกฤษเป็น key แล้วไปหาคำแปลใน `Localization/th.json` (`Loc.T` / `Loc.F` และ `UiTranslator` สำหรับ XAML) ถ้า th.json ไม่มีคำแปล ข้อความจะขึ้นเป็นอังกฤษโดยไม่มีอะไรเตือน
+- สิ่งที่ Ken ตกลงไว้ใน PROJECT_NOTES:
+  - แต่ละ error มีคำอธิบายไทยและอังกฤษที่อ่านเข้าใจง่าย บอกว่าต้องทำอะไรต่อ มีรหัสคงที่ และมีส่วน "รายละเอียด"
+  - รวมข้อความไว้ใน catalogue กลางที่เดียว
+  - ห้ามมี path หรือข้อมูลส่วนตัวในข้อความที่ผู้ใช้อาจส่งต่อ
+  - ปุ่มคัดลอกต้องให้ผู้ใช้กดเองเท่านั้น ไม่ส่งอะไรออกอัตโนมัติ
 
 ## ของเดิมที่ใช้ต่อ
-- **OCR:** `Core/Pdf/Ocr/PdfOcr.cs`, `TesseractOcrEngine.cs`, `OcrModels.cs` (`OcrWord` มีค่าความมั่นใจต่อคำอยู่แล้ว แต่ `PdfOcr.RecognizeAsync` ไม่ได้ส่งออกมา), `OcrLanguageData.cs`
-- **ใส่ชั้นข้อความใน PDF:** `PdfOcr.AddTextLayer(pdf, pages)`
-- **ส่งออก:**
-  - `App/Services/PdfExporter.cs`: Word ใช้ `PageLayout.Analyze` → `DocxPage`; Text ใช้ `TextLayout.PlainText`; หน้าที่ไม่มีข้อความกลายเป็นรูป
-  - `Core/Pdf/Export/DocxWriter.cs` + `OfficeXml.FontFamily` (`"THSarabunNew"` → "TH Sarabun New")
-- **รูป → PDF:** `IPdfEngine.CreateFromImagesAsync`
-- **ปรับพื้นขาว:** `ScanPageProcessor.RenderPreparedPreview` (ใช้กับภาพหน้า PDF ใดก็ได้)
-- **หน้าต่างหลายไฟล์:** `Views/BatchDialog.xaml.cs` (เพิ่มไฟล์/โฟลเดอร์, ลากวาง), `MainViewModel.Batch.cs` (วนไฟล์, `_operation`, `ReportOperation`, `UniquePath`)
-- **ภาษา OCR:** `Views/OcrDialog`, `MainViewModel.Ocr.cs` `EnsureLanguageDataAsync`
-- **ที่ลงทะเบียนเครื่องมือ:** การ์ด Home `MainWindow.Home.cs` (กลุ่มที่ไม่ต้องเปิดเอกสาร), เมนูเครื่องมือ `MainWindow.xaml.cs` ~L1550, `IDialogService` + `DialogService`
-- **เทสต์:**
-  - `AppTestHarness` + `ScriptedDialogs`
-  - `AppOcrTests` (OCR ปลอม `OcrRunner`, ข้อมูลภาษาปลอม)
-  - `ExportTests`
+| ของเดิม | ที่อยู่ | ใช้ทำอะไร |
+|---|---|---|
+| `Loc.T` / `Loc.F` และ th.json | `Localization/Loc.cs` | แปลข้อความทุกอย่าง (ไม่สร้างระบบแปลใหม่) |
+| `Feedback.ProgramInfo(version)` | `Services/Feedback.cs:28` | ข้อมูลรุ่นโปรแกรม Windows และภาษา ใส่ตอนต้นของข้อมูลแจ้งปัญหา |
+| `AppUpdater.CurrentVersion` | `Services/AppUpdater.cs:81` | เลขรุ่น |
+| `App.LogMessage` / `LogError` | `App.xaml.cs:112–114` | log เดิม ต่อยอดให้มีรหัส error ด้วย |
+| `ScannerErrorKind` + `ErrorText` | `Core/Pdf/Scan/ScannerException.cs`, `ScanDialog.xaml.cs:430` | ย้ายข้อความ error สแกนเข้า catalogue (ยังแสดงในหน้าต่างสแกนเหมือนเดิม) |
+| `ScriptedDialogs` | `tests/.../App/AppTestHarness.cs:117` | เทสต์ว่าเรียก error ถูกรหัส |
+| เทสต์ log | `AppLogTests.cs`, `LogFolderTests.cs` | ใช้เป็นแบบของเทสต์ใหม่ |
 
-## ขั้นที่ 0: ทดลองก่อน (Claude ทำเอง ไม่แตะ repo)
-- โปรแกรมเล็กใน scratchpad อ้าง `Yrk.PdfStudio.Core.dll`
-  - ทำ OCR ไฟล์สแกนของ Ken ด้วย `TesseractOcrEngine`
-  - แปลงคำเป็น `PdfPageText` ปลอม แล้วเขียน `.docx` ด้วย `PageLayout` + `DocxWriter` ฟอนต์ TH Sarabun New
-- สิ่งที่ต้องได้คำตอบ ใช้ปรับขั้น 1–2:
-  - ขนาดฟอนต์จากความสูงกล่องคำ: กล่องของคำไทยรวมสระบน/ล่าง ต้องหาตัวคูณ
-  - ย่อหน้าที่ `PageLayout` สร้างจากกล่องคำ OCR ดูเป็นย่อหน้าจริงไหม หรือต้องใช้บรรทัด (TextLine) ของ Tesseract ช่วย
-  - การกระจายค่าความมั่นใจ ใช้ตั้งเกณฑ์ "ไม่แน่ใจ" (ค่าเริ่มต้นที่คิดไว้ < 70)
-  - เวลาต่อหน้าที่ 300 dpi
-- Ken เปิด `.docx` ที่ได้ใน Word ดูว่ารับได้ไหม
-- ไฟล์ของ Ken ไม่ส่งให้ Codex และไม่ใส่ใน repo
-- สรุปผลเป็นข้อความสั้นใต้ขั้นนี้ใน plan.md
+## การออกแบบ
+- **รหัส:** รูปแบบ `YRK-<ส่วน>-<เลข 3 หลัก>`
+  - ส่วนที่ใช้: `FILE` (เปิด/บันทึก/กู้คืน), `PAGE`, `SIG` (ลายเซ็น/ใบรับรอง), `SEC` (รหัสผ่าน/ปิดทับ), `SCN`, `OCR`, `CNV` (แปลงเอกสารสแกน), `EXP` (ส่งออก/PDF/A), `PRN`, `BAT`, `UPD`, `CAD`, `EDIT` (แก้ข้อความ/รูป/คำอธิบาย/ฟอร์ม), `APP` (แครชที่ไม่ได้ดัก)
+  - รหัสที่ใช้แล้ว ห้ามนำกลับมาใช้ใหม่ และห้ามเปลี่ยนความหมาย
+- **catalogue:** `Services/Errors/ErrorCatalog.cs` เป็น static class เดียว
+  - แต่ละรายการเป็น `ErrorInfo(Code, Message, NextStep)` โดย Message และ NextStep เป็นข้อความอังกฤษที่ใช้เป็น key ของ th.json
+  - รองรับ `{0}` สำหรับค่าที่ไม่ใช่ข้อมูลส่วนตัว เช่น เลขหน้า
+- **ตัวลบข้อมูลส่วนตัว:** `Services/Errors/ReportRedactor.cs` แทนสิ่งเหล่านี้ด้วย `<path>`, `<user>`, `<pc>`, `<email>`
+  - path แบบมีไดรฟ์และ UNC (รวมชื่อไฟล์ท้าย path)
+  - ชื่อผู้ใช้และชื่อเครื่อง
+  - โฟลเดอร์ผู้ใช้
+  - อีเมล
+- **กล่อง error ใหม่:** `Views/ErrorDialog.xaml` แทน MessageBox มีองค์ประกอบดังนี้
+  - ไอคอน
+  - ข้อความหลัก
+  - "สิ่งที่ทำได้: …"
+  - รหัส (ตัวเล็ก เลือกคัดลอกได้)
+  - Expander "รายละเอียด" แสดงชนิด exception, ข้อความเทคนิคที่ผ่านตัวลบข้อมูลส่วนตัวแล้ว และ HRESULT
+  - ปุ่ม **"คัดลอกข้อมูลเพื่อแจ้งปัญหา"** และปุ่ม "ตกลง"
+- **API:**
+  - `IDialogService.ShowError(ErrorInfo error, Exception? ex = null, params object[] args)` แสดงกล่องและเขียน log โดยมีรหัสนำหน้า
+  - เมื่อย้ายจุดเรียกครบแล้วให้ลบ `ShowError(string)` เดิมทิ้ง ไม่ให้มีทางกลับไปเขียนข้อความกระจายอีก
+- **ข้อมูลแจ้งปัญหา:** `Services/Errors/ProblemReport.cs` สร้างข้อความเป็น `ProgramInfo` + รหัสและชนิด error (ถ้ามี) + log ล่าสุดไม่เกิน 40 บรรทัดจากไฟล์ของวันนี้ แล้วส่งทั้งหมดผ่าน `ReportRedactor` ก่อนใส่ clipboard
+  - เรียกจากปุ่มในกล่อง error
+  - เรียกจากรายการใหม่ในเมนูช่วยเหลือ (`MainWindow.xaml.cs:1602` วางต่อจาก "Suggestions and problems…") ซึ่งไม่มีรหัส มีแค่ log
+- **ตัวดักแครชกลาง (`App.xaml.cs`):**
+  - `DispatcherUnhandledException`: ใช้กล่อง error ใหม่กับรหัส `YRK-APP-001` แล้วทำงานต่อ (`Handled = true` เหมือนเดิม)
+  - `AppDomain.UnhandledException`: เขียน log `YRK-APP-002` แล้วพยายามขึ้นกล่องสั้นๆ ก่อนโปรแกรมปิด
+  - `TaskScheduler.UnobservedTaskException`: เขียน log `YRK-APP-003` + `SetObserved()` โดยไม่ขึ้นกล่อง
+  - ตัวดักห้ามบันทึกหรือเขียนทับไฟล์ PDF ของผู้ใช้ ถ้ามีงานค้างให้ใช้ระบบกู้คืนเดิม (`MainWindow.Recovery.cs`)
+  - กันวนซ้ำ: ถ้ากล่อง error เองพัง ให้ถอยไปใช้ MessageBox ธรรมดา
+- **ตรวจข้อความสองภาษา:** เทสต์ `LocalizationCoverageTests` อ่านซอร์สแล้วหา literal เหล่านี้
+  - ใน `Loc.T("…")`, `Loc.F("…")` และใน ErrorCatalog
+  - ใน XAML เฉพาะ Text/Header/Content/ToolTip ที่ไม่ใช่ binding
 
-**ผลขั้น 0 (2026-11-14, ไฟล์ 5 หน้า, tessdata_fast):**
-- เวลา: render ~70 ms + OCR ~1.4 วินาทีต่อหน้า (300 dpi)
-- **หน้ากลับหัว 2 ใน 5 หน้า** OCR ได้ขยะทั้งหน้า → ต้องตรวจทิศด้วย `TesseractScanOrientationDetector` (OSD) ก่อน OCR ทุกหน้า แล้วหมุนหน้าให้ตั้งตรงในผลลัพธ์ ใช้ได้ผลทั้ง 2 หน้า
-- **ขยะจากสระบน/วรรณยุกต์:** Tesseract แยกเครื่องหมายเหนือบรรทัดออกเป็น "บรรทัด" ของตัวเอง ได้คำสั้นๆ เช่น `a`, `al`, `๐`, `vy` ประมาณ 1/3 ของคำทั้งหมด
-  - กรองด้วยความสูงคำอย่างเดียวไม่ได้ เพราะตัดตัวเลขทิ้งด้วย
-  - กรองระดับบรรทัด (TextLine) ได้ผลดี: ทิ้งบรรทัดที่ความมั่นใจของบรรทัด < 75 และคำในบรรทัด ≥ 60% ยาวไม่เกิน 2 ตัวอักษร ผลคือข้อความอ่านเป็นย่อหน้าได้ ตัวเลขยังอยู่ครบ
-  - ข้อจำกัดที่เหลือ: คำที่สระบนหลุดยังผิด เช่น "ตงแตวงนท" (ตั้งแต่วันที่) → ลอง tessdata_best ในรุ่น 1.2.6 ตามแผนเดิม
-- ปรับพื้นขาว (`RenderPreparedPreview`) แทบไม่ต่าง จึงไม่ใช้ในงานนี้; ลอง psm/dpi 400 แล้วไม่ดีขึ้นชัด
-- ความมั่นใจหลังกรอง: คำที่ < 60 มีราว 2–16% ต่อหน้า (< 70 สูงถึง 21%) → **เกณฑ์ตรวจทาน = 60**
-- ขนาดฟอนต์: ใช้ความสูงบรรทัดปกติของหน้า (p75 ของบรรทัด ~14.5–15.5 pt) × 1.1 ปัด 0.5 ใช้ขนาดเดียวทั้งบรรทัด
-- `PageLayout` รวมคำเป็นบรรทัดและย่อหน้าได้ดีเมื่อกรองขยะแล้ว
-- ไฟล์ตัวอย่างให้ Ken เปิด: docx ทดลอง (เก็บนอก repo)
+  แล้วตรวจว่าทุกตัวมีคำแปลใน th.json พร้อมรายการยกเว้นที่ตั้งใจไม่แปล (เช่น ชื่อแบรนด์ หรือหน่วย)
+- **ไม่อยู่ในแผนนี้:** คู่มือ (จะทำในขั้นเอกสารของ 1.2.3 โดยใช้ตารางจากขั้น 7), ที่คั่นหนังสือ, การแทรกหน้าที่สแกน, ComboBox จังหวัด (แยกแผน)
 
-## ขั้นที่ 1: Core: ได้คำ OCR ออกมาใช้ และแปลงเป็นข้อความของหน้า
-**ไฟล์:** `Core/Pdf/Ocr/PdfOcr.cs`, `OcrModels.cs`, `TesseractOcrEngine.cs` (เฉพาะถ้าขั้น 0 บอกว่าต้องใช้ข้อมูลบรรทัด), ไฟล์ใหม่ `Core/Pdf/Ocr/OcrPageText.cs`, เทสต์ใหม่ `OcrPageTextTests.cs`
-**รุ่น:** `gpt-6.1-sol` · high (OCR + ข้อความไทย)
-- เพิ่ม `PdfOcr.RecognizePagesAsync(...)` คืนค่าเป็น `IReadOnlyList<OcrPageResult>` (ดัชนีหน้า + คำ) โดยยังไม่เขียนไฟล์
-  - `RecognizeAsync` เดิมเปลี่ยนไปเรียก `RecognizePagesAsync` + `AddTextLayer` แต่ผลต้องเหมือนเดิมทุกอย่าง
-- `OcrPageText.ToPageText(OcrPageResult, widthPt, heightPt)` → `PdfPageText`
-  - กล่องคำ 0..1 แปลงเป็นหน่วย point
-  - FontName `THSarabunNew`; ขนาดฟอนต์: บรรทัดสูง ≥ body×1.3 ใช้ขนาดตัวเอง, ≤ body×0.75 ใช้ขนาดตัวเอง, ที่เหลือใช้ body (median ของหน้า) ×1.1 ปัด 0.5 pt (ขนาดเดียวทั้งบรรทัด; ดูข้อ F ขั้น 5a)
-  - ช่องว่างตาม `SpaceAfter`
-- เพิ่ม `Line` (เลขบรรทัดของ Tesseract) ใน `OcrWord` และใส่ค่าเริ่มต้นให้โค้ดเดิมไม่ต้องแก้ `TesseractOcrEngine` เก็บความสูงบรรทัดและความมั่นใจของบรรทัดไว้ด้วย
-- **ตัวกรองบรรทัดขยะ** (ใช้เฉพาะผล Word/ข้อความ และการตรวจทาน ส่วนชั้นข้อความของ PDF เดิมไม่เปลี่ยน): ทิ้งบรรทัดที่ความมั่นใจ < 75 และคำ ≥ 60% ยาว ≤ 2 ตัวอักษร (ตัวเลขยาวกว่า 2 หลักไม่นับเป็นคำสั้น)
-- **ตรวจทิศหน้า:** ฟังก์ชันใน Core ที่ใช้ `TesseractScanOrientationDetector` (ต้องมี `osd.traineddata` ผ่าน `EnsureOrientationDataAsync`) ถ้าได้ 90/180/270 ให้หมุนหน้าใน PDF ผลลัพธ์ (`/Rotate`) แล้ว OCR ภาพที่ตั้งตรง ชั้นข้อความต้องตรงกับหน้าที่แสดง
-- เทสต์เพิ่ม: บรรทัดขยะถูกทิ้ง บรรทัดที่มีตัวเลขสั้นปนคำไทยไม่ถูกทิ้ง; หน้ากลับหัว (สร้างจากภาพหมุน 180°) ได้ข้อความถูกทิศ (ข้ามถ้าไม่มีข้อมูลภาษา แบบเทสต์ OCR เดิม)
-- เทสต์ (ใช้ `OcrWord` ที่สร้างเอง ไม่ใช้ Tesseract จริง):
-  - `RecognizeAsync` ยังได้ผลเท่าเดิม (เทสต์ OCR เดิมทั้งหมดผ่าน)
-  - แปลงคำเป็นข้อความของหน้า: ตำแหน่งและลำดับถูก, ภาษาไทยปนอังกฤษ, ช่องว่างถูก
+## ขั้นที่ 1: Catalogue + ตัวลบข้อมูลส่วนตัว + ข้อมูลแจ้งปัญหา (ส่วนแกน ไม่มี UI)
+- ไฟล์ใหม่:
+  - `Services/Errors/ErrorInfo.cs`
+  - `Services/Errors/ErrorCatalog.cs`
+  - `Services/Errors/ReportRedactor.cs`
+  - `Services/Errors/ProblemReport.cs`
+  - เทสต์ `tests/.../ErrorCatalogTests.cs`, `ReportRedactorTests.cs`, `ProblemReportTests.cs`
+- ใน catalogue ตอนนี้ใส่แค่รหัส `APP-001..003` กับรหัสสแกนที่ย้ายมาจาก `ScanDialog.ErrorText` ก่อน ส่วนรหัสอื่นเพิ่มตอนย้ายจุดเรียกในขั้น 4–5
+- ต้องได้:
+  - รหัสไม่ซ้ำและตรงรูปแบบ
+  - ทุก Message และ NextStep มีคำแปลใน th.json
+  - ตัวลบข้อมูลส่วนตัวผ่านทุกกรณีต่อไปนี้: `C:\Users\ken\Desktop\ลับ.pdf`, UNC, path ที่มีช่องว่างหรือภาษาไทย, ชื่อผู้ใช้ปนในข้อความ, อีเมล
+  - ProblemReport ไม่ส่ง log ทั้งไฟล์ และส่งไม่เกิน 40 บรรทัด
+- ทดสอบ: `dotnet test --filter "ErrorCatalog|ReportRedactor|ProblemReport"`
+- รุ่น: `gpt-6.1-sol` · high (ตัวลบข้อมูลส่วนตัวเป็นเรื่องความเป็นส่วนตัว **Claude ตรวจเอง**)
 
-## ขั้นที่ 2: ส่งออก Word / ข้อความจากผล OCR
-**ไฟล์:** `App/Services/PdfExporter.cs` (หรือย้ายส่วนที่ใช้ร่วมไป Core ถ้าจำเป็น), `ExportTests.cs`
-**รุ่น:** `gpt-6.1-sol` · high (ส่งพร้อมขั้น 1)
-- เพิ่มทางให้ส่งข้อความของหน้าจาก OCR เข้าไปแทน เช่น `ExportSettings.OcrPages: IReadOnlyDictionary<int, PdfPageText>?`
-  - หน้าที่มีค่านี้ใช้ข้อความ OCR + `PdfPageGraphics.Empty` คือไม่ใส่ภาพสแกนเป็นพื้นหลังตามที่ Ken ขอ
-  - หน้าที่มีข้อความอยู่แล้วใช้เส้นทางเดิม
-  - หน้าที่ไม่มีทั้งสองอย่างยังเป็นรูปทั้งหน้าเหมือนเดิม
-- Word และ Text ใช้ทางนี้ร่วมกัน ไม่เขียนตัวจัดหน้าใหม่
-- เทสต์:
-  - หน้าที่มีคำ OCR ได้ docx ที่มีข้อความ ใช้ฟอนต์ TH Sarabun New และไม่มีรูปของหน้านั้น
-  - .txt เรียงบรรทัดถูก
-  - เทสต์ส่งออกเดิมทั้งหมดยังผ่าน
+## ขั้นที่ 2: กล่อง error ใหม่ + ปุ่มคัดลอก + เมนูช่วยเหลือ + log มีรหัส
+- ไฟล์:
+  - ไฟล์ใหม่ `Views/ErrorDialog.xaml(.cs)`
+  - `Services/IDialogService.cs`, `Services/DialogService.cs`
+  - `MainWindow.xaml.cs` (เมนูช่วยเหลือ)
+  - `App.xaml.cs` (`LogError(code, ex)`)
+  - `Localization/th.json`
+  - `tests/.../App/AppTestHarness.cs` (ให้ ScriptedDialogs บันทึก overload ใหม่)
+- ต้องได้:
+  - กล่องขึ้นภาษาตามโปรแกรม
+  - ใช้คีย์บอร์ดได้: Enter = ตกลง, Esc = ปิด, Tab ไปถึงปุ่มคัดลอก
+  - มี `AutomationProperties.Name`
+  - Expander รายละเอียดปิดอยู่ตอนเริ่ม
+  - กดปุ่มคัดลอกแล้วขึ้น "คัดลอกแล้ว" และสิ่งที่อยู่ใน clipboard ต้องผ่านตัวลบข้อมูลส่วนตัวแล้ว
+  - บรรทัด log ขึ้นต้นด้วยรหัส
+- ทดสอบ: เทสต์เดิมทั้งชุดผ่าน + เทสต์ใหม่ว่า ShowError(ErrorInfo) เขียน log ที่มีรหัส
+- รุ่น: `gpt-6.1-sol` · medium
 
-## ขั้นที่ 3: หน้าต่าง "แปลงเอกสารสแกน"
-**ไฟล์:** ใหม่ `Views/ConvertScanDialog.xaml(.cs)`, ใหม่ `ViewModels/MainViewModel.ConvertScan.cs`, `IDialogService.cs`, `DialogService.cs`, `MainWindow.Home.cs`, `MainWindow.xaml.cs` (เมนู), `Localization/th.json`, เทสต์ใหม่ `App/AppConvertScanTests.cs`
-**รุ่น:** `gpt-6.1-sol` · medium
-- **เลือกไฟล์:** PDF + รูป (jpg, jpeg, png, tif, tiff, bmp) ได้หลายไฟล์ เพิ่มโฟลเดอร์ได้ ลากวางได้ ทำแบบเดียวกับ `BatchDialog`
-  - รูปที่เลือกแปลงเป็น PDF ไฟล์ละ 1 ชุดก่อน ด้วย `CreateFromImagesAsync` ใน temp
-- **หน้าที่มีแค่ชั้นข้อความ OCR ที่มองไม่เห็น** (เช่น ไฟล์สแกนจาก YRK ที่ติ๊ก OCR ไว้ ซึ่งใช้ `GlyphlessFont` / `3 Tr`) ให้นับเป็นหน้าสแกน
-  - Word / ข้อความต้อง OCR ใหม่ (ใช้ตัวกรอง + ตรวจทิศ) ไม่ใช้ชั้นข้อความเดิมที่มีบรรทัดขยะ
-  - PDF ค้นหาได้ของหน้านั้นคงชั้นเดิมไว้ ไม่ใส่ซ้ำ
-  - พบตอนตรวจขั้น 1: ไฟล์สแกนทดลองของ Ken มีชั้น OCR อยู่แล้ว ทุกหน้าจึงถูกข้ามในโหมด "เฉพาะหน้าที่ไม่มีข้อความ"
-- **ตัวเลือก:**
-  - ภาษา: ใช้รายการเดียวกับ `OcrDialog` ค่าเริ่มต้นไทย + อังกฤษ
-  - หน้า: เฉพาะหน้าที่ไม่มีข้อความ (ค่าเริ่มต้น) / ทุกหน้า
-  - ผลลัพธ์: ติ๊กได้หลายอย่าง ได้แก่ PDF ค้นหาได้ (ค่าเริ่มต้น), Word, ข้อความ .txt
-  - "ตรวจทานคำที่ไม่แน่ใจก่อนบันทึก" (ค่าเริ่มต้น: เปิด)
-  - โฟลเดอร์ผลลัพธ์ (ค่าเริ่มต้น: โฟลเดอร์เดียวกับไฟล์ต้นฉบับ)
-- **ตอนทำงาน:**
-  - ขาดข้อมูลภาษาให้ใช้ `EnsureLanguageDataAsync` เดิม
-  - วนทีละไฟล์ แสดง "ไฟล์ X จาก Y · หน้า A จาก B" และกดยกเลิกได้
-  - ไฟล์ที่ล้มให้เก็บไว้แล้วทำไฟล์ถัดไป จบแล้วสรุปรวมแบบ Batch
-- **ชื่อผลลัพธ์:** `ชื่อเดิม (OCR).pdf`, `ชื่อเดิม.docx`, `ชื่อเดิม.txt`
-  - ใช้ `UniquePath` ห้ามเขียนทับไฟล์ต้นฉบับหรือไฟล์ที่มีอยู่
-  - เขียนแบบ atomic (`.yrk-tmp`) เหมือน `PdfExporter`
-- **จบแล้ว:** ปุ่ม "เปิดโฟลเดอร์" และ "คัดลอกข้อความทั้งหมด" (ข้อความรวมทุกไฟล์ คั่นด้วยชื่อไฟล์)
-- ไฟล์ที่มีรหัสผ่านหรือลายเซ็น: ทำตามกฎของคำสั่ง OCR เดิม คือถามรหัส หรือเตือนว่าลายเซ็นจะขึ้นว่าแก้
-  - ข้อนี้ implementer ต้องตรวจโค้ดเดิมแล้วทำตามให้ตรง
-- ลงทะเบียน: การ์ด Home กลุ่ม "ไม่ต้องเปิดเอกสาร" + เมนูเครื่องมือ
-- ข้อความใหม่ทั้งหมดใส่ไทยใน `th.json`
-  - ข้อความ error ใช้รูปแบบเดิม (`Loc.F`) เพราะ catalogue error จะทำในงานถัดไปและย้ายข้อความเหล่านี้เข้าไป
-- เทสต์ App (OCR ปลอมผ่าน seam แบบ `OcrRunner`):
-  - 2 ไฟล์ (PDF + รูป) ได้ผลครบทุกแบบที่ติ๊ก
-  - ไม่เขียนทับไฟล์เดิม
-  - ยกเลิกกลางทางแล้วไม่เหลือไฟล์ครึ่งๆ
-  - ไฟล์เสีย 1 ไฟล์ แล้วไฟล์อื่นยังทำต่อได้
+## ขั้นที่ 3: ตัวดักแครชกลาง
+- ไฟล์: `App.xaml.cs`, `Localization/th.json`, เทสต์ `tests/.../App/CrashHandlerTests.cs`
+- ต้องได้:
+  - ดักครบทั้ง 3 จุดตามการออกแบบ
+  - ถ้ากล่อง error พัง ให้ถอยไปใช้ MessageBox
+  - ไม่มีโค้ดบันทึกไฟล์ผู้ใช้ใน handler
+  - log มีรหัส `APP-00x`
+- ทดสอบ:
+  - เทสต์เรียก handler ตรงๆ ด้วย exception ปลอม แล้วตรวจ log และข้อความ
+  - Ken ลองด้วยเมนูดีบักลับ (ถ้ามี) หรือ Claude ใช้ UiDriver โยน exception
+- รุ่น: `gpt-6.1-sol` · high (เกี่ยวกับไฟล์ผู้ใช้ **Claude ตรวจเอง**)
 
-## ขั้นที่ 4: หน้าต่างตรวจทาน
-**ไฟล์:** ใหม่ `Views/OcrReviewDialog.xaml(.cs)`, ใหม่ `ViewModels/OcrReviewViewModel.cs`, `IDialogService.cs`, `DialogService.cs`, `MainViewModel.ConvertScan.cs`, `th.json`, เทสต์ใหม่ `App/AppOcrReviewTests.cs`
-**รุ่น:** `gpt-6.1-sol` · high (ต้องออกแบบการโต้ตอบระหว่างทำ)
-- ขึ้นหลัง OCR แต่ละไฟล์ เมื่อเปิดตัวเลือกตรวจทานไว้และมีคำที่ความมั่นใจต่ำกว่าเกณฑ์
-- **หน้าตา:**
-  - ภาพหน้าสแกน (render ด้วย `RenderPageAsync`) ซูมได้
-  - คำที่ไม่แน่ใจมีกรอบสีส้ม
-  - คำที่แก้แล้วเป็นกรอบสีเขียว ให้ใช้สีจาก resource ที่มีอยู่ ไม่ใส่ค่าสีตรง
-- **การแก้:**
-  - คลิกคำ หรือกดปุ่ม "คำถัดไป" / Tab แล้วกล่องพิมพ์ขึ้นตรงคำนั้น
-  - Enter = ยืนยันแล้วไปคำถัดไป, Esc = ไม่เปลี่ยน
-  - แก้ได้ทั้งการเปลี่ยนคำและการลบคำ (เช่น จุดสกปรกที่อ่านเป็นตัวอักษร)
-- **แถบล่าง:**
-  - "เหลือ N คำ" และหน้า A จาก B
-  - ปุ่ม "บันทึก" (ใช้ได้ตลอด ไม่บังคับให้แก้ครบ) และ "ยกเลิกไฟล์นี้"
-  - ถ้ามีหลายไฟล์: "ข้ามการตรวจทานไฟล์ที่เหลือ"
-- คำที่แก้แล้วใช้กับผลทุกแบบ รวมถึงชั้นข้อความใน PDF ค้นหาได้
-- เกณฑ์ความมั่นใจ = 60 (จากขั้น 0) เป็นค่าคงที่เดียวในโค้ด รอบแรกยังไม่ให้ผู้ใช้ปรับ
-- ใช้คีย์บอร์ดได้ครบ และใส่ AutomationProperties.Name ให้ปุ่มและกล่องพิมพ์
-- เทสต์ App:
-  - แก้ 1 คำและลบ 1 คำ แล้ว docx/txt/ชั้นข้อความ PDF มีคำใหม่
-  - "บันทึก" โดยไม่แก้ ได้ผลเท่ากับไม่ตรวจทาน
-  - ยกเลิกไฟล์นี้แล้วไม่มีผลลัพธ์ของไฟล์นั้น
+## ขั้นที่ 4: ย้ายจุดเรียก ชุด A: ลายเซ็น ใบรับรอง ความปลอดภัย ปิดทับ อัปเดต สแกน OCR แปลงสแกน
+- ไฟล์:
+  - `MainViewModel.Signatures.cs`
+  - `Views/DigitalSignDialog.xaml.cs` (ShowError ส่วนตัว 11 จุด)
+  - `Views/TrustedCertificatesDialog.xaml.cs`, `Views/SignatureDialog.xaml.cs`
+  - `MainViewModel.Security.cs`, `MainViewModel.Redaction.cs`
+  - `MainViewModel.Updates.cs:256` (ยังเขียนแค่ log แต่ใส่รหัส UPD)
+  - `ScanToPdf`, `ScanOcr`, `Ocr`, `ConvertScan*`, `OcrReviewViewModel`
+  - `Views/ScanDialog.xaml.cs` (ให้ใช้ catalogue และแสดงรหัส YRK คู่กับ HRESULT)
+  - `ErrorCatalog.cs`, `th.json`
+- กติกา:
+  - ทุกจุดใช้ `ShowError(ErrorCatalog.X, ex)`
+  - ห้ามเอา `ex.Message` ไปต่อในข้อความหลัก (ให้อยู่ในรายละเอียดเท่านั้น)
+  - ข้อความใหม่ทุกข้อต้องเพิ่มคำแปลใน th.json
+- ทดสอบ: เทสต์เดิมที่ตรวจ `ScriptedDialogs.Calls` ผ่าน (แก้ให้ตรวจรหัสแทนข้อความ) + `WiaErrorMappingTests`
+- รุ่น: `gpt-6.1-sol` · medium (Claude ตรวจส่วนลายเซ็น การปิดทับ และการอัปเดตเอง)
 
-## ขั้นที่ 5: ตรวจ + Ken ลองจริง
-- Claude:
-  - ตรวจ `git diff` ทุกขั้น โดยเฉพาะส่วนเขียนไฟล์ผู้ใช้ (ไม่เขียนทับ, atomic, ไม่เหลือไฟล์ temp)
-  - รันเทสต์ทั้งชุด + `build\check-translations.ps1` (ต้องยังเป็น 12 คำ)
-  - เปิดหน้าต่างทั้งสองใน Release ด้วย `tools/UiDriver`
-- Codex read-only ตรวจอีกมุม (งานนี้เขียนไฟล์ผู้ใช้)
-- Ken ลองจริง:
-  - ไฟล์สแกนหลายหน้า, รูปจากมือถือ, หลายไฟล์พร้อมกัน
-  - เปิด Word ที่ได้ดูว่าแก้ได้และฟอนต์ถูก
-  - ลองตรวจทานคำ
-- release notes / คู่มือ ทำตอนขั้นเอกสารของรุ่น 1.2.3 ไม่ใช่ในแผนนี้
+## ขั้นที่ 5: ย้ายจุดเรียก ชุด B: ที่เหลือทั้งหมด + ลบ `ShowError(string)`
+- ไฟล์:
+  - `MainViewModel.cs`
+  - `MainViewModel.Pages/Batch/Editing/Export/Archive/Print/Compare/Cad/Count/Versions/Transforms/Pictures/Annotations/FieldLooks.cs`
+  - `MainWindow.Recovery.cs`, `PrintViewModel`, `CompareViewModel`, `SplitDialog`, `Feedback.cs:53`
+  - `MessageBox.Show` ที่ยังเหลืออยู่นอก DialogService
+- ต้องได้:
+  - ไม่มี `ShowError(string)` เหลือ (ลบออกจาก interface แล้ว)
+  - ไม่มี `ex.Message` ในข้อความที่ผู้ใช้เห็น ยกเว้นใน ErrorDialog รายละเอียดและใน log
+- ทดสอบ: เทสต์ใหม่ `ErrorUsageGuardTests` อ่านซอร์ส `src/Yrk.PdfStudio.App` แล้วตรวจสองข้อ
+  - ไม่มี `ex.Message` ใน `Loc.F(` หรือ `ShowError(`
+  - ไม่มี `MessageBox.Show` นอก DialogService และ ErrorDialog
+- รุ่น: `gpt-6.1-sol` · medium
 
-## ขั้นที่ 5a: แก้จากการตรวจ
-**รุ่น:** `gpt-6.1-sol` · high; เทสต์ต้องเขียนและล้มก่อนแก้
-- A [สูง] ห้ามลบข้อความที่มองเห็น: แยก `HasOcrLayer` กับ `OcrLayerOnly` (understood && hidden && !visible); ลบเฉพาะหน้าที่ลบได้ปลอดภัย; รับ `Tr` เป็น `CosReal`; ปฏิเสธโครงสร้างที่ไม่รองรับ (รวม `gs` ที่ ExtGState มี `/Font`); ลบไม่ได้ให้คงชั้นเดิมไว้ + เพิ่มชั้นใหม่ + log
-- B [สูง] rollback เลิกลบไฟล์ที่ publish แล้ว คงไว้และรายงานไฟล์ที่ได้/ไม่ได้
-- C [กลาง] cleanup ใน finally best-effort ไม่ throw; ลบ `<stage>.yrk-tmp` ซ้อน
-- E [กลาง] `3 Tr () Tj` / `[120] TJ` ที่ไม่มีอักขระ ไม่นับเป็นชั้น OCR
-- F [กลาง] ขนาดฟอนต์ตามบรรทัด (หัวเรื่อง/หมายเหตุใช้ขนาดตัวเอง, ที่เหลือ body×1.1) ค่าคงที่ใน `OcrTuning`
-- G [กลาง] ตัวกรอง stray ไม่ทิ้งบรรทัดที่มีคำเป็นตัวเลขล้วน ≥ 2 หลัก (อารบิก/ไทย)
-- H [กลาง] ต้นฉบับมีลายเซ็นดิจิทัล + เลือก PDF ค้นหาได้ → สรุปแจ้งว่าลายเซ็นในผลลัพธ์จะขึ้นว่าถูกแก้ไข ต้นฉบับยังถูกต้อง
-- I [หาสาเหตุ] "Converted 0 of 1 / Stopped before the end" หลัง Ctrl+S: นับยกเลิกเฉพาะเมื่อ `operation.IsCancellationRequested`; OCE อื่นนับเป็นไฟล์ล้ม + log stack; ไล่หาทางที่ OCE หลุด
-- J [UI] ข้อความลากไฟล์อยู่กลางกรอบรายการตอนว่าง; ข้อความแดง "Add PDF files..." ไม่แสดงตอนเปิดใหม่ (เทา หรือแดงหลังกดแปลงโดยไม่มีไฟล์)
-- ไม่ทำ: ถามรหัสผ่านไฟล์เข้ารหัส
+## ขั้นที่ 6: ตรวจข้อความสองภาษาครบ
+- ไฟล์: เทสต์ใหม่ `tests/.../LocalizationCoverageTests.cs`, `Localization/th.json`, รายการยกเว้นในเทสต์
+- ต้องได้:
+  - เทสต์ผ่าน = literal ทุกตัวที่ผู้ใช้เห็นมีคำแปลไทย
+  - เพิ่มคำแปลที่ขาดให้ครบ
+  - th.json ไม่มี key ซ้ำ
+  - ค่าใน th.json ไม่ว่าง
+  - `{0}` และ `{1}` ในคำแปลต้องครบเท่าต้นฉบับ
+- ทดสอบ: `dotnet test --filter LocalizationCoverage` + เทสต์ทั้งชุด
+- รุ่น: เขียนเทสต์ใช้ `gpt-6.1-sol` · medium, เติมคำแปลที่ขาดใช้ `gpt-6-luna` · low (Claude สุ่มตรวจคำแปล)
 
-## ขั้นที่ 5b: คุณภาพภาษาไทย (Ken ลองจริงแล้วไทยผิดเยอะ, 2026-11-14)
-**ไฟล์:** `Core/Pdf/Ocr/TesseractOcrEngine.cs`, `PdfOcr.cs`, `OcrModels.cs`, `OcrPageText.cs`, `App/ViewModels/MainViewModel.ConvertScan.cs` (ส่งโหมด), เทสต์ที่เกี่ยวข้อง
-**รุ่น:** `gpt-6.1-sol` · high (OCR ไทย, ต้องหาสาเหตุข้อ K ก่อนแก้)
+## ขั้นที่ 7: ตรวจคำผิดไทย/อังกฤษ + ตารางรหัส error
+- ตรวจคำผิด:
+  - Codex (`gpt-6-luna` · low, `--sandbox read-only`) อ่าน th.json และข้อความอังกฤษใน catalogue แล้วทำรายการคำที่น่าจะผิดหรือไม่สม่ำเสมอ (เช่น "ลายเซ็น" กับ "ลายเซ็นต์") ลง `docs/i18n-review.md`
+  - Claude คัดรายการ แล้ว Ken อนุมัติก่อนแก้
+- ตารางรหัส error:
+  - เทสต์หรือสคริปต์สร้าง `docs/error-codes.md` จาก ErrorCatalog เป็นตาราง รหัส | ไทย | อังกฤษ | สิ่งที่ทำได้
+  - มีเทสต์ตรวจว่าไฟล์ตรงกับ catalogue เสมอ
+  - ขั้นเอกสารของ 1.2.3 ใช้ไฟล์นี้ทำภาคผนวกในคู่มือ
+- รุ่น: `gpt-6-luna` · low
 
-ผลเทียบของ Claude (scratchpad, ไฟล์จริงของ Ken 2 ไฟล์: สแกน 5 หน้า + รูปถ่ายเอียง 960×1705):
-- tessdata_best ไม่ดีกว่าชัด ช้ากว่า 1.6 เท่า ใหญ่ 4 เท่า → ไม่ใช้
-- `PageSegMode.SingleColumn` เก็บสระบน/วรรณยุกต์ได้เกือบครบ ("ตั้งแต่วันที่ … ถึงวันที่", "หมู่ที่") ขณะ `Auto` หลุด ("ตงแตวงนท", "หมูท"); ความเร็วเท่ากัน; รูปถ่ายผลเท่า Auto
-- `page.GetText()` ของ Tesseract ได้ข้อความรูปถ่ายครบ แต่คำจาก `TesseractOcrEngine.Recognize` หายบางส่วน (เช่น "YouTube", "ค้นพบช่องของคุณอย่างไร ผู้ชมก็ยังอยู่")
-- เรียงคำตาม Y (PageLayout) ทำให้บรรทัดที่เอียงปนกัน; ถ้าวางคำทุกคำของบรรทัดที่ตำแหน่งกลางกล่องบรรทัดแบบบาง (Y = กลางบรรทัด, สูง 20%) บรรทัดแยกถูก
-
-งาน:
-- K [หาสาเหตุก่อน] ตัวรวมชิ้นไทยใน `TesseractOcrEngine.Recognize` ทำคำหาย: ข้อความที่รวมได้ของแต่ละบรรทัดต้องเท่ากับ `GetText(TextLine)` (ไม่นับช่องว่าง) เทสต์ด้วยภาพที่สร้างเอง (ไทย+อังกฤษ เช่น "ค้นหาใน YouTube รู้จักผ่านเพื่อน") และเทสต์ระดับฟังก์ชันของตัวรวมคำ (แยกเป็นฟังก์ชันที่รับชิ้นข้อความ+กล่อง ไม่ต้องใช้ Tesseract)
-- L เพิ่ม `OcrOptions.SegmentationMode` (Auto ค่าเริ่มต้น / SingleColumn) ส่งผ่านถึง `TesseractOcrEngine`; หน้าต่างแปลงเอกสารสแกนใช้ SingleColumn; คำสั่ง OCR เดิมและงานสแกนคง Auto (ผลเดิมไม่เปลี่ยน)
-- M `OcrPageText.ToPageText`: คำที่มี `LineBounds` วาง Y ที่กลางกล่องบรรทัด ความสูงบาง (ค่าคงที่ใน `OcrTuning`) เพื่อให้ PageLayout จัดตามบรรทัดของ Tesseract; ชั้นข้อความของ PDF ค้นหาได้ยังใช้กล่องคำจริง
-- ตัวกรองบรรทัดขยะเดิมยังต้องทำงานกับผลของ SingleColumn (บรรทัดขยะยังมี)
-
-ตรวจ: Claude รันกับไฟล์จริง 2 ไฟล์ เทียบกับผลก่อนแก้ (ห้ามส่งไฟล์ของ Ken ให้ Codex) แล้ว Ken ลองอีกรอบ
-ผล (2026-11-14): Ken ลองแล้ว "ดีขึ้นชัดเจน" ผิดบ้างแต่รับได้; Claude แก้เพิ่ม c8d13a4 (ไม่บอก 300 dpi ในโหมดแปลง)
-
-## ขั้นที่ 5c: คำเตือนว่า OCR อาจอ่านผิด (Ken ขอ 2026-11-14, ถ้อยคำ Ken อนุมัติแล้ว)
-**ไฟล์:** `Views/ConvertScanDialog.xaml`, `Views/OcrDialog.xaml`, `Views/OcrReviewDialog.xaml`, `Views/ConvertScanResultDialog.xaml` (หรือที่สร้างข้อความสรุปใน `MainViewModel.ConvertScan.cs`), `Localization/th.json`
-**รุ่น:** `gpt-6.1-sol` · medium
-- ห้ามใส่ตัวเลขความแม่น (เช่น 80%) เพราะต่างกันมากตามภาพ
-- ข้อความเป็นภาษาอังกฤษในโค้ด (key) และไทยใน `th.json` ใช้ตามนี้ตรงตัว:
-  1. หน้าต่างแปลงเอกสารสแกน + หน้าต่าง OCR เดิม: ข้อความสีเทาใต้ตัวเลือก ใช้ style ข้อความรองที่มีอยู่
-     - EN: "Text is read from an image, so it can be wrong, especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it." / TH: "โปรแกรมอ่านข้อความจากภาพ จึงอาจอ่านผิดได้ โดยเฉพาะภาพที่เบลอ เอียง ตัวเล็ก หรือลายมือ ควรตรวจทานผลลัพธ์ก่อนนำไปใช้ทุกครั้ง"
-     - EN: "Tip: scan at 300 dpi with the page straight for the best result." / TH: "เคล็ดลับ: สแกนที่ 300 dpi วางกระดาษให้ตรง จะได้ผลดีที่สุด"
-  2. หน้าต่างตรวจทาน: ตัวหนาบนสุดเหนือแถวปุ่ม/คำอธิบายเดิม
-     - EN: "Words in orange boxes are ones the program is not sure about. Check and fix them before saving. Words without a box can be wrong too, so read the text through again." / TH: "คำในกรอบสีส้มคือคำที่โปรแกรมไม่แน่ใจ กรุณาตรวจและแก้ก่อนบันทึก คำที่ไม่มีกรอบก็อาจผิดได้ ควรอ่านทวนอีกครั้ง"
-  3. หน้าต่างสรุปผลหลังแปลง (เมื่อมีไฟล์สำเร็จ):
-     - EN: "Check the text in the output files before you use it, especially names, numbers, dates and amounts." / TH: "ตรวจข้อความในไฟล์ผลลัพธ์อีกครั้งก่อนใช้งาน โดยเฉพาะชื่อ ตัวเลข วันที่ และจำนวนเงิน"
-- ข้อความต้องตัดบรรทัดได้ (TextWrapping) ไม่ล้นหน้าต่างทั้งไทย/อังกฤษ
-- ตรวจ: build, เทสต์ทั้งชุด, check-translations ยัง 12 คำ; Claude เปิดดูทั้ง 4 หน้าต่างใน Release
-- งานเอกสารที่ Ken ให้ทำ (ไม่ใช่ในขั้นนี้ ทำตอนขั้นเอกสารของ 1.2.3): หัวข้อ "ข้อจำกัดของ OCR" ในคู่มือ th/en; release notes ใช้คำว่า "ช่วยลดการพิมพ์ใหม่" ไม่ใช่ "แปลงได้ถูกต้อง"
-
-## ขั้นที่ 5d: คำเตือน OCR ให้เด่น (Ken อนุมัติ 2026-11-14)
-**ไฟล์:** `Views/ConvertScanDialog.xaml`, `Views/OcrDialog.xaml`, `Views/OcrReviewDialog.xaml`, `Localization/th.json`, เทสต์ App ที่ตรวจข้อความเหล่านี้
-**รุ่น:** `gpt-6.1-sol` · medium
-- คำเตือนเดิมเป็นตัวเทาเล็กจนไม่เด่น: เปลี่ยนเป็นกล่องสีอำพันแบบเดียวกับ `BackupDialog.xaml` (พื้น #FFF4DC ขอบ #CF9B36 หนา 1 มุม 6 Padding 12) ไอคอน ⚠ ข้อความขนาดปกติสีข้อความหลัก ตัดบรรทัดได้
-- ข้อความแยก 2 ส่วน ถ้อยคำรวมเท่าเดิม: ตัวหนา "Text is read from an image, so it can be wrong," / "โปรแกรมอ่านข้อความจากภาพ จึงอาจอ่านผิดได้" + ตัวปกติ "especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it." / "โดยเฉพาะภาพที่เบลอ เอียง ตัวเล็ก หรือลายมือ ควรตรวจทานผลลัพธ์ก่อนนำไปใช้ทุกครั้ง"
-- ConvertScanDialog / OcrDialog: กล่องอยู่เหนือปุ่มหลัก นอก ScrollViewer; "Tip: scan at 300 dpi…" คงเป็นตัวเทาเล็กเหมือนเดิม
-- OcrReviewDialog: ข้อความตัวหนาบนสุดเดิมใส่ในกล่องเดียวกัน
-- ไม่แตะ ConvertScanResultDialog
-- ตรวจ: build, เทสต์ทั้งชุด, check-translations ยัง 12 คำ, diff th.json มีแต่บรรทัดที่ตั้งใจ
+## ขั้นที่ 8: ตรวจ + Ken ลองจริง
+- Claude ตรวจ diff ทั้งฟีเจอร์ เน้น ReportRedactor, ตัวดักแครช และข้อความ SIG/SEC/UPD
+- Codex ตรวจอีกมุมด้วย `codex exec --sandbox read-only "ตรวจ git diff ของฟีเจอร์ error catalogue หาบั๊ก การรั่วของ path/ชื่อผู้ใช้ และสิ่งที่ผิดจาก plan.md"`
+- Ken ลอง:
+  - เปิดไฟล์เสีย
+  - ใส่รหัสผ่านผิด
+  - ถอดสายสแกนเนอร์
+  - เซ็นด้วยใบรับรองหมดอายุ
+  - กดคัดลอกข้อมูลแจ้งปัญหาแล้ววางใน Notepad ดูว่าไม่มี path หรือชื่อผู้ใช้
+  - สลับภาษาแล้วดูกล่อง error ทั้งสองภาษา
+- อัปเดต PROJECT_NOTES.md: ขีดงานที่เสร็จ และลบ "OCR รุ่นแม่น" ออกจาก 1.2.6
 
 ## การส่งงาน
-- ขั้น 0 Claude ทำเอง
-- ขั้น 1–2 ส่ง implementer พร้อมกัน
-- ขั้น 3–4 ส่ง implementer พร้อมกัน
-- ขั้น 5 Claude
-- commit ขั้นละครั้ง
+- ส่ง implementer ทีละชุด: (1–2), (3–4), (5–6), (7) แล้วค่อยทำขั้น 8
+- ทุกขั้นต้องรันเทสต์ทั้งชุดก่อน commit และ commit ขั้นละครั้ง
 
 ## สถานะ
-- [x] ขั้น 0 ทดลอง OCR → Word กับไฟล์จริง (ผลอยู่ใต้ขั้น 0; Ken ดู docx แล้วรับได้)
-- [x] ขั้น 1 Core: คำ OCR + แปลงเป็นข้อความของหน้า
-- [x] ขั้น 2 ส่งออก Word / ข้อความจากผล OCR
-- [x] ขั้น 3 หน้าต่างแปลงเอกสารสแกน
-- [x] ขั้น 4 หน้าต่างตรวจทาน
-- [x] ขั้น 5 ตรวจ + Ken ลองจริง (2026-11-14: UiDriver + Codex read-only + Ken ลองไฟล์จริง รับได้)
-- [x] ขั้น 5a แก้จากการตรวจ (A–J)
-- [x] ขั้น 5b คุณภาพภาษาไทย (K–M)
-- [x] ขั้น 5c คำเตือน OCR อาจอ่านผิด
-- [x] ขั้น 5d คำเตือน OCR เป็นกล่องสีอำพัน
+- [ ] ขั้น 1 Catalogue + ตัวลบข้อมูลส่วนตัว + ข้อมูลแจ้งปัญหา
+- [ ] ขั้น 2 กล่อง error ใหม่ + ปุ่มคัดลอก + เมนูช่วยเหลือ + log มีรหัส
+- [ ] ขั้น 3 ตัวดักแครชกลาง
+- [ ] ขั้น 4 ย้ายจุดเรียก ชุด A
+- [ ] ขั้น 5 ย้ายจุดเรียก ชุด B + ลบ ShowError(string)
+- [ ] ขั้น 6 ตรวจข้อความสองภาษาครบ
+- [ ] ขั้น 7 ตรวจคำผิด + ตารางรหัส error
+- [ ] ขั้น 8 ตรวจ + Ken ลองจริง
+
+## วิธีทดสอบรวม
+- `dotnet test` ทั้งชุดผ่าน รวมเทสต์ใหม่ 6 ชุด: ErrorCatalog, ReportRedactor, ProblemReport, CrashHandler, ErrorUsageGuard, LocalizationCoverage
+- Ken ลองตามขั้น 8 ทั้งสองภาษา
