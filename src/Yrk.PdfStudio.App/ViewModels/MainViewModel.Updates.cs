@@ -298,20 +298,21 @@ public sealed partial class MainViewModel
         }
         catch (UpdateVerificationException ex)
         {
-            ReportUpdateApplyFailure(ex);
+            // Not signed with YRK's key: it was deleted. Say so rather than a generic failure.
+            ReportUpdateApplyFailure(ErrorCatalog.UpdateVerification, ex);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
-            ReportUpdateApplyFailure(ex);
+            ReportUpdateApplyFailure(ErrorCatalog.UpdateApply, ex);
         }
     }
 
-    private void ReportUpdateApplyFailure(Exception ex)
+    private void ReportUpdateApplyFailure(ErrorInfo error, Exception ex)
     {
-        App.LogError(ErrorCatalog.UpdateApply, ex);
+        App.LogError(error, ex);
         s_readyVersion = null;
         SetUpdateState(UpdateState.None);
-        StatusMessage = Loc.T(ErrorCatalog.UpdateApply.Message) + " " + Loc.T(ErrorCatalog.UpdateApply.NextStep);
+        StatusMessage = Loc.T(error.Message) + " " + Loc.T(error.NextStep);
     }
 
     /// <summary>What the About dialog shows and can do.</summary>
