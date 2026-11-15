@@ -7,6 +7,7 @@ using Velopack.Locators;
 using Velopack.Logging;
 using Velopack.Sources;
 using Yrk.PdfStudio.App.Services;
+using Yrk.PdfStudio.App.ViewModels;
 using Yrk.PdfStudio.Core.Security;
 
 namespace Yrk.PdfStudio.Core.Tests;
@@ -78,7 +79,8 @@ public sealed class VerifiedUpdateSourceTests
             : fixture.CreateSource(failure == "no-key" ? null : fixture.PublicKey);
         var updater = fixture.CreateUpdater(source);
 
-        await Assert.ThrowsAsync<UpdateVerificationException>(() => updater.CheckAndDownloadAsync(cancellationToken: cancellation.Token));
+        var error = await Assert.ThrowsAsync<UpdateVerificationException>(() => updater.CheckAndDownloadAsync(cancellationToken: cancellation.Token));
+        Assert.False(error.DeleteFailed);
 
         Assert.Null(updater.Ready);
         Assert.False(File.Exists(fixture.Complete));
@@ -126,10 +128,47 @@ public sealed class VerifiedUpdateSourceTests
         File.WriteAllText(fixture.Complete, "invalid locked cache");
         using var locked = new FileStream(fixture.Complete, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-        await Assert.ThrowsAsync<UpdateVerificationException>(() => fixture.CreateUpdater().CheckAndDownloadAsync());
+        var error = await Assert.ThrowsAsync<UpdateVerificationException>(() => fixture.CreateUpdater().CheckAndDownloadAsync());
 
+        Assert.True(error.DeleteFailed);
+        Assert.Equal("YRK-UPD-005", MainViewModel.UpdateVerificationError(error).Code);
         Assert.Equal(0, fixture.Inner.Downloads);
         Assert.Equal("original updater", File.ReadAllText(fixture.UpdateExe));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Rejected_download_exposes_whether_the_partial_file_could_be_deleted(bool locked)
+    {
+        using var fixture = new UpdateFixture();
+        var partial = fixture.Complete + ".partial";
+        FileStream? lease = null;
+        fixture.Inner.AfterDownload = () =>
+        {
+            if (locked) lease = new FileStream(partial, FileMode.Open, FileAccess.Read, FileShare.Read);
+        };
+        var source = new VerifiedUpdateSource(fixture.Inner, Id, fixture.PublicKey,
+            (_, _, _) => throw new IOException("signature unavailable"));
+        try
+        {
+            var error = await Assert.ThrowsAsync<UpdateVerificationException>(() =>
+                source.DownloadReleaseEntry(Log, fixture.Asset, partial, _ => { }, default));
+            Assert.Equal(locked, error.DeleteFailed);
+            Assert.Equal(locked, File.Exists(partial));
+            Assert.Equal(locked ? "YRK-UPD-005" : "YRK-UPD-002", MainViewModel.UpdateVerificationError(error).Code);
+        }
+        finally { lease?.Dispose(); }
+    }
+
+    [Theory]
+    [InlineData(false, "YRK-UPD-002")]
+    [InlineData(true, "YRK-UPD-005")]
+    public void Verification_error_code_uses_the_flag_instead_of_the_message(bool deleteFailed, string code)
+    {
+        var error = new UpdateVerificationException("arbitrary diagnostic", deleteFailed: deleteFailed);
+        Assert.Equal(code, MainViewModel.UpdateVerificationError(error).Code);
+        Assert.False(new UpdateVerificationException("Update rejected; could not delete the unverified file.").DeleteFailed);
     }
 
     [Fact]

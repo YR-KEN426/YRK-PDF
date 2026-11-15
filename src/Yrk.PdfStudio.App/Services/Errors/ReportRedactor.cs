@@ -7,8 +7,9 @@ namespace Yrk.PdfStudio.App.Services;
 public static class ReportRedactor
 {
     private const RegexOptions Options = RegexOptions.IgnoreCase | RegexOptions.CultureInvariant;
-    private const string FileExtension = @"\.(?:pdf|doc|docx|xls|xlsx|txt|csv|rtf|png|jpg|jpeg|tif|tiff|bmp|gif|webp|heic|dwg|dxf|xml|json|p12|pfx|cer|crt|zip)";
-    private static readonly Regex FileEnding = new(@"\.[\p{L}\p{N}]{1,16}(?=$|\s|\.(?=\s|$)|[)\]}])", Options);
+    private const string FileExtension = @"\.(?:pdf|ai|doc|docx|xls|xlsx|ppt|pptx|txt|csv|rtf|png|jpg|jpeg|tif|tiff|bmp|gif|svg|webp|heic|dwg|dxf|xml|json|p12|pfx|cer|crt|zip|yrkbackup)";
+    private static readonly Regex FileEnding = new(@"\.[\p{L}\p{M}\p{N}]+(?<end>$|\s|\.(?:\s|$)|[,;!()\[\]{}。！？，；])",
+        Options | RegexOptions.NonBacktracking);
 
     public static string Redact(string text) => Redact(text, Environment.UserName,
         Environment.MachineName, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
@@ -91,10 +92,7 @@ public static class ReportRedactor
         var endings = FileEnding.Matches(text.Substring(fileStart, end - fileStart));
         var ending = endings.Count > 0 ? endings[^1] : null;
         if (ending is not null)
-            return fileStart + ending.Index + ending.Length;
-
-        var sentenceEnd = Regex.Match(text.Substring(fileStart, end - fileStart), @"\.(?=\s|$)");
-        if (sentenceEnd.Success) return fileStart + sentenceEnd.Index;
+            return fileStart + ending.Index + ending.Length - ending.Groups["end"].Length;
 
         // Without a recognizable filename, redact the entire ambiguous span rather than
         // guess which words belong to the path. Keep trailing sentence punctuation.
@@ -103,6 +101,6 @@ public static class ReportRedactor
     }
 
     private static bool IsPathTerminator(char value) => char.IsControl(value) ||
-        value is '"' or '\'' or '<' or '>' or '|' or '?' or '*' or ':' or ';' or ',' or '!' or
-            '“' or '”' or '‘' or '’' or '。' or '！' or '？' or '；' or '，';
+        value is '"' or '\'' or '<' or '>' or '|' or '?' or '*' or ':' or
+            '“' or '”' or '‘' or '’';
 }

@@ -77,6 +77,8 @@
 | --- | --- | --- | --- |
 | YRK-SIG-023 | เก็บลายเซ็นไว้ใช้ภายหลังไม่ได้ | The signature could not be saved for later use. | ตรวจสิทธิ์เข้าถึงโฟลเดอร์ลายเซ็น แล้วลองอีกครั้ง<br>Check access to the signature folder and try again. |
 | YRK-SIG-024 | ลบลายเซ็นที่เก็บไว้ไม่ได้ | The saved signature could not be deleted. | ตรวจสิทธิ์เข้าถึงโฟลเดอร์ลายเซ็น แล้วลองอีกครั้ง<br>Check access to the signature folder and try again. |
+| YRK-SIG-025 | ดาวน์โหลดรายการเพิกถอนใบรับรองไม่ได้ | The certificate revocation list could not be downloaded. | ตรวจการเชื่อมต่ออินเทอร์เน็ต หรือเซ็นโดยไม่เพิ่มข้อมูลตรวจสอบระยะยาว<br>Check the internet connection, or sign without long-term validation. |
+| YRK-SIG-026 | ดาวน์โหลดรายการเพิกถอนใบรับรองแล้ว แต่ตรวจสอบไม่ผ่าน | The certificate revocation list was downloaded but could not be validated. | ลองอีกครั้งภายหลัง หรือเซ็นโดยไม่เพิ่มข้อมูลตรวจสอบระยะยาว<br>Try again later, or sign without long-term validation. |
 | YRK-SIG-001 | เพิ่มใบรับรองเข้ารายการที่เชื่อถือไม่สำเร็จ | The certificate could not be trusted. | ลองเพิ่มใบรับรองอีกครั้ง<br>Try adding the certificate again. |
 | YRK-SIG-002 | เปิดเอกสารฉบับที่เซ็นแล้วไม่ได้ | The signed version could not be opened. | ลองอีกครั้งหรือบันทึกสำเนาก่อน<br>Try again or save a copy first. |
 | YRK-SIG-003 | ไฟล์นี้ไม่มีเอกสารฉบับก่อนเซ็นเก็บไว้ | No version before signing is stored in this file. | ใช้สำเนาสำรองของเอกสารฉบับก่อนหน้า<br>Use an earlier backup of the document. |
@@ -140,6 +142,7 @@
 | YRK-UPD-002 | พบอัปเดต แต่ไม่ได้เซ็นรับรองโดย YRK จึงลบทิ้งและไม่ติดตั้ง | An update was found, but it was not signed by YRK. It was deleted and not installed. | ลองตรวจสอบอัปเดตอีกครั้งภายหลัง<br>Try checking for updates again later. |
 | YRK-UPD-003 | ตรวจสอบอัปเดตไม่ได้ | Updates could not be checked. | ตรวจสอบอินเทอร์เน็ตแล้วลองอีกครั้งภายหลัง<br>Check the internet connection and try again later. |
 | YRK-UPD-004 | ติดตั้งอัปเดตไม่ได้ | The update could not be installed. | ตรวจสอบอัปเดตแล้วดาวน์โหลดอีกครั้ง<br>Check for updates and download it again. |
+| YRK-UPD-005 | พบอัปเดตที่ไม่ได้เซ็นโดย YRK จึงไม่ได้ติดตั้ง แต่ลบไฟล์ที่ดาวน์โหลดมาไม่ได้ | An update was found, but it was not signed by YRK. It was not installed. The downloaded file could not be deleted. | เริ่มคอมพิวเตอร์ใหม่ แล้วตรวจหาอัปเดตอีกครั้ง<br>Restart the computer, then check for updates again. |
 
 ## OCR
 

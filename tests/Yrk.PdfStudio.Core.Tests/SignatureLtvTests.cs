@@ -15,6 +15,24 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class SignatureLtvTests
 {
+    [Theory]
+    [InlineData("unavailable", "YRK-SIG-025")]
+    [InlineData("invalid", "YRK-SIG-026")]
+    [InlineData(null, "YRK-EDIT-005")]
+    [InlineData("unknown", "YRK-EDIT-005")]
+    public void Transform_selects_error_by_revocation_kind(string? kind, string code)
+    {
+        var error = new PdfException("diagnostic URL and message");
+        error.Data["RevocationMessageFormat"] = "legacy format {0}";
+        error.Data["RevocationUrl"] = new Uri("https://crl.example.test/private");
+        if (kind is not null) error.Data["RevocationKind"] = kind;
+
+        var selected = MainViewModel.TransformError(error);
+
+        Assert.Equal(code, selected.Code);
+        Assert.DoesNotContain("https://", selected.Message + selected.NextStep);
+    }
+
     private static byte[] Source => File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf"));
 
     [Theory]
@@ -159,6 +177,8 @@ public sealed class SignatureLtvTests
         var error = await Assert.ThrowsAsync<PdfException>(() => PdfSigner.SignAsync(
             Store(Source, [pki.Ca, pki.Root]), new(pki.Signer, RevocationSource: new TestRevocationSource(pki.BadCrl(kind)))));
         Assert.Contains("was downloaded but could not be validated", error.Message, StringComparison.Ordinal);
+        Assert.Equal("invalid", error.Data["RevocationKind"]);
+        Assert.Equal("YRK-SIG-026", MainViewModel.TransformError(error).Code);
         Assert.IsType<InvalidDataException>(error.InnerException);
     }
 
@@ -170,6 +190,8 @@ public sealed class SignatureLtvTests
         var error = await Assert.ThrowsAsync<PdfException>(() => PdfSigner.SignAsync(
             Store(Source, [pki.Ca, pki.Root]), new(pki.Signer, RevocationSource: source)));
         Assert.Contains("could not be downloaded", error.Message, StringComparison.Ordinal);
+        Assert.Equal("unavailable", error.Data["RevocationKind"]);
+        Assert.Equal("YRK-SIG-025", MainViewModel.TransformError(error).Code);
         Assert.Same(source.Failure, error.InnerException);
         Assert.Equal(LongTermValidation.CrlUrls(pki.Signer).Count, source.Calls);
         Assert.Equal(2, source.Calls);
@@ -184,6 +206,7 @@ public sealed class SignatureLtvTests
             Store(Source, [pki.Ca, pki.Root]), new(pki.Signer, RevocationSource: source)));
         Assert.Equal(2, source.Calls);
         Assert.Contains("was downloaded but could not be validated", error.Message, StringComparison.Ordinal);
+        Assert.Equal("invalid", error.Data["RevocationKind"]);
         Assert.Contains("https://crl.example.test/test", error.Message, StringComparison.Ordinal);
         Assert.IsType<InvalidDataException>(error.InnerException);
     }

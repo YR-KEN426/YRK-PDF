@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using System.Windows;
 using System.Windows.Threading;
 using Yrk.PdfStudio.App.Localization;
@@ -126,9 +128,19 @@ public partial class App : Application
             // Invariant culture: with Thai regional settings the year would otherwise be Buddhist (2569).
             var path = Path.Combine(logFolder, $"errors-{now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}.log");
             var content = $"[{now.ToString("O", CultureInfo.InvariantCulture)}] {message}{Environment.NewLine}{Environment.NewLine}";
-            var length = new FileInfo(path).Exists ? new FileInfo(path).Length : 0;
-            if (length >= MaxLogBytes || System.Text.Encoding.UTF8.GetByteCount(content) > MaxLogBytes - length) return;
-            File.AppendAllText(path, content);
+            // Open the entry itself, without following a symlink. Inspect and write the same
+            // handle, denying concurrent writes/replacement until the append is complete.
+            using var handle = CreateFileW(path, 0x40000000, FileShare.Read, IntPtr.Zero,
+                4 /* OPEN_ALWAYS */, 0x00200080 /* OPEN_REPARSE_POINT | NORMAL */, IntPtr.Zero);
+            if (handle.IsInvalid || !GetFileInformationByHandle(handle, out var info)
+                || (info.FileAttributes & (FileAttributes.ReparsePoint | FileAttributes.Directory)) != 0
+                || info.NumberOfLinks != 1) return;
+            using var stream = new FileStream(handle, FileAccess.Write);
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            var length = stream.Length;
+            if (length >= MaxLogBytes || bytes.Length > MaxLogBytes - length) return;
+            stream.Seek(0, SeekOrigin.End);
+            stream.Write(bytes);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -137,6 +149,22 @@ public partial class App : Application
     }
 
     private const long MaxLogBytes = 1_048_576;
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true, ExactSpelling = true)]
+    private static extern SafeFileHandle CreateFileW(string fileName, uint access, FileShare share,
+        IntPtr securityAttributes, uint creationDisposition, uint flags, IntPtr template);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out LogFileInformation info);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct LogFileInformation
+    {
+        public FileAttributes FileAttributes;
+        public System.Runtime.InteropServices.ComTypes.FILETIME CreationTime, LastAccessTime, LastWriteTime;
+        public uint VolumeSerialNumber, FileSizeHigh, FileSizeLow, NumberOfLinks, FileIndexHigh, FileIndexLow;
+    }
 
     internal static void CleanupOldLogs(string logFolder, DateTime now)
     {

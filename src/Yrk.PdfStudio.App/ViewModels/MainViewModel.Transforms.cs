@@ -102,7 +102,7 @@ public sealed partial class MainViewModel
             {
                 TryDelete(tempPath);
                 App.LogMessage("Document transform failed: " + ex);
-                error = ErrorCatalog.EditTransform;
+                error = TransformError(ex);
                 failure = ex;
                 StatusMessage = string.Empty;
                 return null;
@@ -153,6 +153,13 @@ public sealed partial class MainViewModel
             }
         }
     }
+
+    internal static ErrorInfo TransformError(Exception ex) => ex.Data["RevocationKind"] switch
+    {
+        "unavailable" => ErrorCatalog.SignatureRevocationUnavailable,
+        "invalid" => ErrorCatalog.SignatureRevocationInvalid,
+        _ => ErrorCatalog.EditTransform,
+    };
 
     /// <summary>Reports progress of the running operation (shown above the page area with a Cancel button).</summary>
     private void ReportOperation(string text)

@@ -1914,5 +1914,11 @@
   "The saved item could not be changed safely.": "แก้รายการที่บันทึกไว้อย่างปลอดภัยไม่ได้",
   "Try another item or save a copy before editing again.": "ลองรายการอื่น หรือบันทึกสำเนาก่อนแก้ไขอีกครั้ง",
   "Digital ID": "Digital ID",
-  "Digital IDs": "Digital ID ทั้งหมด"
+  "Digital IDs": "Digital ID ทั้งหมด",
+  "The certificate revocation list could not be downloaded.": "ดาวน์โหลดรายการเพิกถอนใบรับรองไม่ได้",
+  "Check the internet connection, or sign without long-term validation.": "ตรวจการเชื่อมต่ออินเทอร์เน็ต หรือเซ็นโดยไม่เพิ่มข้อมูลตรวจสอบระยะยาว",
+  "The certificate revocation list was downloaded but could not be validated.": "ดาวน์โหลดรายการเพิกถอนใบรับรองแล้ว แต่ตรวจสอบไม่ผ่าน",
+  "Try again later, or sign without long-term validation.": "ลองอีกครั้งภายหลัง หรือเซ็นโดยไม่เพิ่มข้อมูลตรวจสอบระยะยาว",
+  "An update was found, but it was not signed by YRK. It was not installed. The downloaded file could not be deleted.": "พบอัปเดตที่ไม่ได้เซ็นโดย YRK จึงไม่ได้ติดตั้ง แต่ลบไฟล์ที่ดาวน์โหลดมาไม่ได้",
+  "Restart the computer, then check for updates again.": "เริ่มคอมพิวเตอร์ใหม่ แล้วตรวจหาอัปเดตอีกครั้ง"
 }

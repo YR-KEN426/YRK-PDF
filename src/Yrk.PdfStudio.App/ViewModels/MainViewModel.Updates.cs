@@ -252,9 +252,9 @@ public sealed partial class MainViewModel
         catch (UpdateVerificationException ex)
         {
             SetUpdateState(UpdateState.None);
-            // Not signed with YRK's key: it was deleted. Say so, even for the background check.
-            App.LogError(ErrorCatalog.UpdateVerification, ex);
-            StatusMessage = Loc.T(ErrorCatalog.UpdateVerification.Message) + " " + Loc.T(ErrorCatalog.UpdateVerification.NextStep);
+            var error = UpdateVerificationError(ex);
+            App.LogError(error, ex);
+            StatusMessage = Loc.T(error.Message) + " " + Loc.T(error.NextStep);
             return StatusMessage;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -298,14 +298,16 @@ public sealed partial class MainViewModel
         }
         catch (UpdateVerificationException ex)
         {
-            // Not signed with YRK's key: it was deleted. Say so rather than a generic failure.
-            ReportUpdateApplyFailure(ErrorCatalog.UpdateVerification, ex);
+            ReportUpdateApplyFailure(UpdateVerificationError(ex), ex);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             ReportUpdateApplyFailure(ErrorCatalog.UpdateApply, ex);
         }
     }
+
+    internal static ErrorInfo UpdateVerificationError(UpdateVerificationException ex) =>
+        ex.DeleteFailed ? ErrorCatalog.UpdateVerificationDeleteFailed : ErrorCatalog.UpdateVerification;
 
     private void ReportUpdateApplyFailure(ErrorInfo error, Exception ex)
     {

@@ -168,7 +168,7 @@ internal sealed class VerifiedUpdateSource : IUpdateSource
         catch (Exception deletionError)
         {
             return new UpdateVerificationException(message: DeleteFailed,
-                new AggregateException(problem, deletionError));
+                new AggregateException(problem, deletionError), deleteFailed: true);
         }
         return new UpdateVerificationException(message: VerificationFailed, problem);
     }

@@ -20,7 +20,9 @@ public sealed class ProblemReportTests : IDisposable
     [InlineData(100)]
     public void Includes_only_the_last_forty_lines_of_todays_log(int count)
     {
-        var lines = Enumerable.Range(0, count).Select(i => $"log-line-{i:D3}").ToArray();
+        var structure = Enumerable.Range(0, count)
+            .Select(i => $"[2026-11-15T12:00:00.{i:D7}] YRK-EDIT-005 System.IO.IOException").ToArray();
+        var lines = structure.Select(line => line + ": Open Acme payroll.pdf failed.").ToArray();
         File.WriteAllLines(TodayLog, lines);
         File.WriteAllText(Path.Combine(_root.FullName, "errors-2026-11-14.log"), "yesterday must not appear");
 
@@ -29,10 +31,11 @@ public sealed class ProblemReportTests : IDisposable
         var marker = ReportRedactor.Redact("\n\nRecent log:\n");
         var markerIndex = report.IndexOf(marker, StringComparison.Ordinal);
         var tail = markerIndex < 0 ? "" : report[(markerIndex + marker.Length)..];
-        Assert.Equal(ReportRedactor.Redact(string.Join('\n', lines.TakeLast(40))), tail);
+        Assert.Equal(ReportRedactor.Redact(string.Join('\n', structure.TakeLast(40))), tail);
         Assert.True(tail.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length <= 40);
         Assert.DoesNotContain("yesterday must not appear", report);
-        if (count > 40) Assert.DoesNotContain(ReportRedactor.Redact(lines[0]), tail);
+        Assert.DoesNotContain("Acme", report);
+        if (count > 40) Assert.DoesNotContain(ReportRedactor.Redact(structure[0]), tail);
     }
 
     [Fact]
@@ -49,15 +52,18 @@ public sealed class ProblemReportTests : IDisposable
     [Fact]
     public void Entire_report_including_program_info_and_log_is_redacted()
     {
-        var version = "1.2.3 person@example.com";
-        var line = $"\"C:\\Program Files\\Private App\\ลับ ใหม่.pdf\" \"\\\\server\\share\\secret.pdf\" "
+        var version = $"1.2.3 person@example.com x{Environment.UserName.ToUpperInvariant()}x x{Environment.MachineName.ToLowerInvariant()}x";
+        var line = $"[2026-11-15T12:00:00.0000000] YRK-FILE-002 System.IO.IOException: \"C:\\Program Files\\Private App\\ลับ ใหม่.pdf\" \"\\\\server\\share\\secret.pdf\" "
             + $"%USERPROFILE% \"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}\" "
             + $"x{Environment.UserName.ToUpperInvariant()}x x{Environment.MachineName.ToLowerInvariant()}x mail@example.com";
-        File.WriteAllText(TodayLog, line);
+        const string frame = @"   at Namespace.Type.Method(String path) in C:\Private Folder\Acme payroll.cs:line 42";
+        File.WriteAllLines(TodayLog, [line, frame]);
 
         var report = ProblemReport.Build(version, null, null, _root.FullName, Now);
 
-        Assert.Equal(ReportRedactor.Redact(Feedback.ProgramInfo(version) + "\n\nRecent log:\n" + line), report);
+        Assert.Equal(ReportRedactor.Redact(Feedback.ProgramInfo(version)
+            + "\n\nRecent log:\n[2026-11-15T12:00:00.0000000] YRK-FILE-002 System.IO.IOException"
+            + "\n   at Namespace.Type.Method(String path) in <path>:line 42"), report);
         Assert.Contains("<path>", report);
         Assert.Contains("<user>", report);
         Assert.Contains("<pc>", report);
@@ -74,15 +80,61 @@ public sealed class ProblemReportTests : IDisposable
         try
         {
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("th-TH");
-            File.WriteAllText(TodayLog, "invariant calendar log");
-            File.WriteAllText(Path.Combine(_root.FullName, "errors-2569-11-15.log"), "wrong calendar");
+            File.WriteAllText(TodayLog, "YRK-FILE-002 System.IO.IOException: invariant calendar log");
+            File.WriteAllText(Path.Combine(_root.FullName, "errors-2569-11-15.log"), "YRK-EDIT-005 wrong calendar");
 
             var report = ProblemReport.Build("1.2.3", null, null, _root.FullName, Now);
 
-            Assert.Contains(ReportRedactor.Redact("invariant calendar log"), report);
-            Assert.DoesNotContain(ReportRedactor.Redact("wrong calendar"), report);
+            Assert.Contains("YRK-FILE-002 System.IO.IOException", report);
+            Assert.DoesNotContain("YRK-EDIT-005", report);
         }
         finally { CultureInfo.CurrentCulture = previousCulture; }
+    }
+
+    [Theory]
+    [InlineData("Open Acme payroll.pdf failed.")]
+    [InlineData("Open Customer private.yrkbackup failed.")]
+    [InlineData("Acme Client, Bob Smith: confidential message")]
+    [InlineData("[Acme payroll.pdf] arbitrary text")]
+    [InlineData("Open Acme PayrollException.pdf failed. Message mentions System.IO.IOException")]
+    [InlineData("Open Acme YRK-SIG-025.pdf failed.")]
+    public void Free_form_log_lines_are_omitted_completely(string line)
+    {
+        File.WriteAllText(TodayLog, line);
+        Assert.Equal(ReportRedactor.Redact(Feedback.ProgramInfo("1.2.3")),
+            ProblemReport.Build("1.2.3", null, null, _root.FullName, Now));
+    }
+
+    [Fact]
+    public void Keeps_structure_but_discards_all_exception_messages_and_frame_suffixes()
+    {
+        File.WriteAllLines(TodayLog,
+        [
+            "[2026-11-15T12:00:00.0000000+07:00] YRK-SIG-025 System.IO.IOException: Open Acme payroll.pdf failed.",
+            " ---> System.Net.Http.HttpRequestException: Bob private message",
+            "InvalidOperationException: client name",
+            "System.Exception: Open Acme PayrollException.pdf YRK-UPD-002 failed.",
+            "   at Namespace.Type.Method(String path, Int32 count) in Acme payroll.cs:line 7 client name",
+            "   at Namespace.Type.Other() client name",
+            "   at Namespace.Type.Generic[T](T value) in relative folder/Acme private.cs:line 8",
+            "arbitrary message without structure",
+        ]);
+
+        Assert.Equal(ReportRedactor.Redact(Feedback.ProgramInfo("1.2.3") + "\n\nRecent log:\n"
+            + "[2026-11-15T12:00:00.0000000+07:00] YRK-SIG-025 System.IO.IOException\n"
+            + "System.Net.Http.HttpRequestException\nInvalidOperationException\nSystem.Exception\n"
+            + "   at Namespace.Type.Method(String path, Int32 count) in <path>:line 7\n"
+            + "   at Namespace.Type.Other()\n   at Namespace.Type.Generic[T](T value) in <path>:line 8"),
+            ProblemReport.Build("1.2.3", null, null, _root.FullName, Now));
+    }
+
+    [Fact]
+    public void Forty_line_limit_counts_discarded_message_lines_too()
+    {
+        File.WriteAllLines(TodayLog, new[] { "YRK-APP-001 System.Exception: old error" }
+            .Concat(Enumerable.Repeat("Open Acme payroll.pdf failed.", 40)));
+        Assert.Equal(ReportRedactor.Redact(Feedback.ProgramInfo("1.2.3")),
+            ProblemReport.Build("1.2.3", null, null, _root.FullName, Now));
     }
 
     [Fact]

@@ -172,18 +172,19 @@ internal static class LongTermValidation
         {
             throw DownloadError(
                 "The revocation list from {0} was downloaded but could not be validated. Sign without long-term validation, or try again later.",
-                invalidUrl!, validationFailure);
+                invalidUrl!, validationFailure, "invalid");
         }
         throw DownloadError(
-            "The revocation list at {0} could not be downloaded. Check the internet connection, or sign without long-term validation.", urls[0], last!);
+            "The revocation list at {0} could not be downloaded. Check the internet connection, or sign without long-term validation.", urls[0], last!, "unavailable");
     }
 
-    private static PdfException DownloadError(string format, Uri url, Exception cause)
+    private static PdfException DownloadError(string format, Uri url, Exception cause, string kind)
     {
-        // Keep the existing exception type and English message; the UI translates the format before inserting the URL.
+        // Keep diagnostic context for logs; the UI selects a stable code using the kind.
         var error = new PdfException(string.Format(System.Globalization.CultureInfo.InvariantCulture, format, url), cause);
         error.Data["RevocationMessageFormat"] = format;
         error.Data["RevocationUrl"] = url;
+        error.Data["RevocationKind"] = kind;
         return error;
     }
 

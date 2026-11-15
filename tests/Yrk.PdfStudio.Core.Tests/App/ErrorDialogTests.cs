@@ -31,9 +31,9 @@ public sealed class ErrorDialogTests
             Assert.StartsWith(error.Code + " " + exception, payload);
             var report = ProblemReport.Build(AppUpdater.AssemblyVersion, error, exception, folder.FullName, DateTime.Now);
             Assert.Contains(error.Code, report);
-            Assert.Contains("<path>", report);
-            Assert.Contains("<email>", report);
-            Assert.Contains("'<file>'", report);
+            Assert.Contains(error.Code + " System.IO.IOException", report);
+            Assert.DoesNotContain("Cannot open", report);
+            Assert.DoesNotContain("contact", report);
             Assert.DoesNotContain("ลับ.pdf", report);
             Assert.DoesNotContain("PrivateName", report);
             Assert.DoesNotContain("secret.pdf", report);

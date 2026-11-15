@@ -202,7 +202,11 @@ public sealed class AppUpdater
 }
 
 /// <summary>A downloaded update could not be authenticated and must not be installed.</summary>
-public sealed class UpdateVerificationException(string message, Exception? innerException = null) : Exception(message, innerException);
+public sealed class UpdateVerificationException(string message, Exception? innerException = null, bool deleteFailed = false)
+    : Exception(message, innerException)
+{
+    public bool DeleteFailed { get; } = deleteFailed;
+}
 
 /// <summary>Small per-user preferences, kept in %LOCALAPPDATA%\YRK\EasyPdf\settings.json.</summary>
 public sealed class AppSettings

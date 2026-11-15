@@ -32,6 +32,18 @@ public sealed class ReportRedactorTests
     [InlineData(@"C:\folder.with.dots\nested\private.pdf")]
     [InlineData(@"C:\private\folder without extension")]
     [InlineData(@"\\server\shared files\folder without extension")]
+    [InlineData(@"C:\Docs\Alice, Bob Smith.pdf")]
+    [InlineData(@"C:\Docs\Alice; Bob! (Smith) [Private] {Draft}.pdf")]
+    [InlineData(@"\\server\share\Alice, Bob Smith.pdf")]
+    [InlineData(@"\\server\share\Alice; Bob! (Smith) [Private] {Draft}.pdf")]
+    [InlineData(@"C:\Docs, private; (team) [x] {y}!\Alice, Bob.pdf")]
+    [InlineData(@"C:\Docs\Alice.pdf, Bob Smith.pdf")]
+    [InlineData(@"C:\Docs\Alice.pdf; Bob Smith.customextension")]
+    [InlineData(@"C:\Docs\Alice, Bob Smith without extension")]
+    [InlineData(@"C:\Docs\Alice. Bob Smith without extension")]
+    [InlineData(@"C:\Docs\Alice， Bob！ Smith.pdf")]
+    [InlineData(@"C:\Docs\Alice.pdf, Bob.longextensionwithoutalengthlimit")]
+    [InlineData(@"C:\Docs\Alice.pdf, Bob.ข้อมูล")]
     public void Paths_include_the_entire_final_file_name(string path)
     {
         Assert.Equal("<path>", Redact(path));
@@ -42,7 +54,7 @@ public sealed class ReportRedactorTests
     [InlineData("Open 'C:\\Program Files\\My App\\a b.pdf' failed.", "Open '<path>' failed.")]
     [InlineData("Open C:\\private\\file.pdf failed.", "Open <path> failed.")]
     [InlineData("Open C:\\private\\file.pdf. Retry.", "Open <path>. Retry.")]
-    [InlineData("Open C:\\private\\folder. Retry.", "Open <path>. Retry.")]
+    [InlineData("Open C:\\private\\folder. Retry.", "Open <path>.")]
     [InlineData("C:\\private\\file.pdf; retry", "<path>; retry")]
     [InlineData("C:\\private\\file.pdf, retry", "<path>, retry")]
     [InlineData("C:\\private\\file.pdf! Retry", "<path>! Retry")]
@@ -52,6 +64,25 @@ public sealed class ReportRedactorTests
     public void Paths_stop_at_quotes_newlines_sentence_terminators_or_file_extensions(string text, string expected)
     {
         Assert.Equal(expected, Redact(text));
+    }
+
+    [Theory]
+    [InlineData("\n")]
+    [InlineData("\r\n")]
+    [InlineData("\"")]
+    [InlineData("'")]
+    [InlineData("<")]
+    [InlineData(">")]
+    [InlineData("|")]
+    [InlineData("?")]
+    [InlineData("*")]
+    [InlineData(":")]
+    public void Rooted_paths_end_at_the_last_extension_before_a_hard_terminator(string terminator)
+    {
+        Assert.Equal("<path> failed" + terminator + "public text",
+            Redact(@"C:\Docs\Alice.pdf, Bob; (Smith) [x] {y}!.pdf failed" + terminator + "public text"));
+        Assert.Equal("<path>" + terminator + "public text",
+            Redact(@"\\server\share\Alice, Bob; (Smith) [x] {y}!" + terminator + "public text"));
     }
 
     [Theory]
@@ -81,6 +112,11 @@ public sealed class ReportRedactorTests
     [InlineData("cer")]
     [InlineData("crt")]
     [InlineData("zip")]
+    [InlineData("ai")]
+    [InlineData("svg")]
+    [InlineData("pptx")]
+    [InlineData("ppt")]
+    [InlineData("yrkbackup")]
     public void Bare_and_quoted_file_names_are_redacted_for_supported_extensions(string extension)
     {
         Assert.Equal("Could not open '<file>'", Redact($"Could not open 'ลับ.{extension}'"));
@@ -141,7 +177,7 @@ public sealed class ReportRedactorTests
     [Fact]
     public void Injected_profile_is_redacted_even_without_a_drive_letter()
     {
-        Assert.Equal("Profile <path>; file \"<path>\"",
+        Assert.Equal("Profile <path> \"<path>\"",
             ReportRedactor.Redact("Profile /home/PRIVATE USER; file \"/home/private user/เอกสาร ลับ/ใหม่.pdf\"",
                 "different-user", "different-pc", "/home/private user/"));
     }
@@ -185,5 +221,6 @@ public sealed class ReportRedactorTests
         Assert.Equal(text, ReportRedactor.Redact(text, "x", "xx", ""));
         Assert.Equal(string.Concat(Enumerable.Repeat("“<file> ", 1_000)),
             Redact(string.Concat(Enumerable.Repeat("“ลับ.pdf ", 1_000))));
+        Assert.Equal("<path>", Redact(@"C:\Docs\" + string.Concat(Enumerable.Repeat("Alice, Bob; (Smith) [x] {y}! ", 5_000)) + "final.pdf"));
     }
 }

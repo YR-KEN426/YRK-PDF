@@ -123,6 +123,15 @@ public static class ErrorCatalog
     public static ErrorInfo EditCompare { get; } = new("YRK-EDIT-007", "This page could not be compared.", "Try another page or reopen both documents.");
     public static ErrorInfo SignatureSaveArt { get; } = new("YRK-SIG-023", "The signature could not be saved for later use.", "Check access to the signature folder and try again.");
     public static ErrorInfo SignatureDeleteArt { get; } = new("YRK-SIG-024", "The saved signature could not be deleted.", "Check access to the signature folder and try again.");
+    public static ErrorInfo SignatureRevocationUnavailable { get; } = new("YRK-SIG-025",
+        "The certificate revocation list could not be downloaded.",
+        "Check the internet connection, or sign without long-term validation.");
+    public static ErrorInfo SignatureRevocationInvalid { get; } = new("YRK-SIG-026",
+        "The certificate revocation list was downloaded but could not be validated.",
+        "Try again later, or sign without long-term validation.");
+    public static ErrorInfo UpdateVerificationDeleteFailed { get; } = new("YRK-UPD-005",
+        "An update was found, but it was not signed by YRK. It was not installed. The downloaded file could not be deleted.",
+        "Restart the computer, then check for updates again.");
     public static ErrorInfo AppRestart { get; } = new("YRK-APP-004", "YRK PDF could not restart.", "Close and reopen the app when you are ready.");
 
     public static ErrorInfo EditText { get; } = new("YRK-EDIT-008", "The text could not be changed.", "If the font cannot be edited or the text overlaps an image, use a white box and Add text instead.");
@@ -163,6 +172,8 @@ public static class ErrorCatalog
         EditCompare,
         SignatureSaveArt,
         SignatureDeleteArt,
+        SignatureRevocationUnavailable,
+        SignatureRevocationInvalid,
         AppRestart,
         EditText,
         EditFields,
@@ -177,7 +188,7 @@ public static class ErrorCatalog
         SignaturePasswordRequired, SignatureImportId, SignatureIdRequired, SignatureTimestampUrl,
         SignatureNoPrivateKey, SignatureExpired, SignatureNotYetValid, SignatureImageImport, SignatureTrustedCertificates, SignatureReadIds,
         SecurityRead, SecurityUnlock, SecurityRedactionSearch,
-        UpdateTimeout, UpdateVerification, UpdateCheck, UpdateApply,
+        UpdateTimeout, UpdateVerification, UpdateCheck, UpdateApply, UpdateVerificationDeleteFailed,
         OcrLanguageDownload, OcrScanRecognition, OcrReviewRender,
         ConvertScanInput, ConvertScanInterrupted, ConvertScanFailed, ConvertScanPublish,
         ConvertScanAddFiles, ConvertScanOpenFolder, ConvertScanCopyText, ConvertScanProtected, ConvertScanAlreadyText, ScannerSave,
