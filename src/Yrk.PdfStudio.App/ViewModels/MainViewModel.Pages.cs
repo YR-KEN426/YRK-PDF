@@ -212,7 +212,7 @@ public sealed partial class MainViewModel
                     () => _ = RunPageToolAsync("Inserting pages…", async d =>
                     {
                         if (copy is null) return;
-                        await InsertPagesWithReadingMarksAsync(d, copy.Document, insertIndex);
+                        await InsertPagesWithReadingMarksAsync(d, copy.Document, insertIndex, pageIds: copy.PageIds);
                         RestoreReadingMarks(d, removedMarks);
                     }, insertIndex),
                     pageStep: true);
@@ -492,7 +492,7 @@ public sealed partial class MainViewModel
     // --- Copies of removed pages, for undo -------------------------------------------------------
 
     /// <summary>Pages copied into a temporary PDF so a delete can be undone. Removed with the edits.</summary>
-    private sealed record PageSnapshot(IPdfDocument Document, string? Path);
+    private sealed record PageSnapshot(IPdfDocument Document, string? Path, IReadOnlyList<int> PageIds);
 
     private readonly List<PageSnapshot> _pageSnapshots = [];
 
@@ -501,10 +501,12 @@ public sealed partial class MainViewModel
 
     private async Task<PageSnapshot> SnapshotPagesAsync(IPdfDocument document, IReadOnlyList<int> sortedPages)
     {
+        var order = ReadingMarkPageOrder(document);
+        var pageIds = sortedPages.Select(index => order[index]).ToArray();
         if (document.IsEncrypted)
         {
             var bytes = await document.ExtractPagesToBytesAsync(sortedPages);
-            var memory = new PageSnapshot(await _engine.OpenBytesAsync(bytes, document.FilePath), null);
+            var memory = new PageSnapshot(await _engine.OpenBytesAsync(bytes, document.FilePath), null, pageIds);
             _pageSnapshots.Add(memory);
             return memory;
         }
@@ -512,7 +514,7 @@ public sealed partial class MainViewModel
         Directory.CreateDirectory(PageSnapshotFolder);
         var path = Path.Combine(PageSnapshotFolder, Guid.NewGuid().ToString("N") + ".pdf");
         await document.ExtractPagesAsync(sortedPages, path);
-        var snapshot = new PageSnapshot(await _engine.OpenAsync(path), path);
+        var snapshot = new PageSnapshot(await _engine.OpenAsync(path), path, pageIds);
         _pageSnapshots.Add(snapshot);
         return snapshot;
     }
@@ -522,7 +524,7 @@ public sealed partial class MainViewModel
     {
         for (var i = 0; i < sortedPages.Count; i++)
         {
-            await InsertPagesWithReadingMarksAsync(document, snapshot.Document, sortedPages[i], [i]);
+            await InsertPagesWithReadingMarksAsync(document, snapshot.Document, sortedPages[i], [i], [snapshot.PageIds[i]]);
         }
     }
 
@@ -563,6 +565,7 @@ public sealed partial class MainViewModel
         var pages = document.PageSizes.Select((size, index) => new PageViewModel(index, size)).ToList();
         _maxPageWidthPoints = pages.Count == 0 ? 0 : pages.Max(page => page.WidthPoints);
         Pages = new ObservableCollection<PageViewModel>(pages);
+        CompleteReadingMarkPageChange(document);
         RefreshReadingMarks();
         // Page tools discard text editors. Their old page numbers/coordinates must go too.
         _textEditFrames.Clear();

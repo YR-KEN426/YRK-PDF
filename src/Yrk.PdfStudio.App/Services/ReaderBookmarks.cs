@@ -134,7 +134,7 @@ internal static class ReaderBookmarks
     private static string ShortName(string? name) => string.IsNullOrWhiteSpace(name) ? "" : name.Length <= 40 ? name :
         name[..(char.IsHighSurrogate(name[39]) && char.IsLowSurrogate(name[40]) ? 39 : 40)];
 
-    private static IReadOnlyList<ReaderBookmark> Clean(IEnumerable<ReaderBookmark?> bookmarks) => bookmarks
+    internal static IReadOnlyList<ReaderBookmark> Clean(IEnumerable<ReaderBookmark?> bookmarks) => bookmarks
         .Where(b => b is { PageIndex: >= 0 } && IsColor(b.Color))
         .Select(b => b! with { Name = ShortName(b!.Name) }).GroupBy(b => b.PageIndex).Select(g => g.Last())
         .OrderBy(b => b.PageIndex).Take(MaxBookmarksPerFile).ToArray();

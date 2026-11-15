@@ -53,6 +53,7 @@ public sealed partial class MainViewModel
         OperationText = busyText;
         StatusMessage = busyText;
         var restore = CaptureViewState();
+        var readingMarksPath = document.FilePath;
         var folder = Path.GetDirectoryName(Path.GetFullPath(targetPath))!;
         var editsPath = Path.Combine(folder, $"~{Path.GetFileNameWithoutExtension(document.FilePath)}.{Guid.NewGuid():N}.yrk-saving");
         var tempPath = Path.Combine(folder, $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-writing");
@@ -129,6 +130,7 @@ public sealed partial class MainViewModel
                 failure = ex;
             }
 
+            SaveReadingMarks(readingMarksPath, savedPath);
             ClearEdits();
             await OpenDocumentAsync(savedPath, _password, restore, keepEdits: false);
             return savedPath;

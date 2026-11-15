@@ -6,6 +6,7 @@ using Yrk.PdfStudio.App.Localization;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.App.ViewModels;
 using Yrk.PdfStudio.Core.Pdf;
+using Yrk.PdfStudio.Core.Pdf.Forms;
 using Yrk.PdfStudio.Core.Pdf.Security;
 using Yrk.PdfStudio.Core.Pdf.Signatures;
 
@@ -42,6 +43,278 @@ public sealed class AppReadingMarksTests : IDisposable
         (redo ? app.Model.RedoCommand : app.Model.UndoCommand).Execute(null);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         while (app.Model.IsBusy) await Task.Delay(5, timeout.Token);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+    }
+
+    private async Task<string> SixPageBook(AppTestHarness app)
+    {
+        await using var source = await app.Engine.OpenAsync(Sample());
+        var path = Path.Combine(_folder, "six.pdf");
+        await app.Engine.CombineAsync([source, source], path);
+        return path;
+    }
+
+    private static async Task DeleteSecondPage(AppTestHarness app)
+    {
+        app.Dialogs.Answer("Confirm", true);
+        await app.Model.DeletePagesAsync([1]);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+    }
+
+    [Fact]
+    public async Task Unsaved_delete_keeps_crash_store_and_discard_reopens_original_page_five()
+    {
+        await using var app = new AppTestHarness();
+        var path = await SixPageBook(app);
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 4, "Page five", "purple");
+        var saved = ReaderBookmarks.Get(path).ToArray();
+        var pdf = File.ReadAllBytes(path);
+        await DeleteSecondPage(app);
+        Assert.Equal(3, Assert.Single(app.Model.ReadingMarks).PageIndex);
+        // Read the actual persisted store, as another process would after a crash.
+        Assert.Equal(saved, ReaderBookmarks.Get(path));
+        Assert.Equal(pdf, File.ReadAllBytes(path));
+        app.Dialogs.Answer("AskSaveChanges", SaveChangesChoice.Discard);
+        Assert.True(await app.Model.ConfirmDiscardOrSaveAsync());
+        await app.Model.CloseTabAsync(keepAlive: true);
+        Assert.Empty(app.Model.ReadingMarks);
+        Assert.Equal(saved, ReaderBookmarks.Get(path));
+        await using var reopened = new AppTestHarness();
+        Assert.True(await reopened.OpenAsync(path));
+        Assert.Equal(6, reopened.Model.Pages.Count);
+        Assert.Equal(4, Assert.Single(reopened.Model.ReadingMarks).PageIndex);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Saving_delete_persists_page_four_and_save_as_keeps_original_page_five(bool saveAs)
+    {
+        await using var app = new AppTestHarness();
+        var path = await SixPageBook(app);
+        var target = saveAs ? Path.Combine(_folder, "saved.pdf") : path;
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 4, "Page five", "purple");
+        var saved = Assert.Single(ReaderBookmarks.Get(path));
+        await DeleteSecondPage(app);
+        // Existing destination marks must be replaced.
+        if (saveAs) ReaderBookmarks.Add(target, 0, "Old destination", "red");
+        if (saveAs)
+        {
+            app.Dialogs.Answer("PickSavePdfFile", target);
+            await app.Model.SaveAsCommand.ExecuteAsync(null);
+        }
+        else await app.Model.SaveCommand.ExecuteAsync(null);
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+        Assert.False(app.Model.IsDirty);
+        Assert.Equal(target, app.Model.DocumentPath);
+        Assert.Equal(saved with { PageIndex = 3 }, Assert.Single(ReaderBookmarks.Get(target)));
+        Assert.Equal(3, Assert.Single(app.Model.ReadingMarks).PageIndex);
+        if (saveAs) Assert.Equal(saved, Assert.Single(ReaderBookmarks.Get(path)));
+        await app.Model.CloseTabAsync(keepAlive: true);
+        await using var reopened = new AppTestHarness();
+        Assert.True(await reopened.OpenAsync(target));
+        Assert.Equal(5, reopened.Model.Pages.Count);
+        Assert.Equal(3, Assert.Single(reopened.Model.ReadingMarks).PageIndex);
+        if (saveAs)
+        {
+            Assert.True(await reopened.OpenAsync(path));
+            Assert.Equal(6, reopened.Model.Pages.Count);
+            Assert.Equal(4, Assert.Single(reopened.Model.ReadingMarks).PageIndex);
+        }
+    }
+
+    [Fact]
+    public async Task Pending_structure_defers_user_add_edit_and_both_remove_paths_until_save()
+    {
+        await using var app = new AppTestHarness();
+        var path = await SixPageBook(app);
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 0, "Remove with command");
+        Mark(app, 2, "Remove with dialog");
+        Mark(app, 4, "Original");
+        var saved = ReaderBookmarks.Get(path).ToArray();
+        await DeleteSecondPage(app);
+        Mark(app, 3, new string('a', 45), "red");
+        Assert.Equal("Original", app.Dialogs.Named("AskReaderBookmark").Last().Arguments[0]);
+        Assert.Equal(saved[2].CreatedUtc, app.Model.ReadingMarks.Single(b => b.PageIndex == 3).CreatedUtc);
+        Mark(app, 4, "New", "green");
+        app.Model.RemoveReadingMark(0);
+        app.Dialogs.Answer("AskReaderBookmark", new ReaderBookmarkAnswer("", "blue", Remove: true));
+        app.Model.EditReadingMark(1);
+        Assert.Equal(new[] { 3, 4 }, app.Model.ReadingMarks.Select(b => b.PageIndex));
+        Assert.Equal(new string('a', 40), app.Model.ReadingMarks[0].Name);
+        Assert.Equal(saved, ReaderBookmarks.Get(path));
+        Assert.True(await app.SaveToAsync(path));
+        Assert.Equal(app.Model.ReadingMarks.Select(b => (b.PageIndex, b.Name, b.Color, b.CreatedUtc)),
+            ReaderBookmarks.Get(path).Select(b => (b.PageIndex, b.Name, b.Color, b.CreatedUtc)));
+    }
+
+    [Fact]
+    public async Task Undo_delete_restores_working_marks_and_immediate_writes_then_redo_defers_again()
+    {
+        await using var app = new AppTestHarness();
+        var path = await SixPageBook(app);
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 4, "Original");
+        await DeleteSecondPage(app);
+        Mark(app, 3, "Edited survivor", "red");
+        Assert.Equal("Original", Assert.Single(ReaderBookmarks.Get(path)).Name);
+        await UndoRedo(app);
+        Assert.Equal(4, Assert.Single(app.Model.ReadingMarks).PageIndex);
+        Mark(app, 4, "Immediate", "green");
+        Assert.Equal("Immediate", Assert.Single(ReaderBookmarks.Get(path)).Name);
+        await UndoRedo(app, redo: true);
+        Assert.Equal(3, Assert.Single(app.Model.ReadingMarks).PageIndex);
+        Mark(app, 3, "Deferred");
+        Assert.Equal("Immediate", Assert.Single(ReaderBookmarks.Get(path)).Name);
+        Assert.Equal(4, Assert.Single(ReaderBookmarks.Get(path)).PageIndex);
+    }
+
+    [Theory]
+    [InlineData("clean")]
+    [InlineData("rotate")]
+    [InlineData("undo-delete")]
+    [InlineData("undo-insert")]
+    [InlineData("undo-move")]
+    public async Task Save_as_without_pending_structure_keeps_move_behavior(string operation)
+    {
+        await using var app = new AppTestHarness();
+        var path = Sample();
+        var target = Path.Combine(_folder, "moved.pdf");
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 2, "Keep");
+        switch (operation)
+        {
+            case "rotate": await app.Model.RotatePagesAsync([0], 1); break;
+            case "undo-delete": await DeleteSecondPage(app); await UndoRedo(app); break;
+            case "undo-insert":
+                app.Dialogs.Answer("PickPdfFile", path);
+                await app.Model.InsertPagesFromFileAsync(1);
+                await UndoRedo(app);
+                break;
+            case "undo-move": await app.Model.MovePagesAsync([0], 2); await UndoRedo(app); break;
+        }
+        Mark(app, 2, "Immediate", "red");
+        Assert.Equal("Immediate", Assert.Single(ReaderBookmarks.Get(path)).Name);
+        Assert.True(await app.SaveToAsync(target));
+        Assert.Empty(ReaderBookmarks.Get(path));
+        Assert.Equal("Immediate", Assert.Single(ReaderBookmarks.Get(target)).Name);
+    }
+
+    [Fact]
+    public async Task Replacing_document_discards_working_marks_and_tabs_do_not_share_them()
+    {
+        await using var first = new AppTestHarness();
+        await using var second = new AppTestHarness();
+        var path = await SixPageBook(first);
+        var other = Sample("other.pdf");
+        Assert.True(await first.OpenAsync(path));
+        Mark(first, 4, "Saved");
+        await DeleteSecondPage(first);
+        Mark(first, 3, "Unsaved");
+        Assert.True(await second.OpenAsync(path));
+        first.Model.IsActiveTab = false;
+        second.Model.IsActiveTab = true;
+        Assert.Equal(4, Assert.Single(second.Model.ReadingMarks).PageIndex);
+        Assert.Equal("Saved", Assert.Single(second.Model.ReadingMarks).Name);
+        first.Model.IsActiveTab = true;
+        Assert.Equal(3, Assert.Single(first.Model.ReadingMarks).PageIndex);
+        first.Dialogs.Answer("AskSaveChanges", SaveChangesChoice.Discard);
+        await first.Model.OpenFileAsync(other);
+        Assert.Empty(first.Model.ReadingMarks);
+        Assert.True(await first.OpenAsync(path));
+        Assert.Equal(4, Assert.Single(first.Model.ReadingMarks).PageIndex);
+        Assert.Equal("Saved", Assert.Single(first.Model.ReadingMarks).Name);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Failed_save_with_pending_structure_keeps_both_stores_and_working_list(bool saveAs)
+    {
+        await using var app = new AppTestHarness(failWriteMidway: true);
+        var path = await SixPageBook(app);
+        var target = saveAs ? Path.Combine(_folder, "failed.pdf") : path;
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 4, "Saved");
+        await DeleteSecondPage(app);
+        Mark(app, 3, "Unsaved");
+        Assert.False(await app.SaveToAsync(target));
+        Assert.Equal(4, Assert.Single(ReaderBookmarks.Get(path)).PageIndex);
+        Assert.Equal("Saved", Assert.Single(ReaderBookmarks.Get(path)).Name);
+        if (saveAs) Assert.Empty(ReaderBookmarks.Get(target));
+        Assert.Equal(3, Assert.Single(app.Model.ReadingMarks).PageIndex);
+        Assert.Equal("Unsaved", Assert.Single(app.Model.ReadingMarks).Name);
+        Assert.True(app.Model.IsDirty);
+    }
+
+    [Fact]
+    public async Task Save_as_with_empty_working_list_clears_destination_and_preserves_original()
+    {
+        await using var app = new AppTestHarness();
+        var path = Sample();
+        var target = Path.Combine(_folder, "empty-marks.pdf");
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 1, "Deleted page");
+        ReaderBookmarks.Add(target, 0, "Previous destination", "red");
+        await DeleteSecondPage(app);
+        Assert.Empty(app.Model.ReadingMarks);
+        Assert.True(await app.SaveToAsync(target));
+        Assert.Single(ReaderBookmarks.Get(path));
+        Assert.Empty(ReaderBookmarks.Get(target));
+        Assert.Empty(app.Model.ReadingMarks);
+    }
+
+    [Fact]
+    public async Task Form_working_copy_and_version_undo_redo_preserve_pending_marks_until_save()
+    {
+        await using var app = new AppTestHarness();
+        var path = await SixPageBook(app);
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 4, "Saved");
+        await DeleteSecondPage(app);
+        Mark(app, 3, "Working", "red");
+        var marks = app.Model.ReadingMarks.ToArray();
+        var draft = new FormFieldDraftViewModel(app.Model.Pages[0],
+            new PdfNewField(0, new(.1, .1, .3, .05), PdfNewFieldKind.Text, "Test field"));
+        typeof(MainViewModel).GetMethod("AddNewField", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(app.Model, [draft]);
+        await (Task)typeof(MainViewModel).GetMethod("ApplyNewFieldsAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(app.Model, [])!;
+        Assert.Empty(app.Dialogs.Named("ShowError"));
+        Assert.Equal(marks, app.Model.ReadingMarks);
+        await UndoRedo(app);
+        Assert.Equal(marks, app.Model.ReadingMarks);
+        Assert.Equal(5, app.Model.Pages.Count);
+        await UndoRedo(app, redo: true);
+        Assert.Equal(marks, app.Model.ReadingMarks);
+        Assert.Equal(4, Assert.Single(ReaderBookmarks.Get(path)).PageIndex);
+        Assert.Equal("Saved", Assert.Single(ReaderBookmarks.Get(path)).Name);
+        var target = Path.Combine(_folder, "form.pdf");
+        Assert.True(await app.SaveToAsync(target));
+        Assert.Equal(3, Assert.Single(ReaderBookmarks.Get(target)).PageIndex);
+        Assert.Equal("Working", Assert.Single(ReaderBookmarks.Get(target)).Name);
+        Assert.Equal(4, Assert.Single(ReaderBookmarks.Get(path)).PageIndex);
+    }
+
+    [Fact]
+    public async Task Whole_file_save_publishes_working_marks_before_reopening_and_keeps_source()
+    {
+        await using var app = new AppTestHarness();
+        var path = await SixPageBook(app);
+        Assert.True(await app.OpenAsync(path));
+        Mark(app, 4, "Keep");
+        await DeleteSecondPage(app);
+        var target = Path.Combine(_folder, "transformed.pdf");
+        Func<IPdfDocument, byte[], CancellationToken, Task<byte[]?>> transform = (_, bytes, _) => Task.FromResult<byte[]?>(bytes);
+        Assert.Equal(target, await (Task<string?>)typeof(MainViewModel)
+            .GetMethod("TransformToFileAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(app.Model, [target, "Testing", transform])!);
+        Assert.Equal(3, Assert.Single(app.Model.ReadingMarks).PageIndex);
+        Assert.Equal(3, Assert.Single(ReaderBookmarks.Get(target)).PageIndex);
+        Assert.Equal(4, Assert.Single(ReaderBookmarks.Get(path)).PageIndex);
         Assert.Empty(app.Dialogs.Named("ShowError"));
     }
 
@@ -134,6 +407,8 @@ public sealed class AppReadingMarksTests : IDisposable
             case "rotate": await app.Model.RotatePagesAsync([1, 2], 1); break;
         }
         var after = app.Model.ReadingMarks.ToArray();
+        Assert.Equal(original.Select(b => (b.PageIndex, b.Name, b.Color, b.CreatedUtc)),
+            ReaderBookmarks.Get(path).Select(b => (b.PageIndex, b.Name, b.Color, b.CreatedUtc)));
         Assert.Equal(lastPage < 0 ? new[] { firstPage } : new[] { firstPage, lastPage }, after.Select(b => b.PageIndex));
         if (lastPage < 0) Assert.Equal("Last", Assert.Single(after).Name);
         await UndoRedo(app);
@@ -141,6 +416,7 @@ public sealed class AppReadingMarksTests : IDisposable
         Assert.Equal(original.Select(b => b.CreatedUtc), ReaderBookmarks.Get(path).Select(b => b.CreatedUtc));
         await UndoRedo(app, redo: true);
         Assert.Equal(after, app.Model.ReadingMarks);
+        Assert.Equal(original.Select(b => b.PageIndex), ReaderBookmarks.Get(path).Select(b => b.PageIndex));
         await UndoRedo(app);
         Assert.Equal(original, app.Model.ReadingMarks);
     }

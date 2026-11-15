@@ -726,6 +726,7 @@ public sealed partial class MainViewModel
 
     private void ClearEdits()
     {
+        if (!_keepVersions) ClearWorkingReadingMarks();
         if (!_keepVersions) _savedItemSignatureAcknowledgedFor = null;
         ++_savedItemSelectionRequest;
         EndPlacement();
@@ -916,7 +917,7 @@ public sealed partial class MainViewModel
                 _dialogs.ShowError(ErrorCatalog.FileReplace, ex);
             }
 
-            ReaderBookmarks.Move(readingMarksPath, savedPath);
+            SaveReadingMarks(readingMarksPath, savedPath);
             ClearEdits();
             await OpenDocumentAsync(savedPath, _password, restore, keepEdits: false);
             RecentFiles.Add(savedPath);
