@@ -4,102 +4,57 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class ThaiAddressAssistTests
 {
-    [Theory]
-    [InlineData(ThaiAddressField.Province)]
-    [InlineData(ThaiAddressField.District)]
-    [InlineData(ThaiAddressField.Subdistrict)]
-    public void Opening_and_dismissing_a_list_does_not_confirm_automatic_areas(ThaiAddressField field)
-    {
-        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
-        var automatic = ThaiAddressAssist.ConfirmChoice(first.AutoSelected, field, ThaiAddressChoice.None);
-        var changed = ThaiAddressAssist.ChangePostcode("10200", first.Selection, automatic);
-        Assert.Equal("10", changed.Selection.Province);
-    }
-
     [Fact]
-    public void Navigating_to_a_different_item_without_confirming_does_not_lock_the_province()
+    public void A_later_postcode_replaces_manual_areas_and_narrows_lists()
     {
-        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
-        var changed = ThaiAddressAssist.ChangePostcode("10200", new("50", "5001", null), first.AutoSelected);
-        Assert.Equal("10", changed.Selection.Province);
-    }
-
-    [Theory]
-    [InlineData(ThaiAddressChoice.ItemClick)]
-    [InlineData(ThaiAddressChoice.ItemEnter)]
-    public void Confirming_the_same_province_preserves_it_and_warns(ThaiAddressChoice choice)
-    {
-        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
-        var automatic = ThaiAddressAssist.ConfirmChoice(first.AutoSelected, ThaiAddressField.Province, choice);
-        Assert.Equal(new(ThaiAddressField.Province), automatic);
-        var changed = ThaiAddressAssist.ChangePostcode("10200", first.Selection, automatic);
-        Assert.Equal(new("11", null, null), changed.Selection);
-        Assert.Equal(ThaiAddressNotice.PostcodeMismatch, ThaiAddressAssist.NoticeFor(changed.Selection, "10200"));
-    }
-
-    [Theory]
-    [InlineData(ThaiAddressChoice.ItemClick)]
-    [InlineData(ThaiAddressChoice.ItemEnter)]
-    public void Confirming_a_field_confirms_only_it_and_its_ancestors(ThaiAddressChoice choice)
-    {
-        var automatic = new ThaiAddressAutoSelection();
-        Assert.Equal(new(ThaiAddressField.District),
-            ThaiAddressAssist.ConfirmChoice(automatic, ThaiAddressField.District, choice));
-        Assert.Null(ThaiAddressAssist.ConfirmChoice(automatic, ThaiAddressField.Subdistrict, choice));
-        var districtConfirmed = ThaiAddressAssist.ConfirmChoice(automatic, ThaiAddressField.District, choice);
-        var changed = ThaiAddressAssist.ChangePostcode("10200", new("11", "1102", "110205"), districtConfirmed);
-        Assert.Equal(new("11", "1102", null), changed.Selection);
-        Assert.Equal(districtConfirmed,
-            ThaiAddressAssist.ConfirmChoice(districtConfirmed, ThaiAddressField.Province, choice));
-    }
-
-    [Fact]
-    public void Changing_postcode_replaces_automatically_selected_areas_with_the_new_province()
-    {
-        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
-        Assert.Equal(new("11", "1102", "110205"), first.Selection);
-        Assert.Equal(new ThaiAddressAutoSelection(), first.AutoSelected);
-
-        var changed = ThaiAddressAssist.ChangePostcode("10200", first.Selection, first.AutoSelected);
-
+        var changed = ThaiAddressAssist.ChangePostcode("10220", new("11", "1102", "110205"));
+        Assert.Equal(new("10", null, null), changed.Selection);
         Assert.True(changed.Narrowing.IsFiltered);
-        Assert.Equal(new("10", "1001", null), changed.Selection);
-        Assert.Equal(new ThaiAddressAutoSelection(), changed.AutoSelected);
+        Assert.Equal(ThaiAddressAssist.Narrow("10220").Subdistricts, changed.Narrowing.Subdistricts);
+    }
+
+    [Theory]
+    [InlineData("10550", "11", "1102", "110205")]
+    [InlineData("10220", "10", "1005", "100508")]
+    public void Matching_selections_are_preserved(string postcode, string province, string district, string subdistrict)
+    {
+        var current = new ThaiAddressSelection(province, district, subdistrict);
+        var changed = ThaiAddressAssist.ChangePostcode(postcode, current);
+        Assert.Equal(current, changed.Selection);
+        Assert.True(changed.Narrowing.IsFiltered);
     }
 
     [Fact]
-    public void Changing_postcode_preserves_manual_areas_and_warns_about_a_mismatch()
+    public void Unique_children_are_selected_under_the_matching_parent()
     {
-        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
-        var manual = new ThaiAddressSelection("10", "1001", "100101");
-
-        var confirmed = ThaiAddressAssist.ConfirmChoice(first.AutoSelected, ThaiAddressField.Subdistrict, ThaiAddressChoice.ItemClick);
-        var changed = ThaiAddressAssist.ChangePostcode("10550", manual, confirmed);
-
-        Assert.Equal(manual, changed.Selection);
-        Assert.Null(changed.AutoSelected);
-        Assert.False(changed.Narrowing.IsFiltered);
-        Assert.Equal(ThaiAddressNotice.PostcodeMismatch,
-            ThaiAddressAssist.SuggestPostcode(changed.Selection.Subdistrict, "10550", null).Notice);
-        // Explicit manual selection also protects the same values originally selected by the system.
-        var reselected = ThaiAddressAssist.ChangePostcode("10200", first.Selection, null);
-        Assert.Equal(first.Selection, reselected.Selection);
-        Assert.False(reselected.Narrowing.IsFiltered);
+        var changed = ThaiAddressAssist.ChangePostcode("10550", new("10", "1001", "100101"));
+        Assert.Equal(new("11", "1102", "110205"), changed.Selection);
     }
 
     [Fact]
-    public void Unknown_postcode_clears_automatically_selected_areas_without_selecting_new_ones()
+    public void A_matching_district_is_kept_but_an_unmatched_subdistrict_is_cleared()
     {
-        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
-
-        var changed = ThaiAddressAssist.ChangePostcode("99999", first.Selection, first.AutoSelected);
-
-        Assert.Equal(new(null, null, null), changed.Selection);
-        Assert.Null(changed.AutoSelected);
-        Assert.False(changed.Narrowing.IsFiltered);
-        Assert.Equal(ThaiAddressNotice.PostcodeNotFound, changed.Narrowing.Notice);
+        var changed = ThaiAddressAssist.ChangePostcode("10220", new("10", "1005", "100101"));
+        Assert.Equal("10", changed.Selection.Province);
+        Assert.Equal("1005", changed.Selection.District);
+        var children = changed.Narrowing.Subdistricts.Where(a => a.Code.StartsWith("1005", StringComparison.Ordinal)).ToArray();
+        Assert.Equal(children.Length == 1 ? children[0].Code : null, changed.Selection.Subdistrict);
     }
 
+    [Theory]
+    [InlineData("99999", ThaiAddressNotice.PostcodeNotFound)]
+    [InlineData("1031", ThaiAddressNotice.None)]
+    [InlineData("10x20", ThaiAddressNotice.None)]
+    [InlineData("102200", ThaiAddressNotice.None)]
+    [InlineData(null, ThaiAddressNotice.None)]
+    public void Unknown_or_incomplete_postcodes_preserve_selections_and_restore_full_lists(string? postcode, ThaiAddressNotice notice)
+    {
+        var current = new ThaiAddressSelection("11", "1102", "110205");
+        var changed = ThaiAddressAssist.ChangePostcode(postcode, current);
+        Assert.Equal(current, changed.Selection);
+        Assert.False(changed.Narrowing.IsFiltered);
+        Assert.Equal(notice, changed.Narrowing.Notice);
+    }
     [Theory]
     [InlineData(null)]
     [InlineData("")]

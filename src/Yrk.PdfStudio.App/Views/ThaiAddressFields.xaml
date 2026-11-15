@@ -2,16 +2,13 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
-        <Style x:Key="AddressAreaItem" TargetType="ComboBoxItem">
-            <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnAreaItemClick" />
-            <EventSetter Event="PreviewKeyDown" Handler="OnAreaKeyDown" />
-        </Style>
         <Style x:Key="AddressLabel" TargetType="TextBlock">
             <Setter Property="Margin" Value="0,8,0,3" />
             <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
         </Style>
     </UserControl.Resources>
     <StackPanel>
+        <TextBlock x:Name="AreaNoteText" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition />
@@ -28,7 +25,7 @@
             </StackPanel>
         </Grid>
         <TextBlock Text="Province" Style="{StaticResource AddressLabel}" />
-        <ComboBox x:Name="ProvinceInput" DisplayMemberPath="Name" AutomationProperties.Name="Province" SelectionChanged="OnProvinceChanged" ItemContainerStyle="{StaticResource AddressAreaItem}" PreviewKeyDown="OnAreaKeyDown" />
+        <ComboBox x:Name="ProvinceInput" DisplayMemberPath="Name" AutomationProperties.Name="Province" SelectionChanged="OnProvinceChanged" />
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition />
@@ -37,11 +34,11 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="District" Style="{StaticResource AddressLabel}" />
-                <ComboBox x:Name="DistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="District" SelectionChanged="OnDistrictChanged" ItemContainerStyle="{StaticResource AddressAreaItem}" PreviewKeyDown="OnAreaKeyDown" />
+                <ComboBox x:Name="DistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="District" SelectionChanged="OnDistrictChanged" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="Subdistrict" Style="{StaticResource AddressLabel}" />
-                <ComboBox x:Name="SubdistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="Subdistrict" SelectionChanged="OnSubdistrictChanged" ItemContainerStyle="{StaticResource AddressAreaItem}" PreviewKeyDown="OnAreaKeyDown" />
+                <ComboBox x:Name="SubdistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="Subdistrict" SelectionChanged="OnSubdistrictChanged" />
             </StackPanel>
         </Grid>
         <TextBlock Text="Postcode" Style="{StaticResource AddressLabel}" />

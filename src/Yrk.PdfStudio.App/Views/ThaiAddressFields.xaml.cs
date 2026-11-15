@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using Yrk.PdfStudio.Core.Pdf.ETax;
 
 namespace Yrk.PdfStudio.App.Views;
@@ -12,7 +11,6 @@ public partial class ThaiAddressFields : UserControl
     private string? _optionsSubdistrict;
     private string? _optionsLanguage;
     private ThaiAddressNarrowing? _narrowing;
-    private ThaiAddressAutoSelection? _autoSelectedAreas;
     private ThaiAddressNotice _notice;
 
     public ThaiAddressFields()
@@ -23,6 +21,7 @@ public partial class ThaiAddressFields : UserControl
         Loaded += (_, _) => { Loc.LanguageChanged += OnLanguageChanged; RefreshText(); };
         Unloaded += (_, _) => Loc.LanguageChanged -= OnLanguageChanged;
         _busy = false;
+        RefreshText();
     }
 
     public event EventHandler? Changed;
@@ -38,7 +37,6 @@ public partial class ThaiAddressFields : UserControl
     {
         _busy = true;
         _narrowing = null;
-        _autoSelectedAreas = null;
         _lastAutoFilled = null;
         _notice = ThaiAddressNotice.None;
         HouseInput.Text = party.BuildingNumber ?? string.Empty;
@@ -92,32 +90,6 @@ public partial class ThaiAddressFields : UserControl
         Suggest();
     }
 
-    private void OnAreaItemClick(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is ComboBoxItem item &&
-            ItemsControl.ItemsControlFromItemContainer(item) is ComboBox input)
-            ConfirmAreaChoice(input, ThaiAddressChoice.ItemClick);
-    }
-
-    private void OnAreaKeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter) return;
-        var input = sender as ComboBox;
-        if (sender is ComboBoxItem item)
-            input = ItemsControl.ItemsControlFromItemContainer(item) as ComboBox;
-        if (input is { IsDropDownOpen: true } &&
-            (sender is ComboBoxItem { Content: ThaiArea } || input.SelectedItem is ThaiArea))
-            ConfirmAreaChoice(input, ThaiAddressChoice.ItemEnter);
-    }
-
-    private void ConfirmAreaChoice(ComboBox input, ThaiAddressChoice choice)
-    {
-        if (_busy) return;
-        var field = input == ProvinceInput ? ThaiAddressField.Province
-            : input == DistrictInput ? ThaiAddressField.District : ThaiAddressField.Subdistrict;
-        _autoSelectedAreas = ThaiAddressAssist.ConfirmChoice(_autoSelectedAreas, field, choice);
-    }
-
     private void OnSubdistrictChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_busy)
@@ -153,17 +125,16 @@ public partial class ThaiAddressFields : UserControl
         _busy = true;
         _lastAutoFilled = null;
         var change = ThaiAddressAssist.ChangePostcode(PostcodeInput.Text,
-            new(Province, District, Subdistrict), _autoSelectedAreas);
-        _autoSelectedAreas = change.AutoSelected;
+            new(Province, District, Subdistrict));
         _narrowing = change.Narrowing.IsFiltered ? change.Narrowing : null;
         _notice = change.Narrowing.Notice;
         ProvinceInput.ItemsSource = _narrowing?.Provinces ?? ThaiAreas.Provinces;
         Select(ProvinceInput, change.Selection.Province);
         DistrictInput.ItemsSource = Province is { } province
-            ? _narrowing?.Districts ?? ThaiAreas.DistrictsOf(province) : [];
+            ? ThaiAreas.DistrictsOf(province).Where(a => _narrowing is null || _narrowing.Districts.Contains(a)).ToArray() : [];
         Select(DistrictInput, change.Selection.District);
         SubdistrictInput.ItemsSource = District is { } district
-            ? _narrowing?.Subdistricts ?? ThaiAreas.SubdistrictsOf(district) : [];
+            ? ThaiAreas.SubdistrictsOf(district).Where(a => _narrowing is null || _narrowing.Subdistricts.Contains(a)).ToArray() : [];
         Select(SubdistrictInput, change.Selection.Subdistrict);
         RefreshOptions();
         _busy = false;
@@ -192,6 +163,8 @@ public partial class ThaiAddressFields : UserControl
 
     private void RefreshText()
     {
+        AreaNoteText.Text = "e-Tax Invoice is a Thai Revenue Department system. Province, district and subdistrict names are in Thai to match your registered address.";
+        AreaNoteText.Visibility = Loc.IsThai ? Visibility.Collapsed : Visibility.Visible;
         _busy = true;
         RefreshOptions();
         _busy = false;

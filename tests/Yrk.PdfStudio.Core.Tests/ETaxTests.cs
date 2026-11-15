@@ -984,6 +984,24 @@ public sealed class ETaxTests : IDisposable
             });
             try
             {
+                var originalLanguage = App.Localization.Loc.Language;
+                var noteFields = new App.Views.ThaiAddressFields();
+                noteFields.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.FrameworkElement.LoadedEvent));
+                try
+                {
+                    var note = (System.Windows.Controls.TextBlock)noteFields.FindName("AreaNoteText");
+                    foreach (var language in new[] { App.Localization.Loc.English, App.Localization.Loc.Thai, App.Localization.Loc.English })
+                    {
+                        App.Localization.Loc.Language = language;
+                        Assert.Equal("e-Tax Invoice is a Thai Revenue Department system. Province, district and subdistrict names are in Thai to match your registered address.", note.Text);
+                        Assert.Equal(App.Localization.Loc.IsThai ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible, note.Visibility);
+                    }
+                }
+                finally
+                {
+                    noteFields.RaiseEvent(new System.Windows.RoutedEventArgs(System.Windows.FrameworkElement.UnloadedEvent));
+                    App.Localization.Loc.Language = originalLanguage;
+                }
                 var fields = new App.Views.ThaiAddressFields();
                 var province = (System.Windows.Controls.ComboBox)fields.FindName("ProvinceInput");
                 var district = (System.Windows.Controls.ComboBox)fields.FindName("DistrictInput");
@@ -1029,40 +1047,34 @@ public sealed class ETaxTests : IDisposable
                 Assert.Equal("10310", fields.Postcode);
                 editor.Text = "1031";
                 Assert.Equal(77, province.Items.Count);
-                // Areas the postcode chose are cleared when the user edits the postcode (plan 1.1.7 step 2).
-                Assert.Null(fields.Province);
-                Assert.Null(fields.District);
+                Assert.Equal(narrowed.UniqueProvince?.Code, fields.Province);
+                Assert.Equal(narrowed.UniqueDistrict?.Code, fields.District);
 
-                // Opening and dismissing a district list must not confirm its automatic province.
-                editor.Text = "10550";
-                district.IsDropDownOpen = true;
-                district.IsDropDownOpen = false;
-                editor.Text = "10200";
+                // Manually chosen areas are replaced when a later postcode points elsewhere.
+                fields.Restore(saved with { Postcode = string.Empty });
+                Choose(province, "11");
+                Choose(district, "1102");
+                Choose(subdistrict, "110205");
+                editor.Text = "10220";
                 Assert.Equal("10", fields.Province);
-
-                // Clicking the same province raises no SelectionChanged, but explicitly confirms it.
-                editor.Text = "10550";
-                province.IsDropDownOpen = true;
-                province.UpdateLayout();
-                var popup = (System.Windows.Controls.Primitives.Popup)province.Template.FindName("PART_Popup", province);
-                popup.Child.Measure(new System.Windows.Size(400, 400));
-                popup.Child.Arrange(new System.Windows.Rect(0, 0, 400, 400));
-                var provinceItem = (System.Windows.Controls.ComboBoxItem)province.ItemContainerGenerator
-                    .ContainerFromItem(province.SelectedItem);
-                Assert.NotNull(provinceItem);
-                provinceItem.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(
-                    System.Windows.Input.Mouse.PrimaryDevice, 0, System.Windows.Input.MouseButton.Left)
-                {
-                    RoutedEvent = System.Windows.UIElement.PreviewMouseLeftButtonUpEvent,
-                });
-                province.IsDropDownOpen = false;
-                editor.Text = "10200";
-                Assert.Equal("11", fields.Province);
                 Assert.Null(fields.District);
                 Assert.Null(fields.Subdistrict);
+                Assert.Single(province.Items);
+                Choose(district, "1005");
+                Assert.All(subdistrict.Items.OfType<ThaiArea>(), a => Assert.StartsWith("1005", a.Code));
+                Choose(subdistrict, "100508");
+                editor.Text = "1022";
+                editor.Text = "10220";
+                Assert.Equal("10", fields.Province);
+                Assert.Equal("1005", fields.District);
+                Assert.Equal("100508", fields.Subdistrict);
+                editor.Text = "99999";
+                Assert.Equal("10", fields.Province);
+                Assert.Equal("1005", fields.District);
+                Assert.Equal("100508", fields.Subdistrict);
+                Assert.Equal(77, province.Items.Count);
                 var notice = (System.Windows.Controls.TextBlock)fields.FindName("NoticeText");
-                Assert.Equal(App.Localization.Loc.T("This postcode does not match the selected subdistrict in the app's data. You can still use it."), notice.Text);
-
+                Assert.Equal(App.Localization.Loc.T("This postcode or subdistrict is not in the app's postal data. You can still use this postcode."), notice.Text);
                 fields.Restore(saved with { Postcode = string.Empty, District = "1005", Subdistrict = "100508" });
                 // Restoring even an empty postcode does not auto-fill it.
                 Assert.Equal(string.Empty, fields.Postcode);
@@ -1077,7 +1089,8 @@ public sealed class ETaxTests : IDisposable
                 TaxInvoice Build() => (TaxInvoice)typeof(App.Views.ETaxInvoiceDialog)
                     .GetMethod("Build", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(dialog, null)!;
                 Assert.Equal(saved, Build().Seller);
-                var buyerFields = (App.Views.ThaiAddressFields)dialog.FindName("BuyerFields");
+                var buyerFields = Assert.IsType<App.Views.ThaiAddressFields>(dialog.FindName("BuyerFields"));
+                Assert.IsType<App.Views.ThaiAddressFields>(dialog.FindName("SellerFields"));
                 var structured = (System.Windows.Controls.RadioButton)dialog.FindName("BuyerStructured");
                 Assert.True(structured.IsChecked);
                 Assert.True(Build().Buyer.UsesThaiAddressFields);
