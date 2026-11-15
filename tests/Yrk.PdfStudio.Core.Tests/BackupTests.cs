@@ -141,6 +141,7 @@ public sealed class BackupTests : IDisposable
         Put(Source, "settings.json", "{\"Language\":\"th\"}"u8.ToArray());
         Put(Source, "stamps.json", "{\"MyStamps\":[],\"Last\":null}"u8.ToArray());
         Put(Source, "etax.json", "{\"Seller\":null}"u8.ToArray());
+        Put(Source, "reader-bookmarks.json", "{}"u8.ToArray());
         Put(Source, SignaturePath, [1, .. Payload]);
         Put(Source, "DigitalIDs/test.pfx", [0, 1, 255, 18, 19]);
         Put(Source, "DigitalIDs/test.p12", [42, 0, 127]);
@@ -161,7 +162,7 @@ public sealed class BackupTests : IDisposable
         var result = Import(protector: protector);
         Assert.Equal("1.2.0-test", result.Manifest.AppVersion);
         Assert.NotEqual(default, result.Manifest.CreatedUtc);
-        Assert.Equal(7, result.ImportedPaths.Count);
+        Assert.Equal(8, result.ImportedPaths.Count);
         Assert.Equal(1, protector.ProtectedCount);
         foreach (var file in result.Manifest.Files)
         {

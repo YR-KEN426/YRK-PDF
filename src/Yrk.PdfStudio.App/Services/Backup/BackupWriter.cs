@@ -79,6 +79,7 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
     internal static BackupSelection Category(string path) => path switch
     {
         "settings.json" => BackupSelection.Settings,
+        "reader-bookmarks.json" => BackupSelection.Settings,
         "stamps.json" => BackupSelection.Stamps,
         "etax.json" => BackupSelection.ETax,
         _ when path.StartsWith("Signatures/", StringComparison.Ordinal) => BackupSelection.Signatures,
