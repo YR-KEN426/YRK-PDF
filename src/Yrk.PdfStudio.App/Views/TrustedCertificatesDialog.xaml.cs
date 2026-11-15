@@ -46,8 +46,7 @@ public partial class TrustedCertificatesDialog : Window
     private void OnDelete(object sender, RoutedEventArgs e) => Run(() =>
     {
         if (CertificateList.SelectedItem is not Entry entry) return;
-        if (MessageBox.Show(this, Loc.T("Remove this certificate from your trusted list?"), Title,
-                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+        if (!new DialogService(this).AskYesNoDefaultNo("Remove this certificate from your trusted list?")) return;
         _store.Delete(entry.Certificate);
         Refresh();
     });

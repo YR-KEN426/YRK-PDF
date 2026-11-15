@@ -19,13 +19,20 @@ public sealed class ErrorCatalogTests
             || error.Code.StartsWith("YRK-SEC-", StringComparison.Ordinal)
             || error.Code.StartsWith("YRK-UPD-", StringComparison.Ordinal)
             || error.Code.StartsWith("YRK-OCR-", StringComparison.Ordinal)
-            || error.Code.StartsWith("YRK-CNV-", StringComparison.Ordinal)));
+            || error.Code.StartsWith("YRK-CNV-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-FILE-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-PAGE-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-EXP-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-PRN-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-BAT-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-CAD-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-EDIT-", StringComparison.Ordinal)));
     }
 
     [Fact]
-    public void All_three_app_codes_exist()
+    public void All_app_codes_exist()
     {
-        Assert.Equal(new[] { "YRK-APP-001", "YRK-APP-002", "YRK-APP-003" },
+        Assert.Equal(new[] { "YRK-APP-001", "YRK-APP-002", "YRK-APP-003", "YRK-APP-004" },
             ErrorCatalog.All.Where(error => error.Code.StartsWith("YRK-APP-", StringComparison.Ordinal))
                 .Select(error => error.Code).Order());
     }

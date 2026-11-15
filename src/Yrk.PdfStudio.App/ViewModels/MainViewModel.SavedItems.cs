@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
 using Yrk.PdfStudio.Core.Pdf.Security;
@@ -104,7 +105,7 @@ public sealed partial class MainViewModel
                 var options = new PdfItemEditOptions(acknowledged);
                 IsBusy = false; // ApplyNowAsync owns the busy state while creating/reopening versions.
                 await ApplyNowAsync("Editing saved item…", "Saved item changed. Undo (Ctrl+Z) brings it back.",
-                    "Couldn't edit this saved item safely.\n\n{0}", () => true, async candidate =>
+                    ErrorCatalog.EditSavedItem, () => true, async candidate =>
                     {
                         try
                         {

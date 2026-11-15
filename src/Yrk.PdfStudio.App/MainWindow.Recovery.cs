@@ -36,7 +36,7 @@ public partial class MainWindow
             }
             catch (IOException ex)
             {
-                dialogs.ShowError(Loc.F("Couldn't recover \"{0}\".\n\n{1}", entry.Name, ex.Message));
+                dialogs.ShowError(ErrorCatalog.FileRecover, ex);
             }
         }
     }

@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.Windows;
 using System.Windows.Media;
 using Yrk.PdfStudio.App.Imaging;
@@ -256,7 +257,7 @@ public sealed partial class MainViewModel
 
     /// <summary>Writes the changed lines into the page now (see <see cref="ApplyNowAsync"/>); Undo brings the old text back.</summary>
     private Task ApplyTextEditsNowAsync() =>
-        ApplyNowAsync("Changing the text…", "Text changed. Undo (Ctrl+Z) brings the old text back.", "Couldn't change the text.\n\n{0}", () => HasTextEdits);
+        ApplyNowAsync("Changing the text…", "Text changed. Undo (Ctrl+Z) brings the old text back.", ErrorCatalog.EditText, () => HasTextEdits);
 
     /// <summary>Applies the changed lines to saved document bytes (used when saving).</summary>
     /// <exception cref="PdfException">A line cannot be edited.</exception>
@@ -284,15 +285,7 @@ public sealed partial class MainViewModel
             e.Page.Index,
             e.Line.Bounds,
             replaced.IndexOf(e) is >= 0 and var i ? blocks[i] : null)).ToList();
-        try
-        {
-            return PdfTextEditor.Apply(pdf, edits, _document?.OpenPassword);
-        }
-        catch (PdfException ex) when (System.Text.RegularExpressions.Regex.Match(ex.Message,
-            @"^The text on page ([0-9, ]+) cannot be edited: it uses a font without exact measurements, or it overlaps an image\. Use a white box and Add text instead\.$") is { Success: true } match)
-        {
-            throw new PdfException(Loc.F("The text on page {0} cannot be edited: it uses a font without exact measurements, or it overlaps an image. Use a white box and Add text instead.", match.Groups[1].Value));
-        }
+        return PdfTextEditor.Apply(pdf, edits, _document?.OpenPassword);
     }
 
     /// <summary>The new text shaped and placed on the old line's baseline.</summary>

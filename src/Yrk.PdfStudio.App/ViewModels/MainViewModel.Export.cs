@@ -90,7 +90,7 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException or NotSupportedException or InvalidOperationException)
         {
             StatusMessage = string.Empty;
-            _dialogs.ShowError(Loc.F("Couldn't export.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.ExportFailed, ex);
         }
         finally
         {
@@ -123,7 +123,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            _dialogs.ShowError(Loc.F("Couldn't open the file.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.FileOpenExternal, ex);
         }
     }
 }

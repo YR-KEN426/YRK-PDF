@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using System.Net.Http;
 using System.Security.Cryptography;
@@ -55,7 +56,8 @@ public sealed partial class MainViewModel
         var folder = Path.GetDirectoryName(Path.GetFullPath(targetPath))!;
         var editsPath = Path.Combine(folder, $"~{Path.GetFileNameWithoutExtension(document.FilePath)}.{Guid.NewGuid():N}.yrk-saving");
         var tempPath = Path.Combine(folder, $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-writing");
-        string? error = null;
+        ErrorInfo? error = null;
+        Exception? failure = null;
         var reopening = false;
         try
         {
@@ -100,9 +102,8 @@ public sealed partial class MainViewModel
             {
                 TryDelete(tempPath);
                 App.LogMessage("Document transform failed: " + ex);
-                var detail = ex.Data["RevocationMessageFormat"] is string format && ex.Data["RevocationUrl"] is Uri url
-                    ? Loc.F(format, url) : ex.Message;
-                error = Loc.F("{0} failed.\n\n{1}", busyText.TrimEnd('…', '.'), detail);
+                error = ErrorCatalog.EditTransform;
+                failure = ex;
                 StatusMessage = string.Empty;
                 return null;
             }
@@ -124,11 +125,8 @@ public sealed partial class MainViewModel
                 savedPath = UniqueSiblingPath(targetPath, "new");
                 File.Move(tempPath, savedPath);
                 App.LogMessage("Document replacement failed: " + ex);
-                error = Loc.F(
-                    "Couldn't replace \"{0}\". Is it open in another program?\n\n{1}\n\nThe result was saved as \"{2}\" instead.",
-                    Path.GetFileName(targetPath),
-                    ex.Message,
-                    Path.GetFileName(savedPath));
+                error = ErrorCatalog.FileReplace;
+                failure = ex;
             }
 
             ClearEdits();
@@ -151,7 +149,7 @@ public sealed partial class MainViewModel
             // ShowError is modal: release the progress UI before entering its message loop.
             if (error is not null)
             {
-                _dialogs.ShowError(error);
+                _dialogs.ShowError(error, failure);
             }
         }
     }

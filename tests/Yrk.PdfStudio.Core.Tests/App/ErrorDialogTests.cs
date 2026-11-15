@@ -58,18 +58,16 @@ public sealed class ErrorDialogTests
     }
 
     [Fact]
-    public void Scripted_dialogs_record_both_error_overloads_and_arguments()
+    public void Scripted_dialogs_record_catalogue_errors_and_arguments()
     {
         var dialogs = new ScriptedDialogs();
         var exception = new IOException("test");
-        dialogs.Service.ShowError("old error");
         dialogs.Service.ShowError(ErrorCatalog.ScannerOther, exception, 3);
         var calls = dialogs.Named("ShowError");
-        Assert.Equal(2, calls.Length);
-        Assert.Equal("old error", calls[0].Arguments[0]);
-        Assert.Same(ErrorCatalog.ScannerOther, calls[1].Arguments[0]);
-        Assert.Same(exception, calls[1].Arguments[1]);
-        Assert.Equal(3, Assert.IsType<object[]>(calls[1].Arguments[2])[0]);
+        Assert.Single(calls);
+        Assert.Same(ErrorCatalog.ScannerOther, calls[0].Arguments[0]);
+        Assert.Same(exception, calls[0].Arguments[1]);
+        Assert.Equal(3, Assert.IsType<object[]>(calls[0].Arguments[2])[0]);
     }
 
     [Fact]

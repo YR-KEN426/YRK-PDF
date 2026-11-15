@@ -23,9 +23,7 @@ public partial class MainWindow
         }
         catch (Exception ex) when (ex is Win32Exception or IOException or InvalidOperationException)
         {
-            App.LogMessage("Restart failed: " + ex.GetType().Name);
-            MessageBox.Show(this, Loc.T("YRK PDF could not restart. Close and reopen it when you are ready."),
-                "YRK PDF", MessageBoxButton.OK, MessageBoxImage.Information);
+            new DialogService(this).ShowError(ErrorCatalog.AppRestart, ex);
             return false;
         }
         finally { _restartPending = false; }

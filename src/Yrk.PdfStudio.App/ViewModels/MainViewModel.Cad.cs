@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.Core.Pdf;
@@ -62,7 +63,7 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
         {
             StatusMessage = string.Empty;
-            _dialogs.ShowError(Loc.F("Couldn't open \"{0}\".\n\n{1}", Path.GetFileName(path), ex.Message));
+            _dialogs.ShowError(ErrorCatalog.CadOpen, ex);
             return false;
         }
         finally

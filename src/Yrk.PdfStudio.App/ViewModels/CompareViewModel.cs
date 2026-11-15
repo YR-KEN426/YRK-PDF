@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Media.Imaging;
@@ -182,7 +183,8 @@ public sealed partial class CompareViewModel : ObservableObject, IAsyncDisposabl
         }
         catch (PdfException ex)
         {
-            Summary = Loc.T("Couldn't compare this page: ") + ex.Message;
+            App.LogError(ErrorCatalog.EditCompare, ex);
+            Summary = Loc.T(ErrorCatalog.EditCompare.Message) + " " + Loc.T(ErrorCatalog.EditCompare.NextStep) + " (" + ErrorCatalog.EditCompare.Code + ")";
         }
         finally
         {

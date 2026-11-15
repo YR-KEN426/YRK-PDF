@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -111,7 +112,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException or ArgumentException or InvalidOperationException)
         {
-            _dialogs.ShowError(Loc.F("Couldn't open \"{0}\" as a picture.\n\n{1}", Path.GetFileName(path), ex.Message));
+            _dialogs.ShowError(ErrorCatalog.EditPicture, ex);
         }
     }
 

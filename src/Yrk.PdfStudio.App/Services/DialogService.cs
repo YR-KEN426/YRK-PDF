@@ -14,6 +14,12 @@ namespace Yrk.PdfStudio.App.Services;
 
 public sealed class DialogService : IDialogService
 {
+    private readonly Window? _owner;
+
+    public DialogService() { }
+
+    public DialogService(Window owner) => _owner = owner;
+
     public ScanRequest? AskScan(ScanSession session, IScannerService scanner)
     {
         var dialog = new ScanDialog(session, scanner) { Owner = Owner };
@@ -27,7 +33,7 @@ public sealed class DialogService : IDialogService
     private const string OpenFilter = "All supported files (*.pdf;*.ai;*.dwg;*.dxf)|*.pdf;*.ai;*.dwg;*.dxf|PDF documents (*.pdf)|*.pdf|" +
         "AutoCAD drawings (*.dwg;*.dxf)|*.dwg;*.dxf|Illustrator files (*.ai)|*.ai|All files (*.*)|*.*";
 
-    private static Window? Owner => Application.Current?.MainWindow;
+    private Window? Owner => _owner ?? Application.Current?.MainWindow;
 
     public string? PickPdfFile(string title = "Open")
     {
@@ -298,22 +304,16 @@ public sealed class DialogService : IDialogService
     public bool AskYesNo(string message) =>
         Show(message, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
 
-    private static MessageBoxResult Show(string message, MessageBoxButton buttons, MessageBoxImage icon) =>
+    // Destructive certificate actions keep No selected by default.
+    public bool AskYesNoDefaultNo(string message) =>
+        (Owner is { } owner
+            ? MessageBox.Show(owner, Loc.T(message), Caption, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No)
+            : MessageBox.Show(Loc.T(message), Caption, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No)) == MessageBoxResult.Yes;
+
+    private MessageBoxResult Show(string message, MessageBoxButton buttons, MessageBoxImage icon) =>
         Owner is { } owner
             ? MessageBox.Show(owner, Loc.T(message), Caption, buttons, icon)
             : MessageBox.Show(Loc.T(message), Caption, buttons, icon);
-
-    public void ShowError(string message)
-    {
-        if (Owner is { } owner)
-        {
-            MessageBox.Show(owner, Loc.T(message), Caption, MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-        else
-        {
-            MessageBox.Show(Loc.T(message), Caption, MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
 
     public void ShowError(ErrorInfo error, Exception? ex = null, params object[] args)
     {
@@ -334,6 +334,6 @@ public sealed class DialogService : IDialogService
         }
     }
 
-    private static bool ShowDialog(CommonDialog dialog) =>
+    private bool ShowDialog(CommonDialog dialog) =>
         (Owner is { } owner ? dialog.ShowDialog(owner) : dialog.ShowDialog()) == true;
 }

@@ -92,7 +92,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
-            _dialogs.ShowError(Loc.F("Couldn't use the folder \"{0}\".\n\n{1}", request.OutputFolder, ex.Message));
+            _dialogs.ShowError(ErrorCatalog.BatchFolder, ex);
             return;
         }
 
@@ -102,6 +102,7 @@ public sealed partial class MainViewModel
         var done = new List<string>();
         var failed = new List<(string File, string Reason)>();
         var cancelled = false;
+        Exception? lastFailure = null;
         var succeeded = 0;
         try
         {
@@ -127,19 +128,27 @@ public sealed partial class MainViewModel
                 }
                 catch (PdfAException ex)
                 {
-                    failed.Add((file, Loc.T("Cannot be made PDF/A without changing how it looks") + ": " + Describe(ex.Problems).Replace("\n", " ", StringComparison.Ordinal)));
+                    App.LogError(ErrorCatalog.ExportPdfAUnsupported, ex);
+                    lastFailure = ex;
+                    failed.Add((file, Loc.T(ErrorCatalog.ExportPdfAUnsupported.Message) + " " + Loc.T(ErrorCatalog.ExportPdfAUnsupported.NextStep) + " (" + ErrorCatalog.ExportPdfAUnsupported.Code + ")"));
                 }
-                catch (PdfPasswordRequiredException)
+                catch (PdfPasswordRequiredException ex)
                 {
-                    failed.Add((file, Loc.T("Needs a password to open")));
+                    App.LogError(ErrorCatalog.BatchPassword, ex);
+                    lastFailure = ex;
+                    failed.Add((file, Loc.T(ErrorCatalog.BatchPassword.Message) + " " + Loc.T(ErrorCatalog.BatchPassword.NextStep) + " (" + ErrorCatalog.BatchPassword.Code + ")"));
                 }
                 catch (BatchSkipException ex)
                 {
-                    failed.Add((file, Loc.T(ex.Message)));
+                    App.LogError(ErrorCatalog.BatchProtected, ex);
+                    lastFailure = ex;
+                    failed.Add((file, Loc.T(ErrorCatalog.BatchProtected.Message) + " " + Loc.T(ErrorCatalog.BatchProtected.NextStep) + " (" + ErrorCatalog.BatchProtected.Code + ")"));
                 }
                 catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException or InvalidOperationException or NotSupportedException)
                 {
-                    failed.Add((file, ex.Message));
+                    App.LogError(ErrorCatalog.BatchFailed, ex);
+                    lastFailure = ex;
+                    failed.Add((file, Loc.T(ErrorCatalog.BatchFailed.Message) + " " + Loc.T(ErrorCatalog.BatchFailed.NextStep) + " (" + ErrorCatalog.BatchFailed.Code + ")"));
                 }
             }
         }
@@ -176,12 +185,13 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
             {
-                _dialogs.ShowError(ex.Message);
+                _dialogs.ShowError(ErrorCatalog.FileOpenExternal, ex);
             }
         }
         else if (done.Count == 0)
         {
-            _dialogs.ShowError(summary);
+            if (failed.Count > 0) _dialogs.ShowError(ErrorCatalog.BatchFailed, lastFailure);
+            else _dialogs.ShowInfo(summary);
         }
     }
 
@@ -201,7 +211,7 @@ public sealed partial class MainViewModel
             }
         }
 
-        _dialogs.ShowError("None of the first files could be opened for the preview.");
+        _dialogs.ShowError(ErrorCatalog.BatchPreview);
         return null;
     }
 

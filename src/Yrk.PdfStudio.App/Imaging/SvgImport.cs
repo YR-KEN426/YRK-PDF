@@ -28,7 +28,7 @@ internal static partial class SvgImport
         }
         catch (XmlException ex)
         {
-            throw new FormatException("The SVG file could not be read: " + ex.Message, ex);
+            throw new FormatException("The SVG file could not be read.", ex);
         }
 
         if (document.Root is not { } root || root.Name.LocalName != "svg")

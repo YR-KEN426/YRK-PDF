@@ -343,7 +343,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (!File.Exists(path))
         {
             RecentFiles.Remove(path);
-            _dialogs.ShowError(Loc.F("\"{0}\" is no longer there (moved, renamed or deleted). It was taken off the recent list.", Path.GetFileName(path)));
+            _dialogs.ShowError(ErrorCatalog.FileMissing);
             return;
         }
 
@@ -423,10 +423,8 @@ public sealed partial class MainViewModel : ObservableObject
             }
             catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
             {
-                var hint = Path.GetExtension(path).Equals(".ai", StringComparison.OrdinalIgnoreCase)
-                    ? Loc.T("\n\nIllustrator files open when they were saved with \"Create PDF Compatible File\" turned on.")
-                    : string.Empty;
-                _dialogs.ShowError(Loc.F("Couldn't open \"{0}\".\n\n{1}", Path.GetFileName(path), ex.Message) + hint);
+                _dialogs.ShowError(Path.GetExtension(path).Equals(".ai", StringComparison.OrdinalIgnoreCase)
+                    ? ErrorCatalog.FileOpenIllustrator : ErrorCatalog.FileOpen, ex);
                 return false;
             }
         }

@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Pdfium;
@@ -26,9 +27,9 @@ public sealed partial class MainViewModel
     /// <summary>Writes every change not saved yet into a working copy and opens it.</summary>
     /// <param name="busy">Shown while it works.</param>
     /// <param name="done">Shown when it worked.</param>
-    /// <param name="failed">The error message, with {0} for the reason.</param>
+    /// <param name="failed">The catalogue entry for this editing operation.</param>
     /// <param name="needed">Whether there is anything to apply, asked after the open editors were finished.</param>
-    private async Task ApplyNowAsync(string busy, string done, string failed, Func<bool> needed,
+    private async Task ApplyNowAsync(string busy, string done, ErrorInfo failed, Func<bool> needed,
         Func<IPdfDocument, Task>? changeSavedItem = null)
     {
         if (_document is not { } document || IsBusy)
@@ -88,7 +89,7 @@ public sealed partial class MainViewModel
                 if (copy is not null) TryDelete(copy);
                 DeleteVersionFile(before);
                 DeleteVersionFile(after);
-                _dialogs.ShowError(Loc.F(failed, ex.Message));
+                _dialogs.ShowError(failed, ex);
                 return;
             }
 
@@ -146,7 +147,7 @@ public sealed partial class MainViewModel
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
-                    _dialogs.ShowError(Loc.F("Couldn't undo this step.\n\n{0}", ex.Message));
+                    _dialogs.ShowError(ErrorCatalog.EditUndo, ex);
                     RebuildVersionSteps();
                     return;
                 }

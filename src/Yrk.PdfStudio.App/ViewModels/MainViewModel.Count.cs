@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
@@ -225,7 +226,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _dialogs.ShowError(Loc.F("Couldn't save the count list.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.EditCountExport, ex);
         }
     }
 

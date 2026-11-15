@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.Input;
@@ -84,7 +85,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is NotSupportedException or IOException or UnauthorizedAccessException)
         {
-            _dialogs.ShowError(ex.Message);
+            _dialogs.ShowError(ErrorCatalog.EditPicture, ex);
             return null;
         }
     }

@@ -50,7 +50,7 @@ public static class Feedback
         }
         catch (Exception ex) when (ex is Win32Exception or InvalidOperationException)
         {
-            MessageBox.Show(owner, Loc.F("Couldn't open it.\n\n{0}", ex.Message), DialogService.Caption, MessageBoxButton.OK, MessageBoxImage.Warning);
+            new DialogService(owner).ShowError(ErrorCatalog.FileOpenExternal, ex);
         }
     }
 

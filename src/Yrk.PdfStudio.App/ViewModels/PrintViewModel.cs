@@ -59,7 +59,8 @@ public sealed partial class PrintViewModel : ObservableObject
         catch (PrintSystemException ex)
         {
             Printers = [];
-            _printerError = Loc.T("Couldn't list the printers: ") + ex.Message;
+            App.LogError(ErrorCatalog.PrintList, ex);
+            _printerError = Loc.T(ErrorCatalog.PrintList.Message) + " " + Loc.T(ErrorCatalog.PrintList.NextStep) + " (" + ErrorCatalog.PrintList.Code + ")";
         }
 
         LoadPapers();
@@ -360,7 +361,8 @@ public sealed partial class PrintViewModel : ObservableObject
         {
             Papers = [];
             Paper = null;
-            SetPrinterError(Loc.F("The printer is not available: {0}", ex.Message));
+            App.LogError(ErrorCatalog.PrintUnavailable, ex);
+            SetPrinterError(Loc.T(ErrorCatalog.PrintUnavailable.Message) + " " + Loc.T(ErrorCatalog.PrintUnavailable.NextStep) + " (" + ErrorCatalog.PrintUnavailable.Code + ")");
         }
     }
 
@@ -398,7 +400,8 @@ public sealed partial class PrintViewModel : ObservableObject
         catch (FormatException ex)
         {
             _pages = [];
-            Error = Loc.T(ex.Message);
+            App.LogError(ErrorCatalog.PageRange, ex);
+            Error = Loc.T(ErrorCatalog.PageRange.Message) + " " + Loc.T(ErrorCatalog.PageRange.NextStep) + " (" + ErrorCatalog.PageRange.Code + ")";
         }
 
         OnPropertyChanged(nameof(Summary));

@@ -59,7 +59,7 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is PrintSystemException or PdfException or InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             StatusMessage = string.Empty;
-            _dialogs.ShowError(Loc.F("Couldn't print.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.PrintFailed, ex);
         }
         finally
         {

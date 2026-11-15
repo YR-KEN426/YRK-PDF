@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
@@ -49,7 +49,7 @@ public sealed partial class MainViewModel
 
         if (pages.Count >= _document.PageCount)
         {
-            _dialogs.ShowError("A PDF must keep at least one page.");
+            _dialogs.ShowError(ErrorCatalog.PageKeepOne);
             return;
         }
 
@@ -239,7 +239,7 @@ public sealed partial class MainViewModel
 
         if (files.Any(file => string.Equals(Path.GetFullPath(file), Path.GetFullPath(output), StringComparison.OrdinalIgnoreCase)))
         {
-            _dialogs.ShowError("Save the combined PDF under a new name; it can't replace one of the files being combined.");
+            _dialogs.ShowError(ErrorCatalog.PageCombineName);
             return;
         }
 
@@ -504,7 +504,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
-            _dialogs.ShowError(ex.Message);
+            _dialogs.ShowError(ErrorCatalog.PageOperation, ex);
             return false;
         }
         finally
@@ -537,7 +537,7 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
             {
-                _dialogs.ShowError(Loc.F("Couldn't open \"{0}\".\n\n{1}", Path.GetFileName(path), ex.Message));
+                _dialogs.ShowError(ErrorCatalog.FileOpen, ex);
                 return null;
             }
         }
@@ -548,7 +548,7 @@ public sealed partial class MainViewModel
     {
         if (_document is not null && string.Equals(Path.GetFullPath(path), Path.GetFullPath(_document.FilePath), StringComparison.OrdinalIgnoreCase))
         {
-            _dialogs.ShowError("Choose a different name: this is the document you have open. Use Save to update it.");
+            _dialogs.ShowError(ErrorCatalog.PageOutputName);
             return false;
         }
 

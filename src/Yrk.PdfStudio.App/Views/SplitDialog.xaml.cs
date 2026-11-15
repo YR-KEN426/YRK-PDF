@@ -139,7 +139,8 @@ public partial class SplitDialog : Window
         }
         catch (FormatException ex)
         {
-            error = ex.Message;
+            App.LogError(ErrorCatalog.PageRange, ex);
+            error = Loc.T(ErrorCatalog.PageRange.Message) + " " + Loc.T(ErrorCatalog.PageRange.NextStep) + " (" + ErrorCatalog.PageRange.Code + ")";
             return false;
         }
     }

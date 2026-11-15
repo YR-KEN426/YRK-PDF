@@ -163,7 +163,5 @@ public interface IDialogService
     /// <summary>Yes / No question; true for Yes.</summary>
     bool AskYesNo(string message);
 
-    void ShowError(string message);
-
     void ShowError(ErrorInfo error, Exception? ex = null, params object[] args);
 }

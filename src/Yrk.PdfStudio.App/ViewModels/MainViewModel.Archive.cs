@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.App.Imaging;
@@ -59,12 +60,12 @@ public sealed partial class MainViewModel
         catch (PdfAException ex)
         {
             StatusMessage = string.Empty;
-            _dialogs.ShowError(Loc.T("This document cannot be saved as PDF/A without changing how it looks. Nothing was saved.") + "\n\n" + Describe(ex.Problems));
+            _dialogs.ShowError(ErrorCatalog.ExportPdfAUnsupported, ex);
         }
         catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
         {
             StatusMessage = string.Empty;
-            _dialogs.ShowError(Loc.F("Couldn't save as PDF/A.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.ExportPdfA, ex);
         }
         finally
         {

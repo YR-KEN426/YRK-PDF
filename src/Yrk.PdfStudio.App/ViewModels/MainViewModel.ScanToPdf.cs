@@ -230,7 +230,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            throw new IOException(Loc.F("The file could not be saved. The result is kept at:\n{0}\n\n{1}", temp, ex.Message), ex);
+            throw new IOException("The file could not be saved. The result is kept at: " + temp, ex);
         }
     }
 }

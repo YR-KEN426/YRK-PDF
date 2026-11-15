@@ -449,7 +449,7 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
             {
-                _dialogs.ShowError(Loc.F("The signature could not be saved for later use.\n\n{0}", ex.Message));
+                _dialogs.ShowError(ErrorCatalog.SignatureSaveArt, ex);
             }
         }
 
@@ -487,7 +487,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _dialogs.ShowError(Loc.F("The signature could not be deleted.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.SignatureDeleteArt, ex);
         }
     }
 
@@ -880,7 +880,6 @@ public sealed partial class MainViewModel
         IsBusy = true;
         StatusMessage = "Saving…";
         var restore = CaptureViewState();
-        var targetName = Path.GetFileName(targetPath);
         var tempPath = Path.Combine(
             Path.GetDirectoryName(Path.GetFullPath(targetPath))!,
             $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-saving");
@@ -895,7 +894,7 @@ public sealed partial class MainViewModel
             {
                 // Nothing was replaced. The changes stay in the open document, so saving can be retried.
                 TryDelete(tempPath);
-                _dialogs.ShowError(Loc.F("Couldn't save \"{0}\".\n\n{1}", targetName, ex.Message));
+                _dialogs.ShowError(ErrorCatalog.FileSave, ex);
                 return false;
             }
 
@@ -912,11 +911,7 @@ public sealed partial class MainViewModel
             {
                 savedPath = UniqueSiblingPath(targetPath, "recovered");
                 File.Move(tempPath, savedPath);
-                _dialogs.ShowError(Loc.F(
-                    "Couldn't replace \"{0}\". Is it open in another program?\n\n{1}\n\nYour changes were saved to \"{2}\" instead.",
-                    targetName,
-                    ex.Message,
-                    Path.GetFileName(savedPath)));
+                _dialogs.ShowError(ErrorCatalog.FileReplace, ex);
             }
 
             ClearEdits();
@@ -979,7 +974,7 @@ public sealed partial class MainViewModel
 
     /// <summary>Makes the new form fields real now, so they can be filled before saving (see <see cref="ApplyNowAsync"/>).</summary>
     private Task ApplyNewFieldsAsync() =>
-        ApplyNowAsync("Adding the fields…", "Fields ready to fill", "Couldn't add the fields.\n\n{0}", () => _newFields.Count > 0);
+        ApplyNowAsync("Adding the fields…", "Fields ready to fill", ErrorCatalog.EditFields, () => _newFields.Count > 0);
 
     private ViewState CaptureViewState()
     {

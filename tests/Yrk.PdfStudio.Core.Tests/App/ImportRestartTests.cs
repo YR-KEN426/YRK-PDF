@@ -46,10 +46,11 @@ public sealed class ImportRestartTests
                 .Invoke(app.Model, [app.Model.Pages[0], new NormalizedPoint(bounds.X + bounds.Width / 2, bounds.Y + bounds.Height / 2)])!);
             app.Model.EndTextEdit(app.Model.ActiveTextEdit!, "replacement", cancel: false, apply: true);
             PumpUntil(() => !app.Model.IsBusy);
-            var error = Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!.ToString()!;
-            var expected = Loc.F("The text on page {0} cannot be edited: it uses a font without exact measurements, or it overlaps an image. Use a white box and Add text instead.", "1");
-            Assert.Contains(expected, error);
-            Assert.Equal(language == "th", expected.Contains("แก้ไขข้อความ"));
+            var call = Assert.Single(app.Dialogs.Named("ShowError"));
+            var error = Assert.IsType<ErrorInfo>(call.Arguments[0]);
+            Assert.Equal("YRK-EDIT-008", error.Code);
+            Assert.IsAssignableFrom<Exception>(call.Arguments[1]);
+            Assert.Equal(language == "th", Loc.T(error.Message).Contains("แก้ข้อความ"));
         }
         finally { Await(app.DisposeAsync().AsTask()); }
     });

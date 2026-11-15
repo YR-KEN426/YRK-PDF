@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
@@ -598,7 +599,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is PdfException or ArgumentException)
         {
-            _dialogs.ShowError(ex.Message);
+            _dialogs.ShowError(ErrorCatalog.EditAnnotation, ex);
         }
         catch (ObjectDisposedException)
         {

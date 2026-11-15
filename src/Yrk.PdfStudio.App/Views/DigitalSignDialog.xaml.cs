@@ -178,7 +178,7 @@ public partial class DigitalSignDialog : Window
         try
         {
             _store.BackUp(id, PasswordInput.Password, picker.FileName);
-            MessageBox.Show(this, Loc.F("Saved a copy of \"{0}\". Keep it somewhere safe: anyone with this file and its password can sign as you.", id.Name), Title, MessageBoxButton.OK, MessageBoxImage.Information);
+            new DialogService(this).ShowInfo(Loc.F("Saved a copy of \"{0}\". Keep it somewhere safe: anyone with this file and its password can sign as you.", id.Name));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
         {
@@ -194,7 +194,7 @@ public partial class DigitalSignDialog : Window
         }
 
         var question = Loc.F("Delete \"{0}\"?\n\nDocuments already signed with it stay valid, but it can sign nothing more. The file goes to the Recycle Bin. If this ID came from a certificate authority, back it up first.", id.Name);
-        if (MessageBox.Show(this, question, Title, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+        if (!new DialogService(this).AskYesNoDefaultNo(question))
         {
             return;
         }
@@ -356,9 +356,4 @@ public partial class DigitalSignDialog : Window
         ErrorText.Visibility = Visibility.Visible;
     }
 
-    private void ShowError(string message)
-    {
-        ErrorText.Text = message;
-        ErrorText.Visibility = Visibility.Visible;
-    }
 }
