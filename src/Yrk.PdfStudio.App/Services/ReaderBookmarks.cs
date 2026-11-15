@@ -77,10 +77,11 @@ internal static class ReaderBookmarks
         {
             var oldFull = Normalize(oldPath);
             var newFull = Normalize(newPath);
-            if (oldFull is null || newFull is null) return;
+            if (newFull is null) return;
             var documents = Load();
-            if (!documents.Remove(oldFull, out var document)) return;
-            documents[newFull] = document with { LastUsed = DateTimeOffset.UtcNow };
+            if (oldFull is not null && documents.Remove(oldFull, out var document))
+                documents[newFull] = document with { LastUsed = DateTimeOffset.UtcNow };
+            else documents.Remove(newFull);
             Write(documents);
         }
     }

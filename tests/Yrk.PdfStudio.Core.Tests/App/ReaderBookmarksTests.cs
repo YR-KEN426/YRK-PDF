@@ -213,7 +213,7 @@ public sealed class ReaderBookmarksTests : IDisposable
         ReaderBookmarks.Move(DocumentPath("new.pdf"), DocumentPath("NEW.PDF"));
         Assert.Equal(original, ReaderBookmarks.Get(DocumentPath("new.pdf")));
         ReaderBookmarks.Move(DocumentPath("missing.pdf"), DocumentPath("new.pdf"));
-        Assert.Equal(original, ReaderBookmarks.Get(DocumentPath("new.pdf")));
+        Assert.Empty(ReaderBookmarks.Get(DocumentPath("new.pdf")));
         ReaderBookmarks.Clear();
         Assert.Empty(ReaderBookmarks.Get(DocumentPath("new.pdf")));
         Assert.Equal("{}", File.ReadAllText(ReaderBookmarks.FilePath));

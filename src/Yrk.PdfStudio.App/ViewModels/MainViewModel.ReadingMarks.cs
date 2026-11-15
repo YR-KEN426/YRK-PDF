@@ -14,6 +14,28 @@ public sealed partial class MainViewModel
     private int _savedReadingMarkPageCount;
     private int _nextReadingMarkPageId = -1;
 
+    private sealed record DocumentPageState(IReadOnlyList<ReaderBookmark> Marks, IReadOnlyList<int> Order,
+        int SavedPageCount, int NextPageId, IReadOnlyList<PastedCut> PastedCuts);
+
+    private DocumentPageState CaptureDocumentPageState(IPdfDocument document)
+    {
+        var order = ReadingMarkPageOrder(document);
+        return new((_workingReadingMarks ?? ReaderBookmarks.Get(document.FilePath)).ToArray(), order.ToArray(), _savedReadingMarkPageCount,
+            _nextReadingMarkPageId, _pastedCuts.ToArray());
+    }
+
+    private void RestoreDocumentPageState(DocumentPageState state)
+    {
+        _workingReadingMarks = state.Marks.ToArray();
+        _readingMarkPageOrder = state.Order.ToList();
+        _savedReadingMarkPageCount = state.SavedPageCount;
+        _nextReadingMarkPageId = state.NextPageId;
+        _pastedCuts.Clear();
+        _pastedCuts.AddRange(state.PastedCuts);
+        if (_document is { } document) CompleteReadingMarkPageChange(document);
+        RefreshReadingMarks();
+    }
+
     // Track page identity independently of IsDirty and the undo stack: rotations/overlays do not
     // renumber marks, and committing overlays can clear undo without saving the page structure.
     private bool HasUnsavedReadingMarkPageChanges => _readingMarkPageOrder is { } order &&

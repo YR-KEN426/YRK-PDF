@@ -726,6 +726,7 @@ public sealed partial class MainViewModel
 
     private void ClearEdits()
     {
+        if (!_keepVersions) _pastedCuts.Clear();
         if (!_keepVersions) ClearWorkingReadingMarks();
         if (!_keepVersions) _savedItemSignatureAcknowledgedFor = null;
         ++_savedItemSelectionRequest;
@@ -918,6 +919,7 @@ public sealed partial class MainViewModel
             }
 
             SaveReadingMarks(readingMarksPath, savedPath);
+            AcknowledgeSavedCuts();
             ClearEdits();
             await OpenDocumentAsync(savedPath, _password, restore, keepEdits: false);
             RecentFiles.Add(savedPath);

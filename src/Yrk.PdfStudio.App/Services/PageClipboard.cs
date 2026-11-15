@@ -96,7 +96,12 @@ public sealed class PageClipboard : IDisposable
         if (acknowledgement is not null) _cuts.Add(path, acknowledgement);
         // Publish first: if Windows rejects the new data, the old clipboard remains usable.
         foreach (var previous in _owned.Where(p => !string.Equals(p, path, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            // The caller confirmed abandoning any local unpasted cut before starting the copy.
+            _pendingCuts.Remove(previous);
+            if (_cuts.Remove(previous, out var oldAcknowledgement)) oldAcknowledgement.Dispose();
             DeleteOwned(previous);
+        }
     }
 
     public void MarkCut(string path)

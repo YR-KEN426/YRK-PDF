@@ -131,6 +131,7 @@ public sealed partial class MainViewModel
             }
 
             SaveReadingMarks(readingMarksPath, savedPath);
+            AcknowledgeSavedCuts();
             ClearEdits();
             await OpenDocumentAsync(savedPath, _password, restore, keepEdits: false);
             return savedPath;

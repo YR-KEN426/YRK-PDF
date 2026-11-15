@@ -17,6 +17,7 @@ public sealed partial class MainViewModel
     private sealed record DocumentVersion(string? Path, byte[]? Bytes)
     {
         public List<TextEditFrame> TextFrames { get; init; } = [];
+        public DocumentPageState? PageState { get; init; }
     }
     private readonly List<DocumentVersion?> _versions = [];
     private int _version;
@@ -47,6 +48,7 @@ public sealed partial class MainViewModel
         IsBusy = true;
         StatusMessage = busy;
         var restore = CaptureViewState();
+        var pageState = CaptureDocumentPageState(document);
         List<TextEditFrame> textFrames;
         string? copy = null;
         DocumentVersion? before = null;
@@ -95,7 +97,7 @@ public sealed partial class MainViewModel
 
             if (_versions.Count == 0)
             {
-                _versions.Add(before);
+                _versions.Add((before ?? new DocumentVersion(null, null)) with { PageState = pageState });
             }
 
             // A new step after Undo drops the steps that were undone.
@@ -105,7 +107,7 @@ public sealed partial class MainViewModel
                 _versions.RemoveAt(i);
             }
 
-            if (after is not null) after = after with { TextFrames = textFrames };
+            if (after is not null) after = after with { TextFrames = textFrames, PageState = pageState };
             _versions.Add(after);
             if (await OpenVersionAsync(document.FilePath, copy, restore, after?.Bytes))
             {
@@ -156,6 +158,7 @@ public sealed partial class MainViewModel
             if (await OpenVersionAsync(document.FilePath, copy, CaptureViewState(), _versions[index]?.Bytes))
             {
                 _textEditFrames = _versions[index]?.TextFrames.ToList() ?? [];
+                if (_versions[index]?.PageState is { } pageState) RestoreDocumentPageState(pageState);
                 _version = index;
                 StatusMessage = string.Empty; // The message of the step no longer fits.
             }

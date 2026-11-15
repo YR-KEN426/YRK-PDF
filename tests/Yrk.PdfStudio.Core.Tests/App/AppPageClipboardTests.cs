@@ -191,7 +191,7 @@ public sealed class AppPageClipboardTests
     }
 
     [Fact]
-    public async Task Successful_paste_acknowledges_cut_to_another_clipboard_instance()
+    public async Task Saved_paste_acknowledges_cut_to_another_clipboard_instance()
     {
         await using var a = new AppTestHarness();
         await using var b = new AppTestHarness();
@@ -207,6 +207,8 @@ public sealed class AppPageClipboardTests
 
         await b.Model.PastePagesAsync(1);
 
+        Assert.True(origin.HasUnpastedCut);
+        Assert.True(await b.SaveToAsync(b.PathFor("saved.pdf")));
         Assert.False(origin.HasUnpastedCut);
         Assert.True(origin.ConfirmClose(a.Dialogs.Service));
         Assert.Empty(a.Dialogs.Named("Confirm"));
@@ -259,7 +261,7 @@ public sealed class AppPageClipboardTests
         Assert.Equal(Loc.T("Editing this item will make digital signatures show that the document was changed after signing. Continue?"),
             Assert.Single(b.Dialogs.Named("Confirm")).Arguments[0]);
         await b.Model.PastePagesAsync(1);
-        Assert.False(clipboard.HasUnpastedCut);
+        Assert.True(clipboard.HasUnpastedCut);
         await AssertOrder(b, 1, 2, 2, 3);
     }
 

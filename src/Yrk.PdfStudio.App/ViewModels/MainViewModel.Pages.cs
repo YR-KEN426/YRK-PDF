@@ -33,8 +33,7 @@ public sealed partial class MainViewModel
     public PageClipboard PageClipboard { get; set; } = Services.PageClipboard.Shared;
 
     public bool CanCopyPages => HasDocument && !IsBusy && _document is { } document
-        && (document.Permissions & (Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble))
-            == (Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble);
+        && AllowsPageCopy(document);
 
     public bool CanPastePages => HasDocument && !IsBusy && _document is { } document
         && (document.Permissions & Core.Pdf.Security.PdfPermissions.Assemble) != 0;
@@ -47,7 +46,7 @@ public sealed partial class MainViewModel
         if (!CanCopyPages || (cut && !CanCutPages(pages)) || _document is not { } document
             || pages.Count == 0 || pages.Any(p => p < 0 || p >= document.PageCount)
             || !await EnsureAllowedAsync(Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble, "extract its pages")
-            || BlockedByTextEdits()) return false;
+            || BlockedByTextEdits() || !PageClipboard.ConfirmClose(_dialogs)) return false;
 
         var sorted = pages.Distinct().Order().ToArray();
         string? path = null;
@@ -90,7 +89,7 @@ public sealed partial class MainViewModel
             _dialogs.ShowError(ErrorCatalog.PageClipboardMissing);
             return;
         }
-        if (await InsertPagesAsync(source.Path, insertIndex, pasted: true)) PageClipboard.MarkPasted(source);
+        await InsertPagesAsync(source.Path, insertIndex, pasted: true, clipboardSource: source);
     }
 
     public Task RotatePagesAsync(IReadOnlyList<int> pages, int quarterTurns) =>
@@ -185,7 +184,8 @@ public sealed partial class MainViewModel
         await InsertPagesAsync(path, insertIndex);
     }
 
-    private async Task<bool> InsertPagesAsync(string path, int insertIndex, bool pasted = false)
+    private async Task<bool> InsertPagesAsync(string path, int insertIndex, bool pasted = false,
+        PageClipboard.Source? clipboardSource = null)
     {
         var source = await OpenSourceAsync(path);
         if (source is null)
@@ -195,11 +195,19 @@ public sealed partial class MainViewModel
 
         await using (source)
         {
+            if (!AllowsPageCopy(source))
+            {
+                _dialogs.ShowError(ErrorCatalog.PageSourceRestricted);
+                return false;
+            }
             var count = source.PageCount;
             return await RunPageToolAsync("Inserting pages…", async document =>
             {
                 await InsertPagesWithReadingMarksAsync(document, source, insertIndex);
                 var inserted = Enumerable.Range(insertIndex, count).ToArray();
+                if (clipboardSource is { IsPageCopy: true })
+                    _pastedCuts.Add(new(PageClipboard, clipboardSource,
+                        inserted.Select(i => ReadingMarkPageOrder(document)[i]).ToArray()));
                 PageSnapshot? copy = null; // Taken when first undone, for redo (the source file may change).
                 IReadOnlyList<ReaderBookmark> removedMarks = [];
                 _undo.KeepOnlyPageSteps();
@@ -222,6 +230,22 @@ public sealed partial class MainViewModel
             }, insertIndex, commitFirst: true);
         }
     }
+
+    // Page identities survive moves and page undo/redo. A paste undone (or partly deleted) is
+    // absent from the pending set until all its pages are restored; only a durable save can ack it.
+    private sealed record PastedCut(PageClipboard Clipboard, PageClipboard.Source Source, IReadOnlyList<int> PageIds);
+    private readonly List<PastedCut> _pastedCuts = [];
+
+    private void AcknowledgeSavedCuts()
+    {
+        var order = _readingMarkPageOrder?.ToHashSet();
+        foreach (var paste in _pastedCuts)
+            if (order is not null && paste.PageIds.All(order.Contains)) paste.Clipboard.MarkPasted(paste.Source);
+    }
+
+    private static bool AllowsPageCopy(IPdfDocument document) =>
+        (document.Permissions & (Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble))
+            == (Core.Pdf.Security.PdfPermissions.Copy | Core.Pdf.Security.PdfPermissions.Assemble);
 
     public async Task ExtractPagesAsync(IReadOnlyList<int> pages)
     {

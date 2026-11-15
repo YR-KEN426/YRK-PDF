@@ -25,6 +25,7 @@
 | YRK-PAGE-005 | ช่วงหน้าไม่ถูกต้อง | The page range is invalid. | ใส่เลขหน้าที่มีในเอกสาร เช่น 1-3, 5<br>Enter page numbers within the document, for example 1-3, 5. |
 | YRK-PAGE-006 | หน้าที่คัดลอกไว้ไม่มีแล้ว กรุณาคัดลอกใหม่ | The copied pages are no longer available. Please copy them again. | คัดลอกหน้าอีกครั้งจากไฟล์ต้นทาง<br>Copy the pages again from the source document. |
 | YRK-PAGE-007 | เข้าถึงคลิปบอร์ดหน้าไม่ได้ | The page clipboard could not be accessed. | ลองคัดลอกหรือวางหน้าอีกครั้ง<br>Try copying or pasting the pages again. |
+| YRK-PAGE-008 | ไฟล์ต้นทางไม่อนุญาตให้คัดลอกหรือแยกหน้า | The source document does not allow copying or extracting pages. | เปิดไฟล์ต้นทางด้วยรหัสผ่านเจ้าของก่อนคัดลอกหน้า<br>Open the source document with its owner password before copying pages. |
 
 ## EXP
 
