@@ -188,7 +188,7 @@
 - [x] ขั้น 5 ย้ายจุดเรียก ชุด B + ลบ ShowError(string)
 - [x] ขั้น 6 ตรวจข้อความสองภาษาครบ
 - [x] ขั้น 7 ตรวจคำผิด + ตารางรหัส error
-- [ ] ขั้น 8 ตรวจ + Ken ลองจริง
+- [x] ขั้น 8 ตรวจ + Ken ลองจริง (2026-11-15: Codex review แก้ 5 ข้อ e8b6cc4; Ken ลองครบ 7 ข้อผ่าน; แก้หน้าต่างเซ็นสูงเกินจอ 41d300d)
 
 ## วิธีทดสอบรวม
 - `dotnet test` ทั้งชุดผ่าน รวมเทสต์ใหม่ 6 ชุด: ErrorCatalog, ReportRedactor, ProblemReport, CrashHandler, ErrorUsageGuard, LocalizationCoverage
