@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Yrk.PdfStudio.Core.Pdf.ETax;
 
 namespace Yrk.PdfStudio.App.Views;
@@ -11,7 +12,7 @@ public partial class ThaiAddressFields : UserControl
     private string? _optionsSubdistrict;
     private string? _optionsLanguage;
     private ThaiAddressNarrowing? _narrowing;
-    private ThaiAddressSelection? _autoSelectedAreas;
+    private ThaiAddressAutoSelection? _autoSelectedAreas;
     private ThaiAddressNotice _notice;
 
     public ThaiAddressFields()
@@ -66,7 +67,6 @@ public partial class ThaiAddressFields : UserControl
     private void OnProvinceChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_busy) return;
-        _autoSelectedAreas = null;
         _busy = true;
         DistrictInput.ItemsSource = Province is { } province
             ? ThaiAreas.DistrictsOf(province).Where(a => _narrowing is null || _narrowing.Districts.Contains(a)).ToArray() : [];
@@ -84,7 +84,6 @@ public partial class ThaiAddressFields : UserControl
     private void OnDistrictChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_busy) return;
-        _autoSelectedAreas = null;
         _busy = true;
         SubdistrictInput.ItemsSource = District is { } district
             ? ThaiAreas.SubdistrictsOf(district).Where(a => _narrowing is null || _narrowing.Subdistricts.Contains(a)).ToArray() : [];
@@ -93,20 +92,36 @@ public partial class ThaiAddressFields : UserControl
         Suggest();
     }
 
-    // Picking the same item again raises no SelectionChanged: opening the list and closing it
-    // still means the user has seen the area and chosen it, so a later postcode must not replace it.
-    private void OnAreaDropDownClosed(object? sender, EventArgs e) => ConfirmAreaChoice();
-
-    internal void ConfirmAreaChoice()
+    private void OnAreaItemClick(object sender, MouseButtonEventArgs e)
     {
-        if (!_busy) _autoSelectedAreas = null;
+        if (sender is ComboBoxItem item &&
+            ItemsControl.ItemsControlFromItemContainer(item) is ComboBox input)
+            ConfirmAreaChoice(input, ThaiAddressChoice.ItemClick);
+    }
+
+    private void OnAreaKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        var input = sender as ComboBox;
+        if (sender is ComboBoxItem item)
+            input = ItemsControl.ItemsControlFromItemContainer(item) as ComboBox;
+        if (input is { IsDropDownOpen: true } &&
+            (sender is ComboBoxItem { Content: ThaiArea } || input.SelectedItem is ThaiArea))
+            ConfirmAreaChoice(input, ThaiAddressChoice.ItemEnter);
+    }
+
+    private void ConfirmAreaChoice(ComboBox input, ThaiAddressChoice choice)
+    {
+        if (_busy) return;
+        var field = input == ProvinceInput ? ThaiAddressField.Province
+            : input == DistrictInput ? ThaiAddressField.District : ThaiAddressField.Subdistrict;
+        _autoSelectedAreas = ThaiAddressAssist.ConfirmChoice(_autoSelectedAreas, field, choice);
     }
 
     private void OnSubdistrictChanged(object sender, SelectionChangedEventArgs e)
     {
         if (!_busy)
         {
-            _autoSelectedAreas = null;
             Suggest();
         }
     }
@@ -158,17 +173,7 @@ public partial class ThaiAddressFields : UserControl
 
     private void CheckNotice()
     {
-        if (Postcode.Length == 5 && Postcode.All(char.IsAsciiDigit))
-        {
-            _notice = Subdistrict is null
-                ? (ThaiPostcodes.SubdistrictsWith(Postcode).Count == 0 ? ThaiAddressNotice.PostcodeNotFound : ThaiAddressNotice.None)
-                : ThaiAddressAssist.Check(Subdistrict, Postcode) switch
-            {
-                ThaiPostcodeMatch.Mismatch => ThaiAddressNotice.PostcodeMismatch,
-                ThaiPostcodeMatch.Unknown => ThaiAddressNotice.PostcodeNotFound,
-                _ => ThaiPostcodes.PostcodesOf(Subdistrict).Count > 1 ? ThaiAddressNotice.MultiplePostcodes : ThaiAddressNotice.None,
-            };
-        }
+        _notice = ThaiAddressAssist.NoticeFor(new(Province, District, Subdistrict), Postcode);
         RefreshNotice();
     }
 

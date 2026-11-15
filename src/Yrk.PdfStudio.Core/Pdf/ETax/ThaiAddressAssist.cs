@@ -5,6 +5,10 @@ public enum ThaiAddressNotice { None, MultiplePostcodes, PostcodeMismatch, Postc
 
 public enum ThaiPostcodeMatch { Match, Mismatch, Unknown }
 
+public enum ThaiAddressField { Province, District, Subdistrict }
+
+public enum ThaiAddressChoice { None, ItemClick, ItemEnter }
+
 /// <param name="TextToSet">Null means leave the current text unchanged.</param>
 public sealed record ThaiPostcodeSuggestion(
     string? TextToSet, IReadOnlyList<ThaiPostcode> Options, ThaiAddressNotice Notice);
@@ -24,20 +28,49 @@ public sealed record ThaiAddressNarrowing(
 
 public sealed record ThaiAddressSelection(string? Province, string? District, string? Subdistrict);
 
+/// <summary>Tracks which ancestors were explicitly confirmed while postcode suggestions are active.</summary>
+public sealed record ThaiAddressAutoSelection(ThaiAddressField? ConfirmedThrough = null);
+
 public sealed record ThaiAddressPostcodeChange(
-    ThaiAddressSelection Selection, ThaiAddressSelection? AutoSelected, ThaiAddressNarrowing Narrowing);
+    ThaiAddressSelection Selection, ThaiAddressAutoSelection? AutoSelected, ThaiAddressNarrowing Narrowing);
 
 /// <summary>Pure address suggestions and selection updates.</summary>
 public static class ThaiAddressAssist
 {
-    /// <summary>Replace only the unchanged selection previously supplied by postcode narrowing.</summary>
-    public static ThaiAddressPostcodeChange ChangePostcode(
-        string? postcode, ThaiAddressSelection current, ThaiAddressSelection? autoSelected)
+    public static ThaiAddressNotice NoticeFor(ThaiAddressSelection selection, string? postcode)
     {
-        var selection = autoSelected is not null && current == autoSelected
-            ? new ThaiAddressSelection(null, null, null) : current;
+        if (!ThaiPostcodes.IsCode(postcode, 5)) return ThaiAddressNotice.None;
+        if (selection.Subdistrict is not null)
+            return SuggestPostcode(selection.Subdistrict, postcode, null).Notice;
+        var codes = ThaiPostcodes.SubdistrictsWith(postcode);
+        if (codes.Count == 0) return ThaiAddressNotice.PostcodeNotFound;
+        var area = selection.District ?? selection.Province;
+        if (area is not null && !codes.Any(code => code.StartsWith(area, StringComparison.Ordinal)))
+            return ThaiAddressNotice.PostcodeMismatch;
+        return ThaiAddressNotice.None;
+    }
+
+    /// <summary>Confirm the chosen field and its ancestors. Dismissal and navigation confirm nothing.</summary>
+    public static ThaiAddressAutoSelection? ConfirmChoice(
+        ThaiAddressAutoSelection? autoSelected, ThaiAddressField field, ThaiAddressChoice choice)
+    {
+        if (autoSelected is null || choice is not (ThaiAddressChoice.ItemClick or ThaiAddressChoice.ItemEnter))
+            return autoSelected;
+        if (field == ThaiAddressField.Subdistrict) return null;
+        return autoSelected.ConfirmedThrough is { } confirmed && confirmed >= field
+            ? autoSelected : new(field);
+    }
+
+    /// <summary>Replace unconfirmed automatic fields; preserve explicitly confirmed fields and ancestors.</summary>
+    public static ThaiAddressPostcodeChange ChangePostcode(
+        string? postcode, ThaiAddressSelection current, ThaiAddressAutoSelection? autoSelected)
+    {
+        var selection = autoSelected is null ? current : new ThaiAddressSelection(
+            autoSelected.ConfirmedThrough >= ThaiAddressField.Province ? current.Province : null,
+            autoSelected.ConfirmedThrough >= ThaiAddressField.District ? current.District : null,
+            null);
         if (selection.Province is not null)
-            return new(selection, null, new(false, [], [], [], ThaiAddressNotice.None));
+            return new(selection, autoSelected, new(false, [], [], [], ThaiAddressNotice.None));
 
         var narrowing = Narrow(postcode);
         if (!narrowing.IsFiltered)
@@ -45,7 +78,7 @@ public static class ThaiAddressAssist
 
         selection = new(narrowing.UniqueProvince?.Code, narrowing.UniqueDistrict?.Code,
             narrowing.UniqueSubdistrict?.Code);
-        return new(selection, selection, narrowing);
+        return new(selection, new(), narrowing);
     }
 
     public static ThaiPostcodeSuggestion SuggestPostcode(string? subdistrict, string? currentText, string? lastAutoFilled)

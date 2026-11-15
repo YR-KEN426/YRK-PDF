@@ -1033,13 +1033,35 @@ public sealed class ETaxTests : IDisposable
                 Assert.Null(fields.Province);
                 Assert.Null(fields.District);
 
-                // Re-picking the province the postcode chose raises no SelectionChanged; closing the list
-                // still confirms it, so a later postcode does not replace it (plan 1.1.8 step 3).
+                // Opening and dismissing a district list must not confirm its automatic province.
+                editor.Text = "10550";
+                district.IsDropDownOpen = true;
+                district.IsDropDownOpen = false;
                 editor.Text = "10200";
                 Assert.Equal("10", fields.Province);
-                fields.ConfirmAreaChoice();
-                editor.Text = "50200";
-                Assert.Equal("10", fields.Province);
+
+                // Clicking the same province raises no SelectionChanged, but explicitly confirms it.
+                editor.Text = "10550";
+                province.IsDropDownOpen = true;
+                province.UpdateLayout();
+                var popup = (System.Windows.Controls.Primitives.Popup)province.Template.FindName("PART_Popup", province);
+                popup.Child.Measure(new System.Windows.Size(400, 400));
+                popup.Child.Arrange(new System.Windows.Rect(0, 0, 400, 400));
+                var provinceItem = (System.Windows.Controls.ComboBoxItem)province.ItemContainerGenerator
+                    .ContainerFromItem(province.SelectedItem);
+                Assert.NotNull(provinceItem);
+                provinceItem.RaiseEvent(new System.Windows.Input.MouseButtonEventArgs(
+                    System.Windows.Input.Mouse.PrimaryDevice, 0, System.Windows.Input.MouseButton.Left)
+                {
+                    RoutedEvent = System.Windows.UIElement.PreviewMouseLeftButtonUpEvent,
+                });
+                province.IsDropDownOpen = false;
+                editor.Text = "10200";
+                Assert.Equal("11", fields.Province);
+                Assert.Null(fields.District);
+                Assert.Null(fields.Subdistrict);
+                var notice = (System.Windows.Controls.TextBlock)fields.FindName("NoticeText");
+                Assert.Equal(App.Localization.Loc.T("This postcode does not match the selected subdistrict in the app's data. You can still use it."), notice.Text);
 
                 fields.Restore(saved with { Postcode = string.Empty, District = "1005", Subdistrict = "100508" });
                 // Restoring even an empty postcode does not auto-fill it.

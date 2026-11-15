@@ -4,18 +4,67 @@ namespace Yrk.PdfStudio.Core.Tests;
 
 public sealed class ThaiAddressAssistTests
 {
+    [Theory]
+    [InlineData(ThaiAddressField.Province)]
+    [InlineData(ThaiAddressField.District)]
+    [InlineData(ThaiAddressField.Subdistrict)]
+    public void Opening_and_dismissing_a_list_does_not_confirm_automatic_areas(ThaiAddressField field)
+    {
+        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
+        var automatic = ThaiAddressAssist.ConfirmChoice(first.AutoSelected, field, ThaiAddressChoice.None);
+        var changed = ThaiAddressAssist.ChangePostcode("10200", first.Selection, automatic);
+        Assert.Equal("10", changed.Selection.Province);
+    }
+
+    [Fact]
+    public void Navigating_to_a_different_item_without_confirming_does_not_lock_the_province()
+    {
+        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
+        var changed = ThaiAddressAssist.ChangePostcode("10200", new("50", "5001", null), first.AutoSelected);
+        Assert.Equal("10", changed.Selection.Province);
+    }
+
+    [Theory]
+    [InlineData(ThaiAddressChoice.ItemClick)]
+    [InlineData(ThaiAddressChoice.ItemEnter)]
+    public void Confirming_the_same_province_preserves_it_and_warns(ThaiAddressChoice choice)
+    {
+        var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
+        var automatic = ThaiAddressAssist.ConfirmChoice(first.AutoSelected, ThaiAddressField.Province, choice);
+        Assert.Equal(new(ThaiAddressField.Province), automatic);
+        var changed = ThaiAddressAssist.ChangePostcode("10200", first.Selection, automatic);
+        Assert.Equal(new("11", null, null), changed.Selection);
+        Assert.Equal(ThaiAddressNotice.PostcodeMismatch, ThaiAddressAssist.NoticeFor(changed.Selection, "10200"));
+    }
+
+    [Theory]
+    [InlineData(ThaiAddressChoice.ItemClick)]
+    [InlineData(ThaiAddressChoice.ItemEnter)]
+    public void Confirming_a_field_confirms_only_it_and_its_ancestors(ThaiAddressChoice choice)
+    {
+        var automatic = new ThaiAddressAutoSelection();
+        Assert.Equal(new(ThaiAddressField.District),
+            ThaiAddressAssist.ConfirmChoice(automatic, ThaiAddressField.District, choice));
+        Assert.Null(ThaiAddressAssist.ConfirmChoice(automatic, ThaiAddressField.Subdistrict, choice));
+        var districtConfirmed = ThaiAddressAssist.ConfirmChoice(automatic, ThaiAddressField.District, choice);
+        var changed = ThaiAddressAssist.ChangePostcode("10200", new("11", "1102", "110205"), districtConfirmed);
+        Assert.Equal(new("11", "1102", null), changed.Selection);
+        Assert.Equal(districtConfirmed,
+            ThaiAddressAssist.ConfirmChoice(districtConfirmed, ThaiAddressField.Province, choice));
+    }
+
     [Fact]
     public void Changing_postcode_replaces_automatically_selected_areas_with_the_new_province()
     {
         var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
         Assert.Equal(new("11", "1102", "110205"), first.Selection);
-        Assert.Equal(first.Selection, first.AutoSelected);
+        Assert.Equal(new ThaiAddressAutoSelection(), first.AutoSelected);
 
         var changed = ThaiAddressAssist.ChangePostcode("10200", first.Selection, first.AutoSelected);
 
         Assert.True(changed.Narrowing.IsFiltered);
         Assert.Equal(new("10", "1001", null), changed.Selection);
-        Assert.Equal(changed.Selection, changed.AutoSelected);
+        Assert.Equal(new ThaiAddressAutoSelection(), changed.AutoSelected);
     }
 
     [Fact]
@@ -24,7 +73,8 @@ public sealed class ThaiAddressAssistTests
         var first = ThaiAddressAssist.ChangePostcode("10550", new(null, null, null), null);
         var manual = new ThaiAddressSelection("10", "1001", "100101");
 
-        var changed = ThaiAddressAssist.ChangePostcode("10550", manual, first.AutoSelected);
+        var confirmed = ThaiAddressAssist.ConfirmChoice(first.AutoSelected, ThaiAddressField.Subdistrict, ThaiAddressChoice.ItemClick);
+        var changed = ThaiAddressAssist.ChangePostcode("10550", manual, confirmed);
 
         Assert.Equal(manual, changed.Selection);
         Assert.Null(changed.AutoSelected);
