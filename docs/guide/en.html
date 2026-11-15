@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -24,18 +24,20 @@
   <h2>Contents</h2>
   <ol>
     <li><a href="#start">Getting started</a></li>
-    <li><a href="#read">Reading and finding</a></li>
+    <li><a href="#scan">Scan to PDF</a></li>
+    <li><a href="#read">Reading and finding</a><br><a href="#reading-marks">· Reading marks 🔖 and bookmarks</a></li>
     <li><a href="#comment">Highlights and comments</a></li>
     <li><a href="#edit">Editing text</a></li>
     <li><a href="#fill">Forms and signatures</a></li>
-    <li><a href="#pages">Pages and files</a></li>
-    <li><a href="#convert">Converting and compressing</a></li>
+    <li><a href="#pages">Pages and files</a><br><a href="#page-clipboard">· Copy, cut and paste pages between files</a><br><a href="#watermark">· Multi-line watermarks</a></li>
+    <li><a href="#convert">Converting and compressing</a><br><a href="#convert-scan">· Convert scanned documents and review words</a><br><a href="#ocr-limits">· OCR limitations</a></li>
     <li><a href="#etax">e-Tax Invoice</a></li>
     <li><a href="#drawings">Drawings: DWG, measuring, counting</a></li>
     <li><a href="#security">Passwords and redaction</a></li>
     <li><a href="#save">Saving, printing and updates</a></li>
     <li><a href="#keys">Keyboard shortcuts</a></li>
-    <li><a href="#help">Common problems and contact</a></li>
+    <li><a href="#help">Common problems and contact</a><br><a href="#problem-report">· Error dialogs and problem reports</a></li>
+    <li><a href="#error-codes">Appendix: Error codes</a></li>
   </ol>
 </div>
 
@@ -45,9 +47,9 @@
 
   <h3>Opening files</h3>
   <ul>
-    <li>Drag a PDF from File Explorer onto the window.</li>
+    <li>Drag one or more PDFs from File Explorer onto the window.</li>
     <li>Or press <kbd>Ctrl</kbd>+<kbd>O</kbd>, or the <span class="path">Open</span> button. The arrow next to it lists recent files.</li>
-    <li>Open several files at once: each one gets its own tab.</li>
+    <li>Select several files in the <span class="path">Open</span> dialog; each one gets its own tab. If you select or drop more than 20 files, the app asks before opening them. If a file cannot be opened or you cancel its password prompt, the app skips it and continues with the next file.</li>
     <li>Besides PDF, AutoCAD drawings (DWG, DXF) open too.</li>
     <li>Reopening a file returns to the page you last read. The last 200 files are remembered on this computer only; clearing the recent files list clears this history too.</li>
   </ul>
@@ -60,7 +62,7 @@
   <ul>
     <li><b>Top row:</b> the <span class="path">File, View, Tools, Settings, Help</span> menus (<kbd>Alt</kbd> and the first letter, such as <kbd>Alt</kbd>+<kbd>F</kbd>), then Open, Save, Print, page buttons, zoom and the search box.</li>
     <li><b>Second row:</b> the task tabs <span class="path">Comment · Edit · Fill &amp; Sign · Pages · Measure · Redact</span>, each with its own tools. Undo and Redo are at the far right.</li>
-    <li><b>Sidebar:</b> page thumbnails, the comment list, signatures, drawing layers and bookmarks. The three-line button at the top left shows or hides it.</li>
+    <li><b>Sidebar:</b> page thumbnails, the comment list, signatures, drawing layers, bookmarks and reading marks. The three-line button at the top left shows or hides it.</li>
   </ul>
   <div class="tip"><b>Language:</b> <span class="path">Settings → Language / ภาษา</span> switches between English and Thai.</div>
 </section>
@@ -76,6 +78,7 @@
   </ol>
   <div class="tip"><b>Tips:</b> Pick a preset for the job; press <kbd>Space</kbd> to scan the next page; use the crop handles to fine-tune the edges; apply adjustments to this page, selected pages or all pages; turn on OCR to search the PDF text.</div>
   <div class="tip warn"><b>Document feeder:</b> Tested with a flatbed scanner. The feeder and duplex scanning are an early version. If you run into a problem, please tell us the scanner model.</div>
+  <p>Before using OCR text, read <a href="#ocr-limits">OCR limitations</a> and always check the result.</p>
 </section>
 
 <section id="read">
@@ -92,7 +95,19 @@
     <li>Drag over text with the <span class="path">Select</span> tool and press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy it.</li>
     <li>Thai stored with its vowels or tone marks out of order is put right when you copy and search. Pages printed from Excel, whose stored text is jumbled, are copied and searched line by line as printed.</li>
   </ul>
-  <div class="tip"><b>Scanned files:</b> if search and copy find nothing, the pages are pictures. Run <span class="path">Recognize text (OCR)</span> first (chapter 7).</div>
+  <div class="tip"><b>Scanned files:</b> if search and copy find nothing, the pages are pictures. Use <a href="#convert-scan">Convert scanned documents</a> or <span class="path">Recognize text (OCR)</span> first.</div>
+  <h3 id="reading-marks">Reading marks 🔖 and bookmarks</h3>
+  <p><span class="path">Reading marks</span> help you return to pages you want to read again. The <span class="path">Bookmarks</span> tab shows the document outline supplied by the PDF's author.</p>
+  <ol>
+    <li>Go to a page, then press <span class="path">Reading marks</span> on the toolbar or <kbd>Ctrl</kbd>+<kbd>D</kbd>. Enter a name of up to 40 characters, choose a colour, and press <span class="path">Add</span>.</li>
+    <li>Choose from six colours: red, orange, yellow, green, blue and purple. A coloured ribbon appears on the page and thumbnail, but is not included when printing or exporting.</li>
+    <li>Right-click a thumbnail or the page and choose <span class="path">Add reading mark…</span> or <span class="path">Edit reading mark…</span> to manage the mark for that page, even when several thumbnails are selected.</li>
+    <li>Open the <span class="path">Reading marks</span> tab in the sidebar and click an entry to go to its page. Right-click an entry to rename it or change its colour. On a marked page, use the toolbar button or <kbd>Ctrl</kbd>+<kbd>D</kbd> to edit its name or colour, or press <span class="path">Remove</span>.</li>
+  </ol>
+  <p>Reading marks are stored only on this computer, not in the PDF, so they also work with signed or read-only files. You can save up to 100 marks per file for the 200 most recently opened files.</p>
+  <p>When you insert, move or delete pages, reading mark page numbers follow along and are saved with the document. Deleting a marked page also deletes its mark; Undo restores it with that step. If you discard unsaved page changes, marks return to match the original file. When you save as a new name, the marks go with the new file.</p>
+  <div class="tip warn"><b>Keep your reading marks:</b> they are also included in the app's backup file. Clearing recent files also clears reading marks and your last-read positions.</div>
+  <!-- TODO screenshot: Reading marks tab, ribbons on the page and thumbnail, and add/edit dialog with six colour choices -->
 </section>
 
 <section id="comment">
@@ -219,6 +234,22 @@
     <li><b>Delete blank pages:</b> such as empty backs of sheets; specks and faint show-through from the other side still count as blank.</li>
   </ul>
   <p><kbd>Ctrl</kbd>+<kbd>Z</kbd> puts everything back, and the file only changes when you save.</p>
+  <h3 id="page-clipboard">Copy, cut and paste pages between files</h3>
+  <ol>
+    <li>Open the source file and click a thumbnail to focus the thumbnail list. Select pages (hold <kbd>Ctrl</kbd> to select several), then press <kbd>Ctrl</kbd>+<kbd>C</kbd> or right-click and choose <span class="path">Copy pages</span>.</li>
+    <li>To move pages, press <kbd>Ctrl</kbd>+<kbd>X</kbd> or choose <span class="path">Cut pages</span>. The pages are copied and removed from the source immediately, but the file on disk changes only when saved. You cannot cut every page and leave the file empty.</li>
+    <li>Switch to the destination file, click the thumbnail after which to insert, then press <kbd>Ctrl</kbd>+<kbd>V</kbd> or right-click and choose <span class="path">Paste pages</span>. With no thumbnail selected, pages are inserted after the current page. This works across tabs and app windows.</li>
+    <li>You can also copy a PDF in File Explorer, then return and press <kbd>Ctrl</kbd>+<kbd>V</kbd> on the thumbnail list to insert all its pages.</li>
+  </ol>
+  <p>Press <kbd>Delete</kbd> on the thumbnail list to remove selected pages. <kbd>Ctrl</kbd>+<kbd>C</kbd>/<kbd>X</kbd>/<kbd>V</kbd> act on pages only while the thumbnail list has focus; in text fields they continue to copy, cut and paste text.</p>
+  <div class="tip warn"><b>Pages waiting to be pasted:</b> the app warns when you close it or copy over cut pages that have not been pasted. Paste and save the destination before closing. To restore cut pages, press <kbd>Ctrl</kbd>+<kbd>Z</kbd> in the <b>source file</b>, because Undo is separate for each file. Undo in the destination removes only the pasted pages.</div>
+  <p>PDF permissions apply: the source must allow copying or extracting pages, and the destination must allow page changes. Signatures from the source do not travel with copied pages. If copied pages are no longer available, copy them again from the source.</p>
+  <!-- TODO screenshot: Right-click thumbnail menu with Copy pages, Cut pages and Paste pages, with two PDF tabs open -->
+  <h3 id="watermark">Multi-line watermarks</h3>
+  <p>Choose <span class="path">Tools → Watermark, header/footer and page numbers…</span>. Type in <span class="path">Watermark text</span> and press <kbd>Enter</kbd> for a new line, or choose <span class="path">Fit to page</span> to wrap at spaces automatically, up to four lines.</p>
+  <div class="tip"><b>Thai text:</b> Thai text without spaces cannot be wrapped automatically. Press <kbd>Enter</kbd> to split it into lines yourself.</div>
+  <p>Watermarks appear over the content by default. Adjust <span class="path">Opacity</span> and <span class="path">Angle</span>; to put the watermark behind the content, choose <span class="path">Behind content</span>.</p>
+  <!-- TODO screenshot: Multi-line watermark dialog with Fit to page and preview on a document -->
 </section>
 
 <section id="convert">
@@ -242,6 +273,20 @@
 
   <h3>Recognize text (OCR)</h3>
   <p>Makes scans searchable and copyable, in Thai and English. It is on the <span class="path">Edit</span> tab and in the <span class="path">Tools</span> menu.</p>
+  <h3 id="convert-scan">Convert scanned documents and review words</h3>
+  <p>Use OCR to read text from scanned PDFs or images and reduce retyping. Choose searchable PDF, editable Word document or plain text as the output.</p>
+  <ol>
+    <li>Choose the <span class="path">Convert scanned documents</span> card on the start page or <span class="path">Tools → Convert scanned documents…</span>. Add PDF or image files, or a folder; you can also drop them into the window.</li>
+    <li>Choose Thai and/or English, then select one or more <span class="path">Output formats</span>: <span class="path">Searchable PDF</span>, <span class="path">Word document</span> or <span class="path">Text (.txt)</span>.</li>
+    <li>Choose <span class="path">Review uncertain words before saving</span> and press <span class="path">Convert</span>. In the review page, words in orange boxes are words the app is unsure about. Click a word to compare it with the image, edit it and press <kbd>Enter</kbd> to confirm, or leave it blank to remove it.</li>
+    <li>Save your review, then check the output files before using them. The results page has <span class="path">Open folder</span> and <span class="path">Copy all text</span> buttons.</li>
+  </ol>
+  <p>Password-protected PDFs cannot be made searchable yet; save an unprotected copy first. For signed files, convert first and sign the output file afterwards.</p>
+  <!-- TODO screenshot: Convert scanned documents window with output formats and review option -->
+  <!-- TODO screenshot: Review uncertain words page with orange boxes, word editor and confirmed words in blue -->
+  <h3 id="ocr-limits">OCR limitations</h3>
+  <div class="tip warn"><b>Always check the result:</b> OCR reads text from images and can make mistakes, especially with blurry, skewed or small text and handwriting. Check names, numbers, dates and amounts every time. Words without orange boxes can also be wrong, so read all the text before using it.</div>
+  <p>Tip: scan at 300 dpi and keep the page straight. This advice applies when scanning to PDF, recognizing text from images and converting scanned documents.</p>
 
   <h3>PDF/A for archiving</h3>
   <p>The long-term archive format many offices ask for: <span class="path">Tools → Save as PDF/A (for archiving)…</span></p>
@@ -265,6 +310,8 @@
   <ul>
     <li>Select <span class="path">Province</span>, <span class="path">District</span> and <span class="path">Subdistrict</span> to fill in <span class="path">Postcode</span> automatically. If a subdistrict has several postcodes, a list appears for you to choose from.</li>
     <li>Type <span class="path">Postcode</span> first to narrow down the province, district and subdistrict choices. You can always type or edit the postcode yourself; if it does not match the subdistrict, the app only warns you and still lets you use it.</li>
+    <li>Enter all five postcode digits from the data to set the province and narrow the district and subdistrict lists. This also applies to the seller. A postcode entered later takes precedence and clears districts or subdistricts that do not match it. If it matches the selected area, that selection stays; if the postcode is not in the data, the existing area stays and the app shows a warning.</li>
+    <li>Province, district and subdistrict names are always shown in Thai to match registered addresses. English mode explains this below the address fields.</li>
     <li>The postcode data is stored in the app and works offline. It is from 2018 (B.E. 2561), so it may not reflect changes made since then.</li>
     <li>For the buyer's address, choose between <span class="path">Thai address (separate fields)</span> and <span class="path">Type the address yourself</span>, for example for a buyer outside Thailand.</li>
   </ul>
@@ -315,7 +362,7 @@
 <section id="security">
   <h2>Passwords and redaction</h2>
   <h3>Back up and import data</h3>
-  <p>Open <span class="path">Settings → Privacy and safety…</span> and choose <span class="path">Back up data…</span> to save selected stamps, signature images, Digital IDs, trusted certificates, e-Tax settings and general settings in an encrypted file. Choose a password of at least 12 characters and keep the file and password safe. The backup password cannot be recovered, and each Digital ID file has its own password.</p>
+  <p>Open <span class="path">Settings → Privacy and safety…</span> and choose <span class="path">Back up data…</span> to save selected stamps, signature images, Digital IDs, trusted certificates, e-Tax settings, reading marks and general settings in an encrypted file. Choose a password of at least 12 characters and keep the file and password safe. The backup password cannot be recovered, and each Digital ID file has its own password.</p>
   <p>Choose <span class="path">Import data…</span>, select the backup, enter its password and press <span class="path">Check contents</span> before <span class="path">Import data</span>. The app first backs up your current data using the same password; if that backup cannot be verified, import stops. Close and reopen YRK PDF after importing.</p>
   <h3>Adding and removing a password</h3>
   <ul>
@@ -379,8 +426,11 @@
     <tr><td><kbd>Ctrl</kbd>+<kbd>W</kbd></td><td>Close file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>T</kbd></td><td>Reopen closed file</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / Redo</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy selected text</td></tr>
-    <tr><td><kbd>Delete</kbd></td><td>Delete the selected item</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd></td><td>Copy selected text, or selected pages when the thumbnail list has focus</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>X</kbd></td><td>Cut selected pages when the thumbnail list has focus</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>V</kbd></td><td>Paste copied pages or a copied PDF when the thumbnail list has focus</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Add or edit a reading mark on the current page</td></tr>
+    <tr><td><kbd>Delete</kbd></td><td>Delete the selected item, including pages when the thumbnail list has focus</td></tr>
     <tr><td><kbd>Esc</kbd></td><td>Cancel</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find in document</td></tr>
     <tr><td><kbd>F3</kbd> / <kbd>Shift</kbd>+<kbd>F3</kbd></td><td>Next / previous result</td></tr>
@@ -397,6 +447,10 @@
 
 <section id="help">
   <h2>Common problems and contact</h2>
+  <h3 id="problem-report">Error dialogs and problem reports</h3>
+  <p>The <span class="path">Error</span> dialog shows a message, a code such as <span class="path">YRK-PAGE-006</span>, and <span class="path">What you can do:</span>. Try the suggested steps first. Look up the code in the <a href="#error-codes">Error codes appendix</a>.</p>
+  <p>If the problem continues, press <span class="path">Copy info for problem report</span> in the error dialog, or choose <span class="path">Help → Copy info for problem report</span>. Review the information, then paste it into a message to the developer yourself. Nothing is sent automatically; error details are logged only on this computer.</p>
+  <!-- TODO screenshot: Error dialog showing code, What you can do, technical details and Copy info for problem report button -->
   <h3>Windows shows a SmartScreen warning when installing</h3>
   <p>The program does not have a paid developer certificate yet. Press <span class="path">More info</span>, then <span class="path">Run anyway</span>. Only download from the official website.</p>
   <h3>Search and copy find no text</h3>
@@ -414,6 +468,319 @@
   <h3>Support the developer</h3>
   <p><span class="path">Help → Support the developer…</span> opens an in-program window with a PromptPay QR code; opening it uses no internet. <span class="path">Ko-fi</span> and <span class="path">GitHub Sponsors</span> open a web browser only when pressed. Ko-fi accepts credit/debit cards and payments in Thai baht. The program is fully usable for free without supporting it.</p>
   <p style="margin-top:24px;color:var(--muted)">YRK PDF is made by YRK LAB — Your Reliable Kit · Free software under the Apache-2.0 license</p>
+</section>
+
+<section id="error-codes">
+  <h2>Appendix: Error codes</h2>
+  <p>These codes, messages and suggestions come from the error catalog in docs/error-codes.md. If the problem continues, use <a href="#problem-report">Copy info for problem report</a> and contact the developer.</p>
+  <h3>FILE</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-FILE-001</td><td>The recent file is no longer available. It was removed from the recent list.</td><td>Locate the file and open it again.</td></tr>
+    <tr><td>YRK-FILE-002</td><td>The document could not be opened.</td><td>Check that the file is readable and try again.</td></tr>
+    <tr><td>YRK-FILE-003</td><td>The Illustrator document could not be opened.</td><td>Save it in Illustrator with Create PDF Compatible File enabled, then try again.</td></tr>
+    <tr><td>YRK-FILE-004</td><td>The document could not be saved.</td><td>Check folder access and try saving again.</td></tr>
+    <tr><td>YRK-FILE-005</td><td>The original could not be replaced. A separate copy was saved.</td><td>Check the saved copy, then close other programs using the original and save again.</td></tr>
+    <tr><td>YRK-FILE-006</td><td>The unsaved document could not be recovered.</td><td>Try recovery again or open your latest saved copy.</td></tr>
+    <tr><td>YRK-FILE-007</td><td>The link or folder could not be opened.</td><td>Check the default app and access permissions, then try again.</td></tr>
+  </table>
+  <h3>PAGE</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-PAGE-001</td><td>A PDF must keep at least one page.</td><td>Keep one page and select the other pages to delete.</td></tr>
+    <tr><td>YRK-PAGE-002</td><td>The combined PDF cannot replace an input file.</td><td>Choose a new name for the combined PDF.</td></tr>
+    <tr><td>YRK-PAGE-003</td><td>The PDF operation could not be completed.</td><td>Check the source documents and try again.</td></tr>
+    <tr><td>YRK-PAGE-004</td><td>The output cannot replace the open document.</td><td>Choose another name, or use Save to update the open document.</td></tr>
+    <tr><td>YRK-PAGE-005</td><td>The page range is invalid.</td><td>1-3, 5 Enter page numbers within the document, for example 1-3, 5.</td></tr>
+    <tr><td>YRK-PAGE-006</td><td>The copied pages are no longer available. Please copy them again.</td><td>Copy the pages again from the source document.</td></tr>
+    <tr><td>YRK-PAGE-007</td><td>The page clipboard could not be accessed.</td><td>Try copying or pasting the pages again.</td></tr>
+    <tr><td>YRK-PAGE-008</td><td>The source document does not allow copying or extracting pages.</td><td>Open the source document with its owner password before copying pages.</td></tr>
+  </table>
+  <h3>EXP</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-EXP-001</td><td>This document cannot be saved as PDF/A without changing its appearance. Nothing was saved.</td><td>Use a regular PDF or adjust the document before trying PDF/A again.</td></tr>
+    <tr><td>YRK-EXP-002</td><td>The PDF/A document could not be saved.</td><td>Check folder access and try again.</td></tr>
+    <tr><td>YRK-EXP-003</td><td>The document could not be exported.</td><td>Check the export settings and destination folder, then try again.</td></tr>
+  </table>
+  <h3>PRN</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-PRN-001</td><td>The document could not be printed.</td><td>Check the printer connection and paper, then try again.</td></tr>
+    <tr><td>YRK-PRN-002</td><td>The printers could not be listed.</td><td>Check Windows printer settings and reopen the print dialog.</td></tr>
+    <tr><td>YRK-PRN-003</td><td>The printer is not available.</td><td>Turn on the printer or select another printer.</td></tr>
+  </table>
+  <h3>BAT</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-BAT-001</td><td>The output folder could not be used.</td><td>Choose a writable folder and try again.</td></tr>
+    <tr><td>YRK-BAT-002</td><td>Some files could not be processed.</td><td>Check the source files and job settings, then try again.</td></tr>
+    <tr><td>YRK-BAT-003</td><td>None of the first files could be opened for the preview.</td><td>Choose readable PDF files and try again.</td></tr>
+    <tr><td>YRK-BAT-004</td><td>A file is protected against this change.</td><td>Unlock it with the owner password before processing it.</td></tr>
+    <tr><td>YRK-BAT-005</td><td>A file needs a password to open.</td><td>Open and unlock the file before processing it.</td></tr>
+  </table>
+  <h3>CAD</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-CAD-001</td><td>The CAD drawing could not be opened.</td><td>Check that the drawing is a supported DWG or DXF file and try again.</td></tr>
+  </table>
+  <h3>EDIT</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-EDIT-001</td><td>The annotation could not be changed.</td><td>Try the change again or reopen the document.</td></tr>
+    <tr><td>YRK-EDIT-002</td><td>The picture could not be added.</td><td>Choose a readable image file and try again.</td></tr>
+    <tr><td>YRK-EDIT-003</td><td>The changes could not be applied.</td><td>Try again. If needed, save a copy and reopen it.</td></tr>
+    <tr><td>YRK-EDIT-004</td><td>This editing step could not be restored.</td><td>Try again or reopen your latest saved copy.</td></tr>
+    <tr><td>YRK-EDIT-005</td><td>The document operation failed.</td><td>Check the document and operation settings, then try again.</td></tr>
+    <tr><td>YRK-EDIT-006</td><td>The count list could not be saved.</td><td>Choose a writable folder and try again.</td></tr>
+    <tr><td>YRK-EDIT-007</td><td>This page could not be compared.</td><td>Try another page or reopen both documents.</td></tr>
+    <tr><td>YRK-EDIT-008</td><td>The text could not be changed.</td><td>If the font cannot be edited or the text overlaps an image, use a white box and Add text instead.</td></tr>
+    <tr><td>YRK-EDIT-009</td><td>The form fields could not be added.</td><td>Check the document and try adding the fields again.</td></tr>
+    <tr><td>YRK-EDIT-010</td><td>The saved item could not be changed safely.</td><td>Try another item or save a copy before editing again.</td></tr>
+  </table>
+  <h3>SIG</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-SIG-023</td><td>The signature could not be saved for later use.</td><td>Check access to the signature folder and try again.</td></tr>
+    <tr><td>YRK-SIG-024</td><td>The saved signature could not be deleted.</td><td>Check access to the signature folder and try again.</td></tr>
+    <tr><td>YRK-SIG-025</td><td>The certificate revocation list could not be downloaded.</td><td>Check the internet connection, or sign without long-term validation.</td></tr>
+    <tr><td>YRK-SIG-026</td><td>The certificate revocation list was downloaded but could not be validated.</td><td>Try again later, or sign without long-term validation.</td></tr>
+    <tr><td>YRK-SIG-001</td><td>The certificate could not be trusted.</td><td>Try adding the certificate again.</td></tr>
+    <tr><td>YRK-SIG-002</td><td>The signed version could not be opened.</td><td>Try again or save a copy first.</td></tr>
+    <tr><td>YRK-SIG-003</td><td>No version before signing is stored in this file.</td><td>Use an earlier backup of the document.</td></tr>
+    <tr><td>YRK-SIG-004</td><td>The version before signing cannot be saved because the signature data is invalid.</td><td>Use an earlier backup of the document.</td></tr>
+    <tr><td>YRK-SIG-005</td><td>The version before signing cannot replace the open document.</td><td>Choose a different file name.</td></tr>
+    <tr><td>YRK-SIG-006</td><td>The version before signing could not be saved.</td><td>Choose another folder and try again.</td></tr>
+    <tr><td>YRK-SIG-007</td><td>The certificate could not be exported.</td><td>Choose another folder and try again.</td></tr>
+    <tr><td>YRK-SIG-008</td><td>The certificate could not be opened.</td><td>Choose a valid digital ID and try again.</td></tr>
+    <tr><td>YRK-SIG-009</td><td>The digital ID could not be created.</td><td>Check the information and try again.</td></tr>
+    <tr><td>YRK-SIG-010</td><td>The digital ID password is incorrect.</td><td>Enter the correct password and try again.</td></tr>
+    <tr><td>YRK-SIG-011</td><td>The digital ID could not be copied.</td><td>Choose another folder and try again.</td></tr>
+    <tr><td>YRK-SIG-012</td><td>The digital ID password could not be changed.</td><td>Check the current password and try again.</td></tr>
+    <tr><td>YRK-SIG-013</td><td>Enter the password of this ID first.</td><td>Type the digital ID password and try again.</td></tr>
+    <tr><td>YRK-SIG-014</td><td>The digital ID could not be added.</td><td>Choose a valid digital ID file and try again.</td></tr>
+    <tr><td>YRK-SIG-015</td><td>Choose a digital ID first.</td><td>Select a digital ID from the list.</td></tr>
+    <tr><td>YRK-SIG-016</td><td>The timestamp server address is invalid.</td><td>Enter a valid HTTP or HTTPS address.</td></tr>
+    <tr><td>YRK-SIG-017</td><td>This ID has no private key, so it cannot sign.</td><td>Choose a digital ID with a private key.</td></tr>
+    <tr><td>YRK-SIG-018</td><td>This digital ID has expired.</td><td>Choose a valid digital ID.</td></tr>
+    <tr><td>YRK-SIG-019</td><td>This ID is not valid yet.</td><td>Check the computer date or choose another digital ID.</td></tr>
+    <tr><td>YRK-SIG-020</td><td>The file could not be used as a signature.</td><td>Choose another image or PDF file.</td></tr>
+    <tr><td>YRK-SIG-021</td><td>The trusted certificates could not be updated.</td><td>Check access to the certificate files and try again.</td></tr>
+    <tr><td>YRK-SIG-022</td><td>The digital IDs could not be loaded.</td><td>Check access to the digital ID files and try again.</td></tr>
+  </table>
+  <h3>APP</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-APP-004</td><td>YRK PDF could not restart.</td><td>Close and reopen the app when you are ready.</td></tr>
+    <tr><td>YRK-APP-001</td><td>Something went wrong while using the app.</td><td>Try again. If the problem continues, copy the problem report and contact support.</td></tr>
+    <tr><td>YRK-APP-002</td><td>The app encountered a problem and needs to close.</td><td>Restart the app. If recovery is offered, recover your unsaved work.</td></tr>
+    <tr><td>YRK-APP-003</td><td>A background task could not be completed.</td><td>Try the operation again. If the problem continues, copy the problem report and contact support.</td></tr>
+  </table>
+  <h3>SCN</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-SCN-001</td><td>No scanner found.</td><td>Connect your scanner and try again.</td></tr>
+    <tr><td>YRK-SCN-002</td><td>The scanner is busy. Scanned pages have been kept.</td><td>Wait and try again.</td></tr>
+    <tr><td>YRK-SCN-003</td><td>Paper is jammed. Scanned pages have been kept.</td><td>Clear the paper and try Scan more.</td></tr>
+    <tr><td>YRK-SCN-004</td><td>The feeder is empty.</td><td>Put paper in the feeder and try again.</td></tr>
+    <tr><td>YRK-SCN-005</td><td>The feeder is empty. Scanned pages have been kept.</td><td>Add more paper and try Scan more, or create a file from the scanned pages.</td></tr>
+    <tr><td>YRK-SCN-006</td><td>Scanning cancelled. Scanned pages have been kept.</td><td>Try Scan more, or create a file from the scanned pages.</td></tr>
+    <tr><td>YRK-SCN-007</td><td>The scanner is not ready.</td><td>Check its power and connection, then find scanners again.</td></tr>
+    <tr><td>YRK-SCN-008</td><td>The scanner connection was lost.</td><td>Check the USB cable and turn on the scanner, then press Find scanners again.</td></tr>
+    <tr><td>YRK-SCN-009</td><td>The scanner reported an error.</td><td>Try scanning again.</td></tr>
+    <tr><td>YRK-SCN-010</td><td>The scanned pages could not be saved.</td><td>Choose another folder and try again. If the problem continues, copy the problem report.</td></tr>
+  </table>
+  <h3>SEC</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-SEC-001</td><td>The protected document could not be read.</td><td>Check access to the document and try again.</td></tr>
+    <tr><td>YRK-SEC-002</td><td>The document could not be unlocked.</td><td>Check the password and try again.</td></tr>
+    <tr><td>YRK-SEC-003</td><td>The search for text to redact failed.</td><td>Try searching again.</td></tr>
+  </table>
+  <h3>UPD</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-UPD-001</td><td>The update download timed out.</td><td>Check the internet connection and try again.</td></tr>
+    <tr><td>YRK-UPD-002</td><td>An update was found, but it was not signed by YRK. It was deleted and not installed.</td><td>Try checking for updates again later.</td></tr>
+    <tr><td>YRK-UPD-003</td><td>Updates could not be checked.</td><td>Check the internet connection and try again later.</td></tr>
+    <tr><td>YRK-UPD-004</td><td>The update could not be installed.</td><td>Check for updates and download it again.</td></tr>
+    <tr><td>YRK-UPD-005</td><td>An update was found, but it was not signed by YRK. It was not installed. The downloaded file could not be deleted.</td><td>Restart the computer, then check for updates again.</td></tr>
+  </table>
+  <h3>OCR</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-OCR-001</td><td>The language data could not be downloaded.</td><td>Check the internet connection and try again.</td></tr>
+    <tr><td>YRK-OCR-002</td><td>Text recognition failed. The PDF was saved without searchable text.</td><td>Try recognizing text in the saved PDF again.</td></tr>
+    <tr><td>YRK-OCR-003</td><td>The review page could not be displayed.</td><td>Try opening the review page again.</td></tr>
+  </table>
+  <h3>CNV</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-CNV-001</td><td>Choose at least one file, language and output format.</td><td>Select the missing options and try again.</td></tr>
+    <tr><td>YRK-CNV-002</td><td>Conversion was interrupted unexpectedly.</td><td>Try converting the document again.</td></tr>
+    <tr><td>YRK-CNV-003</td><td>The scanned document could not be converted.</td><td>Check that the file can be opened and try again.</td></tr>
+    <tr><td>YRK-CNV-004</td><td>Some output files could not be created.</td><td>Check the results folder and try again.</td></tr>
+    <tr><td>YRK-CNV-005</td><td>The files could not be added.</td><td>Check access to the files and try again.</td></tr>
+    <tr><td>YRK-CNV-006</td><td>The results folder could not be opened.</td><td>File Explorer Open the results folder in File Explorer.</td></tr>
+    <tr><td>YRK-CNV-007</td><td>The text could not be copied.</td><td>Try copying the text again.</td></tr>
+    <tr><td>YRK-CNV-008</td><td>Password-protected PDFs cannot be made searchable yet.</td><td>Save an unprotected copy first.</td></tr>
+    <tr><td>YRK-CNV-009</td><td>Every page already contains text.</td><td>Choose all pages to recognize the text again.</td></tr>
+  </table>
+</section>
+
+$1
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-FILE-001</td><td>The recent file is no longer available. It was removed from the recent list.</td><td>Locate the file and open it again.</td></tr>
+    <tr><td>YRK-FILE-002</td><td>The document could not be opened.</td><td>Check that the file is readable and try again.</td></tr>
+    <tr><td>YRK-FILE-003</td><td>The Illustrator document could not be opened.</td><td>Save it in Illustrator with Create PDF Compatible File enabled, then try again.</td></tr>
+    <tr><td>YRK-FILE-004</td><td>The document could not be saved.</td><td>Check folder access and try saving again.</td></tr>
+    <tr><td>YRK-FILE-005</td><td>The original could not be replaced. A separate copy was saved.</td><td>Check the saved copy, then close other programs using the original and save again.</td></tr>
+    <tr><td>YRK-FILE-006</td><td>The unsaved document could not be recovered.</td><td>Try recovery again or open your latest saved copy.</td></tr>
+    <tr><td>YRK-FILE-007</td><td>The link or folder could not be opened.</td><td>Check the default app and access permissions, then try again.</td></tr>
+  </table>
+  <h3>PAGE</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-PAGE-001</td><td>A PDF must keep at least one page.</td><td>Keep one page and select the other pages to delete.</td></tr>
+    <tr><td>YRK-PAGE-002</td><td>The combined PDF cannot replace an input file.</td><td>Choose a new name for the combined PDF.</td></tr>
+    <tr><td>YRK-PAGE-003</td><td>The PDF operation could not be completed.</td><td>Check the source documents and try again.</td></tr>
+    <tr><td>YRK-PAGE-004</td><td>The output cannot replace the open document.</td><td>Choose another name, or use Save to update the open document.</td></tr>
+    <tr><td>YRK-PAGE-005</td><td>The page range is invalid.</td><td>1-3, 5 Enter page numbers within the document, for example 1-3, 5.</td></tr>
+    <tr><td>YRK-PAGE-006</td><td>The copied pages are no longer available. Please copy them again.</td><td>Copy the pages again from the source document.</td></tr>
+    <tr><td>YRK-PAGE-007</td><td>The page clipboard could not be accessed.</td><td>Try copying or pasting the pages again.</td></tr>
+    <tr><td>YRK-PAGE-008</td><td>The source document does not allow copying or extracting pages.</td><td>Open the source document with its owner password before copying pages.</td></tr>
+  </table>
+  <h3>EXP</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-EXP-001</td><td>This document cannot be saved as PDF/A without changing its appearance. Nothing was saved.</td><td>Use a regular PDF or adjust the document before trying PDF/A again.</td></tr>
+    <tr><td>YRK-EXP-002</td><td>The PDF/A document could not be saved.</td><td>Check folder access and try again.</td></tr>
+    <tr><td>YRK-EXP-003</td><td>The document could not be exported.</td><td>Check the export settings and destination folder, then try again.</td></tr>
+  </table>
+  <h3>PRN</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-PRN-001</td><td>The document could not be printed.</td><td>Check the printer connection and paper, then try again.</td></tr>
+    <tr><td>YRK-PRN-002</td><td>The printers could not be listed.</td><td>Check Windows printer settings and reopen the print dialog.</td></tr>
+    <tr><td>YRK-PRN-003</td><td>The printer is not available.</td><td>Turn on the printer or select another printer.</td></tr>
+  </table>
+  <h3>BAT</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-BAT-001</td><td>The output folder could not be used.</td><td>Choose a writable folder and try again.</td></tr>
+    <tr><td>YRK-BAT-002</td><td>Some files could not be processed.</td><td>Check the source files and job settings, then try again.</td></tr>
+    <tr><td>YRK-BAT-003</td><td>None of the first files could be opened for the preview.</td><td>Choose readable PDF files and try again.</td></tr>
+    <tr><td>YRK-BAT-004</td><td>A file is protected against this change.</td><td>Unlock it with the owner password before processing it.</td></tr>
+    <tr><td>YRK-BAT-005</td><td>A file needs a password to open.</td><td>Open and unlock the file before processing it.</td></tr>
+  </table>
+  <h3>CAD</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-CAD-001</td><td>The CAD drawing could not be opened.</td><td>Check that the drawing is a supported DWG or DXF file and try again.</td></tr>
+  </table>
+  <h3>EDIT</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-EDIT-001</td><td>The annotation could not be changed.</td><td>Try the change again or reopen the document.</td></tr>
+    <tr><td>YRK-EDIT-002</td><td>The picture could not be added.</td><td>Choose a readable image file and try again.</td></tr>
+    <tr><td>YRK-EDIT-003</td><td>The changes could not be applied.</td><td>Try again. If needed, save a copy and reopen it.</td></tr>
+    <tr><td>YRK-EDIT-004</td><td>This editing step could not be restored.</td><td>Try again or reopen your latest saved copy.</td></tr>
+    <tr><td>YRK-EDIT-005</td><td>The document operation failed.</td><td>Check the document and operation settings, then try again.</td></tr>
+    <tr><td>YRK-EDIT-006</td><td>The count list could not be saved.</td><td>Choose a writable folder and try again.</td></tr>
+    <tr><td>YRK-EDIT-007</td><td>This page could not be compared.</td><td>Try another page or reopen both documents.</td></tr>
+    <tr><td>YRK-EDIT-008</td><td>The text could not be changed.</td><td>If the font cannot be edited or the text overlaps an image, use a white box and Add text instead.</td></tr>
+    <tr><td>YRK-EDIT-009</td><td>The form fields could not be added.</td><td>Check the document and try adding the fields again.</td></tr>
+    <tr><td>YRK-EDIT-010</td><td>The saved item could not be changed safely.</td><td>Try another item or save a copy before editing again.</td></tr>
+  </table>
+  <h3>SIG</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-SIG-023</td><td>The signature could not be saved for later use.</td><td>Check access to the signature folder and try again.</td></tr>
+    <tr><td>YRK-SIG-024</td><td>The saved signature could not be deleted.</td><td>Check access to the signature folder and try again.</td></tr>
+    <tr><td>YRK-SIG-025</td><td>The certificate revocation list could not be downloaded.</td><td>Check the internet connection, or sign without long-term validation.</td></tr>
+    <tr><td>YRK-SIG-026</td><td>The certificate revocation list was downloaded but could not be validated.</td><td>Try again later, or sign without long-term validation.</td></tr>
+    <tr><td>YRK-SIG-001</td><td>The certificate could not be trusted.</td><td>Try adding the certificate again.</td></tr>
+    <tr><td>YRK-SIG-002</td><td>The signed version could not be opened.</td><td>Try again or save a copy first.</td></tr>
+    <tr><td>YRK-SIG-003</td><td>No version before signing is stored in this file.</td><td>Use an earlier backup of the document.</td></tr>
+    <tr><td>YRK-SIG-004</td><td>The version before signing cannot be saved because the signature data is invalid.</td><td>Use an earlier backup of the document.</td></tr>
+    <tr><td>YRK-SIG-005</td><td>The version before signing cannot replace the open document.</td><td>Choose a different file name.</td></tr>
+    <tr><td>YRK-SIG-006</td><td>The version before signing could not be saved.</td><td>Choose another folder and try again.</td></tr>
+    <tr><td>YRK-SIG-007</td><td>The certificate could not be exported.</td><td>Choose another folder and try again.</td></tr>
+    <tr><td>YRK-SIG-008</td><td>The certificate could not be opened.</td><td>Choose a valid digital ID and try again.</td></tr>
+    <tr><td>YRK-SIG-009</td><td>The digital ID could not be created.</td><td>Check the information and try again.</td></tr>
+    <tr><td>YRK-SIG-010</td><td>The digital ID password is incorrect.</td><td>Enter the correct password and try again.</td></tr>
+    <tr><td>YRK-SIG-011</td><td>The digital ID could not be copied.</td><td>Choose another folder and try again.</td></tr>
+    <tr><td>YRK-SIG-012</td><td>The digital ID password could not be changed.</td><td>Check the current password and try again.</td></tr>
+    <tr><td>YRK-SIG-013</td><td>Enter the password of this ID first.</td><td>Type the digital ID password and try again.</td></tr>
+    <tr><td>YRK-SIG-014</td><td>The digital ID could not be added.</td><td>Choose a valid digital ID file and try again.</td></tr>
+    <tr><td>YRK-SIG-015</td><td>Choose a digital ID first.</td><td>Select a digital ID from the list.</td></tr>
+    <tr><td>YRK-SIG-016</td><td>The timestamp server address is invalid.</td><td>Enter a valid HTTP or HTTPS address.</td></tr>
+    <tr><td>YRK-SIG-017</td><td>This ID has no private key, so it cannot sign.</td><td>Choose a digital ID with a private key.</td></tr>
+    <tr><td>YRK-SIG-018</td><td>This digital ID has expired.</td><td>Choose a valid digital ID.</td></tr>
+    <tr><td>YRK-SIG-019</td><td>This ID is not valid yet.</td><td>Check the computer date or choose another digital ID.</td></tr>
+    <tr><td>YRK-SIG-020</td><td>The file could not be used as a signature.</td><td>Choose another image or PDF file.</td></tr>
+    <tr><td>YRK-SIG-021</td><td>The trusted certificates could not be updated.</td><td>Check access to the certificate files and try again.</td></tr>
+    <tr><td>YRK-SIG-022</td><td>The digital IDs could not be loaded.</td><td>Check access to the digital ID files and try again.</td></tr>
+  </table>
+  <h3>APP</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-APP-004</td><td>YRK PDF could not restart.</td><td>Close and reopen the app when you are ready.</td></tr>
+    <tr><td>YRK-APP-001</td><td>Something went wrong while using the app.</td><td>Try again. If the problem continues, copy the problem report and contact support.</td></tr>
+    <tr><td>YRK-APP-002</td><td>The app encountered a problem and needs to close.</td><td>Restart the app. If recovery is offered, recover your unsaved work.</td></tr>
+    <tr><td>YRK-APP-003</td><td>A background task could not be completed.</td><td>Try the operation again. If the problem continues, copy the problem report and contact support.</td></tr>
+  </table>
+  <h3>SCN</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-SCN-001</td><td>No scanner found.</td><td>Connect your scanner and try again.</td></tr>
+    <tr><td>YRK-SCN-002</td><td>The scanner is busy. Scanned pages have been kept.</td><td>Wait and try again.</td></tr>
+    <tr><td>YRK-SCN-003</td><td>Paper is jammed. Scanned pages have been kept.</td><td>Clear the paper and try Scan more.</td></tr>
+    <tr><td>YRK-SCN-004</td><td>The feeder is empty.</td><td>Put paper in the feeder and try again.</td></tr>
+    <tr><td>YRK-SCN-005</td><td>The feeder is empty. Scanned pages have been kept.</td><td>Add more paper and try Scan more, or create a file from the scanned pages.</td></tr>
+    <tr><td>YRK-SCN-006</td><td>Scanning cancelled. Scanned pages have been kept.</td><td>Try Scan more, or create a file from the scanned pages.</td></tr>
+    <tr><td>YRK-SCN-007</td><td>The scanner is not ready.</td><td>Check its power and connection, then find scanners again.</td></tr>
+    <tr><td>YRK-SCN-008</td><td>The scanner connection was lost.</td><td>Check the USB cable and turn on the scanner, then press Find scanners again.</td></tr>
+    <tr><td>YRK-SCN-009</td><td>The scanner reported an error.</td><td>Try scanning again.</td></tr>
+    <tr><td>YRK-SCN-010</td><td>The scanned pages could not be saved.</td><td>Choose another folder and try again. If the problem continues, copy the problem report.</td></tr>
+  </table>
+  <h3>SEC</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-SEC-001</td><td>The protected document could not be read.</td><td>Check access to the document and try again.</td></tr>
+    <tr><td>YRK-SEC-002</td><td>The document could not be unlocked.</td><td>Check the password and try again.</td></tr>
+    <tr><td>YRK-SEC-003</td><td>The search for text to redact failed.</td><td>Try searching again.</td></tr>
+  </table>
+  <h3>UPD</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-UPD-001</td><td>The update download timed out.</td><td>Check the internet connection and try again.</td></tr>
+    <tr><td>YRK-UPD-002</td><td>An update was found, but it was not signed by YRK. It was deleted and not installed.</td><td>Try checking for updates again later.</td></tr>
+    <tr><td>YRK-UPD-003</td><td>Updates could not be checked.</td><td>Check the internet connection and try again later.</td></tr>
+    <tr><td>YRK-UPD-004</td><td>The update could not be installed.</td><td>Check for updates and download it again.</td></tr>
+    <tr><td>YRK-UPD-005</td><td>An update was found, but it was not signed by YRK. It was not installed. The downloaded file could not be deleted.</td><td>Restart the computer, then check for updates again.</td></tr>
+  </table>
+  <h3>OCR</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-OCR-001</td><td>The language data could not be downloaded.</td><td>Check the internet connection and try again.</td></tr>
+    <tr><td>YRK-OCR-002</td><td>Text recognition failed. The PDF was saved without searchable text.</td><td>Try recognizing text in the saved PDF again.</td></tr>
+    <tr><td>YRK-OCR-003</td><td>The review page could not be displayed.</td><td>Try opening the review page again.</td></tr>
+  </table>
+  <h3>CNV</h3>
+  <table>
+    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
+    <tr><td>YRK-CNV-001</td><td>Choose at least one file, language and output format.</td><td>Select the missing options and try again.</td></tr>
+    <tr><td>YRK-CNV-002</td><td>Conversion was interrupted unexpectedly.</td><td>Try converting the document again.</td></tr>
+    <tr><td>YRK-CNV-003</td><td>The scanned document could not be converted.</td><td>Check that the file can be opened and try again.</td></tr>
+    <tr><td>YRK-CNV-004</td><td>Some output files could not be created.</td><td>Check the results folder and try again.</td></tr>
+    <tr><td>YRK-CNV-005</td><td>The files could not be added.</td><td>Check access to the files and try again.</td></tr>
+    <tr><td>YRK-CNV-006</td><td>The results folder could not be opened.</td><td>File Explorer Open the results folder in File Explorer.</td></tr>
+    <tr><td>YRK-CNV-007</td><td>The text could not be copied.</td><td>Try copying the text again.</td></tr>
+    <tr><td>YRK-CNV-008</td><td>Password-protected PDFs cannot be made searchable yet.</td><td>Save an unprotected copy first.</td></tr>
+    <tr><td>YRK-CNV-009</td><td>Every page already contains text.</td><td>Choose all pages to recognize the text again.</td></tr>
+  </table>
 </section>
 
 </body>
