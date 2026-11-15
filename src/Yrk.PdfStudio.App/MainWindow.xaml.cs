@@ -1610,6 +1610,21 @@ public partial class MainWindow : Window
         menu.Items.Add(shortcuts);
         menu.Items.Add(LinkItem("Common questions (website)", Services.Feedback.WebsiteUrl + "#faq"));
         menu.Items.Add(new MenuItem { Header = "Suggestions and problems…", Command = _viewModel.ShowFeedbackCommand });
+        var copyReport = new MenuItem { Header = "Copy info for problem report" };
+        copyReport.Click += (_, _) =>
+        {
+            try
+            {
+                Clipboard.SetText(Services.ProblemReport.Build(_viewModel.AppVersion, null, null, App.LogFolder, DateTime.Now));
+            }
+            catch (Exception)
+            {
+                new Services.DialogService().ShowInfo(Loc.T("Could not copy. Try again."));
+                return;
+            }
+            new Services.DialogService().ShowInfo(Loc.T("Copied"));
+        };
+        menu.Items.Add(copyReport);
         var support = new MenuItem { Header = Loc.T("Support the developer…") };
         support.Click += (_, _) => new Views.SupportDialog { Owner = this }.ShowDialog();
         menu.Items.Add(support);

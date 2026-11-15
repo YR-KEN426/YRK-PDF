@@ -132,7 +132,8 @@ internal sealed class ScriptedDialogs
                 var answer = answers.Dequeue();
                 return answer is Func<object?[], object?> callback ? callback(args ?? []) : answer;
             }
-            if (method.Name is "ShowError" or "ShowInfo" or "ShowConvertScanResult") return null;
+            // Both ShowError overloads are void and are recorded above, including ErrorInfo and args.
+            if (method.ReturnType == typeof(void) && method.Name is "ShowError" or "ShowInfo" or "ShowConvertScanResult") return null;
             throw new InvalidOperationException($"No scripted answer for {method.Name}");
         };
     }

@@ -1760,5 +1760,16 @@
   "The scanner connection was lost.": "การเชื่อมต่อเครื่องสแกนขาดหาย",
   "Check the USB cable and turn on the scanner, then press Find scanners again.": "ตรวจสอบสาย USB และเปิดเครื่องสแกน แล้วกดค้นหาเครื่องสแกนอีกครั้ง",
   "The scanner reported an error.": "เครื่องสแกนแจ้งข้อผิดพลาด",
-  "Try scanning again.": "ลองสแกนอีกครั้ง"
+  "Try scanning again.": "ลองสแกนอีกครั้ง",
+  "Error": "ข้อผิดพลาด",
+  "Error message": "ข้อความแจ้งข้อผิดพลาด",
+  "What you can do:": "สิ่งที่ทำได้:",
+  "Error code": "รหัสข้อผิดพลาด",
+  "Technical details": "รายละเอียดทางเทคนิค",
+  "Copy status": "สถานะการคัดลอก",
+  "Copy info for problem report": "คัดลอกข้อมูลเพื่อแจ้งปัญหา",
+  "Copied": "คัดลอกแล้ว",
+  "Could not copy. Try again.": "คัดลอกไม่สำเร็จ กรุณาลองอีกครั้ง",
+  "No technical details available.": "ไม่มีรายละเอียดทางเทคนิค",
+  "OK": "ตกลง"
 }

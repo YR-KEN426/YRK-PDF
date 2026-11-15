@@ -111,6 +111,9 @@ public partial class App : Application
 
     private static void LogError(Exception exception) => LogMessage(exception.ToString());
 
+    internal static void LogError(ErrorInfo error, Exception? ex = null) =>
+        LogMessage(error.Code + " " + (ex?.ToString() ?? error.Message));
+
     public static void LogMessage(string message)
         => LogMessage(message, LogFolder, DateTime.Now);
 

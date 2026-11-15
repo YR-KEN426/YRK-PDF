@@ -315,6 +315,25 @@ public sealed class DialogService : IDialogService
         }
     }
 
+    public void ShowError(ErrorInfo error, Exception? ex = null, params object[] args)
+    {
+        App.LogError(error, ex);
+        try
+        {
+            var dialog = new ErrorDialog(error, ex, args);
+            if (Owner is { } owner) dialog.Owner = owner;
+            else dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            dialog.ShowDialog();
+        }
+        catch (Exception dialogError)
+        {
+            App.LogMessage("Error dialog failed: " + dialogError);
+            var message = args.Length == 0 ? Loc.T(error.Message) : Loc.F(error.Message, args);
+            MessageBox.Show($"{message}\n\n{Loc.T("What you can do:")} {Loc.T(error.NextStep)}\n\n{error.Code}",
+                Caption, MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private static bool ShowDialog(CommonDialog dialog) =>
         (Owner is { } owner ? dialog.ShowDialog(owner) : dialog.ShowDialog()) == true;
 }

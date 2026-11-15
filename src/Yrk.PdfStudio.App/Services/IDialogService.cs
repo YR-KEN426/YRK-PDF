@@ -164,4 +164,6 @@ public interface IDialogService
     bool AskYesNo(string message);
 
     void ShowError(string message);
+
+    void ShowError(ErrorInfo error, Exception? ex = null, params object[] args);
 }
