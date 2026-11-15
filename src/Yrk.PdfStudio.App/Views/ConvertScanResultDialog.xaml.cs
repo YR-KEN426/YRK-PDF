@@ -26,7 +26,9 @@ public partial class ConvertScanResultDialog : Window
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
-            ErrorText.Text = Loc.F("Couldn't open the results folder.\n\n{0}", ex.Message);
+            var error = ErrorCatalog.ConvertScanOpenFolder;
+            App.LogError(error, ex);
+            ErrorText.Text = Loc.T(error.Message) + "\n" + Loc.T(error.NextStep);
         }
     }
 
@@ -35,7 +37,9 @@ public partial class ConvertScanResultDialog : Window
         try { CopyText(_result.AllText); }
         catch (System.Runtime.InteropServices.COMException ex)
         {
-            ErrorText.Text = Loc.F("Couldn't copy the text.\n\n{0}", ex.Message);
+            var error = ErrorCatalog.ConvertScanCopyText;
+            App.LogError(error, ex);
+            ErrorText.Text = Loc.T(error.Message) + "\n" + Loc.T(error.NextStep);
         }
     }
 }

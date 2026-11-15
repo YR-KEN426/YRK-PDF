@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using CommunityToolkit.Mvvm.Input;
 using Yrk.PdfStudio.Core.Pdf;
@@ -148,7 +149,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _dialogs.ShowError(ex.Message);
+            _dialogs.ShowError(ErrorCatalog.SecurityRead, ex);
             return (false, null);
         }
 
@@ -241,7 +242,7 @@ public sealed partial class MainViewModel
             }
             catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
             {
-                _dialogs.ShowError(ex.Message);
+                _dialogs.ShowError(ErrorCatalog.SecurityUnlock, ex);
                 return false;
             }
         }

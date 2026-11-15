@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Ocr;
@@ -10,7 +11,7 @@ public sealed partial class MainViewModel
     private async Task<string?> OcrScannedFileAsync(string output, IReadOnlyList<string> languages)
     {
         string? temp = null;
-        string? error = null;
+        Exception? error = null;
         CancellationTokenSource? operation = null;
         var reporting = false;
         var keepTemp = false;
@@ -74,8 +75,8 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException)
         {
-            App.LogMessage("Document transform failed: " + ex);
-            error = Loc.F("Text recognition failed. The PDF was saved without searchable text.\n\n{0}", ex.Message);
+            App.LogError(ErrorCatalog.OcrScanRecognition, ex);
+            error = ex;
             StatusMessage = Loc.T("The PDF was saved without searchable text.");
         }
         finally
@@ -92,7 +93,7 @@ public sealed partial class MainViewModel
             }
 
             // Release the progress UI before showing the modal error dialog.
-            if (error is not null) _dialogs.ShowError(error);
+            if (error is not null) _dialogs.ShowError(ErrorCatalog.OcrScanRecognition, error);
         }
 
         return StatusMessage;

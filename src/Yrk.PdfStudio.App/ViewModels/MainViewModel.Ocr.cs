@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using System.Net.Http;
 using CommunityToolkit.Mvvm.Input;
@@ -104,7 +105,7 @@ public sealed partial class MainViewModel
         catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException)
         {
             StatusMessage = string.Empty;
-            _dialogs.ShowError(Loc.F("The language data could not be downloaded. Check the internet connection and try again.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.OcrLanguageDownload, ex);
             return false;
         }
         finally

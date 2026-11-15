@@ -56,6 +56,11 @@ public partial class TrustedCertificatesDialog : Window
     {
         try { action(); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
-        { MessageBox.Show(this, ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Error); }
+        { ShowError(ErrorCatalog.SignatureTrustedCertificates, ex); }
+    }
+    private void ShowError(ErrorInfo error, Exception ex)
+    {
+        App.LogError(error, ex);
+        new ErrorDialog(error, ex) { Owner = this }.ShowDialog();
     }
 }

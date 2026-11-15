@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
@@ -362,7 +363,8 @@ public sealed class AppScanLayoutTests
                             {
                                 var error = new ScannerException(kind, "Raw driver error 0x80210001", hresult: unchecked((int)0x80210001));
                                 var message = ScanDialog.ErrorText(error);
-                                Assert.False(string.IsNullOrWhiteSpace(message)); Assert.DoesNotContain("0x", message);
+                                Assert.False(string.IsNullOrWhiteSpace(message)); Assert.Contains("0x80210001", message);
+                                Assert.Contains(ErrorCatalog.ForScanner(kind).Code, message);
                                 Assert.DoesNotContain("Raw driver", message);
                                 if (language == Loc.Thai) Assert.Matches("[ก-๙]", message);
                                 window.ShowError(error);

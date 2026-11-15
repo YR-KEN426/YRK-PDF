@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.IO;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.Input;
@@ -110,7 +111,7 @@ public sealed partial class MainViewModel
         }
         catch (PdfException ex)
         {
-            _dialogs.ShowError(Loc.F("Searching failed.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.SecurityRedactionSearch, ex);
         }
         finally
         {

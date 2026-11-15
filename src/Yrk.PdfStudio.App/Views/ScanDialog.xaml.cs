@@ -427,25 +427,20 @@ public partial class ScanDialog : Window
         }
     }
 
-    internal static string ErrorText(ScannerException ex, bool hasPages = false) => ex.Kind switch
+    internal static string ErrorText(ScannerException ex, bool hasPages = false)
     {
-        ScannerErrorKind.NoDevice => Loc.T("No scanner found. Connect your scanner and try again."),
-        ScannerErrorKind.DeviceBusy => Loc.T("The scanner is busy. Wait and try again. Scanned pages have been kept."),
-        ScannerErrorKind.PaperJam => Loc.T("Paper is jammed. Clear the paper and try Scan more. Scanned pages have been kept."),
-        ScannerErrorKind.FeederEmpty => !hasPages ? Loc.T("Put paper in the feeder and try again.") : Loc.T("The feeder is empty. Scanned pages have been kept."),
-        ScannerErrorKind.Cancelled => Loc.T("Scanning cancelled. Scanned pages have been kept."),
-        ScannerErrorKind.Unavailable => Loc.T("The scanner is not ready. Check its power and connection, then find scanners again."),
-        ScannerErrorKind.Disconnected => Loc.T("The scanner connection was lost. Check the USB cable and turn on the scanner, then press Find scanners again."),
-        _ => Loc.T("The scanner reported an error. Try scanning again."),
-    };
+        var error = ErrorCatalog.ForScanner(ex.Kind, hasPages);
+        return Loc.T(error.Message) + " " + Loc.T(error.NextStep) + $" ({error.Code} · 0x{ex.HResult:X8})";
+    }
 
     internal void ShowError(Exception ex)
     {
-        Message.Text = ex is ScannerException scanner ? ErrorText(scanner, _model.Pages.Count > 0)
-            : Loc.T("Scanning could not be completed. Try again.");
-        ErrorCode.Text = $"HRESULT: 0x{ex.HResult:X8}";
+        var error = ex is ScannerException scanner
+            ? ErrorCatalog.ForScanner(scanner.Kind, _model.Pages.Count > 0) : ErrorCatalog.ScannerOther;
+        Message.Text = Loc.T(error.Message) + " " + Loc.T(error.NextStep) + $" ({error.Code} · 0x{ex.HResult:X8})";
+        ErrorCode.Text = $"({error.Code} · 0x{ex.HResult:X8})";
         ErrorDetails.Visibility = Visibility.Visible;
-        App.LogMessage($"Scan error: 0x{ex.HResult:X8} {ex}");
+        App.LogError(error, ex);
     }
 
     private void UpdateButtons()

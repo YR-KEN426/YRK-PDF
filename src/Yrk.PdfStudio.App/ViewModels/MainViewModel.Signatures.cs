@@ -29,7 +29,7 @@ public sealed partial class MainViewModel
             await _signatureLoadTask;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
-        { _dialogs.ShowError(ex.Message); }
+        { _dialogs.ShowError(ErrorCatalog.SignatureTrust, ex); }
     });
 
     public IRelayCommand ShowTrustedCertificatesCommand => new RelayCommand(() => _dialogs.ShowTrustedCertificates(_trustedCertificateStore));
@@ -387,7 +387,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
         {
-            _dialogs.ShowError(Loc.F("The signed version could not be opened.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.SignatureOpenRevision, ex);
         }
     }
 
@@ -409,13 +409,13 @@ public sealed partial class MainViewModel
             var result = await Task.Run(() => PdfSignatureVerifier.GetRevisionBeforeSignature(source, signature.Info, password));
             if (result.FailureReason == PdfRevisionFailureReason.NoEarlierRevision)
             {
-                _dialogs.ShowError(Loc.T("This file was rewritten as a whole when it was signed or afterwards, so no version from before signing is stored in the file."));
+                _dialogs.ShowError(ErrorCatalog.SignatureNoRevision);
                 return;
             }
 
             if (result.FailureReason == PdfRevisionFailureReason.InvalidByteRange || result.Bytes is not { } bytes)
             {
-                _dialogs.ShowError(Loc.T("The signature's byte range is invalid, so the version before signing cannot be saved."));
+                _dialogs.ShowError(ErrorCatalog.SignatureInvalidRange);
                 return;
             }
 
@@ -453,14 +453,14 @@ public sealed partial class MainViewModel
                     break;
                 }
 
-                _dialogs.ShowError(Loc.T("Choose a different name: the version before signing cannot overwrite the document you have open."));
+                _dialogs.ShowError(ErrorCatalog.SignatureChooseName);
             }
 
             tempPath = Path.Combine(Path.GetDirectoryName(targetPath)!, $"~{Path.GetFileNameWithoutExtension(targetPath)}.{Guid.NewGuid():N}.yrk-writing");
             await PdfTemporaryFiles.WriteDurableAsync(tempPath, bytes);
             if (File.Exists(targetPath) && FileIdentity.AreSameFile(sourcePath, targetPath))
             {
-                _dialogs.ShowError(Loc.T("Choose a different name: the version before signing cannot overwrite the document you have open."));
+                _dialogs.ShowError(ErrorCatalog.SignatureChooseName);
                 return;
             }
 
@@ -469,7 +469,7 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or PdfException)
         {
-            _dialogs.ShowError(Loc.F("The version before signing could not be saved.\n\n{0}", ex.Message));
+            _dialogs.ShowError(ErrorCatalog.SignatureSaveRevision, ex);
             return;
         }
         finally

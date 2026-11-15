@@ -275,9 +275,10 @@ public sealed class AppConvertScanTests
 
         var result = Result(app);
         Assert.Equal(3, result.OutputFiles.Count);
-        Assert.Contains("broken.pdf", result.Summary);
-        Assert.Contains("locked.pdf", result.Summary);
-        Assert.Contains("Password-protected PDFs cannot be made searchable yet. Save an unprotected copy first.", result.Summary);
+        Assert.Contains("YRK-CNV-003", result.Summary);
+        Assert.Contains("YRK-CNV-008", result.Summary);
+        Assert.DoesNotContain("broken.pdf", result.Summary);
+        Assert.DoesNotContain("locked.pdf", result.Summary);
         Assert.Empty(app.Dialogs.Named("PromptPassword"));
         AssertClean(app);
     }
@@ -325,7 +326,7 @@ public sealed class AppConvertScanTests
 
         Assert.Equal(all ? 1 : 0, calls);
         if (all) Assert.Equal(3, Result(app).OutputFiles.Count);
-        else Assert.Contains("Every page already contains text.", (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!);
+        else Assert.Equal("YRK-CNV-009", Assert.IsType<ErrorInfo>(Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]).Code);
         Assert.True(request.ReviewUncertainWords);
         AssertClean(app);
     }
@@ -408,11 +409,11 @@ public sealed class AppConvertScanTests
         Assert.Equal(new[] { app.PathFor("scan (OCR).pdf") }, result.OutputFiles);
         Assert.Contains("Converted 0 of 1 files", result.Summary);
         Assert.Contains("Not done (1):", result.Summary);
-        Assert.Contains("Created files:", result.Summary);
-        Assert.Contains(app.PathFor("scan (OCR).pdf"), result.Summary);
-        Assert.Contains("Files not created:", result.Summary);
-        Assert.Contains(app.PathFor("scan.docx"), result.Summary);
-        Assert.Contains(app.PathFor("scan.txt"), result.Summary);
+        Assert.Contains("YRK-CNV-004", result.Summary);
+        Assert.DoesNotContain(app.PathFor("scan (OCR).pdf"), result.Summary);
+        Assert.DoesNotContain("Files not created:", result.Summary);
+        Assert.DoesNotContain(app.PathFor("scan.docx"), result.Summary);
+        Assert.DoesNotContain(app.PathFor("scan.txt"), result.Summary);
         Assert.True(File.Exists(app.PathFor("scan (OCR).pdf")));
         Assert.Equal("Competing writer's document", File.ReadAllText(collision));
         Assert.False(File.Exists(app.PathFor("scan.txt")));
@@ -463,7 +464,8 @@ public sealed class AppConvertScanTests
         var result = Result(app);
         Assert.Contains("Converted 1 of 2 files", result.Summary);
         Assert.Contains("Not done (1):", result.Summary);
-        Assert.Contains(unexpected.Message, result.Summary);
+        Assert.Contains("YRK-CNV-002", result.Summary);
+        Assert.DoesNotContain(unexpected.Message, result.Summary);
         Assert.DoesNotContain("Stopped before the end", result.Summary);
         var logs = string.Join("\n", Directory.GetFiles(Yrk.PdfStudio.App.App.LogFolder, "*.log").Select(File.ReadAllText));
         Assert.Contains(unexpected.ToString(), logs);
@@ -509,8 +511,8 @@ public sealed class AppConvertScanTests
             await app.Model.ConvertScanCommand.ExecuteAsync(null);
             if (fail)
             {
-                var summary = (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!;
-                Assert.Contains("Original export disposal failure", summary);
+                var error = Assert.IsType<ErrorInfo>(Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]);
+                Assert.Equal("YRK-CNV-003", error.Code);
             }
             else Assert.Equal(2, Result(app).OutputFiles.Count);
             Assert.Empty(Directory.GetFiles(app.Folder, "*.yrk-tmp.yrk-tmp"));

@@ -57,7 +57,7 @@ public partial class DigitalSignDialog : Window
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
         {
             ids = [];
-            ShowError(Loc.T("Couldn't read the digital IDs: ") + ex.Message);
+            ShowError(ErrorCatalog.SignatureReadIds, ex);
         }
 
         IdList.ItemsSource = ids;
@@ -126,14 +126,14 @@ public partial class DigitalSignDialog : Window
                 if (picker.ShowDialog(details) != true) return;
                 try { File.WriteAllBytes(picker.FileName, certificate.Export(X509ContentType.Cert)); }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
-                { MessageBox.Show(details, ex.Message, details.Title, MessageBoxButton.OK, MessageBoxImage.Error); }
+                { ShowError(ErrorCatalog.SignatureCertificateExport, ex, details); }
             };
             panel.Children.Add(export);
             details.Content = panel;
             details.ShowDialog();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
-        { ShowError(ex.Message); }
+        { ShowError(ErrorCatalog.SignatureCertificateOpen, ex); }
     }
 
     private void OnCreateId(object sender, RoutedEventArgs e)
@@ -152,7 +152,7 @@ public partial class DigitalSignDialog : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
         {
-            ShowError(Loc.T("The digital ID could not be created: ") + ex.Message);
+            ShowError(ErrorCatalog.SignatureCreateId, ex);
         }
     }
 
@@ -182,7 +182,7 @@ public partial class DigitalSignDialog : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
         {
-            ShowError(ex is CryptographicException ? Loc.T("The password of this ID is not right.") : ex.Message);
+            ShowError(ex is CryptographicException ? ErrorCatalog.SignaturePassword : ErrorCatalog.SignatureCopyId, ex);
         }
     }
 
@@ -207,7 +207,7 @@ public partial class DigitalSignDialog : Window
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or CryptographicException)
         {
-            ShowError(ex is CryptographicException ? Loc.T("The password of this ID is not right.") : ex.Message);
+            ShowError(ex is CryptographicException ? ErrorCatalog.SignaturePassword : ErrorCatalog.SignatureChangePassword, ex);
         }
     }
 
@@ -221,7 +221,7 @@ public partial class DigitalSignDialog : Window
 
         if (PasswordInput.Password.Length == 0)
         {
-            ShowError(Loc.T("Enter the password of this ID first."));
+            ShowError(ErrorCatalog.SignaturePasswordRequired);
             return null;
         }
 
@@ -263,7 +263,7 @@ public partial class DigitalSignDialog : Window
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                ShowError(Loc.T("The file could not be added: ") + ex.Message);
+                ShowError(ErrorCatalog.SignatureImportId, ex);
                 return;
             }
         }
@@ -273,7 +273,7 @@ public partial class DigitalSignDialog : Window
     {
         if (IdList.SelectedItem is not DigitalId id)
         {
-            ShowError(Loc.T("Choose a digital ID first."));
+            ShowError(ErrorCatalog.SignatureIdRequired);
             return;
         }
 
@@ -281,7 +281,7 @@ public partial class DigitalSignDialog : Window
         if (TimestampBox.IsChecked == true
             && (!Uri.TryCreate(TimestampUrlInput.Text.Trim(), UriKind.Absolute, out timestampUrl) || timestampUrl.Scheme is not ("http" or "https")))
         {
-            ShowError(Loc.T("Enter the web address of a timestamp server, for example ") + DigitalSignSettings.DefaultTimestampUrl);
+            ShowError(ErrorCatalog.SignatureTimestampUrl);
             return;
         }
 
@@ -290,15 +290,15 @@ public partial class DigitalSignDialog : Window
         {
             certificate = _store.Open(id, id.IsFile ? PasswordInput.Password : null);
         }
-        catch (CryptographicException)
+        catch (CryptographicException ex)
         {
-            ShowError(Loc.T(id.IsFile ? "The password is incorrect." : "The certificate could not be opened."));
+            ShowError(id.IsFile ? ErrorCatalog.SignaturePassword : ErrorCatalog.SignatureCertificateOpen, ex);
             return;
         }
 
-        string? problem = !certificate.HasPrivateKey ? Loc.T("This ID has no private key, so it cannot sign.")
-            : certificate.NotAfter < DateTime.Now ? Loc.F("This ID expired on {0:d}. Use a valid ID.", certificate.NotAfter)
-            : certificate.NotBefore > DateTime.Now ? Loc.T("This ID is not valid yet.")
+        ErrorInfo? problem = !certificate.HasPrivateKey ? ErrorCatalog.SignatureNoPrivateKey
+            : certificate.NotAfter < DateTime.Now ? ErrorCatalog.SignatureExpired
+            : certificate.NotBefore > DateTime.Now ? ErrorCatalog.SignatureNotYetValid
             : null;
         if (problem is not null)
         {
@@ -342,6 +342,19 @@ public partial class DigitalSignDialog : Window
     public sealed record HandwrittenOption(string Label, SavedSignature? Signature);
 
     private static string? Clean(string text) => string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+
+    private static void ShowError(ErrorInfo error, Exception ex, Window owner)
+    {
+        App.LogError(error, ex);
+        new ErrorDialog(error, ex) { Owner = owner }.ShowDialog();
+    }
+
+    private void ShowError(ErrorInfo error, Exception? ex = null)
+    {
+        App.LogError(error, ex);
+        ErrorText.Text = Loc.T(error.Message) + "\n" + Loc.T(error.NextStep) + " (" + error.Code + ")";
+        ErrorText.Visibility = Visibility.Visible;
+    }
 
     private void ShowError(string message)
     {

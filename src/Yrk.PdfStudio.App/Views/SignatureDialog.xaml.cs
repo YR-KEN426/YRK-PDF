@@ -98,7 +98,7 @@ public partial class SignatureDialog : Window
         }
         catch (Exception ex) when (ex is IOException or NotSupportedException or FileFormatException or UnauthorizedAccessException or FormatException or PdfException)
         {
-            MessageBox.Show(this, Loc.F("The file could not be used as a signature.\n\n{0}", Loc.T(ex.Message)), Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            ShowError(ErrorCatalog.SignatureImageImport, ex);
         }
 
         UpdateUseButton();
@@ -135,5 +135,10 @@ public partial class SignatureDialog : Window
             1 => TypedName.Text.Trim().Length > 0 && FontList.SelectedItem is not null,
             _ => _imported is not null,
         };
+    }
+    private void ShowError(ErrorInfo error, Exception ex)
+    {
+        App.LogError(error, ex);
+        new ErrorDialog(error, ex) { Owner = this }.ShowDialog();
     }
 }

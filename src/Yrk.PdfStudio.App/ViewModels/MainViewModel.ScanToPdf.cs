@@ -58,7 +58,7 @@ public sealed partial class MainViewModel
                 var createdTemp = false;
                 try
                 {
-                    var done = await RunBusyAsync("Creating PDF…", async () =>
+                    var done = await RunScanBusyAsync("Creating PDF…", async () =>
                     {
                         await new ScanPdfBuilder(_engine, new ScanPageProcessor(new WpfImageCodec())).BuildAsync(session, request.Settings, temp);
                         createdTemp = true;
@@ -75,7 +75,34 @@ public sealed partial class MainViewModel
                 }
                 finally { if (createdTemp && !keepTemp) TryDelete(temp); }
             }
-            catch (Exception ex) { _dialogs.ShowError(ex.Message); }
+            catch (Exception ex) { _dialogs.ShowError(ErrorCatalog.ScannerSave, ex); }
+        }
+    }
+
+    // Keep the existing busy lifecycle while reporting scan errors through the catalogue.
+    private async Task<bool> RunScanBusyAsync(string busyText, Func<Task> work)
+    {
+        busyText = Loc.T(busyText);
+        if (IsBusy) return false;
+        CommitEditsRequested?.Invoke(this, EventArgs.Empty);
+        IsBusy = true;
+        StatusMessage = busyText;
+        try
+        {
+            await work();
+            return true;
+        }
+        catch (Exception ex) when (ex is Yrk.PdfStudio.Core.Pdf.PdfException or IOException
+            or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            _dialogs.ShowError(ErrorCatalog.ScannerSave, ex);
+            return false;
+        }
+        finally
+        {
+            IsBusy = false;
+            if (StatusMessage == busyText || StatusMessage.EndsWith('…'))
+                StatusMessage = string.Empty;
         }
     }
 
@@ -119,7 +146,7 @@ public sealed partial class MainViewModel
             }
             if (approved) break;
         }
-        var done = await RunBusyAsync("Saving images…", async () =>
+        var done = await RunScanBusyAsync("Saving images…", async () =>
         {
             for (var i = 0; i < pages.Count; i++)
             {

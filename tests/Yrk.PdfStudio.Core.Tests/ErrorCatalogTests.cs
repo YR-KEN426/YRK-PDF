@@ -14,7 +14,12 @@ public sealed class ErrorCatalogTests
         Assert.All(ErrorCatalog.All, error => Assert.Matches(@"^YRK-[A-Z]+-[0-9]{3}$", error.Code));
         Assert.All(ErrorCatalog.All, error => Assert.True(
             error.Code.StartsWith("YRK-APP-", StringComparison.Ordinal)
-            || error.Code.StartsWith("YRK-SCN-", StringComparison.Ordinal)));
+            || error.Code.StartsWith("YRK-SCN-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-SIG-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-SEC-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-UPD-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-OCR-", StringComparison.Ordinal)
+            || error.Code.StartsWith("YRK-CNV-", StringComparison.Ordinal)));
     }
 
     [Fact]
@@ -58,7 +63,7 @@ public sealed class ErrorCatalogTests
         Assert.Equal(errors.Count, errors.Select(error => error.Code).Distinct().Count());
         Assert.All(errors, error => Assert.Contains(error, ErrorCatalog.All));
         Assert.All(errors, error => Assert.StartsWith("YRK-SCN-", error.Code));
-        Assert.Equal(errors.Count + 3, ErrorCatalog.All.Count);
+        Assert.All(typeof(ErrorCatalog).GetProperties().Where(p => p.PropertyType == typeof(ErrorInfo)), p => Assert.Contains((ErrorInfo)p.GetValue(null)!, ErrorCatalog.All));
         Assert.Equal(ErrorCatalog.ScannerOther, ErrorCatalog.ForScanner((ScannerErrorKind)999));
         Assert.Contains("Scanned pages have been kept.", ErrorCatalog.ScannerFeederEmptyWithPages.Message);
     }

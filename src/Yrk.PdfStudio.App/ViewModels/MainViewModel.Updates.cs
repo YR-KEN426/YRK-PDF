@@ -245,24 +245,24 @@ public sealed partial class MainViewModel
         catch (TimeoutException ex)
         {
             SetUpdateState(UpdateState.Stopped);
-            App.LogMessage("Update timed out: " + ex);
-            StatusMessage = Loc.T("The download stopped. Check the internet connection and try again.");
+            App.LogError(ErrorCatalog.UpdateTimeout, ex);
+            StatusMessage = Loc.T(ErrorCatalog.UpdateTimeout.Message) + " " + Loc.T(ErrorCatalog.UpdateTimeout.NextStep);
             return StatusMessage;
         }
         catch (UpdateVerificationException ex)
         {
             SetUpdateState(UpdateState.None);
             // Not signed with YRK's key: it was deleted. Say so, even for the background check.
-            App.LogMessage(ex.Message);
-            StatusMessage = "An update was found but it is not signed by YRK, so it was deleted and not installed.";
-            return Loc.T("An update was found but it is not signed by YRK, so it was deleted and not installed.");
+            App.LogError(ErrorCatalog.UpdateVerification, ex);
+            StatusMessage = Loc.T(ErrorCatalog.UpdateVerification.Message) + " " + Loc.T(ErrorCatalog.UpdateVerification.NextStep);
+            return StatusMessage;
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
             SetUpdateState(UpdateState.None);
             // Offline or a broken feed: never bother the user about it in the background.
-            App.LogMessage("Update check failed: " + ex);
-            return Loc.T("Couldn't check for updates. Check the internet connection and try again later.");
+            App.LogError(ErrorCatalog.UpdateCheck, ex);
+            return Loc.T(ErrorCatalog.UpdateCheck.Message) + " " + Loc.T(ErrorCatalog.UpdateCheck.NextStep);
         }
         finally
         {
@@ -308,10 +308,10 @@ public sealed partial class MainViewModel
 
     private void ReportUpdateApplyFailure(Exception ex)
     {
-        App.LogMessage(ex.ToString());
+        App.LogError(ErrorCatalog.UpdateApply, ex);
         s_readyVersion = null;
         SetUpdateState(UpdateState.None);
-        StatusMessage = Loc.T("An update was found but it is not signed by YRK, so it was deleted and not installed.");
+        StatusMessage = Loc.T(ErrorCatalog.UpdateApply.Message) + " " + Loc.T(ErrorCatalog.UpdateApply.NextStep);
     }
 
     /// <summary>What the About dialog shows and can do.</summary>

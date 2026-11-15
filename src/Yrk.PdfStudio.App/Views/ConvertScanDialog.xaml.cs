@@ -57,7 +57,9 @@ public partial class ConvertScanDialog : Window
         {
             Update();
             ErrorText.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ErrorBrush");
-            ErrorText.Text = Loc.F("Couldn't add files.\n\n{0}", ex.Message);
+            var error = ErrorCatalog.ConvertScanAddFiles;
+            App.LogError(error, ex);
+            ErrorText.Text = Loc.T(error.Message) + "\n" + Loc.T(error.NextStep);
         }
     }
 

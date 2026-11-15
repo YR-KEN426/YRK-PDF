@@ -240,12 +240,12 @@ public sealed class AppOcrTests
 
         await app.Model.ScanToPdfCommand.ExecuteAsync(null);
 
-        var error = (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!;
-        Assert.True(error.Contains("destination changed", StringComparison.OrdinalIgnoreCase), error);
+        var error = Assert.IsType<ErrorInfo>(Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]);
+        Assert.Equal("YRK-OCR-002", error.Code);
         Assert.Equal(competing, File.ReadAllBytes(output));
         Assert.True(app.Model.HasDocument);
         var recovery = Assert.Single(Directory.GetFiles(app.Folder, "*.yrk-writing"));
-        Assert.Contains(recovery, error, StringComparison.Ordinal);
+        Assert.DoesNotContain(recovery, error.Message, StringComparison.Ordinal);
         await using var nonOcr = await app.Engine.OpenAsync(output);
         Assert.Equal(string.Empty, (await nonOcr.GetPageTextAsync(0)).Trim());
         await using var ocr = await app.Engine.OpenAsync(recovery);

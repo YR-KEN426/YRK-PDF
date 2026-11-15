@@ -1,6 +1,7 @@
 using System.Windows.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Yrk.PdfStudio.App.Imaging;
+using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Core.Pdf;
 using Yrk.PdfStudio.Core.Pdf.Ocr;
 
@@ -146,7 +147,9 @@ public sealed class OcrReviewViewModel : ObservableObject, IAsyncDisposable
         {
             if (!_lifetime.IsCancellationRequested && version == _renderVersion)
             {
-                Error = Loc.F("Couldn't display the review page.\n\n{0}", ex.Message);
+                var error = ErrorCatalog.OcrReviewRender;
+                App.LogError(error, ex);
+                Error = Loc.T(error.Message) + "\n" + Loc.T(error.NextStep);
                 OnPropertyChanged(nameof(Error));
             }
         }

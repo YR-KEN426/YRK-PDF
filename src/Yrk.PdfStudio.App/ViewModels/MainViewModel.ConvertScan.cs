@@ -27,7 +27,7 @@ public sealed partial class MainViewModel
         if (_dialogs.AskConvertScan(initial) is not { } request) return;
         if (request.Files.Count == 0 || request.Languages.Count == 0 || !(request.SearchablePdf || request.Word || request.Text))
         {
-            _dialogs.ShowError(Loc.T("Choose at least one file, language and output format."));
+            _dialogs.ShowError(ErrorCatalog.ConvertScanInput);
             return;
         }
         var data = OcrDataFactory();
@@ -40,6 +40,8 @@ public sealed partial class MainViewModel
         var outputs = new List<string>();
         var texts = new List<string>();
         var failed = new List<(string File, string Reason)>();
+        ErrorInfo? failureError = null;
+        Exception? failureException = null;
         var cancelledFiles = new List<string>();
         var signedPdfFiles = new List<string>();
         var skipReview = false;
@@ -76,6 +78,7 @@ public sealed partial class MainViewModel
                     if (converted.SignedPdf) signedPdfFiles.Add(file);
                     if (converted.Failure is { } failure)
                     {
+                        failureError = ErrorCatalog.ConvertScanPublish;
                         failed.Add((file, failure));
                         continue;
                     }
@@ -85,25 +88,36 @@ public sealed partial class MainViewModel
                 catch (OperationCanceledException) when (operation.IsCancellationRequested) { throw; }
                 catch (OperationCanceledException ex)
                 {
-                    App.LogMessage($"Convert scan failed without operation cancellation ({file}): {ex}");
-                    failed.Add((file, Loc.F("Conversion was interrupted unexpectedly. {0}", ex.Message)));
+                    App.LogError(ErrorCatalog.ConvertScanInterrupted, ex);
+                    failureError = ErrorCatalog.ConvertScanInterrupted;
+                    failureException = ex;
+                    failed.Add((file, ConvertScanErrorText(ErrorCatalog.ConvertScanInterrupted)));
                 }
                 catch (Exception ex) when (ex is PdfException or IOException or UnauthorizedAccessException
                     or InvalidOperationException or NotSupportedException or ArgumentException)
                 {
-                    failed.Add((file, Loc.T(ex.Message)));
+                    var error = ex is ConvertScanSkipException skipped ? skipped.Error : ErrorCatalog.ConvertScanFailed;
+                    App.LogError(error, ex);
+                    failureError = error;
+                    failureException = ex;
+                    failed.Add((file, ConvertScanErrorText(error)));
                 }
             }
         }
         catch (OperationCanceledException) when (operation.IsCancellationRequested) { cancelled = true; }
         catch (OperationCanceledException ex)
         {
-            App.LogMessage($"Convert scan setup failed without operation cancellation: {ex}");
-            failed.Add((string.Empty, Loc.F("Conversion was interrupted unexpectedly. {0}", ex.Message)));
+            App.LogError(ErrorCatalog.ConvertScanInterrupted, ex);
+            failureError = ErrorCatalog.ConvertScanInterrupted;
+            failureException = ex;
+            failed.Add((string.Empty, ConvertScanErrorText(ErrorCatalog.ConvertScanInterrupted)));
         }
         catch (Exception ex) when (ex is HttpRequestException or IOException or UnauthorizedAccessException)
         {
-            failed.Add((string.Empty, Loc.F("The language data could not be downloaded. Check the internet connection and try again.\n\n{0}", ex.Message)));
+            App.LogError(ErrorCatalog.OcrLanguageDownload, ex);
+            failureError = ErrorCatalog.OcrLanguageDownload;
+            failureException = ex;
+            failed.Add((string.Empty, ConvertScanErrorText(ErrorCatalog.OcrLanguageDownload)));
         }
         finally
         {
@@ -123,16 +137,19 @@ public sealed partial class MainViewModel
         if (failed.Count > 0)
         {
             summary += "\n\n" + Loc.F("Not done ({0}):", failed.Count) + "\n"
-                + string.Join("\n", failed.Take(15).Select(f => $"• {Path.GetFileName(f.File)}: {f.Reason}"));
+                + string.Join("\n", failed.Take(15).Select(f => $"• {f.Reason}"));
             if (failed.Count > 15) summary += "\n" + Loc.F("…and {0} more", failed.Count - 15);
         }
         if (signedPdfFiles.Count > 0)
             summary += "\n\n" + Loc.T("The signature in the output PDF will show that the document was modified. The original file remains valid.")
                 + "\n" + string.Join("\n", signedPdfFiles.Select(Path.GetFileName));
         if (succeeded == 0 && failed.Count == 0 && cancelledFiles.Count > 0) _dialogs.ShowInfo(summary);
-        else if (succeeded == 0 && outputs.Count == 0) _dialogs.ShowError(summary);
+        else if (succeeded == 0 && outputs.Count == 0) _dialogs.ShowError(failureError ?? ErrorCatalog.ConvertScanFailed, failureException);
         else _dialogs.ShowConvertScanResult(new ConvertScanResult(summary, outputs, string.Join("\n\n", texts)));
     }
+
+    private static string ConvertScanErrorText(ErrorInfo error) =>
+        Loc.T(error.Message) + " " + Loc.T(error.NextStep) + " (" + error.Code + ")";
 
     private sealed record ConvertScanFileResult(IReadOnlyList<string> Files, string Text, bool Cancelled = false,
         string? Failure = null, bool SignedPdf = false);
@@ -157,7 +174,7 @@ public sealed partial class MainViewModel
             }
             var bytes = await File.ReadAllBytesAsync(input, ct);
             if (PdfFiles.IsEncrypted(bytes))
-                throw new PdfException(Loc.T("Password-protected PDFs cannot be made searchable yet. Save an unprotected copy first."));
+                throw new ConvertScanSkipException(ErrorCatalog.ConvertScanProtected);
             // Reuse the existing detector without revocation/network checks; only presence matters here.
             var signedPdf = request.SearchablePdf && (await Task.Run(() =>
                 PdfSignatureVerifier.Verify(bytes, new PdfVerifyOptions(CheckRevocation: false), ct), ct)).Count > 0;
@@ -168,7 +185,7 @@ public sealed partial class MainViewModel
             {
                 scanPages = await OcrScanPages.FindAsync(document, bytes, ct);
                 var only = scanPages.Where(p => request.Pages == OcrPageSelection.AllPages || p.IsScan).Select(p => p.PageIndex).ToArray();
-                if (only.Length == 0) throw new ConvertScanSkipException(Loc.T("Every page already contains text."));
+                if (only.Length == 0) throw new ConvertScanSkipException(ErrorCatalog.ConvertScanAlreadyText);
                 var options = new OcrOptions(request.Languages, OcrPageSelection.AllPages, OnlyPages: only,
                     SegmentationMode: OcrSegmentationMode.SingleColumn);
                 result = await ConvertScanOcrRunner(document, bytes, options, data, orient, progress, ct);
@@ -270,11 +287,8 @@ public sealed partial class MainViewModel
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 // Published paths may already belong to another writer. Never roll them back by name.
-                var reason = Loc.F("Couldn't create all output files. {0}", ex.Message);
-                if (moved.Count > 0)
-                    reason += "\n" + Loc.T("Created files:") + "\n" + string.Join("\n", moved);
-                reason += "\n" + Loc.T("Files not created:") + "\n"
-                    + string.Join("\n", publish.Skip(moved.Count).Select(p => p.Target));
+                App.LogError(ErrorCatalog.ConvertScanPublish, ex);
+                var reason = ConvertScanErrorText(ErrorCatalog.ConvertScanPublish);
                 return new(moved, allText, Failure: reason, SignedPdf: signedPdf && moved.Count > 0);
             }
             return new(moved, allText, SignedPdf: signedPdf);
@@ -292,7 +306,10 @@ public sealed partial class MainViewModel
         }
     }
 
-    private sealed class ConvertScanSkipException(string message) : InvalidOperationException(message);
+    private sealed class ConvertScanSkipException(ErrorInfo error) : InvalidOperationException(error.Message)
+    {
+        public ErrorInfo Error { get; } = error;
+    }
 
     private static void CleanupConvertScan(Action delete, string path)
     {

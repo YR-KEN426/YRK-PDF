@@ -118,7 +118,7 @@ public sealed class AppScanToPdfTests
         Assert.Empty(app.Dialogs.Named("Confirm"));
         Assert.False(app.Model.HasDocument);
         var recovery = Assert.Single(Directory.GetFiles(app.Folder, "*.yrk-writing"));
-        Assert.Contains(recovery, (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!, StringComparison.Ordinal);
+        Assert.Equal("YRK-SCN-010", Assert.IsType<ErrorInfo>(Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]).Code);
         await using var pdf = await app.Engine.OpenAsync(recovery);
         Assert.Equal(2, pdf.PageCount);
     }
@@ -171,9 +171,9 @@ public sealed class AppScanToPdfTests
         if (change == "deleted") Assert.False(File.Exists(output));
         else Assert.Equal(change == "length" ? new byte[] { 1, 2 } : original, File.ReadAllBytes(output));
         var recovery = Assert.Single(Directory.GetFiles(app.Folder, "*.yrk-writing"));
-        var error = (string)Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]!;
-        Assert.Contains("destination changed", error, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(recovery, error, StringComparison.Ordinal);
+        var error = Assert.IsType<ErrorInfo>(Assert.Single(app.Dialogs.Named("ShowError")).Arguments[0]);
+        Assert.Equal("YRK-SCN-010", error.Code);
+        Assert.DoesNotContain(recovery, error.Message, StringComparison.Ordinal);
         Assert.False(app.Model.HasDocument);
         await using var pdf = await app.Engine.OpenAsync(recovery);
         Assert.Equal(2, pdf.PageCount);
