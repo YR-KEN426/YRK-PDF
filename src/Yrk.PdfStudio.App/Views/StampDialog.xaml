@@ -76,7 +76,7 @@
 
                 <TextBlock Text="Smaller lines (company, name; optional)" Style="{StaticResource Label}" />
                 <TextBox x:Name="DetailInput" Padding="6,5" AcceptsReturn="True" Height="48" VerticalScrollBarVisibility="Auto"
-                         TextChanged="OnDesignChanged" ToolTip="For example: บริษัท ABC จำกัด" />
+                         TextChanged="OnDesignChanged" ToolTip="For example: ABC Co., Ltd." />
 
                 <TextBlock Text="Colour" Style="{StaticResource Label}" />
                 <StackPanel Orientation="Horizontal">

@@ -671,10 +671,10 @@
                         </Button>
                         <Button Content="My trusted certificates" Style="{StaticResource ToolbarButton}" Command="{Binding ShowTrustedCertificatesCommand}" />
                         <Button Style="{StaticResource ToolbarButton}" Command="{Binding CertifiedCopyCommand}"
-                                ToolTip="Stamp a certified true copy (สำเนาถูกต้อง)" AutomationProperties.Name="Certified copy">
+                                ToolTip="Stamp a certified true copy" AutomationProperties.Name="Certified copy">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Style="{StaticResource IconText}" Text="&#xEB95;" />
-                                <TextBlock Text="สำเนาถูกต้อง" Margin="6,0,2,0" VerticalAlignment="Center" />
+                                <TextBlock Text="Certified copy" Margin="6,0,2,0" VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>
                         <Button Style="{StaticResource ToolbarButton}" Command="{Binding StampCommand}"

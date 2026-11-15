@@ -62,8 +62,8 @@
                     <ComboBoxItem Content="I am the author of this document" />
                     <ComboBoxItem Content="I approve this document" />
                     <ComboBoxItem Content="I have reviewed this document" />
-                    <ComboBoxItem Content="อนุมัติ" />
-                    <ComboBoxItem Content="รับรองความถูกต้อง" />
+                    <ComboBoxItem Content="Approved" />
+                    <ComboBoxItem Content="Certified as accurate" />
                 </ComboBox>
             </StackPanel>
             <StackPanel Grid.Column="2">

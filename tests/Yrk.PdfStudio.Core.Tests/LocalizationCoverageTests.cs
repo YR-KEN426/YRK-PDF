@@ -120,6 +120,36 @@ public sealed class LocalizationCoverageTests
         Assert.Fail($"Missing Thai translations: {missing.Length} keys ({reportPath}){Environment.NewLine}{report}");
     }
 
+    [Fact]
+    public void Non_ETax_Xaml_UI_attributes_do_not_contain_hardcoded_Thai()
+    {
+        var failures = new List<string>();
+        foreach (var file in SourceFiles(AppSource).Where(p => Path.GetExtension(p) == ".xaml"
+                     && !Path.GetFileName(p).StartsWith("ETax", StringComparison.OrdinalIgnoreCase)))
+        {
+            var relative = Path.GetRelativePath(AppSource, file).Replace('\\', '/');
+            var document = XDocument.Parse(File.ReadAllText(file), LoadOptions.SetLineInfo);
+            foreach (var attribute in document.Descendants().Attributes()
+                         .Where(a => CoveredProperty(a.Name.LocalName) && Regex.IsMatch(a.Value, @"[\u0E00-\u0E7F]")))
+            {
+                if (KeptThaiAttributes.Contains((relative, attribute.Name.LocalName, attribute.Value))) continue;
+                failures.Add($"{relative}:{((IXmlLineInfo)attribute).LineNumber} {attribute.Name.LocalName}={Display(attribute.Value)}");
+            }
+        }
+        Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+    }
+
+    private static readonly HashSet<(string File, string Attribute, string Value)> KeptThaiAttributes =
+    [
+        // Language selector: show the native language name, including its accessible name.
+        ("MainWindow.xaml", "Text", "ไทย"),
+        ("MainWindow.xaml", "AutomationProperties.Name", "ไทย (Thai)"),
+        // Amount-in-words example describes the Thai document output.
+        ("MainWindow.xaml", "ToolTip", "10000 becomes หนึ่งหมื่นบาทถ้วน"),
+        // Official ETDA standard name stays Thai (also in the excluded e-Tax UI).
+        ("Views/ETaxInvoiceDialog.xaml", "Text", "• Follows ETDA standard ขมธอ. 3-2560, version 2.0"),
+    ];
+
     private static bool NeedsTranslation(string text)
     {
         // No Latin letters: numbers, punctuation, symbols and Thai document/UI text need no English key.
@@ -217,7 +247,7 @@ public sealed class LocalizationCoverageTests
     }
 
     private static bool CoveredProperty(string name) => name == "AutomationProperties.Name"
-        || name[(name.LastIndexOf('.') + 1)..] is "Text" or "Header" or "Content" or "ToolTip";
+        || name[(name.LastIndexOf('.') + 1)..] is "Text" or "Header" or "Content" or "ToolTip" or "Title";
 
     private static string? XamlLiteral(string value)
     {

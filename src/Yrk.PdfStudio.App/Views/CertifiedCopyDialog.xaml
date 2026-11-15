@@ -1,7 +1,7 @@
 <Window x:Class="Yrk.PdfStudio.App.Views.CertifiedCopyDialog"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="สำเนาถูกต้อง (certified copy)"
+        Title="Certified copy"
         Width="520"
         SizeToContent="Height"
         ResizeMode="NoResize"
@@ -15,10 +15,10 @@
         <TextBlock Text="Stamp a copy of an ID card or document. Naming the purpose stops the copy from being reused elsewhere."
                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap" />
 
-        <TextBlock Text="ใช้สำหรับ (purpose)" Margin="0,0,0,4" />
+        <TextBlock Text="Purpose" Margin="0,0,0,4" />
         <TextBox x:Name="PurposeInput" Padding="6,5" TextChanged="OnOptionsChanged"
-                 ToolTip="For example: สมัครงานบริษัท ABC จำกัด" />
-        <TextBlock Text="For example: สมัครงานบริษัท ABC จำกัด. Leave empty to omit." FontSize="11"
+                 ToolTip="For example: Job application at ABC Co., Ltd." />
+        <TextBlock Text="For example: Job application at ABC Co., Ltd. Leave empty to omit." FontSize="11"
                    Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,10" />
 
         <CheckBox x:Name="DateBox" Content="Include today's date" IsChecked="True" Checked="OnOptionsChanged" Unchecked="OnOptionsChanged" />
