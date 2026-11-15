@@ -1909,5 +1909,7 @@
   "The form fields could not be added.": "เพิ่มช่องกรอกไม่ได้",
   "Check the document and try adding the fields again.": "ตรวจเอกสาร แล้วลองเพิ่มช่องกรอกอีกครั้ง",
   "The saved item could not be changed safely.": "แก้รายการที่บันทึกไว้อย่างปลอดภัยไม่ได้",
-  "Try another item or save a copy before editing again.": "ลองรายการอื่น หรือบันทึกสำเนาก่อนแก้ไขอีกครั้ง"
+  "Try another item or save a copy before editing again.": "ลองรายการอื่น หรือบันทึกสำเนาก่อนแก้ไขอีกครั้ง",
+  "Digital ID": "Digital ID",
+  "Digital IDs": "Digital ID ทั้งหมด"
 }
