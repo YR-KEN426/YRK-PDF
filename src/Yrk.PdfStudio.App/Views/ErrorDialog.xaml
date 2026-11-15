@@ -31,7 +31,7 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <Button x:Name="CopyButton" Content="Copy info for problem report" Click="OnCopyClick"
-                    HorizontalAlignment="Left" AutomationProperties.Name="Copy info for problem report" />
+                    Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" AutomationProperties.Name="Copy info for problem report" />
             <Button x:Name="OkButton" Grid.Column="1" Content="OK" IsDefault="True" IsCancel="True"
                     Style="{StaticResource PrimaryButton}" Margin="12,0,0,0" AutomationProperties.Name="OK" />
         </Grid>
