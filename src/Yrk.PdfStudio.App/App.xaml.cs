@@ -17,6 +17,8 @@ public partial class App : Application
     {
         base.OnStartup(e);
         DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnAppDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnTaskUnobservedException;
 
         try { CleanupOldLogs(LogFolder, DateTime.Now); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
@@ -109,8 +111,6 @@ public partial class App : Application
         ? logFolder
         : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "logs");
 
-    private static void LogError(Exception exception) => LogMessage(exception.ToString());
-
     internal static void LogError(ErrorInfo error, Exception? ex = null) =>
         LogMessage(error.Code + " " + (ex?.ToString() ?? error.Message));
 
@@ -156,15 +156,59 @@ public partial class App : Application
         }
     }
 
-    private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+    private static int _showingCrashDialog;
+
+    internal static Action<string> CrashMessageBox { get; set; } = message =>
+        MessageBox.Show(message, DialogService.Caption, MessageBoxButton.OK, MessageBoxImage.Error);
+
+    internal static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e) =>
+        HandleDispatcherUnhandledException(e);
+
+    internal static void HandleDispatcherUnhandledException(DispatcherUnhandledExceptionEventArgs e, IDialogService? dialogs = null)
     {
-        LogError(e.Exception);
-        MessageBox.Show(
-            MainWindow,
-            Loc.F("Something went wrong:\n\n{0}", e.Exception.Message),
-            DialogService.Caption,
-            MessageBoxButton.OK,
-            MessageBoxImage.Error);
-        e.Handled = true;
+        if (Interlocked.CompareExchange(ref _showingCrashDialog, 1, 0) != 0)
+        {
+            try { LogError(ErrorCatalog.AppDispatcherUnhandled, e.Exception); }
+            catch (Exception) { }
+            e.Handled = true;
+            return;
+        }
+
+        try
+        {
+            // ShowError writes the coded log before displaying the dialog.
+            (dialogs ?? new DialogService()).ShowError(ErrorCatalog.AppDispatcherUnhandled, e.Exception);
+        }
+        catch (Exception)
+        {
+            // Also cover a dialog service that failed before it could write the log.
+            try { LogError(ErrorCatalog.AppDispatcherUnhandled, e.Exception); }
+            catch (Exception) { }
+            try { CrashMessageBox(Loc.T("Something went wrong. Try again. If the problem continues, restart the app.")); }
+            catch (Exception) { }
+        }
+        finally
+        {
+            e.Handled = true;
+            Volatile.Write(ref _showingCrashDialog, 0);
+        }
+    }
+
+    internal static void OnAppDomainUnhandledException(object? sender, UnhandledExceptionEventArgs e)
+    {
+        try { LogError(ErrorCatalog.AppDomainUnhandled, e.ExceptionObject as Exception); }
+        catch (Exception) { }
+
+        if (Interlocked.CompareExchange(ref _showingCrashDialog, 1, 0) != 0) return;
+        try { CrashMessageBox(Loc.T(ErrorCatalog.AppDomainUnhandled.Message)); }
+        catch (Exception) { }
+        finally { Volatile.Write(ref _showingCrashDialog, 0); }
+    }
+
+    internal static void OnTaskUnobservedException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        try { LogError(ErrorCatalog.AppTaskUnobserved, e.Exception); }
+        catch (Exception) { }
+        finally { e.SetObserved(); }
     }
 }

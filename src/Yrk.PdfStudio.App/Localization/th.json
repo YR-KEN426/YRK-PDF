@@ -1741,6 +1741,7 @@
   "The signature in the output PDF will show that the document was modified. The original file remains valid.": "ลายเซ็นในไฟล์ PDF ผลลัพธ์จะขึ้นว่าเอกสารถูกแก้ไข ไฟล์ต้นฉบับยังถูกต้อง",
   "Password-protected PDFs cannot be made searchable yet. Save an unprotected copy first.": "ยังทำ OCR ไฟล์ PDF ที่เข้ารหัสไม่ได้ กรุณาบันทึกสำเนาที่ไม่มีการป้องกันก่อน",
   "Something went wrong while using the app.": "เกิดข้อผิดพลาดขณะใช้งานโปรแกรม",
+  "Something went wrong. Try again. If the problem continues, restart the app.": "เกิดข้อผิดพลาด กรุณาลองอีกครั้ง หากยังเกิดปัญหา ให้เปิดโปรแกรมใหม่",
   "Try again. If the problem continues, copy the problem report and contact support.": "ลองอีกครั้ง หากยังเกิดปัญหา ให้คัดลอกข้อมูลแจ้งปัญหาแล้วติดต่อผู้ดูแล",
   "The app encountered a problem and needs to close.": "โปรแกรมเกิดปัญหาและจำเป็นต้องปิด",
   "Restart the app. If recovery is offered, recover your unsaved work.": "เปิดโปรแกรมใหม่ หากมีตัวเลือกกู้คืน ให้กู้คืนงานที่ยังไม่ได้บันทึก",
