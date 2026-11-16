@@ -12,7 +12,7 @@
    cd "D:\Software Project\YRK-PDF"
    powershell -ExecutionPolicy Bypass -File build\release.ps1 -GitHubRepo YR-KEN426/yrk-easy-pdf-release -ReleaseNotes docs\release-notes\$Ver.md
    ```
-   - แล้วสร้างโฟลเดอร์ทดสอบแยก เช่น `C:\yrk-test\feed` คัดลอกจาก `artifacts\releases\win-x64` มาแค่ `YRK.EasyPdf-$Ver-full.nupkg`, `YRK.EasyPdf-$Ver.sig` และไฟล์ feed (`releases.win.json`, `assets.win.json`, `RELEASES` ถ้ามี) เพราะสคริปต์ในข้อถัดไปต้องการ `-full.nupkg` ไฟล์เดียว
+   - แล้วสร้างโฟลเดอร์ทดสอบแยก เช่น `C:\yrk-test\feed` คัดลอกจาก `artifacts\releases\win-x64` มาแค่ `YRK.EasyPdf-$Ver-full.nupkg`, `YRK.EasyPdf-$Ver.sig`, `YRK.EasyPdf-$Ver.content.sig` และไฟล์ feed (`releases.win.json`, `assets.win.json`, `RELEASES` ถ้ามี) เพราะสคริปต์ในข้อถัดไปต้องการ `-full.nupkg` ไฟล์เดียว
    - แพ็กเกจนี้เซ็นด้วยกุญแจจริง ห้ามส่งให้ใครหรืออัปโหลด
 3. ที่โฟลเดอร์โปรเจกต์ รัน (สคริปต์นี้ไม่ต้องใช้กุญแจ):
    ```powershell
@@ -27,7 +27,7 @@
    Get-FileHash "$env:LOCALAPPDATA\YRK.EasyPdf\Update.exe" -Algorithm SHA256
    ```
 5. ทดสอบทีละโฟลเดอร์ ให้เริ่มจาก $PrevVer ที่ติดตั้งใหม่ทุกครั้ง และปิดโปรแกรมระหว่างแต่ละรอบ ลำดับคือ `-tampered-updateexe` แล้ว `-tampered-sig` แล้วจึงทดสอบ feed ที่ถูกต้องเป็นรอบสุดท้าย
-   - ใน PowerShell หน้าต่างเดียวกัน ให้ตั้ง `$env:YRK_PDFSTUDIO_UPDATE_URL = '<path เต็มของโฟลเดอร์>'` แล้วเปิดโปรแกรมที่ติดตั้งไว้จากหน้าต่างนั้น
+   - ใน PowerShell หน้าต่างเดียวกัน ให้ตั้ง `$env:YRK_PDFSTUDIO_UPDATE_URL = '<path เต็มของโฟลเดอร์>'` แล้วเปิดโปรแกรมที่ติดตั้งไว้จากหน้าต่างนั้น (`Start-Process "$env:LOCALAPPDATA\YRK.EasyPdf\current\YrkEasyPdf.exe"`) ห้ามเปิดจาก Start Menu หรือที่ตัวติดตั้งเปิดให้เอง เพราะจะไม่ได้ค่า feed ทดสอบ (ดูที่หน้าเกี่ยวกับ ต้องขึ้น "Updates from" เป็นโฟลเดอร์ทดสอบ)
    - ไปที่ **เกี่ยวกับ YRK PDF → ตรวจหาการอัปเดตตอนนี้**
 6. ผลที่ต้องได้:
    - **แพ็กเกจที่ถูกแก้ทั้ง 2 แบบ:** ขึ้นข้อผิดพลาด ไม่มีปุ่มรีสตาร์ท และรุ่นยังเป็น $PrevVer จากนั้นรัน `Get-FileHash` กับ `Update.exe` อีกครั้ง ค่าต้องเท่ากับที่จดไว้ และในโฟลเดอร์ packages ต้องไม่มีแพ็กเกจที่ถูกปฏิเสธค้างอยู่ (ดูทั้งโฟลเดอร์ `packages` ใต้โฟลเดอร์ติดตั้ง)
@@ -45,6 +45,8 @@
    - ถ้าเคยตั้งค่านี้แบบถาวรด้วย `setx` ให้ลบด้วย `[Environment]::SetEnvironmentVariable('YRK_PDFSTUDIO_UPDATE_URL', $null, 'User')`
    - ลบ `C:\yrk-test\feed` และโฟลเดอร์ tampered ทั้ง 2 อัน
 9. **ปล่อยจริง (เมื่อทุกข้อผ่าน):**
+   - ตั้ง token ใน PowerShell หน้าต่างนี้ก่อน (ตัวอักษรไม่แสดงบนจอ ห้ามวางในแชต): `$env:GITHUB_TOKEN = [Net.NetworkCredential]::new('', (Read-Host 'GitHub token' -AsSecureString)).Password` (หรือ `gh auth token` ถ้าล็อกอิน gh ไว้)
+   - ตอนสคริปต์ถาม "overwrite files? [y/n]" (เพราะมีไฟล์ $Ver จาก feed ทดสอบในเครื่อง) ให้พิมพ์ `y` ภายในประมาณ 30 วินาที ไม่อย่างนั้นจะตอบ n เองแล้วหยุด (บทเรียน 1.2.3)
    - รัน:
      ```powershell
      cd "D:\Software Project\YRK-PDF"
