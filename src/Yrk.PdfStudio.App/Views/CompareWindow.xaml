@@ -8,7 +8,7 @@
         Width="1200"
         Height="800"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
@@ -20,7 +20,7 @@
     </Window.InputBindings>
     <DockPanel>
         <!-- Page, view and legend -->
-        <Border DockPanel.Dock="Top" BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="8,6">
+        <Border DockPanel.Dock="Top" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="8,6">
             <StackPanel Orientation="Horizontal">
                 <Button Style="{StaticResource ToolbarButton}" Command="{Binding PreviousPageCommand}" ToolTip="Previous page (Page Up)" AutomationProperties.Name="Previous page">
                     <TextBlock Style="{StaticResource IconText}" Text="&#xE70E;" />
@@ -47,22 +47,22 @@
                     </StackPanel>
                 </Button>
                 <Border Style="{StaticResource ToolbarDivider}" />
-                <Border Width="14" Height="14" Background="#D72828" VerticalAlignment="Center" Margin="4,0,6,0" />
+                <Border Width="14" Height="14" Background="{DynamicResource CompareRemovedBrush}" VerticalAlignment="Center" Margin="4,0,6,0" />
                 <TextBlock VerticalAlignment="Center" Margin="0,0,14,0">
                     <Run Text="Only in" /> <Run Text="{Binding FirstName, Mode=OneWay}" />
                 </TextBlock>
-                <Border Width="14" Height="14" Background="#146EE6" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <Border Width="14" Height="14" Background="{DynamicResource CompareAddedBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <TextBlock VerticalAlignment="Center" Margin="0,0,14,0">
                     <Run Text="Only in" /> <Run Text="{Binding SecondName, Mode=OneWay}" />
                 </TextBlock>
-                <Border Width="14" Height="14" Background="#BBBBBB" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <Border Width="14" Height="14" Background="{DynamicResource ComparePlaceholderBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <TextBlock Text="Same" VerticalAlignment="Center" />
             </StackPanel>
         </Border>
 
-        <Border DockPanel.Dock="Bottom" BorderBrush="#E0E0E0" BorderThickness="0,1,0,0" Padding="10,4">
+        <Border DockPanel.Dock="Bottom" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,1,0,0" Padding="10,4">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Right" Text="Ctrl + wheel to zoom" Foreground="{StaticResource SecondaryTextBrush}" />
+                <TextBlock DockPanel.Dock="Right" Text="Ctrl + wheel to zoom" Foreground="{DynamicResource SecondaryTextBrush}" />
                 <TextBlock Text="{Binding Summary}" AutomationProperties.Name="Comparison summary" />
             </DockPanel>
         </Border>
@@ -76,14 +76,14 @@
                     <DataTemplate DataType="{x:Type vm:CompareRegionViewModel}">
                         <StackPanel Orientation="Horizontal" Margin="2,3">
                             <TextBlock Text="{Binding Number}" Width="28" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding Description}" Foreground="{StaticResource SecondaryTextBrush}" />
+                            <TextBlock Text="{Binding Description}" Foreground="{DynamicResource SecondaryTextBrush}" />
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
         </DockPanel>
 
-        <Grid Background="#F3F3F3">
+        <Grid Background="{DynamicResource PreviewBackgroundBrush}">
             <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                           PreviewMouseWheel="OnPreviewMouseWheel" AutomationProperties.AutomationId="CompareScroller">
                 <Grid x:Name="Sheet" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12">
@@ -105,7 +105,7 @@
                         </ItemsControl.ItemContainerStyle>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate DataType="{x:Type vm:CompareRegionViewModel}">
-                                <Border Width="{Binding Width}" Height="{Binding Height}" BorderBrush="#E8590C"
+                                <Border Width="{Binding Width}" Height="{Binding Height}" BorderBrush="{DynamicResource MeasureAccentBrush}"
                                         BorderThickness="{Binding RegionBorder, ElementName=Root}" />
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>

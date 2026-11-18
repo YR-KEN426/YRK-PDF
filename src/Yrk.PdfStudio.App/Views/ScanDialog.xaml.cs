@@ -805,7 +805,9 @@ public partial class ScanDialog : Window
         foreach (var handle in Enum.GetValues<CropHandle>().Skip(2))
         {
             var p = ScanCropFrame.HandlePoint(b, handle); var v = _view.ImageToView(new(p.X, p.Y));
-            var mark = new System.Windows.Shapes.Rectangle { Width = 10, Height = 10, Fill = Brushes.White, Stroke = Brushes.RoyalBlue, StrokeThickness = 2 };
+            var mark = new System.Windows.Shapes.Rectangle { Width = 10, Height = 10,  StrokeThickness = 2 };
+            mark.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "SurfaceBrush");
+            mark.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "CropHandleBrush");
             Canvas.SetLeft(mark, v.X - 5); Canvas.SetTop(mark, v.Y - 5); CropHandles.Children.Add(mark);
         }
         Canvas.SetLeft(CropSize, Math.Clamp(rect.Left, 0, Math.Max(0, PreviewScroll.ActualWidth - 200)));

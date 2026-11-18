@@ -63,7 +63,7 @@ public sealed class SignatureCoSigningTests
             Assert.Equal(PdfSignatureStatus.Valid, r.Status);
             Assert.True(r.IsIntact);
             Assert.False(r.ModifiedAfterSigning);
-            Assert.Equal(Color.FromRgb(0x10, 0x7C, 0x10), ((SolidColorBrush)new SignatureInfoViewModel(r).StatusBrush).Color);
+            Assert.Equal("SuccessBrush", new SignatureInfoViewModel(r).StatusBrushKey);
         });
         Assert.False(results[0].CoversWholeDocument);
         var firstView = new SignatureInfoViewModel(results[0]);

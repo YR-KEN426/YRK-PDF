@@ -208,7 +208,7 @@ public sealed class SignatureFormFillTests
         Assert.False(result.CoversWholeDocument);
         var view = new SignatureInfoViewModel(result);
         Assert.Equal(Loc.F("Signed and unchanged, but form fields were filled in after signing: {0}", "Customer"), view.StatusText);
-        Assert.Equal(Color.FromRgb(0xC1, 0x7C, 0x00), ((SolidColorBrush)view.StatusBrush).Color);
+        Assert.Equal("SignatureWarningBrush", view.StatusBrushKey);
         Assert.NotEqual("", view.Glyph);
         Assert.Contains(Loc.F("Form fields filled in after signing: {0}", "Customer"), view.Details);
         var unknown = Assert.Single(PdfSignatureVerifier.Verify(filled, new(CheckRevocation: false) { CustomTrustRoots = [] }));

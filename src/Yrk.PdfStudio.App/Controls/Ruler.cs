@@ -54,13 +54,25 @@ public sealed class Ruler : FrameworkElement
         set => SetValue(LengthProperty, value);
     }
 
-    public Brush Background { get; set; } = Brushes.WhiteSmoke;
+    public static readonly DependencyProperty BackgroundProperty = Register<Brush?>(nameof(Background), null);
+    public Brush Background { get => (Brush)GetValue(BackgroundProperty); set => SetValue(BackgroundProperty, value); }
 
-    public Brush Foreground { get; set; } = Brushes.DimGray;
+    public static readonly DependencyProperty ForegroundProperty = Register<Brush?>(nameof(Foreground), null);
+    public Brush Foreground { get => (Brush)GetValue(ForegroundProperty); set => SetValue(ForegroundProperty, value); }
 
-    public Brush PageBrush { get; set; } = Brushes.White;
+    public static readonly DependencyProperty PageBrushProperty = Register<Brush?>(nameof(PageBrush), null);
+    public Brush PageBrush { get => (Brush)GetValue(PageBrushProperty); set => SetValue(PageBrushProperty, value); }
 
-    public Brush CursorBrush { get; set; } = new SolidColorBrush(Color.FromRgb(0xE8, 0x59, 0x0C));
+    public static readonly DependencyProperty CursorBrushProperty = Register<Brush?>(nameof(CursorBrush), null);
+    public Brush CursorBrush { get => (Brush)GetValue(CursorBrushProperty); set => SetValue(CursorBrushProperty, value); }
+
+    public Ruler()
+    {
+        SetResourceReference(BackgroundProperty, "SidebarBrush");
+        SetResourceReference(ForegroundProperty, "RulerTextBrush");
+        SetResourceReference(PageBrushProperty, "SurfaceBrush");
+        SetResourceReference(CursorBrushProperty, "MeasureAccentBrush");
+    }
 
     protected override void OnRender(DrawingContext context)
     {
@@ -83,7 +95,7 @@ public sealed class Ruler : FrameworkElement
         }
 
         var pen = new Pen(Foreground, 1);
-        pen.Freeze();
+        // Do not freeze the shared resource brush through this pen.
         context.DrawLine(pen, horizontal ? new Point(0, across - 0.5) : new Point(across - 0.5, 0), horizontal ? new Point(along, across - 0.5) : new Point(across - 0.5, along));
 
         var perUnit = DipsPerUnit;

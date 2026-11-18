@@ -548,10 +548,12 @@ public sealed partial class PrintViewModel : ObservableObject
                 return;
             }
 
+            // Intentional FindResource snapshots: this bitmap is a single rendered print-preview frame,
+            // like its PDF page images; DrawingContext cannot hold a dynamic resource expression.
             var visual = new System.Windows.Media.DrawingVisual();
             using (var context = visual.RenderOpen())
             {
-                context.DrawRectangle(System.Windows.Media.Brushes.White, null, new System.Windows.Rect(0, 0, width * unit, height * unit));
+                context.DrawRectangle((System.Windows.Media.Brush)System.Windows.Application.Current.FindResource("SurfaceBrush"), null, new System.Windows.Rect(0, 0, width * unit, height * unit));
                 foreach (var (image, placement) in pages)
                 {
                     PdfPrinting.DrawPage(context, image, placement, unit);
@@ -560,7 +562,7 @@ public sealed partial class PrintViewModel : ObservableObject
                 if (_layout == PagesPerSheet.Booklet)
                 {
                     // Where the sheet is folded.
-                    var fold = new System.Windows.Media.Pen(System.Windows.Media.Brushes.Silver, 1) { DashStyle = System.Windows.Media.DashStyles.Dash };
+                    var fold = new System.Windows.Media.Pen((System.Windows.Media.Brush)System.Windows.Application.Current.FindResource("PrintFoldBrush"), 1) { DashStyle = System.Windows.Media.DashStyles.Dash };
                     context.DrawLine(fold, new System.Windows.Point(width * unit / 2, 0), new System.Windows.Point(width * unit / 2, height * unit));
                 }
             }

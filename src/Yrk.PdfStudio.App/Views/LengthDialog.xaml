@@ -7,18 +7,18 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <StackPanel Margin="20">
         <TextBlock Text="How long is this line in reality?" FontSize="15" FontWeight="SemiBold" />
-        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,12"
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,12"
                    Text="Use a dimension you can read on the drawing. Measurements on this document then use this scale." />
         <StackPanel Orientation="Horizontal">
             <TextBox x:Name="ValueInput" Width="160" Padding="6,4" AutomationProperties.Name="Real length" />
             <ComboBox x:Name="UnitInput" Width="80" Margin="8,0,0,0" AutomationProperties.Name="Unit" />
         </StackPanel>
-        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" Margin="0,8,0,0" Visibility="Collapsed" Text="Enter a length greater than zero." />
+        <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" Margin="0,8,0,0" Visibility="Collapsed" Text="Enter a length greater than zero." />
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Set scale" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnOk" />
             <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />

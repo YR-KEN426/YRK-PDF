@@ -14,8 +14,8 @@ public sealed partial class MainViewModel
     private const double MarkPadding = 1.5; // points around marked search results
     private const double MinMarkSize = 4;   // points
 
-    private static readonly Brush RedactPreviewFill = FrozenBrush(Color.FromArgb(0x40, 0xC4, 0x2B, 0x1C));
-    private static readonly Brush RedactPreviewStroke = FrozenBrush(Color.FromRgb(0xC4, 0x2B, 0x1C));
+    private const string RedactPreviewFill = "RedactPreviewFillBrush";
+    private const string RedactPreviewStroke = "ErrorBrush";
 
     private readonly List<RedactionMarkViewModel> _redactionMarks = [];
     private IAsyncRelayCommand? _markSearchResultsCommand;
@@ -56,7 +56,7 @@ public sealed partial class MainViewModel
     };
 
     private void UpdateRedactionPreview(Gesture gesture, NormalizedPoint point) =>
-        gesture.Page.SetPreview(new RectangleGeometry(ToPoints(gesture.Page, gesture.Start, point)), RedactPreviewFill, RedactPreviewStroke, 1);
+        gesture.Page.SetThemedPreview(new RectangleGeometry(ToPoints(gesture.Page, gesture.Start, point)), RedactPreviewFill, RedactPreviewStroke, 1);
 
     private void EndRedactionGesture(PageViewModel page, NormalizedPoint start, NormalizedPoint end)
     {

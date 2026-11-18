@@ -243,7 +243,7 @@ public sealed class SignatureSecurityTests
         Assert.Equal(Loc.T(status == PdfSignatureStatus.Invalid ? "At least one signature is invalid."
             : "Signed, but the document was changed after signing"), model.SignatureBannerText);
         Assert.Equal(signature, model.BannerSample);
-        Assert.NotEqual(Color.FromRgb(0x10, 0x7C, 0x10), ((SolidColorBrush)signature.StatusBrush).Color);
+        Assert.NotEqual("SuccessBrush", signature.StatusBrushKey);
         if (status != PdfSignatureStatus.Invalid)
         {
             Assert.Equal(Loc.T("Signed, but the document was changed after signing"), signature.StatusText);

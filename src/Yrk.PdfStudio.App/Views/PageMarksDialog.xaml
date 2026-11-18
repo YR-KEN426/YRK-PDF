@@ -10,7 +10,7 @@
         MinHeight="600"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
@@ -29,7 +29,7 @@
                 <Button Content="Apply" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="90" Click="OnApply" IsEnabled="{Binding CanApply}" />
                 <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
             </StackPanel>
-            <TextBlock VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap"
+            <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap"
                        Text="A new copy is saved; the text in it can be searched and copied." />
         </DockPanel>
 
@@ -47,7 +47,7 @@
                 <StackPanel IsEnabled="{Binding UseWatermark}" Margin="22,0,0,0">
                     <TextBox Text="{Binding Watermark, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Watermark text"
                              AcceptsReturn="True" TextWrapping="Wrap" MinLines="2" MaxLines="4" VerticalScrollBarVisibility="Auto" />
-                    <TextBlock Text="Press Enter for a new line." TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,6,0,0" />
+                    <TextBlock Text="Press Enter for a new line." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,6,0,0" />
                     <Grid Margin="0,8,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="90" />
@@ -95,9 +95,9 @@
                             <RowDefinition />
                             <RowDefinition />
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Column="1" Text="Left" Foreground="{StaticResource SecondaryTextBrush}" />
-                        <TextBlock Grid.Column="2" Text="Centre" Foreground="{StaticResource SecondaryTextBrush}" Margin="4,0,0,0" />
-                        <TextBlock Grid.Column="3" Text="Right" Foreground="{StaticResource SecondaryTextBrush}" Margin="4,0,0,0" />
+                        <TextBlock Grid.Column="1" Text="Left" Foreground="{DynamicResource SecondaryTextBrush}" />
+                        <TextBlock Grid.Column="2" Text="Centre" Foreground="{DynamicResource SecondaryTextBrush}" Margin="4,0,0,0" />
+                        <TextBlock Grid.Column="3" Text="Right" Foreground="{DynamicResource SecondaryTextBrush}" Margin="4,0,0,0" />
                         <TextBlock Grid.Row="1" Text="Header" VerticalAlignment="Center" />
                         <TextBox Grid.Row="1" Grid.Column="1" Margin="0,4,0,0" Text="{Binding HeaderLeft, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Header left" />
                         <TextBox Grid.Row="1" Grid.Column="2" Margin="4,4,0,0" Text="{Binding HeaderCenter, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Header centre" />
@@ -107,7 +107,7 @@
                         <TextBox Grid.Row="2" Grid.Column="2" Margin="4,4,0,0" Text="{Binding FooterCenter, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Footer centre" />
                         <TextBox Grid.Row="2" Grid.Column="3" Margin="4,4,0,0" Text="{Binding FooterRight, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Footer right" />
                     </Grid>
-                    <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,6,0,0"
+                    <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,6,0,0"
                                Text="{}{page} page number · {pages} number of pages · {date} today · {file} file name" />
 
                     <TextBlock Text="Page numbers (footer centre)" Margin="0,10,0,4" />
@@ -170,9 +170,9 @@
                     <TextBlock Style="{StaticResource IconText}" Text="&#xE76C;" />
                 </Button>
             </StackPanel>
-            <Border Background="#E9E9E9" Padding="16">
+            <Border Background="{DynamicResource PreviewCanvasBrush}" Padding="16">
                 <Viewbox Stretch="Uniform">
-                    <Border Background="White" BorderBrush="#BDBDBD" BorderThickness="0.5">
+                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="0.5">
                         <Grid Width="{Binding PageWidth}" Height="{Binding PageHeight}" ClipToBounds="True">
                             <Image Source="{Binding PreviewImage}" Stretch="Fill" />
                             <ItemsControl ItemsSource="{Binding PreviewMarks}" IsHitTestVisible="False">

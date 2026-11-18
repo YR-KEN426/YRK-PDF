@@ -7,13 +7,13 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <StackPanel Margin="20">
         <TextBlock Text="Create your signature" FontSize="16" FontWeight="SemiBold" />
         <TextBlock Text="Draw it, type your name, or use a photo of your signature on white paper."
-                   Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,12" TextWrapping="Wrap" />
+                   Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,12" TextWrapping="Wrap" />
 
         <TabControl x:Name="Modes" Height="250" SelectionChanged="OnInputChanged">
             <TabItem Header="Draw">
@@ -22,9 +22,9 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Border BorderBrush="{StaticResource DividerBrush}" BorderThickness="1" Background="White">
+                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}">
                         <Grid>
-                            <Line X1="24" X2="500" Y1="130" Y2="130" Stroke="#D0D0D0" StrokeDashArray="4 3" IsHitTestVisible="False" />
+                            <Line X1="24" X2="500" Y1="130" Y2="130" Stroke="{DynamicResource SignatureCanvasBorderBrush}" StrokeDashArray="4 3" IsHitTestVisible="False" />
                             <InkCanvas x:Name="Ink" Background="Transparent" StrokeCollected="OnStrokeCollected" />
                         </Grid>
                     </Border>
@@ -51,7 +51,7 @@
                                 <StackPanel Margin="4,2">
                                     <TextBlock Text="{Binding Text, ElementName=TypedName, TargetNullValue=Your name, FallbackValue=Your name}"
                                                FontFamily="{Binding}" FontSize="26" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding Source}" FontSize="10" Foreground="{StaticResource SecondaryTextBrush}" />
+                                    <TextBlock Text="{Binding Source}" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -68,9 +68,9 @@
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Choose file…" Style="{StaticResource SecondaryButton}" Click="OnChooseImage" />
                         <TextBlock Text="PNG or JPG (white background removed), SVG or PDF (kept as sharp vector lines)." Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
-                                   Foreground="{StaticResource SecondaryTextBrush}" />
+                                   Foreground="{DynamicResource SecondaryTextBrush}" />
                     </StackPanel>
-                    <Border Grid.Row="1" Margin="0,8,0,0" BorderBrush="{StaticResource DividerBrush}" BorderThickness="1" Background="White">
+                    <Border Grid.Row="1" Margin="0,8,0,0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}">
                         <Image x:Name="ImportedPreview" Stretch="Uniform" Margin="12" />
                     </Border>
                 </Grid>

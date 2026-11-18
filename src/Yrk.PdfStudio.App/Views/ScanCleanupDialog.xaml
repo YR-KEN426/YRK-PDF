@@ -7,12 +7,12 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <StackPanel Margin="20">
         <TextBlock Text="Clean up the scanned pages" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,14"
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,14"
                    Text="This is what was found. Untick anything you want to keep as it is. Undo (Ctrl+Z) puts everything back." />
         <CheckBox x:Name="StraightenOption" IsChecked="True" Click="OnChanged">
             <TextBlock x:Name="StraightenText" TextWrapping="Wrap" />

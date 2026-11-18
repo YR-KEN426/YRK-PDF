@@ -223,7 +223,7 @@ public sealed partial class SavedItemEditingTests
                 app.Model.CurrentTool = tool;
                 Settle(window);
                 var page = Descendants<Grid>(window).Single(g => ReferenceEquals(g.DataContext, app.Model.Pages[0])
-                    && g.Background == Brushes.White && g.ActualWidth > 0);
+                    && ReferenceEquals(g.Background, Application.Current.Resources["SurfaceBrush"]) && g.ActualWidth > 0);
                 // Raise the production page's routed mouse event. Move its visual coordinate system,
                 // never the user's pointer, so GetPosition in the real handler hits this saved line.
                 var click = new MouseButtonEventArgs(Mouse.PrimaryDevice, Environment.TickCount, MouseButton.Left)

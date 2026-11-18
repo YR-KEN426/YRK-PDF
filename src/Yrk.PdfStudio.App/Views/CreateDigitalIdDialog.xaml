@@ -7,12 +7,12 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <StackPanel Margin="20">
         <TextBlock Text="Create a self-signed digital ID" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,14"
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,14"
                    Text="Good for internal use. Others will see your identity as unverified unless they trust your ID; for legally recognised signatures use a certificate from a certificate authority." />
 
         <TextBlock Text="Name" Margin="0,0,0,4" />
@@ -26,7 +26,7 @@
         <TextBlock Text="Confirm password" Margin="0,10,0,4" />
         <PasswordBox Style="{StaticResource RevealPasswordStyle}" x:Name="ConfirmInput" Padding="6,5" AutomationProperties.Name="Confirm password" />
 
-        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
+        <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Create" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnCreate" />

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Back up data" Width="560" SizeToContent="Height" ResizeMode="NoResize"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
+        Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
     <StackPanel Margin="24">
         <TextBlock Text="Back up data" FontSize="20" FontWeight="SemiBold" />
         <TextBlock Text="Choose the data to save in an encrypted backup file." TextWrapping="Wrap" Margin="0,8,0,14" />
@@ -14,13 +14,13 @@
             <CheckBox x:Name="CertificatesBox" Content="Trusted certificates" IsChecked="True" Margin="0,4" />
             <CheckBox x:Name="ETaxBox" Content="e-Tax settings" IsChecked="True" Margin="0,4" />
             <CheckBox x:Name="SettingsBox" Content="General settings" IsChecked="True" Margin="0,4" />
-            <TextBlock Text="Recent files, reading positions, recovery copies, logs and OCR files are excluded." TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,10,0,14" />
+            <TextBlock Text="Recent files, reading positions, recovery copies, logs and OCR files are excluded." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,10,0,14" />
             <TextBlock Text="Backup password (at least 12 characters)" />
             <PasswordBox Style="{StaticResource RevealPasswordStyle}" x:Name="PasswordInput" AutomationProperties.Name="Backup password" Margin="0,5,0,10" Padding="6" MaxLength="1024" />
             <TextBlock Text="Confirm backup password" />
             <PasswordBox Style="{StaticResource RevealPasswordStyle}" x:Name="ConfirmInput" AutomationProperties.Name="Confirm backup password" Margin="0,5,0,12" Padding="6" MaxLength="1024" />
         </StackPanel>
-        <Border Background="#FFF4DC" BorderBrush="#CF9B36" BorderThickness="1" CornerRadius="6" Padding="12">
+        <Border Background="{DynamicResource WarningBannerBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
             <StackPanel>
                 <TextBlock Text="Keep both passwords safe" FontWeight="SemiBold" />
                 <TextBlock Text="The backup password cannot be recovered. Remember your Digital ID password too: each .pfx or .p12 file keeps its own password." TextWrapping="Wrap" Margin="0,5,0,0" />

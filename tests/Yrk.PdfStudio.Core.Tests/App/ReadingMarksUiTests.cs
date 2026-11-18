@@ -91,7 +91,8 @@ public sealed class ReadingMarksUiTests
                 typeof(MainViewModel).GetProperty(nameof(MainViewModel.IsBusy))!.SetValue(app.Model, false);
 
                 var pages = (ItemsControl)window.FindName("PageItems");
-                var page = Descendants<Grid>(pages).First(g => ReferenceEquals(g.DataContext, app.Model.Pages[2]) && g.Background == Brushes.White);
+                var page = Descendants<Grid>(pages).First(g => ReferenceEquals(g.DataContext, app.Model.Pages[2])
+                    && ReferenceEquals(g.Background, Application.Current.Resources["SurfaceBrush"]));
                 page.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Right)
                     { RoutedEvent = UIElement.MouseRightButtonUpEvent });
                 var pageMenu = PresentationSource.CurrentSources.Cast<PresentationSource>()

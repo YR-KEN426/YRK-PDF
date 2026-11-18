@@ -43,16 +43,14 @@ public partial class OcrReviewDialog : Window
         foreach (var word in _model.Words.Where(w => w.PageIndex == _model.PageIndex))
         {
             var box = word.Original.Bounds;
-            var brush = (Brush)FindResource(_model.IsConfirmed(word) ? "AccentBrush" : "CurrentSearchHighlightBrush");
-            var hitBrush = ((Brush)FindResource("SurfaceBrush")).Clone();
-            hitBrush.Opacity = 0;
             var button = new Button { Width = Math.Max(8, box.Width * _model.PageWidth),
                 Height = Math.Max(8, box.Height * _model.PageHeight), IsTabStop = false,
                 ToolTip = _model.WordText(word) };
             var border = new FrameworkElementFactory(typeof(Border));
-            border.SetValue(Border.BorderBrushProperty, brush);
+            border.SetResourceReference(Border.BorderBrushProperty, _model.IsConfirmed(word) ? "AccentBrush" : "CurrentSearchHighlightBrush");
             border.SetValue(Border.BorderThicknessProperty, new Thickness(_model.IsConfirmed(word) ? 3 : 2));
-            border.SetValue(Border.BackgroundProperty, hitBrush);
+            // Zero-opacity hit paint has no visible theme color and needs no cloned shared brush.
+            border.SetValue(Border.BackgroundProperty, Brushes.Transparent);
             button.Template = new ControlTemplate(typeof(Button)) { VisualTree = border };
             AutomationProperties.SetName(button, Loc.F("Review word: {0}", _model.WordText(word)));
             button.Click += (_, _) => _model.SelectWord(word);
@@ -64,10 +62,10 @@ public partial class OcrReviewDialog : Window
         {
             var box = selected.Original.Bounds;
             var left = Math.Clamp(box.X * _model.PageWidth, 0, Math.Max(0, _model.PageWidth - 120));
-            _editor = new TextBox { Text = _model.EditText, MinHeight = 28,
+            _editor = ThemeResources.Apply(new TextBox { Text = _model.EditText, MinHeight = 28,
                 Width = Math.Min(Math.Max(120, box.Width * _model.PageWidth), _model.PageWidth - left),
-                FontSize = 16, Padding = new Thickness(3), Background = (Brush)FindResource("SurfaceBrush"),
-                Foreground = (Brush)FindResource("TextBrush"), BorderBrush = (Brush)FindResource("AccentBrush") };
+                FontSize = 16, Padding = new Thickness(3) },
+                (TextBox.BackgroundProperty, "SurfaceBrush"), (TextBox.ForegroundProperty, "TextBrush"), (TextBox.BorderBrushProperty, "AccentBrush"));
             AutomationProperties.SetName(_editor, Loc.T("Word correction (empty deletes)"));
             _editor.TextChanged += (_, _) => _model.EditText = _editor.Text;
             Canvas.SetLeft(_editor, left);

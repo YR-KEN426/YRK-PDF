@@ -4,11 +4,11 @@
     <UserControl.Resources>
         <Style x:Key="AddressLabel" TargetType="TextBlock">
             <Setter Property="Margin" Value="0,8,0,3" />
-            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
         </Style>
     </UserControl.Resources>
     <StackPanel>
-        <TextBlock x:Name="AreaNoteText" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+        <TextBlock x:Name="AreaNoteText" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition />
@@ -53,6 +53,6 @@
                 </DataTemplate>
             </ComboBox.ItemTemplate>
         </ComboBox>
-        <TextBlock x:Name="NoticeText" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0" />
+        <TextBlock x:Name="NoticeText" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,3,0,0" />
     </StackPanel>
 </UserControl>

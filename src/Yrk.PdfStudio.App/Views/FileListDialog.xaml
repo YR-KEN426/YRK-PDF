@@ -10,7 +10,7 @@
         AllowDrop="True"
         DragOver="OnDragOver"
         Drop="OnDrop"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Grid Margin="20">
@@ -22,7 +22,7 @@
         </Grid.RowDefinitions>
         <StackPanel>
             <TextBlock x:Name="Heading" FontSize="16" FontWeight="SemiBold" />
-            <TextBlock x:Name="Description" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,12" TextWrapping="Wrap" />
+            <TextBlock x:Name="Description" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,12" TextWrapping="Wrap" />
         </StackPanel>
 
         <Grid Grid.Row="1">
@@ -35,7 +35,7 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <DockPanel Margin="2,3">
-                            <Border DockPanel.Dock="Left" Width="44" Height="44" Margin="0,0,10,0" Background="#F3F3F3">
+                            <Border DockPanel.Dock="Left" Width="44" Height="44" Margin="0,0,10,0" Background="{DynamicResource PreviewBackgroundBrush}">
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Style.Triggers>
@@ -49,7 +49,7 @@
                             </Border>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </DockPanel>
                     </DataTemplate>
@@ -73,7 +73,7 @@
         </StackPanel>
 
         <DockPanel Grid.Row="3" Margin="0,16,0,0">
-            <TextBlock x:Name="Summary" VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}" />
+            <TextBlock x:Name="Summary" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="OkButton" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnOk" />
                 <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />

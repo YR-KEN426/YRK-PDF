@@ -5,15 +5,15 @@
         Title="Convert scanned documents" Width="680" Height="780" MinWidth="580" MinHeight="500"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
         AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
-        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
+        Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <DockPanel Margin="20">
         <StackPanel DockPanel.Dock="Bottom">
-            <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Conversion error" />
-            <Border Background="#FFF4DC" BorderBrush="#CF9B36" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,12,0,0">
+            <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Conversion error" />
+            <Border Background="{DynamicResource WarningBannerBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,12,0,0">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Left" Text="⚠" Foreground="{StaticResource TextBrush}" Margin="0,0,8,0" />
-                    <TextBlock x:Name="OcrWarningText" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap">
+                    <TextBlock DockPanel.Dock="Left" Text="⚠" Foreground="{DynamicResource TextBrush}" Margin="0,0,8,0" />
+                    <TextBlock x:Name="OcrWarningText" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap">
                         <Run Text="{Binding Source='Text is read from an image, so it can be wrong,', Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}, StringFormat='{}{0} '}" FontWeight="Bold" /><Run Text="{Binding Source='especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it.', Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" />
                     </TextBlock>
                 </DockPanel>
@@ -26,7 +26,7 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel>
                 <TextBlock Text="Convert scanned documents" FontSize="16" FontWeight="SemiBold" />
-                <TextBlock Text="Scans to searchable PDF, editable Word or text" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,12" />
+                <TextBlock Text="Scans to searchable PDF, editable Word or text" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,12" />
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Margin="8,0,0,0" Width="150">
                         <Button Content="Add files…" AutomationProperties.Name="Add files…" Style="{StaticResource SecondaryButton}" Click="OnAddFiles" Margin="0,0,0,6" />
@@ -48,17 +48,17 @@
                             <DataTemplate>
                                 <StackPanel>
                                     <TextBlock Text="{Binding Name}" />
-                                    <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                     <TextBlock x:Name="EmptyFileHint" Text="Drop PDF files, images or folders here"
-                               Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" TextAlignment="Center"
+                               Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" TextAlignment="Center"
                                HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12" IsHitTestVisible="False" />
                     </Grid>
                 </DockPanel>
-                <TextBlock x:Name="CountText" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+                <TextBlock x:Name="CountText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,0" />
                 <TextBlock Text="Languages in the document" FontWeight="SemiBold" Margin="0,12,0,4" />
                 <ItemsControl x:Name="LanguageList" Focusable="False">
                     <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
@@ -67,7 +67,7 @@
                             <CheckBox IsChecked="{Binding IsChecked, UpdateSourceTrigger=PropertyChanged}" Margin="0,3" Checked="OnChanged" Unchecked="OnChanged" AutomationProperties.Name="{Binding Name}">
                                 <TextBlock>
                                     <Run Text="{Binding Name, Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" />
-                                    <Run Text="{Binding Note, Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" />
+                                    <Run Text="{Binding Note, Mode=OneWay, Converter={x:Static conv:TrConverter.Instance}}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" />
                                 </TextBlock>
                             </CheckBox>
                         </DataTemplate>
@@ -88,8 +88,8 @@
                     <Button DockPanel.Dock="Right" Content="Browse…" AutomationProperties.Name="Browse…" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnBrowse" />
                     <TextBox x:Name="FolderBox" Padding="4,3" AutomationProperties.Name="Output folder" TextChanged="OnChanged" />
                 </DockPanel>
-                <TextBlock Text="Leave blank to use each source file's folder." Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
-                <TextBlock x:Name="ScanTipText" Text="Tip: scan at 300 dpi with the page straight for the best result." FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <TextBlock Text="Leave blank to use each source file's folder." Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <TextBlock x:Name="ScanTipText" Text="Tip: scan at 300 dpi with the page straight for the best result." FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

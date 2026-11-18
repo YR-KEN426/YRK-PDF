@@ -7,7 +7,7 @@
         ResizeMode="CanResizeWithGrip" MinWidth="560" MinHeight="320"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Grid Margin="20">
@@ -21,7 +21,7 @@
             <StackPanel>
                 <TextBlock Text="Sign with a digital ID" FontSize="16" FontWeight="SemiBold" />
                 <TextBlock Text="A digital signature (PAdES) proves who signed and shows whether the document was changed afterwards."
-                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap" />
+                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,14" TextWrapping="Wrap" />
 
                 <TextBlock Text="Digital ID" Margin="0,0,0,4" />
                 <ListBox x:Name="IdList" Height="150" ScrollViewer.HorizontalScrollBarVisibility="Disabled" SelectionChanged="OnIdSelectionChanged" AutomationProperties.Name="Digital IDs">
@@ -29,12 +29,12 @@
                         <DataTemplate>
                             <StackPanel Margin="2,3">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding Details}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip="{Binding Details}" Foreground="{StaticResource SecondaryTextBrush}" />
+                                <TextBlock Text="{Binding Details}" FontSize="11" TextTrimming="CharacterEllipsis" ToolTip="{Binding Details}" Foreground="{DynamicResource SecondaryTextBrush}" />
                             </StackPanel>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
-                <TextBlock x:Name="NoIdsText" Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Visibility="Collapsed"
+                <TextBlock x:Name="NoIdsText" Margin="0,4,0,0" FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Visibility="Collapsed"
                            Text="No digital IDs found. Plug in your USB token, add a .pfx file from your certificate authority, or create a self-signed ID." />
                 <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                     <Button Content="Create new ID…" Style="{StaticResource SecondaryButton}" Click="OnCreateId" />
@@ -113,23 +113,23 @@
                     <ComboBoxItem Content="Certify as the author: no changes allowed after" Tag="1" />
                 </ComboBox>
                 <TextBlock x:Name="AlreadySignedNote" Visibility="Collapsed" Margin="0,4,0,0" TextWrapping="Wrap"
-                           Foreground="{StaticResource SecondaryTextBrush}"
+                           Foreground="{DynamicResource SecondaryTextBrush}"
                            Text="This file is already signed, so it can only be approved, not certified. Only the first signature can certify a document." />
                 <TextBlock Text="Only the first signature of a document can certify it. Viewers such as Adobe Acrobat then show which later changes break the certification."
-                           FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                           FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,4,0,0" />
 
                 <CheckBox x:Name="TimestampBox" Content="Add a trusted timestamp (needs internet; proves when you signed)" Margin="0,14,0,4"
                           Checked="OnTimestampUrlChanged" Unchecked="OnTimestampUrlChanged" />
                 <TextBox x:Name="TimestampUrlInput" Padding="6,4" Margin="20,0,0,0" AutomationProperties.Name="Timestamp server"
                          IsEnabled="{Binding IsChecked, ElementName=TimestampBox}" TextChanged="OnTimestampUrlChanged" />
                 <TextBlock x:Name="TimestampHttpWarning" Text="This timestamp server uses http, not https. The timestamp is still signed by the server and checked when the file is verified, but the request is not encrypted."
-                           FontSize="11" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="20,2,0,0" Visibility="Collapsed" />
+                           FontSize="11" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="20,2,0,0" Visibility="Collapsed" />
                 <CheckBox x:Name="LongTermBox" Content="Add long-term validation data (needs internet; the signature can still be checked after the certificate expires)"
                           Margin="0,10,0,0" />
                 <TextBlock Text="Stores your certificates and their revocation lists in the file (PAdES B-LT). Best together with a trusted timestamp."
-                           FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="20,2,0,0" />
+                           FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="20,2,0,0" />
 
-                <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
+                <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
             </StackPanel>
         </ScrollViewer>
 

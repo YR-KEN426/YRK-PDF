@@ -18,14 +18,14 @@ public partial class MainWindow
     /// <param name="Accounting">Shown in the Accounting group too, besides its own group.</param>
     private sealed record HomeTool(string Id, string Category, string Glyph, string Title, string Text, bool NeedsDocument = true, bool Accounting = false);
 
-    private static readonly Dictionary<string, Color> CategoryColors = new()
+    private static readonly Dictionary<string, string> CategoryBrushKeys = new()
     {
-        ["organize"] = Color.FromRgb(0xE8, 0x59, 0x0C),
-        ["convert"] = Color.FromRgb(0x1A, 0x73, 0xE8),
-        ["edit"] = Color.FromRgb(0x7B, 0x4F, 0xC9),
-        ["drawings"] = Color.FromRgb(0x00, 0x89, 0x7B),
-        ["security"] = Color.FromRgb(0xC6, 0x28, 0x28),
-        ["accounting"] = Color.FromRgb(0x2E, 0x7D, 0x32),
+        ["organize"] = "MeasureAccentBrush",
+        ["convert"] = "HomeConvertBrush",
+        ["edit"] = "HomeEditBrush",
+        ["drawings"] = "HomeDrawingsBrush",
+        ["security"] = "BrandBrush",
+        ["accounting"] = "HomeAccountingBrush",
     };
 
     private string _homeCategory = "all";
@@ -132,39 +132,38 @@ public partial class MainWindow
         HomeCards.Children.Clear();
         foreach (var tool in HomeTools().Where(t => _homeCategory == "all" || t.Category == _homeCategory || (t.Accounting && _homeCategory == "accounting")).OrderBy(t => _homeCategory == t.Category ? 0 : 1))
         {
-            var color = CategoryColors[tool.Category];
+            var brushKey = CategoryBrushKeys[tool.Category];
             var icon = new Border
             {
                 Width = 34,
                 Height = 34,
                 CornerRadius = new CornerRadius(7),
-                Background = new SolidColorBrush(color),
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Child = new TextBlock
                 {
                     Style = (Style)FindResource("IconText"),
                     Text = tool.Glyph,
                     FontSize = 17,
-                    Foreground = Brushes.White,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,
                 },
             };
+            icon.SetResourceReference(Border.BackgroundProperty, brushKey);
+            ((TextBlock)icon.Child).SetResourceReference(TextBlock.ForegroundProperty, "OnAccentTextBrush");
             var content = new DockPanel();
             DockPanel.SetDock(icon, Dock.Top);
             content.Children.Add(icon);
             var title = new TextBlock { Text = tool.Title, FontWeight = FontWeights.SemiBold, FontSize = 14, Margin = new Thickness(0, 10, 0, 2), Tag = UiTranslator.KeepText };
             DockPanel.SetDock(title, Dock.Top);
             content.Children.Add(title);
-            content.Children.Add(new TextBlock
+            content.Children.Add(ThemeResources.Apply(new TextBlock
             {
                 Text = tool.Text,
                 TextWrapping = TextWrapping.Wrap,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 FontSize = 12,
-                Foreground = (Brush)FindResource("SecondaryTextBrush"),
                 Tag = UiTranslator.KeepText,
-            });
+            }, (TextBlock.ForegroundProperty, "SecondaryTextBrush")));
 
             var card = new Button { Style = (Style)FindResource("HomeCard"), Content = content, Tag = tool.Id, ToolTip = tool.Text };
             AutomationProperties.SetName(card, tool.Title);

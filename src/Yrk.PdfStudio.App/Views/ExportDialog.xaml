@@ -7,7 +7,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
@@ -17,7 +17,7 @@
     </Window.Resources>
     <StackPanel Margin="20">
         <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-            <TextBlock Style="{StaticResource IconText}" Text="&#xEDE1;" FontSize="20" Foreground="{StaticResource AccentBrush}" />
+            <TextBlock Style="{StaticResource IconText}" Text="&#xEDE1;" FontSize="20" Foreground="{DynamicResource AccentBrush}" />
             <TextBlock Text="Export" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
 
@@ -55,7 +55,7 @@
                     <Slider x:Name="QualitySlider" Minimum="40" Maximum="100" Value="85" IsSnapToTickEnabled="True" TickFrequency="5" AutomationProperties.Name="JPG quality" />
                 </DockPanel>
             </Grid>
-            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,6,0,0"
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,6,0,0"
                        Text="One image per page, named after the file and the page number." />
         </StackPanel>
 
@@ -72,9 +72,9 @@
             </DockPanel>
         </StackPanel>
 
-        <TextBlock x:Name="LayoutNote" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,14,0,0"
+        <TextBlock x:Name="LayoutNote" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,14,0,0"
                    Text="Word and Excel get the text rebuilt as paragraphs and tables, so the layout can differ from the PDF. Pages without text (scans) are added as pictures: use Recognize text (OCR) first to get editable text." />
-        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Export error" />
+        <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Export error" />
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button x:Name="OkButton" Content="Export…" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="90" Click="OnOk" />

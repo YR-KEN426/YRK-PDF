@@ -179,10 +179,22 @@ public sealed class PageViewModel : ObservableObject
         ? [new(r.Left, r.Top), new(r.Right, r.Top), new(r.Right, r.Bottom), new(r.Left, r.Bottom)]
         : [];
 
+    private string? _previewFillKey, _previewStrokeKey;
+    public string? PreviewFillKey { get => _previewFillKey; private set => SetProperty(ref _previewFillKey, value); }
+    public string? PreviewStrokeKey { get => _previewStrokeKey; private set => SetProperty(ref _previewStrokeKey, value); }
+
+    internal void SetThemedPreview(Geometry? geometry, string? fill, string? stroke, double thickness)
+    {
+        SetPreview(geometry, null, null, thickness);
+        PreviewFillKey = fill;
+        PreviewStrokeKey = stroke;
+    }
+
     internal void SetPreview(Geometry? geometry, Brush? fill, Brush? stroke, double thickness)
     {
         geometry?.Freeze();
         Preview = geometry;
+        PreviewFillKey = PreviewStrokeKey = null;
         PreviewFill = fill;
         PreviewStroke = stroke;
         PreviewThickness = thickness;

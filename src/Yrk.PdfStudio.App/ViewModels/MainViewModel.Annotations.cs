@@ -13,7 +13,7 @@ public sealed partial class MainViewModel
 {
     private const double ClickTolerance = 3; // points: smaller drags count as a click
 
-    private static readonly Brush SelectionFill = Frozen(new SolidColorBrush(Color.FromArgb(0x55, 0x33, 0x99, 0xFF)));
+    private const string SelectionFill = "SelectionOverlayBrush";
 
     private AnnotationTool _currentTool = AnnotationTool.Select;
     private Color _annotationColor = Palette[0];
@@ -242,7 +242,7 @@ public sealed partial class MainViewModel
                 page.SetPreview(new RectangleGeometry(ToPoints(page, gesture.Start, point)), null, brush, _strokeWidth);
                 break;
             case var tool when IsFieldTool(tool):
-                page.SetPreview(new RectangleGeometry(ToPoints(page, gesture.Start, point)), FieldPreviewFill, FieldPreviewStroke, 1);
+                page.SetThemedPreview(new RectangleGeometry(ToPoints(page, gesture.Start, point)), FieldPreviewFill, FieldPreviewStroke, 1);
                 break;
             case AnnotationTool.Ellipse:
                 page.SetPreview(new EllipseGeometry(ToPoints(page, gesture.Start, point)), null, brush, _strokeWidth);
@@ -323,7 +323,7 @@ public sealed partial class MainViewModel
                 {
                     _textSelection = selection;
                     _textSelectionPage = page;
-                    page.SetPreview(RectsGeometry(page, MergeByLine(selection.Rects)), SelectionFill, null, 0);
+                    page.SetThemedPreview(RectsGeometry(page, MergeByLine(selection.Rects)), SelectionFill, null, 0);
                     OnPropertyChanged(nameof(HasTextSelection));
                 }
 
@@ -648,10 +648,11 @@ public sealed partial class MainViewModel
                     return; // The drag ended meanwhile.
                 }
 
-                var fill = _currentTool == AnnotationTool.Select
-                    ? SelectionFill
-                    : Frozen(new SolidColorBrush(Color.FromArgb(0x66, _annotationColor.R, _annotationColor.G, _annotationColor.B)));
-                gesture.Page.SetPreview(selection is null ? null : RectsGeometry(gesture.Page, MergeByLine(selection.Rects)), fill, null, 0);
+                var geometry = selection is null ? null : RectsGeometry(gesture.Page, MergeByLine(selection.Rects));
+                if (_currentTool == AnnotationTool.Select)
+                    gesture.Page.SetThemedPreview(geometry, SelectionFill, null, 0);
+                else
+                    gesture.Page.SetPreview(geometry, Frozen(new SolidColorBrush(Color.FromArgb(0x66, _annotationColor.R, _annotationColor.G, _annotationColor.B))), null, 0);
             }
             while (gesture.Latest != requested); // The mouse moved while we waited: catch up.
         }

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="My trusted certificates" Width="640" Height="440" MinWidth="500" MinHeight="320"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
+        Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
     <DockPanel Margin="20">
         <TextBlock DockPanel.Dock="Top" Text="This trust applies only in YRK on this computer. Other programs may still show an unknown signer."
                    TextWrapping="Wrap" Margin="0,0,0,12" />

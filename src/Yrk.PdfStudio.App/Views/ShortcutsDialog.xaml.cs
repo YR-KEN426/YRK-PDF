@@ -33,7 +33,7 @@ public partial class ShortcutsDialog : Window
                 row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
                 row.Children.Add(new TextBlock { Text = action, TextWrapping = TextWrapping.Wrap });
                 // Key names stay as printed on the keyboard.
-                var key = new TextBlock { Text = keys, Tag = Localization.UiTranslator.KeepText, Margin = new Thickness(12, 0, 0, 0), Foreground = (System.Windows.Media.Brush)FindResource("SecondaryTextBrush") };
+                var key = ThemeResources.Apply(new TextBlock { Text = keys, Tag = Localization.UiTranslator.KeepText, Margin = new Thickness(12, 0, 0, 0)}, (TextBlock.ForegroundProperty, "SecondaryTextBrush"));
                 Grid.SetColumn(key, 1);
                 row.Children.Add(key);
                 column.Children.Add(row);

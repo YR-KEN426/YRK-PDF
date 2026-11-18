@@ -89,15 +89,13 @@ public partial class MainWindow
         row.Children.Add(new TextBlock { Text = Loc.T("Amount in words"), VerticalAlignment = VerticalAlignment.Center, FontSize = 12, Tag = UiTranslator.KeepText });
         row.Children.Add(Choice(Loc.T("Thai"), english: false));
         row.Children.Add(Choice(Loc.T("English"), english: true));
-        return new Border
+        return ThemeResources.Apply(new Border
         {
             Child = row,
             Padding = new Thickness(8, 4, 6, 4),
             CornerRadius = new CornerRadius(5),
             BorderThickness = new Thickness(1),
-            BorderBrush = (Brush)FindResource("AccentBrush"),
-            Background = (Brush)FindResource("SurfaceBrush"),
-        };
+        }, (Border.BorderBrushProperty, "AccentBrush"), (Border.BackgroundProperty, "SurfaceBrush"));
     }
 
     private void OnAmountHintClick(object sender, RoutedEventArgs e)

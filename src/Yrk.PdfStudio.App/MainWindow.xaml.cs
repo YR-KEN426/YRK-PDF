@@ -110,13 +110,12 @@ public partial class MainWindow : Window
     // Same layout, styles and default-to-Cancel behavior as SignAgainDialog.
     private Window CreateCutPagesCloseDialog(string message)
     {
-        var dialog = new Window
+        var dialog = ThemeResources.Apply(new Window
         {
             Owner = this, Title = DialogService.Caption, Width = 500, SizeToContent = SizeToContent.Height,
             ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = (Brush)FindResource("SurfaceBrush"), Foreground = (Brush)FindResource("TextBrush"),
             FontFamily = (FontFamily)FindResource("UiFont"),
-        };
+        }, (Window.BackgroundProperty, "SurfaceBrush"), (Window.ForegroundProperty, "TextBrush"));
         var content = new StackPanel { Margin = new Thickness(20) };
         content.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };

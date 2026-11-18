@@ -11,7 +11,7 @@
         MinHeight="560"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
@@ -37,7 +37,7 @@
                         IsEnabled="{Binding CanPrint}" AutomationProperties.Name="Print" />
                 <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
             </StackPanel>
-            <TextBlock VerticalAlignment="Center" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" AutomationProperties.Name="Print error">
+            <TextBlock VerticalAlignment="Center" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" AutomationProperties.Name="Print error">
                 <Run Text="{Binding Error, Mode=OneWay}" /> <Run Text="{Binding PrinterError, Mode=OneWay}" />
             </TextBlock>
         </DockPanel>
@@ -81,7 +81,7 @@
                     <TextBox Text="{Binding RangeText, UpdateSourceTrigger=PropertyChanged}" Width="140" Margin="10,0,0,0" Padding="4,2"
                              AutomationProperties.Name="Pages to print" ToolTip="{Binding RangeHint}" />
                 </StackPanel>
-                <TextBlock Text="{Binding RangeHint}" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="22,2,0,0" />
+                <TextBlock Text="{Binding RangeHint}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="22,2,0,0" />
 
                 <TextBlock Text="Size" Style="{StaticResource Heading}" />
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
@@ -96,7 +96,7 @@
                 <RadioButton GroupName="Sizing" AutomationProperties.Name="Actual size"
                              IsChecked="{Binding Sizing, Converter={x:Static conv:EnumEqualsConverter.Instance}, ConverterParameter={x:Static printing:PrintSizing.ActualSize}}">
                     <TextBlock>
-                        <Run Text="Actual size" /> <Run Text="(keeps a drawing's scale)" Foreground="{StaticResource SecondaryTextBrush}" />
+                        <Run Text="Actual size" /> <Run Text="(keeps a drawing's scale)" Foreground="{DynamicResource SecondaryTextBrush}" />
                     </TextBlock>
                 </RadioButton>
                 <RadioButton Content="Shrink oversized pages" GroupName="Sizing"
@@ -118,7 +118,7 @@
                     <ComboBox ItemsSource="{Binding Qualities}" SelectedItem="{Binding Quality}" ItemTemplate="{StaticResource TranslatedItem}" Width="120" AutomationProperties.Name="Quality"
                               ToolTip="Draft 150 dpi, Standard 300 dpi, High 600 dpi" />
                 </StackPanel>
-                <TextBlock Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0"
+                <TextBlock Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0"
                            Text="Layers print as they are shown. Nothing is sent anywhere except to the printer you choose." />
             </StackPanel>
         </ScrollViewer>
@@ -126,7 +126,7 @@
         <!-- Preview -->
         <DockPanel>
             <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
-                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{StaticResource SecondaryTextBrush}">
+                <TextBlock DockPanel.Dock="Right" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}">
                     <Run Text="{Binding Summary, Mode=OneWay}" /> <Run Text="·" /> <Run Text="{Binding ScaleText, Mode=OneWay}" />
                 </TextBlock>
                 <StackPanel Orientation="Horizontal">
@@ -139,9 +139,9 @@
                     </Button>
                 </StackPanel>
             </DockPanel>
-            <Border Background="#E9E9E9" Padding="16">
+            <Border Background="{DynamicResource PreviewCanvasBrush}" Padding="16">
                 <Viewbox Stretch="Uniform">
-                    <Border Background="White" BorderBrush="#BDBDBD" BorderThickness="0.5">
+                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="0.5">
                         <Border.Effect>
                             <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.25" />
                         </Border.Effect>
@@ -155,7 +155,7 @@
                             </Image>
                             <Rectangle Canvas.Left="{Binding PrintableLeft}" Canvas.Top="{Binding PrintableTop}"
                                        Width="{Binding PrintableWidth}" Height="{Binding PrintableHeight}"
-                                       Stroke="#9E9E9E" StrokeThickness="0.75" StrokeDashArray="4 4" IsHitTestVisible="False" />
+                                       Stroke="{DynamicResource PreviewMutedTextBrush}" StrokeThickness="0.75" StrokeDashArray="4 4" IsHitTestVisible="False" />
                         </Canvas>
                     </Border>
                 </Viewbox>

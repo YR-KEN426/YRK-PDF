@@ -7,25 +7,25 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <StackPanel Margin="20">
         <TextBlock Text="Amount in words" FontSize="16" FontWeight="SemiBold" />
-        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,12"
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,12"
                    Text="Type an amount, for example 12,500.50, then copy the words or put them on the page." />
         <TextBox x:Name="AmountInput" Padding="6,5" FontSize="15" AutomationProperties.Name="Amount" TextChanged="OnAmountChanged" />
-        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" Margin="0,6,0,0" Visibility="Collapsed"
+        <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" Margin="0,6,0,0" Visibility="Collapsed"
                    Text="Enter an amount in numbers." />
 
-        <TextBlock Text="Thai" Margin="0,14,0,4" Foreground="{StaticResource SecondaryTextBrush}" />
+        <TextBlock Text="Thai" Margin="0,14,0,4" Foreground="{DynamicResource SecondaryTextBrush}" />
         <TextBox x:Name="ThaiWords" IsReadOnly="True" TextWrapping="Wrap" Padding="6,5" AutomationProperties.Name="Thai words" />
         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
             <Button x:Name="CopyThai" Content="Copy" Style="{StaticResource SecondaryButton}" IsEnabled="False" Click="OnCopyThai" AutomationProperties.Name="Copy Thai words" />
             <Button x:Name="PlaceThai" Content="Put on the page" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" IsEnabled="False" Click="OnPlaceThai" AutomationProperties.Name="Put Thai words on the page" />
         </StackPanel>
 
-        <TextBlock Text="English" Margin="0,14,0,4" Foreground="{StaticResource SecondaryTextBrush}" />
+        <TextBlock Text="English" Margin="0,14,0,4" Foreground="{DynamicResource SecondaryTextBrush}" />
         <TextBox x:Name="EnglishWords" IsReadOnly="True" TextWrapping="Wrap" Padding="6,5" AutomationProperties.Name="English words" />
         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
             <Button x:Name="CopyEnglish" Content="Copy" Style="{StaticResource SecondaryButton}" IsEnabled="False" Click="OnCopyEnglish" AutomationProperties.Name="Copy English words" />

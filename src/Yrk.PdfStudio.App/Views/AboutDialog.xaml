@@ -7,7 +7,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <StackPanel Margin="20">
@@ -18,20 +18,20 @@
                    RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="YRK LAB" />
             <StackPanel>
                 <TextBlock Text="YRK PDF" FontSize="20" FontWeight="SemiBold" />
-                <TextBlock x:Name="VersionText" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0" />
+                <TextBlock x:Name="VersionText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,2,0,0" />
                 <TextBlock Margin="0,2,0,0">
-                    <Run Text="by" Foreground="{StaticResource SecondaryTextBrush}" /> <Run Text="YRK LAB" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" /> <Run Text="·" Foreground="{StaticResource SecondaryTextBrush}" /> <Run Text="Your Reliable Kit" FontStyle="Italic" Foreground="{StaticResource SecondaryTextBrush}" />
+                    <Run Text="by" Foreground="{DynamicResource SecondaryTextBrush}" /> <Run Text="YRK LAB" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /> <Run Text="·" Foreground="{DynamicResource SecondaryTextBrush}" /> <Run Text="Your Reliable Kit" FontStyle="Italic" Foreground="{DynamicResource SecondaryTextBrush}" />
                 </TextBlock>
-                <TextBlock Text="© 2026 YRK LAB. All rights reserved." Foreground="{StaticResource SecondaryTextBrush}" Margin="0,2,0,0" />
+                <TextBlock Text="© 2026 YRK LAB. All rights reserved." Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,2,0,0" />
                 <WrapPanel Margin="0,2,0,0">
-                    <TextBlock Text="Website:" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,6,0" />
+                    <TextBlock Text="Website:" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,6,0" />
                     <TextBlock x:Name="WebsiteText" />
                 </WrapPanel>
             </StackPanel>
         </DockPanel>
 
         <TextBlock Text="Updates" FontWeight="SemiBold" Margin="0,18,0,4" />
-        <TextBlock x:Name="SourceText" TextWrapping="Wrap" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" />
+        <TextBlock x:Name="SourceText" TextWrapping="Wrap" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
         <CheckBox x:Name="AutoCheckBox" Content="Check for updates automatically" Margin="0,8,0,0" />
         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
             <Button x:Name="CheckButton" Content="Check for updates now" Style="{StaticResource SecondaryButton}" Click="OnCheckNow" />

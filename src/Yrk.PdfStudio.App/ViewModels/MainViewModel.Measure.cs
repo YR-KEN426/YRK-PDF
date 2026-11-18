@@ -684,6 +684,6 @@ public sealed partial class MainViewModel
 
     private static readonly Brush MeasureBrush = Frozen(new SolidColorBrush(Color.FromRgb(MeasureColor.R, MeasureColor.G, MeasureColor.B)));
     private static readonly Brush MeasureFill = Frozen(new SolidColorBrush(Color.FromArgb(0x30, MeasureColor.R, MeasureColor.G, MeasureColor.B)));
-    private static readonly Brush FieldPreviewFill = Frozen(new SolidColorBrush(Color.FromArgb(0x30, 0x1C, 0x64, 0xA8)));
-    private static readonly Brush FieldPreviewStroke = Frozen(new SolidColorBrush(Color.FromRgb(0x1C, 0x64, 0xA8)));
+    private const string FieldPreviewFill = "FieldPreviewFillBrush";
+    private const string FieldPreviewStroke = "FieldPreviewStrokeBrush";
 }

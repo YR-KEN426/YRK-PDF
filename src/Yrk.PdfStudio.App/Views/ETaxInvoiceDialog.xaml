@@ -9,13 +9,13 @@
         MinHeight="480"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
         <Style x:Key="Label" TargetType="TextBlock">
             <Setter Property="Margin" Value="0,8,0,3" />
-            <Setter Property="Foreground" Value="{StaticResource SecondaryTextBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SecondaryTextBrush}" />
         </Style>
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="5,4" />
@@ -24,19 +24,19 @@
     <DockPanel Margin="20,16,20,16">
         <StackPanel DockPanel.Dock="Top">
             <TextBlock Text="Make an e-Tax document (tax invoice, debit note, credit note)" FontSize="16" FontWeight="SemiBold" />
-            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,6"
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,6"
                        Text="The PDF is made as PDF/A-3 with the Revenue Department's XML (ETDA standard) inside. Sign it with your digital ID afterwards, then email it to the buyer." />
-            <TextBlock Text="YRK PDF e-Tax status" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,2" />
-            <TextBlock Text="• Follows ETDA standard ขมธอ. 3-2560, version 2.0" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
-            <TextBlock Text="• A sample XML file passed the structure check on the Revenue Department's validation page" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
-            <TextBlock Text="• It has never been tested by actually submitting to the e-Tax Invoice system" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
-            <TextBlock Text="• It is not certified by the Revenue Department" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
-            <TextBlock Text="• YRK PDF is not an e-Tax Invoice service provider. You must check the file and are responsible for submitting it yourself" TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" />
+            <TextBlock Text="YRK PDF e-Tax status" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,2" />
+            <TextBlock Text="• Follows ETDA standard ขมธอ. 3-2560, version 2.0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock Text="• A sample XML file passed the structure check on the Revenue Department's validation page" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock Text="• It has never been tested by actually submitting to the e-Tax Invoice system" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock Text="• It is not certified by the Revenue Department" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock Text="• YRK PDF is not an e-Tax Invoice service provider. You must check the file and are responsible for submitting it yourself" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
         </StackPanel>
 
         <StackPanel DockPanel.Dock="Bottom">
             <TextBlock x:Name="TotalText" FontWeight="SemiBold" Margin="0,10,0,0" TextWrapping="Wrap" />
-            <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" Margin="0,6,0,0" TextWrapping="Wrap" />
+            <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" Margin="0,6,0,0" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button x:Name="OkButton" Content="Create e-Tax Invoice" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnOk" />
                 <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
@@ -171,7 +171,7 @@
                           HeadersVisibility="Column" GridLinesVisibility="Horizontal" MinHeight="140" RowHeight="26"
                           AutomationProperties.Name="Items" CellEditEnding="OnCellEditEnding" RowEditEnding="OnRowEditEnding" />
                 <TextBlock Text="Type in the empty last row to add an item; select a row and press Delete to remove it." FontSize="11"
-                           Foreground="{StaticResource SecondaryTextBrush}" Margin="0,3,0,0" />
+                           Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,3,0,0" />
 
                 <TextBlock Text="Bill discount" Style="{StaticResource Label}" />
                 <TextBox x:Name="BillDiscountInput" AutomationProperties.Name="Bill discount" TextChanged="OnChanged" />

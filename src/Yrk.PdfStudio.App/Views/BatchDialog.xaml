@@ -8,7 +8,7 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
         AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
@@ -18,10 +18,10 @@
     </Window.Resources>
     <StackPanel Margin="20">
         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-            <TextBlock Style="{StaticResource IconText}" Text="&#xE8B7;" FontSize="20" Foreground="{StaticResource AccentBrush}" />
+            <TextBlock Style="{StaticResource IconText}" Text="&#xE8B7;" FontSize="20" Foreground="{DynamicResource AccentBrush}" />
             <TextBlock Text="Process many files" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,0,0,12"
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12"
                    Text="Do the same job to every file. The originals are not changed: the results are saved as new files in the folder you choose." />
 
         <DockPanel>
@@ -44,13 +44,13 @@
                     <DataTemplate>
                         <StackPanel>
                             <TextBlock Text="{Binding Name}" />
-                            <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{StaticResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
         </DockPanel>
-        <TextBlock x:Name="CountText" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,4,0,0" />
+        <TextBlock x:Name="CountText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,0" />
 
         <TextBlock Text="What to do" FontWeight="SemiBold" Margin="0,14,0,4" />
         <StackPanel Margin="12,0,0,0">
@@ -67,7 +67,7 @@
             <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnBrowse" />
             <TextBox x:Name="FolderBox" Padding="4,3" AutomationProperties.Name="Output folder" TextChanged="OnChanged" />
         </DockPanel>
-        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Batch error" />
+        <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Batch error" />
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button x:Name="OkButton" Content="Next…" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="90" Click="OnOk" />

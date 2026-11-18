@@ -42,8 +42,8 @@ public sealed partial class MainViewModel
     private const double DefaultDigitalSignatureWidth = 200; // points
     private const double DefaultDigitalSignatureHeight = 56; // points
 
-    private static readonly Brush DigitalPreviewFill = FrozenBrush(Color.FromArgb(0x30, 0x0F, 0x6C, 0xBD));
-    private static readonly Brush DigitalPreviewStroke = FrozenBrush(Color.FromRgb(0x0F, 0x6C, 0xBD));
+    private const string DigitalPreviewFill = "DigitalPreviewFillBrush";
+    private const string DigitalPreviewStroke = "AccentBrush";
 
     private DigitalSignOptions? _pendingDigitalSign;
     private IReadOnlyList<SignatureInfoViewModel> _signatures = [];
@@ -172,7 +172,7 @@ public sealed partial class MainViewModel
     }
 
     private void UpdateDigitalPlacementPreview(Gesture gesture, NormalizedPoint point) =>
-        gesture.Page.SetPreview(new RectangleGeometry(ToPoints(gesture.Page, gesture.Start, point)), DigitalPreviewFill, DigitalPreviewStroke, 1);
+        gesture.Page.SetThemedPreview(new RectangleGeometry(ToPoints(gesture.Page, gesture.Start, point)), DigitalPreviewFill, DigitalPreviewStroke, 1);
 
     private async Task EndDigitalPlacementAsync(PageViewModel page, NormalizedPoint start, NormalizedPoint end, bool isClick)
     {
@@ -501,10 +501,4 @@ public sealed partial class MainViewModel
         return clean.Length > 0 ? clean : "signer";
     }
 
-    private static Brush FrozenBrush(Color color)
-    {
-        var brush = new SolidColorBrush(color);
-        brush.Freeze();
-        return brush;
-    }
 }

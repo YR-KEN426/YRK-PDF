@@ -3,14 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Review uncertain words" Width="1100" Height="800" MinWidth="900" MinHeight="560"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
+        Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
         PreviewKeyDown="OnKeyDown" TextOptions.TextFormattingMode="Display">
     <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Top">
-            <Border Background="#FFF4DC" BorderBrush="#CF9B36" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+            <Border Background="{DynamicResource WarningBannerBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12">
                 <DockPanel>
-                    <TextBlock DockPanel.Dock="Left" Text="⚠" Foreground="{StaticResource TextBrush}" Margin="0,0,8,0" />
-                    <TextBlock x:Name="ReviewWarningText" Text="Words in orange boxes are ones the program is not sure about. Check and fix them before saving. Words without a box can be wrong too, so read the text through again." FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" TextWrapping="Wrap" />
+                    <TextBlock DockPanel.Dock="Left" Text="⚠" Foreground="{DynamicResource TextBrush}" Margin="0,0,8,0" />
+                    <TextBlock x:Name="ReviewWarningText" Text="Words in orange boxes are ones the program is not sure about. Check and fix them before saving. Words without a box can be wrong too, so read the text through again." FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" />
                 </DockPanel>
             </Border>
             <WrapPanel Margin="0,0,0,8">
@@ -21,10 +21,10 @@
                 <Button Content="Next word" AutomationProperties.Name="Next word" Style="{StaticResource SecondaryButton}" Click="OnNextWord" Margin="0,0,8,0" />
                 <Button Content="Delete this word" AutomationProperties.Name="Delete this word" Style="{StaticResource SecondaryButton}" Click="OnDelete" IsEnabled="{Binding IsEditing}" />
             </WrapPanel>
-            <TextBlock Text="Orange: uncertain · Blue: confirmed" Foreground="{StaticResource SecondaryTextBrush}" />
+            <TextBlock Text="Orange: uncertain · Blue: confirmed" Foreground="{DynamicResource SecondaryTextBrush}" />
             <TextBlock Text="Enter confirms (empty deletes). Esc discards typing. Tab / Shift+Tab selects words. Ctrl+Tab reaches buttons." TextWrapping="Wrap" Margin="0,4,0,0" />
             <TextBlock Text="Ctrl+S: save · Ctrl+K: skip remaining reviews · Ctrl+Delete: delete word · Alt+Left/Right: page" TextWrapping="Wrap" Margin="0,4,0,8" />
-            <TextBlock Text="{Binding Error}" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Error}" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" />
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
             <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
@@ -38,7 +38,7 @@
             </WrapPanel>
         </StackPanel>
         <ScrollViewer x:Name="PageScroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                      Focusable="True" Background="{StaticResource ViewerBrush}" AutomationProperties.Name="Review page">
+                      Focusable="True" Background="{DynamicResource ViewerBrush}" AutomationProperties.Name="Review page">
             <Grid Width="{Binding PageWidth}" Height="{Binding PageHeight}" HorizontalAlignment="Center" VerticalAlignment="Top">
                 <Image Source="{Binding Image}" Stretch="Fill" IsHitTestVisible="False" />
                 <Canvas x:Name="WordCanvas" />

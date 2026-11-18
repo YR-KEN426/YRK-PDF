@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Trust this certificate…" Width="560" SizeToContent="Height" ResizeMode="NoResize"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
+        Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
         PreviewKeyDown="OnPreviewKeyDown">
     <StackPanel Margin="20">
         <TextBlock Text="Certificate details" FontSize="16" FontWeight="SemiBold" />

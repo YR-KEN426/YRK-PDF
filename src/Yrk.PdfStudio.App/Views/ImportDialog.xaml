@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Import data" Width="600" SizeToContent="Height" ResizeMode="CanResizeWithGrip" MinWidth="600" MinHeight="320"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
+        Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
     <Grid Margin="24">
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -26,9 +26,9 @@
                     <TextBlock Text="Backup contents" FontWeight="SemiBold" />
                     <ListBox x:Name="Contents" Height="148" Margin="0,6,0,12" AutomationProperties.Name="Backup contents" />
                     <CheckBox x:Name="ReplaceBox" Content="Replace existing settings (including stamps)" Margin="0,4" />
-                    <TextBlock Text="Without this option, existing settings are kept. Duplicate signature images and Digital IDs are kept as separate copies. Stamps are merged only when this option is selected." TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" Margin="0,6,0,12" />
+                    <TextBlock Text="Without this option, existing settings are kept. Duplicate signature images and Digital IDs are kept as separate copies. Stamps are merged only when this option is selected." TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,6,0,12" />
                 </StackPanel>
-                <Border Background="#FFF4DC" BorderBrush="#CF9B36" BorderThickness="1" CornerRadius="6" Padding="12">
+                <Border Background="{DynamicResource WarningBannerBrush}" BorderBrush="{DynamicResource WarningBorderBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
                     <StackPanel>
                         <TextBlock Text="Your current data is backed up first" FontWeight="SemiBold" />
                         <TextBlock Text="A before-import backup is saved in the app's Backups folder using the same password. If it cannot be created and verified, import stops. Empty stores need no backup." TextWrapping="Wrap" Margin="0,5,0,0" />

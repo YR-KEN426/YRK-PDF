@@ -11,7 +11,7 @@ namespace Yrk.PdfStudio.App.Views;
 public partial class SplitDialog : Window
 {
     private readonly int _pageCount;
-    private readonly Brush _normalBrush;
+
     private readonly IReadOnlyList<PdfBookmark> _bookmarks;
 
     public SplitDialog(int pageCount, string folder, IReadOnlyList<PdfBookmark> bookmarks)
@@ -19,7 +19,7 @@ public partial class SplitDialog : Window
         InitializeComponent();
         _pageCount = pageCount;
         _bookmarks = bookmarks;
-        _normalBrush = Preview.Foreground;
+
         Description.Text = pageCount == 1 ? Loc.T("This document has 1 page. The original file is not changed.") : Loc.F("This document has {0} pages. The original file is not changed.", pageCount);
         FolderInput.Text = folder;
         var depth = Math.Min(PageRanges.BookmarkDepth(bookmarks), 4);
@@ -85,7 +85,8 @@ public partial class SplitDialog : Window
 
         var valid = TryBuildPlan(out var plan, out var error);
         OkButton.IsEnabled = valid;
-        Preview.Foreground = valid ? _normalBrush : (Brush)FindResource("ErrorBrush");
+        if (valid) Preview.ClearValue(System.Windows.Controls.TextBlock.ForegroundProperty);
+        else Preview.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "ErrorBrush");
         Preview.Text = valid
             ? Loc.F(plan!.Parts.Count == 1 ? "Creates 1 file: " : "Creates {0} files: ", plan.Parts.Count) +
               string.Join("; ", plan.Parts.Take(6).Select((p, i) => Part(plan, i, p))) +

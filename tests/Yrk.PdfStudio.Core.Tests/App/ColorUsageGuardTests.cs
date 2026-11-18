@@ -30,6 +30,40 @@ public sealed class ColorUsageGuardTests
     private sealed record Allowance(string File, string Value, int Count, string Reason);
     private sealed record ColorUse(string File, string Value);
 
+    [Fact]
+    public void All_source_xaml_uses_dynamic_references_to_theme_brushes_and_colors()
+    {
+        var palette = Path.Combine(AppSource, "Themes", "Colors.xaml");
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var keys = XDocument.Load(palette).Root!.Elements()
+            .Where(e => e.Name.LocalName.EndsWith("Brush", StringComparison.Ordinal) || e.Name.LocalName == "Color")
+            .Select(e => (string?)e.Attribute(x + "Key")).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        Assert.NotEmpty(keys);
+        var failures = SourceFiles(Directory.GetParent(AppSource)!.FullName)
+            .Where(p => Path.GetExtension(p) == ".xaml" && p != palette)
+            .SelectMany(p => StaticThemeReferences(File.ReadAllText(p), keys)
+                .Select(key => $"{Path.GetRelativePath(AppSource, p)}: StaticResource {key}"));
+        Assert.Empty(failures);
+    }
+
+    private static IEnumerable<string> StaticThemeReferences(string source, HashSet<string> keys) =>
+        XDocument.Parse(source).Descendants().SelectMany(e => e.Attributes())
+            .SelectMany(a => Regex.Matches(a.Value, @"\{StaticResource\s+(?:ResourceKey\s*=\s*)?['"" ]?([\w]+)['"" ]?\s*\}"))
+            .Select(m => m.Groups[1].Value).Where(keys.Contains);
+
+    [Fact]
+    public void Static_reference_guard_reads_attributes_and_ignores_comments_and_other_resources()
+    {
+        const string source = """
+            <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    Background="{StaticResource SurfaceBrush}" Style="{StaticResource ExampleStyle}">
+              <!-- {StaticResource TextBrush} -->
+              <Setter Property="Foreground" Value="{StaticResource ResourceKey=TextBrush}" />
+            </Border>
+            """;
+        Assert.Equal(new[] { "SurfaceBrush", "TextBrush" }, StaticThemeReferences(source, ["SurfaceBrush", "TextBrush"]));
+    }
+
     // ยกเว้นถาวร: document content / content-matching swatches / fixed external branding.
     // Each entry has an exact value and count; no file or directory is excluded from scanning.
     private static readonly Allowance[] Permanent =
@@ -119,101 +153,6 @@ public sealed class ColorUsageGuardTests
         new("Views/SupportDialog.xaml", "#BF3989", 1, "Sponsor and Ko-fi button brand palette, including reviewed contrast and interaction states."),
     ];
 
-    // ยังไม่ย้ายชั่วคราว: UI migration debt; step 2b must reduce this list to empty.
-    private static readonly Allowance[] NotYetMigrated =
-    [
-        new("Controls/Ruler.cs", "Brushes.DimGray", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Controls/Ruler.cs", "Brushes.White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Controls/Ruler.cs", "Brushes.WhiteSmoke", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Controls/Ruler.cs", "Color.FromRgb(0xE8,0x59,0x0C)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.Home.cs", "Brushes.White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.Home.cs", "Color.FromRgb(0x00,0x89,0x7B)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.Home.cs", "Color.FromRgb(0x1A,0x73,0xE8)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.Home.cs", "Color.FromRgb(0x2E,0x7D,0x32)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.Home.cs", "Color.FromRgb(0x7B,0x4F,0xC9)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.Home.cs", "Color.FromRgb(0xC6,0x28,0x28)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.Home.cs", "Color.FromRgb(0xE8,0x59,0x0C)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#00A86B", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#1C64A8", 3, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#1E6B2F", 3, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#201C64A8", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#30E8590C", 2, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#40B9CCFF", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#40C42B1C", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#50C42B1C", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#55B9CCFF", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#60000000", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#9A3412", 2, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#C42B1C", 4, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#E3ECFF", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#E3F1E5", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#E6E6E6", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#E8590C", 3, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#E8F3FC", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#F2F6FC", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#F2FFFFFF", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#F3F3F3", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "#FFF4CE", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("MainWindow.xaml", "White", 20, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Themes/Styles.xaml", "White", 2, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/MainViewModel.Annotations.cs", "Color.FromArgb(0x55,0x33,0x99,0xFF)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/MainViewModel.Measure.cs", "Color.FromArgb(0x30,0x1C,0x64,0xA8)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/MainViewModel.Measure.cs", "Color.FromRgb(0x1C,0x64,0xA8)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/MainViewModel.Redaction.cs", "Color.FromArgb(0x40,0xC4,0x2B,0x1C)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/MainViewModel.Redaction.cs", "Color.FromRgb(0xC4,0x2B,0x1C)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/MainViewModel.Signatures.cs", "Color.FromArgb(0x30,0x0F,0x6C,0xBD)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/MainViewModel.Signatures.cs", "Color.FromRgb(0x0F,0x6C,0xBD)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/PrintViewModel.cs", "Brushes.Silver", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/PrintViewModel.cs", "Brushes.White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/SignatureInfoViewModel.cs", "Color.FromRgb(0x10,0x7C,0x10)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/SignatureInfoViewModel.cs", "Color.FromRgb(0xC1,0x7C,0x00)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("ViewModels/SignatureInfoViewModel.cs", "Color.FromRgb(0xC4,0x2B,0x1C)", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/BackupDialog.xaml", "#CF9B36", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/BackupDialog.xaml", "#FFF4DC", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/CertifiedCopyDialog.xaml", "White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/CompareWindow.xaml", "#146EE6", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/CompareWindow.xaml", "#BBBBBB", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/CompareWindow.xaml", "#D72828", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/CompareWindow.xaml", "#E0E0E0", 2, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/CompareWindow.xaml", "#E8590C", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/CompareWindow.xaml", "#F3F3F3", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ConvertScanDialog.xaml", "#CF9B36", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ConvertScanDialog.xaml", "#FFF4DC", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/FileListDialog.xaml", "#F3F3F3", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ImportDialog.xaml", "#CF9B36", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ImportDialog.xaml", "#FFF4DC", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/OcrDialog.xaml", "#CF9B36", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/OcrDialog.xaml", "#FFF4DC", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/OcrReviewDialog.xaml", "#CF9B36", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/OcrReviewDialog.xaml", "#FFF4DC", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/PageMarksDialog.xaml", "#BDBDBD", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/PageMarksDialog.xaml", "#E9E9E9", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/PageMarksDialog.xaml", "White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/PrintDialog.xaml", "#9E9E9E", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/PrintDialog.xaml", "#BDBDBD", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/PrintDialog.xaml", "#E9E9E9", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/PrintDialog.xaml", "White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#2563EB", 3, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#654C00", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#6B7280", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#80000000", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#8A6500", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#C9CDD4", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#D1D5DB", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#E5E7EB", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#EFFFFFFF", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#F0FFFFFF", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#F3F4F6", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "#FFF3CD", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml", "White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml.cs", "Brushes.RoyalBlue", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/ScanDialog.xaml.cs", "Brushes.White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/SignatureDialog.xaml", "#D0D0D0", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/SignatureDialog.xaml", "White", 2, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/StampDialog.xaml", "White", 2, "Existing UI paint; migrate to theme resources in step 2b."),
-        new("Views/SupportDialog.xaml", "White", 1, "Existing UI paint; migrate to theme resources in step 2b."),
-    ];
-
     [Fact]
     public void App_colors_are_centralized_or_explicitly_accounted_for()
     {
@@ -224,7 +163,7 @@ public sealed class ColorUsageGuardTests
             return Path.GetExtension(file) == ".xaml"
                 ? XamlColors(source, relative) : CSharpColors(source, relative);
         }).ToArray();
-        var failures = Validate(uses, Permanent.Concat(NotYetMigrated).ToArray());
+        var failures = Validate(uses, Permanent);
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
     }
 

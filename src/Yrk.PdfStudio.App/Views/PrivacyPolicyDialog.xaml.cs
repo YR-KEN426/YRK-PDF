@@ -23,16 +23,14 @@ public partial class PrivacyPolicyDialog : Window
 
     private FlowDocument CreateDocument(string text, string language)
     {
-        var document = new FlowDocument
+        var document = ThemeResources.Apply(new FlowDocument
         {
             FontFamily = (FontFamily)FindResource("UiFont"),
             FontSize = 14,
-            Foreground = (Brush)FindResource("TextBrush"),
-            Background = (Brush)FindResource("SurfaceBrush"),
             PagePadding = new Thickness(4, 0, 16, 8),
             Language = XmlLanguage.GetLanguage(language),
             Tag = UiTranslator.KeepText
-        };
+        }, (FlowDocument.ForegroundProperty, "TextBrush"), (FlowDocument.BackgroundProperty, "SurfaceBrush"));
         var lines = text.Replace("\r", "").Split('\n');
         for (var i = 0; i < lines.Length;)
         {
@@ -56,14 +54,13 @@ public partial class PrivacyPolicyDialog : Window
                     var header = group.Rows.Count == 0;
                     foreach (var cell in cells)
                     {
-                        row.Cells.Add(new TableCell(ParagraphFor(cell.Trim()))
+                        row.Cells.Add(ThemeResources.Apply(new TableCell(ParagraphFor(cell.Trim()))
                         {
-                            BorderBrush = (Brush)FindResource("DividerBrush"),
                             BorderThickness = new Thickness(0.5),
                             Padding = new Thickness(8),
                             FontWeight = header ? FontWeights.Bold : FontWeights.Normal,
-                            Background = (Brush)FindResource(header ? "SidebarBrush" : "SurfaceBrush")
-                        });
+                        }, (TableCell.BorderBrushProperty, "DividerBrush"),
+                            (TableCell.BackgroundProperty, header ? "SidebarBrush" : "SurfaceBrush")));
                     }
                     group.Rows.Add(row);
                 }

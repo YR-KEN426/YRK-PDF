@@ -3,19 +3,19 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Error" Width="560" SizeToContent="Height" ResizeMode="NoResize"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
+        Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display" AutomationProperties.Name="Error">
     <StackPanel Margin="20">
         <DockPanel>
             <TextBlock Style="{StaticResource IconText}" Text="&#xEA39;" FontSize="24"
-                       Foreground="{StaticResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Top" />
+                       Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Top" />
             <TextBlock x:Name="MessageText" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap"
                        AutomationProperties.Name="Error message" />
         </DockPanel>
         <TextBlock x:Name="NextStepText" Margin="0,14,0,0" TextWrapping="Wrap"
                    AutomationProperties.Name="What you can do:" />
         <TextBox x:Name="CodeText" Margin="0,12,0,0" FontSize="11" IsReadOnly="True"
-                 BorderThickness="0" Background="Transparent" Foreground="{StaticResource SecondaryTextBrush}"
+                 BorderThickness="0" Background="Transparent" Foreground="{DynamicResource SecondaryTextBrush}"
                  AutomationProperties.Name="Error code" />
         <Expander x:Name="DetailsExpander" Header="Details" IsExpanded="False" Margin="0,12,0,0"
                   AutomationProperties.Name="Details">

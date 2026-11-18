@@ -22,7 +22,7 @@
 
     <SolidColorBrush x:Key="CheckedBrush" Color="#DCE9F7" />
 
-    <!-- New roles are unused until the later migration. Keep today's UI values where available. -->
+    <!-- Shared semantic roles; preserve the original light-theme values. -->
     <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="BorderSubtleBrush" Color="#E0E0E0" />
     <SolidColorBrush x:Key="BorderStrongBrush" Color="#BDBDBD" />
@@ -53,4 +53,63 @@
     <SolidColorBrush x:Key="PaperBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ToolTipBackgroundBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="OnAccentTextBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SnapMarkerBrush" Color="#00A86B" />
+    <SolidColorBrush x:Key="FieldPreviewStrokeBrush" Color="#1C64A8" />
+    <SolidColorBrush x:Key="FormSuccessTextBrush" Color="#1E6B2F" />
+    <SolidColorBrush x:Key="FieldHoverBrush" Color="#201C64A8" />
+    <SolidColorBrush x:Key="MeasureSelectionBrush" Color="#30E8590C" />
+    <SolidColorBrush x:Key="FieldTintBrush" Color="#40B9CCFF" />
+    <SolidColorBrush x:Key="RedactPreviewFillBrush" Color="#40C42B1C" />
+    <SolidColorBrush x:Key="RedactSelectionBrush" Color="#50C42B1C" />
+    <SolidColorBrush x:Key="FieldSelectedBrush" Color="#55B9CCFF" />
+    <SolidColorBrush x:Key="SelectionOutlineBrush" Color="#60000000" />
+    <SolidColorBrush x:Key="MeasureTextBrush" Color="#9A3412" />
+    <SolidColorBrush x:Key="FieldBrush" Color="#E3ECFF" />
+    <SolidColorBrush x:Key="FormSuccessBackgroundBrush" Color="#E3F1E5" />
+    <SolidColorBrush x:Key="PanelBorderBrush" Color="#E6E6E6" />
+    <SolidColorBrush x:Key="MeasureAccentBrush" Color="#E8590C" />
+    <SolidColorBrush x:Key="InformationBackgroundBrush" Color="#E8F3FC" />
+    <SolidColorBrush x:Key="InformationSubtleBrush" Color="#F2F6FC" />
+    <SolidColorBrush x:Key="TextEditorBackgroundBrush" Color="#F2FFFFFF" />
+    <SolidColorBrush x:Key="PreviewBackgroundBrush" Color="#F3F3F3" />
+    <SolidColorBrush x:Key="SignatureBannerBrush" Color="#FFF4CE" />
+    <SolidColorBrush x:Key="CompareAddedBrush" Color="#146EE6" />
+    <SolidColorBrush x:Key="ComparePlaceholderBrush" Color="#BBBBBB" />
+    <SolidColorBrush x:Key="CompareRemovedBrush" Color="#D72828" />
+    <SolidColorBrush x:Key="PreviewCanvasBrush" Color="#E9E9E9" />
+    <SolidColorBrush x:Key="PreviewMutedTextBrush" Color="#9E9E9E" />
+    <SolidColorBrush x:Key="CropAccentBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="ScanNoticeTextBrush" Color="#654C00" />
+    <SolidColorBrush x:Key="ScanHintTextBrush" Color="#6B7280" />
+    <SolidColorBrush x:Key="CropShadeBrush" Color="#80000000" />
+    <SolidColorBrush x:Key="ScanWarningTextBrush" Color="#8A6500" />
+    <SolidColorBrush x:Key="ScanPreviewBorderBrush" Color="#C9CDD4" />
+    <SolidColorBrush x:Key="ScanPanelBorderBrush" Color="#D1D5DB" />
+    <SolidColorBrush x:Key="ScanDividerBrush" Color="#E5E7EB" />
+    <SolidColorBrush x:Key="ScanOverlayBrush" Color="#EFFFFFFF" />
+    <SolidColorBrush x:Key="CropLabelBrush" Color="#F0FFFFFF" />
+    <SolidColorBrush x:Key="ScanPanelBrush" Color="#F3F4F6" />
+    <SolidColorBrush x:Key="ScanNoticeBrush" Color="#FFF3CD" />
+    <SolidColorBrush x:Key="SignatureCanvasBorderBrush" Color="#D0D0D0" />
+    <SolidColorBrush x:Key="SelectionOverlayBrush" Color="#553399FF" />
+    <SolidColorBrush x:Key="FieldPreviewFillBrush" Color="#301C64A8" />
+    <SolidColorBrush x:Key="DigitalPreviewFillBrush" Color="#300F6CBD" />
+    <SolidColorBrush x:Key="CropHandleBrush" Color="#4169E1" />
+    <SolidColorBrush x:Key="RulerTextBrush" Color="#696969" />
+    <SolidColorBrush x:Key="HomeConvertBrush" Color="#1A73E8" />
+    <SolidColorBrush x:Key="HomeEditBrush" Color="#7B4FC9" />
+    <SolidColorBrush x:Key="HomeDrawingsBrush" Color="#00897B" />
+    <SolidColorBrush x:Key="HomeAccountingBrush" Color="#2E7D32" />
+    <SolidColorBrush x:Key="PrintFoldBrush" Color="#C0C0C0" />
+    <!-- Exact WPF Calendar background, including the coincident 0.16 stops. Keep the native template. -->
+    <Color x:Key="CalendarTopColor">#FFE4EAF0</Color>
+    <Color x:Key="CalendarUpperColor">#FFECF0F4</Color>
+    <Color x:Key="CalendarLowerColor">#FFFCFCFD</Color>
+    <Color x:Key="CalendarBottomColor">#FFFFFFFF</Color>
+    <LinearGradientBrush x:Key="CalendarBackgroundBrush" StartPoint="0.5,0" EndPoint="0.5,1">
+        <GradientStop Color="{StaticResource CalendarTopColor}" Offset="0" />
+        <GradientStop Color="{StaticResource CalendarUpperColor}" Offset="0.16" />
+        <GradientStop Color="{StaticResource CalendarLowerColor}" Offset="0.16" />
+        <GradientStop Color="{StaticResource CalendarBottomColor}" Offset="1" />
+    </LinearGradientBrush>
 </ResourceDictionary>

@@ -7,7 +7,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}"
+        Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <StackPanel Margin="20">
@@ -15,7 +15,7 @@
 
         <TextBlock Text="Field name" Margin="0,0,0,4" />
         <TextBox x:Name="NameBox" Padding="6,4" AutomationProperties.Name="Field name" TextChanged="OnChanged" />
-        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource SecondaryTextBrush}" FontSize="11" Margin="0,4,0,0"
+        <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11" Margin="0,4,0,0"
                    Text="Shown to people filling in the form, and used as the name of the data." />
 
         <StackPanel x:Name="OptionsPanel" Margin="0,12,0,0">
@@ -25,11 +25,11 @@
         </StackPanel>
 
         <CheckBox x:Name="RequiredBox" Content="Must be filled in" Margin="0,12,0,0" />
-        <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Field error" />
+        <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" Margin="0,8,0,0" AutomationProperties.Name="Field error" />
 
         <DockPanel Margin="0,16,0,0">
             <Button x:Name="DeleteButton" DockPanel.Dock="Left" Content="Delete field" Style="{StaticResource SecondaryButton}"
-                    Foreground="{StaticResource ErrorBrush}" Click="OnDelete" Visibility="Collapsed" />
+                    Foreground="{DynamicResource ErrorBrush}" Click="OnDelete" Visibility="Collapsed" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button x:Name="OkButton" Content="Add field" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="90" Click="OnOk" />
                 <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />

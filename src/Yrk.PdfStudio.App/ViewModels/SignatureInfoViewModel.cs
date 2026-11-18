@@ -1,4 +1,3 @@
-using System.Windows.Media;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.Core.Pdf.Signatures;
 
@@ -7,9 +6,6 @@ namespace Yrk.PdfStudio.App.ViewModels;
 /// <summary>One signature in the Signatures panel.</summary>
 public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
 {
-    private static readonly Brush ValidBrush = Frozen(Color.FromRgb(0x10, 0x7C, 0x10));
-    private static readonly Brush WarningBrush = Frozen(Color.FromRgb(0xC1, 0x7C, 0x00));
-    private static readonly Brush InvalidBrush = Frozen(Color.FromRgb(0xC4, 0x2B, 0x1C));
 
     public PdfSignatureInfo Info { get; } = info;
 
@@ -22,11 +18,11 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
         _ => "",                                 // Warning
     };
 
-    public Brush StatusBrush => Info.Status switch
+    public string StatusBrushKey => Info.Status switch
     {
-        PdfSignatureStatus.Valid when !Info.ModifiedAfterSigning && !Info.FormFilledAfterSigning => ValidBrush,
-        PdfSignatureStatus.Invalid => InvalidBrush,
-        _ => WarningBrush,
+        PdfSignatureStatus.Valid when !Info.ModifiedAfterSigning && !Info.FormFilledAfterSigning => "SuccessBrush",
+        PdfSignatureStatus.Invalid => "ErrorBrush",
+        _ => "SignatureWarningBrush",
     };
 
     private string FormFilledText => Loc.F("Signed and unchanged, but form fields were filled in after signing: {0}", string.Join(", ", Info.FilledFieldNames));
@@ -107,11 +103,4 @@ public sealed class SignatureInfoViewModel(PdfSignatureInfo info)
     public bool CanViewSignedVersion => Info.IsIntact && !Info.CoversWholeDocument;
 
     public bool CanSaveVersionBeforeSigning => Info.ContentsOffset > 0 && Info.SignedLength > 0;
-
-    private static Brush Frozen(Color color)
-    {
-        var brush = new SolidColorBrush(color);
-        brush.Freeze();
-        return brush;
-    }
 }

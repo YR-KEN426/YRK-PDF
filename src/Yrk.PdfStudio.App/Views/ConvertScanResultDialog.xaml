@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Scan conversion results" Width="600" SizeToContent="Height" MaxHeight="720"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
-        Background="{StaticResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
+        Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
     <DockPanel Margin="20">
         <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
-            <TextBlock x:Name="ErrorText" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap" AutomationProperties.Name="Conversion error" />
+            <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" TextWrapping="Wrap" AutomationProperties.Name="Conversion error" />
             <WrapPanel HorizontalAlignment="Right" Margin="0,8,0,0">
                 <Button Content="Open folder" AutomationProperties.Name="Open folder" Style="{StaticResource SecondaryButton}" Click="OnOpenFolder" Margin="0,0,8,8" />
                 <Button x:Name="CopyTextButton" Content="Copy all text" AutomationProperties.Name="Copy all text" Style="{StaticResource SecondaryButton}" Click="OnCopyText" Margin="0,0,8,8" />
@@ -15,7 +15,7 @@
         </StackPanel>
         <TextBlock x:Name="OutputWarningText" DockPanel.Dock="Top" Text="Check the text in the output files before you use it, especially names, numbers, dates and amounts." FontWeight="SemiBold" TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,12" />
         <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
-            <TextBox x:Name="SummaryText" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="{StaticResource SurfaceBrush}" AutomationProperties.Name="Scan conversion results" />
+            <TextBox x:Name="SummaryText" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="{DynamicResource SurfaceBrush}" AutomationProperties.Name="Scan conversion results" />
         </ScrollViewer>
     </DockPanel>
 </Window>
