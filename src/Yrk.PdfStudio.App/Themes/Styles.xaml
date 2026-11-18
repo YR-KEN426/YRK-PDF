@@ -25,6 +25,13 @@
     <SolidColorBrush x:Key="SearchHighlightBrush" Color="#FFD43B" />
     <SolidColorBrush x:Key="CurrentSearchHighlightBrush" Color="#FF8C00" />
 
+    <!-- The theme's ComboBoxItem binds these to its ItemsControl, which an item declared in XAML does not
+         have yet, so WPF logs binding errors. Fixed values (the theme defaults) avoid that. -->
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
     <Style x:Key="IconText" TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
         <Setter Property="FontSize" Value="16" />

@@ -190,11 +190,8 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:PreviewMark}">
                                         <TextBlock Text="{Binding Text}" FontFamily="{Binding Font}" FontSize="{Binding FontSize}" FontWeight="{Binding Weight}"
-                                                   Foreground="{Binding Brush}" Opacity="{Binding Opacity}" TextOptions.TextFormattingMode="Ideal">
-                                            <TextBlock.RenderTransform>
-                                                <RotateTransform Angle="{Binding Angle}" />
-                                            </TextBlock.RenderTransform>
-                                        </TextBlock>
+                                                   Foreground="{Binding Brush}" Opacity="{Binding Opacity}" TextOptions.TextFormattingMode="Ideal"
+                                                   RenderTransform="{Binding Rotation}" />
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

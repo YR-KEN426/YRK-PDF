@@ -8,7 +8,7 @@
         <Style x:Key="PresetChip" TargetType="RadioButton" BasedOn="{StaticResource ToolbarButton}">
             <Setter Property="GroupName" Value="ScanPresets"/>
             <Setter Property="Focusable" Value="True"/>
-            <Setter Property="AutomationProperties.Name" Value="{Binding Content, RelativeSource={RelativeSource Self}}"/>
+            <Setter Property="AutomationProperties.Name" Value="{Binding Content, RelativeSource={RelativeSource Self}, TargetNullValue=''}"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
                 <Border x:Name="Chip" Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}"
                         BorderBrush="{StaticResource TextBrush}" BorderThickness="0">

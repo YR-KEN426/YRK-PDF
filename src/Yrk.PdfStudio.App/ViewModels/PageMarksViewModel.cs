@@ -24,7 +24,12 @@ public sealed record MarkColor(string Name, PdfColor Color)
 }
 
 /// <summary>A mark as drawn in the preview (page points, WPF angle).</summary>
-public sealed record PreviewMark(string Text, double Left, double Top, double Angle, double FontSize, FontWeight Weight, Brush Brush, double Opacity, FontFamily Font);
+public sealed record PreviewMark(string Text, double Left, double Top, double Angle, double FontSize, FontWeight Weight, Brush Brush, double Opacity, FontFamily Font)
+{
+    /// <summary>The turn as a ready transform. A binding inside a RotateTransform in a DataTemplate can fire
+    /// before the transform finds its element and logs a binding error, so the preview binds this instead.</summary>
+    public Transform Rotation => new RotateTransform(Angle);
+}
 
 /// <summary>The watermark, header and footer dialog, with a preview of one page.</summary>
 public sealed partial class PageMarksViewModel : ObservableObject
