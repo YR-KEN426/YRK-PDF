@@ -66,7 +66,7 @@ public sealed class ThemeSwapTests
                 Assert.NotNull(hover);
             }
             finally { window.Close(); WpfTestApp.Pump(); }
-            Assert.Empty(app.Errors);
+            Assert.True(app.Errors.Count == 0, string.Join(Environment.NewLine, app.Errors));
             return true;
         });
     }
@@ -75,7 +75,7 @@ public sealed class ThemeSwapTests
     [InlineData("ScanDialog", false)]
     [InlineData("PrintDialog", false)]
     [InlineData("StampDialog", true)]
-    public void Open_native_popups_follow_replaced_resources(string name, bool calendar)
+    public void Open_styled_popups_follow_replaced_resources(string name, bool calendar)
     {
         Sta.Run(() =>
         {
@@ -101,24 +101,27 @@ public sealed class ThemeSwapTests
                 Assert.NotEmpty(labels);
                 var before = labels.Select(t => ColorOf(t.Foreground)).ToArray();
                 var nativeCalendar = WpfTestApp.Descendants(child).OfType<Calendar>().SingleOrDefault();
-                var calendarBackground = nativeCalendar?.Background;
-                var calendarBorder = calendarBackground is null ? null : WpfTestApp.Descendants(child).OfType<Border>()
-                    .First(b => ReferenceEquals(b.Background, calendarBackground));
+                var chrome = Assert.IsType<Border>(calendar
+                    ? nativeCalendar!.Template.FindName("Chrome", nativeCalendar)
+                    : control.Template.FindName("PopupChrome", control));
 
-                resources.Replace("SurfaceBrush", 30, 10, 60);
-                resources.Replace("TextBrush", 240, 30, 170);
-                // Step 2b retains the native ComboBox/Calendar templates. Their existing dynamic
-                // system keys are also theme resources; step 3 will replace those templates.
-                resources.Replace(SystemColors.WindowTextBrushKey, 0, 240, 30);
-                resources.Replace(SystemColors.ControlTextBrushKey, 0, 240, 30);
-                resources.Replace(SystemColors.WindowBrushKey, 60, 20, 100);
-                var calendarBrush = resources.Replace("CalendarBackgroundBrush", 80, 10, 140);
+                var surface = resources.Replace("SurfaceBrush", 30, 10, 60);
+                var foreground = resources.Replace("TextBrush", 240, 30, 170);
+                var border = resources.Replace("BorderStrongBrush", 60, 20, 100);
+                var focus = resources.Replace("FocusBrush", 20, 220, 100);
+                var accent = resources.Replace("AccentBrush", 80, 10, 140);
+                var onAccent = resources.Replace("OnAccentTextBrush", 240, 250, 210);
                 WpfTestApp.Pump(); child.UpdateLayout();
                 Assert.True(popup.IsOpen);
+                Assert.Same(surface, chrome.Background);
+                Assert.Same(nativeCalendar?.IsKeyboardFocusWithin == true ? focus : border, chrome.BorderBrush);
+                Assert.Same(foreground, control.Foreground);
                 if (calendar)
                 {
-                    Assert.Same(calendarBrush, nativeCalendar!.Background);
-                    Assert.Same(calendarBrush, calendarBorder!.Background);
+                    Assert.Same(surface, nativeCalendar!.Background);
+                    var selectedDay = WpfTestApp.Descendants(nativeCalendar).OfType<CalendarDayButton>().Single(b => b.IsSelected);
+                    Assert.Same(accent, ((Border)selectedDay.Template.FindName("Chrome", selectedDay)).Background);
+                    Assert.Same(onAccent, selectedDay.Foreground);
                 }
                 else Assert.Contains(labels.Select((t, i) => ColorOf(t.Foreground) != before[i]), changed => changed);
             }
@@ -134,29 +137,32 @@ public sealed class ThemeSwapTests
     }
 
     [Fact]
-    public void Calendar_palette_preserves_native_gradient_exactly_and_can_be_replaced()
+    public void Tabs_color_rings_and_focus_frames_follow_replaced_resources()
     {
         Sta.Run(() =>
         {
             using var app = new WpfTestApp("en");
             using var resources = new ResourceScope();
-            var native = new Calendar { Style = null };
-            var themed = new Calendar { Style = (Style)Application.Current.Resources["CalendarPaint"] };
-            var host = new Window { Content = new StackPanel { Children = { native, themed } } };
+            var tab = new TabItem { Header = "Draw" };
+            var ink = new SolidColorBrush(Color.FromRgb(0xC6, 0x28, 0x28));
+            var ring = new RadioButton { Style = (Style)Application.Current.Resources["ColorRing"], Background = ink, IsChecked = true };
+            var combo = new ComboBox();
+            var date = new DatePicker();
+            var host = new Window { Content = new StackPanel { Children = { new TabControl { Items = { tab } }, ring, combo, date } } };
             try
             {
                 Show(host);
-                var original = Assert.IsType<LinearGradientBrush>(native.Background);
-                var palette = Assert.IsType<LinearGradientBrush>(themed.Background);
-                Assert.Equal(original.StartPoint, palette.StartPoint);
-                Assert.Equal(original.EndPoint, palette.EndPoint);
-                Assert.Equal(original.GradientStops.Select(s => (s.Offset, s.Color)),
-                    palette.GradientStops.Select(s => (s.Offset, s.Color)));
-                // Replace the complete palette brush; the stops are its fixed internal construction.
-                var replacement = resources.Replace("CalendarBackgroundBrush", 210, 10, 140);
+                var accent = resources.Replace("AccentBrush", 210, 10, 140);
+                var focus = resources.Replace("FocusBrush", 10, 210, 140);
+                var text = resources.Replace("TextBrush", 140, 210, 10);
                 WpfTestApp.Pump();
-                Assert.Same(replacement, themed.Background);
-                Assert.Same(original, native.Background);
+                Assert.Same(accent, ((Border)tab.Template.FindName("Underline", tab)).Background);
+                Assert.Same(text, tab.Foreground);
+                Assert.Same(accent, ((Ellipse)ring.Template.FindName("Ring", ring)).Stroke);
+                Assert.Same(ink, ring.Background); // Content ink must not follow a screen theme.
+                Assert.Same(focus, ((Ellipse)ring.Template.FindName("Focus", ring)).Stroke);
+                foreach (var control in new Control[] { tab, combo, date })
+                    Assert.Same(focus, ((Border)control.Template.FindName("Focus", control)).BorderBrush);
             }
             finally { host.Close(); WpfTestApp.Pump(); }
             Assert.Empty(app.Errors);

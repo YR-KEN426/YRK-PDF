@@ -374,7 +374,7 @@
   - หมายเหตุ: ทำเสร็จและ commit แล้ว แต่ยังไม่ติ๊ก เพราะ `AllWindowsLoadTests` fail 4 เคส (ScanDialog th/en: binding `SelectedScope`/ComboBoxItem, PageMarksDialog th/en: `RotateTransform.Angle`) รอ Claude ตัดสินและแก้ก่อนขั้น 2; ภาพต้นแบบอยู่ใน scratchpad `baseline-1.2.4` (ไม่ commit)
 - [x] ขั้น 2a ชุดสีกลาง + เทสต์กันสี
 - [x] ขั้น 2b ย้ายสีที่เหลือ + DynamicResource
-- [ ] ขั้น 3 style กลางของตัวควบคุม
+- [x] ขั้น 3 style กลางของตัวควบคุม
 - [ ] ขั้น 4a Home: โครงหน้า แถบด้านบน ลากวาง ไฟล์ล่าสุด
 - [ ] ขั้น 4b Home: การ์ด หมวด ใช้บ่อย ค้นหา
 - [ ] ขั้น 4c tooltip และคำอธิบายสั้น (Ken ตรวจตาราง)

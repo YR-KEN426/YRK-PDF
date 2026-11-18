@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Diagnostics;
 using Xunit.Abstractions;
@@ -111,11 +112,25 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
                 window.Left = -32000; window.Top = -32000;
                 window.Show();
                 WpfTestApp.Layout(window);
-                output.WriteLine($"Opened {WpfTestApp.ExercisePopups(window)} ComboBox/DatePicker popups.");
+                output.WriteLine($"Opened {WpfTestApp.ExercisePopups(window, AssertTemplateParts)} ComboBox/DatePicker popups.");
             }
             finally { window.Close(); WpfTestApp.Pump(); }
             Assert.True(app.Errors.Count == 0, string.Join(Environment.NewLine, app.Errors));
             return true;
         });
+    }
+
+    private static void AssertTemplateParts(Control control)
+    {
+        Assert.IsType<Popup>(control.Template.FindName("PART_Popup", control));
+        if (control is ComboBox { IsEditable: true } combo)
+            Assert.IsType<TextBox>(combo.Template.FindName("PART_EditableTextBox", combo));
+        if (control is DatePicker date)
+        {
+            Assert.IsAssignableFrom<Button>(date.Template.FindName("PART_Button", date));
+            var textBox = Assert.IsType<DatePickerTextBox>(date.Template.FindName("PART_TextBox", date));
+            textBox.ApplyTemplate();
+            Assert.IsAssignableFrom<ContentControl>(textBox.Template.FindName("PART_Watermark", textBox));
+        }
     }
 }

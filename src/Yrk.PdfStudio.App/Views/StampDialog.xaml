@@ -33,10 +33,6 @@
         <Style TargetType="TextBlock" x:Key="Label">
             <Setter Property="Margin" Value="0,10,0,4" />
         </Style>
-        <Style TargetType="RadioButton" x:Key="Swatch">
-            <Setter Property="Margin" Value="0,0,14,0" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
     </Window.Resources>
     <Grid Margin="20">
         <Grid.RowDefinitions>
@@ -88,18 +84,14 @@
 
                         <TextBlock Text="Colour" Style="{StaticResource Label}" />
                         <StackPanel Orientation="Horizontal">
-                            <RadioButton x:Name="RedInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
-                                <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#C62828" Margin="0,0,5,0" /><TextBlock Text="Red" /></StackPanel>
-                            </RadioButton>
-                            <RadioButton x:Name="BlueInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
-                                <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#1D3F9A" Margin="0,0,5,0" /><TextBlock Text="Blue" /></StackPanel>
-                            </RadioButton>
-                            <RadioButton x:Name="GreenInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
-                                <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#1B7A3A" Margin="0,0,5,0" /><TextBlock Text="Green" /></StackPanel>
-                            </RadioButton>
-                            <RadioButton x:Name="BlackInk" Style="{StaticResource Swatch}" Checked="OnDesignChanged">
-                                <StackPanel Orientation="Horizontal"><Ellipse Width="12" Height="12" Fill="#202020" Margin="0,0,5,0" /><TextBlock Text="Black" /></StackPanel>
-                            </RadioButton>
+                            <RadioButton x:Name="RedInk" Style="{StaticResource ColorRing}" Checked="OnDesignChanged"
+                                         Background="#C62828" ToolTip="Red" AutomationProperties.Name="Red" />
+                            <RadioButton x:Name="BlueInk" Style="{StaticResource ColorRing}" Checked="OnDesignChanged"
+                                         Background="#1D3F9A" ToolTip="Blue" AutomationProperties.Name="Blue" />
+                            <RadioButton x:Name="GreenInk" Style="{StaticResource ColorRing}" Checked="OnDesignChanged"
+                                         Background="#1B7A3A" ToolTip="Green" AutomationProperties.Name="Green" />
+                            <RadioButton x:Name="BlackInk" Style="{StaticResource ColorRing}" Checked="OnDesignChanged"
+                                         Background="#202020" ToolTip="Black" AutomationProperties.Name="Black" />
                         </StackPanel>
 
                         <Grid Margin="0,10,0,0">

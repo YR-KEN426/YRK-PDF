@@ -13,14 +13,29 @@
             </Label>
             <TextBox x:Name="NameInput" MaxLength="40" Padding="6,5" AutomationProperties.Name="Reading mark name" />
             <TextBlock Text="Colour" Margin="0,12,0,4" />
-            <ComboBox x:Name="ColourInput" SelectedValuePath="Tag" AutomationProperties.Name="Reading mark colour">
-                <ComboBoxItem Tag="red"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="Crimson" Margin="0,0,8,0" /><TextBlock Text="Red" /></StackPanel></ComboBoxItem>
-                <ComboBoxItem Tag="orange"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="DarkOrange" Margin="0,0,8,0" /><TextBlock Text="Orange" /></StackPanel></ComboBoxItem>
-                <ComboBoxItem Tag="yellow"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="Gold" Margin="0,0,8,0" /><TextBlock Text="Yellow" /></StackPanel></ComboBoxItem>
-                <ComboBoxItem Tag="green"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="SeaGreen" Margin="0,0,8,0" /><TextBlock Text="Green" /></StackPanel></ComboBoxItem>
-                <ComboBoxItem Tag="blue"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="DodgerBlue" Margin="0,0,8,0" /><TextBlock Text="Blue" /></StackPanel></ComboBoxItem>
-                <ComboBoxItem Tag="purple"><StackPanel Orientation="Horizontal"><Rectangle Width="16" Height="16" Fill="MediumPurple" Margin="0,0,8,0" /><TextBlock Text="Purple" /></StackPanel></ComboBoxItem>
-            </ComboBox>
+            <!-- Keep the selector name, tags and SelectedValue used by the existing answer code. -->
+            <ListBox x:Name="ColourInput" SelectedValuePath="Tag" AutomationProperties.Name="Reading mark colour"
+                     Background="Transparent" BorderThickness="0" Padding="0" HorizontalAlignment="Left">
+                <ListBox.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Focusable" Value="False" />
+                        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem"><ContentPresenter /></ControlTemplate></Setter.Value></Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.Resources>
+                    <Style TargetType="RadioButton" BasedOn="{StaticResource ColorRing}">
+                        <Setter Property="GroupName" Value="ReadingMarkColour" />
+                        <Setter Property="IsChecked" Value="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}, Mode=TwoWay}" />
+                    </Style>
+                </ListBox.Resources>
+                <ListBoxItem Tag="red"><RadioButton Background="Crimson" ToolTip="Red" AutomationProperties.Name="Red" /></ListBoxItem>
+                <ListBoxItem Tag="orange"><RadioButton Background="DarkOrange" ToolTip="Orange" AutomationProperties.Name="Orange" /></ListBoxItem>
+                <ListBoxItem Tag="yellow"><RadioButton Background="Gold" ToolTip="Yellow" AutomationProperties.Name="Yellow" /></ListBoxItem>
+                <ListBoxItem Tag="green"><RadioButton Background="SeaGreen" ToolTip="Green" AutomationProperties.Name="Green" /></ListBoxItem>
+                <ListBoxItem Tag="blue"><RadioButton Background="DodgerBlue" ToolTip="Blue" AutomationProperties.Name="Blue" /></ListBoxItem>
+                <ListBoxItem Tag="purple"><RadioButton Background="MediumPurple" ToolTip="Purple" AutomationProperties.Name="Purple" /></ListBoxItem>
+            </ListBox>
             <WrapPanel HorizontalAlignment="Right" Margin="0,20,0,0">
                 <Button x:Name="RemoveButton" Content="Remove" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8" Click="OnRemove" />
                 <Button x:Name="OkButton" Content="Add" IsDefault="True" Style="{StaticResource PrimaryButton}" MinWidth="70" Margin="0,0,8,8" Click="OnOk" />

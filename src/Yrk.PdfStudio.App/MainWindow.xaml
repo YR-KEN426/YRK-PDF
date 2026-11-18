@@ -988,13 +988,22 @@
                 </Border.Visibility>
                 <TabControl BorderThickness="0" Background="Transparent" Padding="0">
                     <TabControl.Resources>
-                        <!-- Four tabs fit on one row of the sidebar. -->
-                        <Style TargetType="TabItem">
-                            <Setter Property="Padding" Value="5,3" />
-                            <Setter Property="FontSize" Value="11.5" />
+                        <!-- Six icons fit the narrow sidebar; retain Header for code and localization. -->
+                        <Style TargetType="TabItem" BasedOn="{StaticResource {x:Type TabItem}}">
+                            <Setter Property="Padding" Value="8,9" />
+                            <Setter Property="ToolTip" Value="{Binding Header, RelativeSource={RelativeSource Self}}" />
+                            <Setter Property="AutomationProperties.Name" Value="{Binding Header, RelativeSource={RelativeSource Self}}" />
+                            <Setter Property="HeaderTemplate">
+                                <Setter.Value>
+                                    <DataTemplate>
+                                        <TextBlock FontFamily="{StaticResource IconFont}" FontSize="16"
+                                                   Text="{Binding Tag, RelativeSource={RelativeSource AncestorType=TabItem}}" />
+                                    </DataTemplate>
+                                </Setter.Value>
+                            </Setter>
                         </Style>
                     </TabControl.Resources>
-                    <TabItem Header="Pages">
+                    <TabItem Header="Pages" Tag="&#xE8A5;">
                         <ListBox x:Name="ThumbnailList"
                                  ItemsSource="{Binding Pages}"
                                  Background="Transparent"
@@ -1058,7 +1067,7 @@
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </TabItem>
-                    <TabItem x:Name="CommentsTab" Header="Comments">
+                    <TabItem x:Name="CommentsTab" Header="Comments" Tag="&#xE90A;">
                         <Grid>
                             <ListBox x:Name="CommentList" ItemsSource="{Binding Comments}" SelectedItem="{Binding SelectedComment}"
                                      Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch"
@@ -1098,7 +1107,7 @@
                             </TextBlock>
                         </Grid>
                     </TabItem>
-                    <TabItem x:Name="SignaturesTab" Header="Signatures">
+                    <TabItem x:Name="SignaturesTab" Header="Signatures" Tag="&#xE73E;">
                         <Grid>
                             <ListBox ItemsSource="{Binding Signatures}" BorderThickness="0" Background="Transparent"
                                      HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
@@ -1155,7 +1164,7 @@
                             </TextBlock>
                         </Grid>
                     </TabItem>
-                    <TabItem x:Name="LayersTab" Header="Layers">
+                    <TabItem x:Name="LayersTab" Header="Layers" Tag="&#xE81E;">
                         <DockPanel>
                             <WrapPanel DockPanel.Dock="Top" Margin="8,6,4,2" Visibility="{Binding HasLayers, Converter={StaticResource BoolToVisibility}}">
                                 <Button Content="Show all" Style="{StaticResource LinkButton}" Command="{Binding ShowAllLayersCommand}" />
@@ -1203,7 +1212,7 @@
                             </Grid>
                         </DockPanel>
                     </TabItem>
-                    <TabItem Header="Bookmarks">
+                    <TabItem Header="Bookmarks" Tag="&#xE8A4;">
                         <Grid>
                             <TreeView ItemsSource="{Binding Bookmarks}" Background="Transparent" BorderThickness="0"
                                       SelectedItemChanged="OnBookmarkSelected">
@@ -1228,7 +1237,7 @@
                             </TextBlock>
                         </Grid>
                     </TabItem>
-                    <TabItem Header="Reading marks">
+                    <TabItem Header="Reading marks" Tag="&#xE735;">
                         <Grid>
                             <ListBox x:Name="ReadingMarkList" ItemsSource="{Binding ReadingMarks}"
                                      Background="Transparent" BorderThickness="0" HorizontalContentAlignment="Stretch"

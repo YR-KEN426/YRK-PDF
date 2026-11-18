@@ -147,7 +147,7 @@ public sealed class ReadingMarksUiTests
                     var ok = (Button)dialog.FindName("OkButton");
                     Assert.True(ok.IsDefault);
                     Assert.Equal(language == "th" ? "บันทึก" : "Save", ok.Content);
-                    var color = (ComboBox)dialog.FindName("ColourInput");
+                    var color = (ListBox)dialog.FindName("ColourInput");
                     Assert.Equal(6, color.Items.Count);
                     Assert.Equal("purple", color.SelectedValue);
                     Assert.Equal(Visibility.Visible, ((Button)dialog.FindName("RemoveButton")).Visibility);

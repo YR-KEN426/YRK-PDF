@@ -110,7 +110,7 @@ internal sealed class WpfTestApp : IDisposable
     }
 
     /// <summary>Visit tabs as well as the initially visible tree, then materialize each popup template.</summary>
-    public static int ExercisePopups(Window window)
+    public static int ExercisePopups(Window window, Action<Control>? inspectTemplate = null)
     {
         var count = 0;
         var seen = new HashSet<DependencyObject>();
@@ -123,6 +123,7 @@ internal sealed class WpfTestApp : IDisposable
                 if (control is ComboBox combo)
                 {
                     combo.ApplyTemplate();
+                    inspectTemplate?.Invoke(combo);
                     combo.IsDropDownOpen = true;
                     Pump();
                     if (combo.Template.FindName("PART_Popup", combo) is Popup { Child: { } child })
@@ -134,7 +135,9 @@ internal sealed class WpfTestApp : IDisposable
                 }
                 else if (control is DatePicker date)
                 {
-                    date.ApplyTemplate(); date.IsDropDownOpen = true; Pump();
+                    date.ApplyTemplate();
+                    inspectTemplate?.Invoke(date);
+                    date.IsDropDownOpen = true; Pump();
                     if (date.Template.FindName("PART_Popup", date) is Popup { Child: { } calendar })
                     {
                         calendar.Measure(new Size(1000, 800)); calendar.Arrange(new Rect(calendar.DesiredSize));
