@@ -317,6 +317,8 @@ public partial class MainWindow
         return grid;
     }
 
+    private const double HomeCardTitleLine = 20;
+
     private Button MakeCard(HomeTool tool)
     {
         var category = CategoryOf(tool.Category);
@@ -334,16 +336,20 @@ public partial class MainWindow
                 VerticalAlignment = VerticalAlignment.Center,
             }, (TextBlock.ForegroundProperty, category.Brush)),
         }, (Border.BackgroundProperty, category.SoftBrush));
+        // Titles may take two lines (a 4-column card is too narrow for the longest Thai and English names);
+        // every card reserves room for two, so cards in a row and across sections keep one height.
         var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(new TextBlock
         {
-            Text = tool.Title, FontWeight = FontWeights.SemiBold, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis, Tag = UiTranslator.KeepText,
+            Text = tool.Title, FontWeight = FontWeights.SemiBold, FontSize = 14, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis,
+            LineHeight = HomeCardTitleLine, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, MaxHeight = HomeCardTitleLine * 2,
+            Tag = UiTranslator.KeepText,
         });
         text.Children.Add(ThemeResources.Apply(new TextBlock
         {
             Text = tool.Text, FontSize = 12, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Tag = UiTranslator.KeepText,
         }, (TextBlock.ForegroundProperty, "HomeMutedTextBrush")));
-        var content = new Grid();
+        var content = new Grid { MinHeight = HomeCardTitleLine * 2 + 18 };
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         content.Children.Add(icon);
