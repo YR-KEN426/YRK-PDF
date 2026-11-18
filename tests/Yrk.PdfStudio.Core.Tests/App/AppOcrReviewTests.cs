@@ -71,6 +71,8 @@ public sealed class AppOcrReviewTests
                 .SetValue(null, typeof(MainWindow).Assembly);
             var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
+                { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
                 { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             var document = DispatchProxy.Create<IPdfDocument, SignatureSecurityTests.TestProxy>();
             ((SignatureSecurityTests.TestProxy)(object)document).Handle = (method, _) => method.Name switch

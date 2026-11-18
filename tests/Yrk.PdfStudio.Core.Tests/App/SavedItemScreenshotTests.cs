@@ -45,6 +45,10 @@ public sealed partial class SavedItemEditingTests
             var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
             {
+                Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative),
+            });
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
+            {
                 Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative),
             });
             var oldLanguage = Loc.Language;

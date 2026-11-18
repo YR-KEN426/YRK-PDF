@@ -37,6 +37,8 @@ public sealed class AppConvertScanTests
                 .SetValue(null, typeof(MainWindow).Assembly);
             var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
+                { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
                 { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             var folder = Directory.CreateTempSubdirectory("convert-dialog-test-");
             ConvertScanDialog? input = null;

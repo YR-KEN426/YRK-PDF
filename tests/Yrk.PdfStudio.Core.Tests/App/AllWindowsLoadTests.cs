@@ -11,6 +11,29 @@ namespace Yrk.PdfStudio.Core.Tests;
 [Collection("WPF Application")]
 public sealed class AllWindowsLoadTests(ITestOutputHelper output)
 {
+    [Fact]
+    public void Real_application_resources_load_colors_before_styles()
+    {
+        Sta.Run(() =>
+        {
+            // WindowRenderer shares this host and the embedded real App.xaml, so this checks both paths.
+            using var app = new WpfTestApp("en");
+            var resources = Application.Current.Resources;
+            Assert.Equal(new[] { "Themes/Colors.xaml", "Themes/Styles.xaml" },
+                resources.MergedDictionaries.Select(d => d.Source.OriginalString));
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0x0F, 0x6C, 0xBD),
+                ((System.Windows.Media.SolidColorBrush)resources["AccentBrush"]).Color);
+            Assert.Equal(System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28),
+                ((System.Windows.Media.SolidColorBrush)resources["BrandBrush"]).Color);
+            foreach (var (original, alias) in new[] { ("DividerBrush", "BorderSubtleBrush"),
+                         ("ErrorBrush", "SignatureInvalidBrush"), ("SuccessBrush", "SignatureValidBrush") })
+                Assert.Equal(((System.Windows.Media.SolidColorBrush)resources[original]).Color,
+                    ((System.Windows.Media.SolidColorBrush)resources[alias]).Color);
+            Assert.Empty(app.Errors);
+            return true;
+        });
+    }
+
     public static IEnumerable<object[]> Windows => WindowCatalog.Cases.Where(c => c.Create is not null).SelectMany(c => new[] { "th", "en" }
         .Select(language => new object[] { c.Name, language }));
 

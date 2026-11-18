@@ -34,6 +34,8 @@ public sealed class MainWindowLayoutTests
             var priorContext = SynchronizationContext.Current;
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
+            { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
             { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             var models = new List<AppTestHarness>();
             AppTestHarness Create()
@@ -104,6 +106,8 @@ public sealed class MainWindowLayoutTests
             var priorContext = SynchronizationContext.Current;
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
+            { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
             { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             var app = new AppTestHarness();
             try
@@ -153,6 +157,8 @@ public sealed class MainWindowLayoutTests
             var application = new Application();
             var priorContext = SynchronizationContext.Current;
             SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
+            { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
             { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             var language = Yrk.PdfStudio.App.Localization.Loc.Language;
@@ -237,6 +243,10 @@ public sealed class MainWindowLayoutTests
                 .SetValue(null, typeof(MainWindow).Assembly);
             ForgetApplicationFromEarlierTest();
             var application = new Application();
+            application.Resources.MergedDictionaries.Add(new ResourceDictionary
+            {
+                Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative),
+            });
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
             {
                 Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative),

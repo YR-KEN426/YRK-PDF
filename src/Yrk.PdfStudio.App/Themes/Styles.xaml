@@ -6,25 +6,6 @@
     <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI, Leelawadee UI</FontFamily>
     <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
-    <!-- Brand and surface colors -->
-    <SolidColorBrush x:Key="AccentBrush" Color="#0F6CBD" />
-    <SolidColorBrush x:Key="AccentHoverBrush" Color="#115EA3" />
-    <SolidColorBrush x:Key="AccentPressedBrush" Color="#0F548C" />
-    <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF" />
-    <SolidColorBrush x:Key="ToolbarBrush" Color="#FAFAFA" />
-    <SolidColorBrush x:Key="SidebarBrush" Color="#F5F5F5" />
-    <SolidColorBrush x:Key="ViewerBrush" Color="#E7E7EA" />
-    <SolidColorBrush x:Key="DividerBrush" Color="#E0E0E0" />
-    <SolidColorBrush x:Key="TextBrush" Color="#1F1F1F" />
-    <SolidColorBrush x:Key="SecondaryTextBrush" Color="#616161" />
-    <SolidColorBrush x:Key="ErrorBrush" Color="#C42B1C" />
-    <SolidColorBrush x:Key="HoverBrush" Color="#EBEBEB" />
-    <SolidColorBrush x:Key="PressedBrush" Color="#E0E0E0" />
-    <!-- Opaque on purpose: the highlight layer gets its transparency as a whole, so overlapping
-         per-character rectangles do not stack into darker spots. -->
-    <SolidColorBrush x:Key="SearchHighlightBrush" Color="#FFD43B" />
-    <SolidColorBrush x:Key="CurrentSearchHighlightBrush" Color="#FF8C00" />
-
     <!-- The theme's ComboBoxItem binds these to its ItemsControl, which an item declared in XAML does not
          have yet, so WPF logs binding errors. Fixed values (the theme defaults) avoid that. -->
     <Style TargetType="ComboBoxItem">
@@ -75,8 +56,6 @@
             </Setter.Value>
         </Setter>
     </Style>
-
-    <SolidColorBrush x:Key="CheckedBrush" Color="#DCE9F7" />
 
     <!-- A toolbar button that stays pressed while its tool is active (radio buttons in a group). -->
     <Style x:Key="ToolbarToggle" TargetType="ToggleButton">

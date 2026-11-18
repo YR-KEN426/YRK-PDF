@@ -241,6 +241,7 @@ public sealed class PasswordRevealTests
         var language = Loc.Language;
         try
         {
+            app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
             app.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             test();
             return true;

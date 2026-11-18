@@ -980,6 +980,10 @@ public sealed class ETaxTests : IDisposable
             var application = new System.Windows.Application();
             application.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
             {
+                Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative),
+            });
+            application.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
+            {
                 Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative),
             });
             try

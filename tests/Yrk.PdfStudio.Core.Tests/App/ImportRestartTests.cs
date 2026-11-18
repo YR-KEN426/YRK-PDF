@@ -415,6 +415,7 @@ public sealed class ImportRestartTests
         typeof(Application).GetField("_resourceAssembly", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, typeof(MainWindow).Assembly);
         SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext());
         var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        application.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
         application.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
         var root = Directory.CreateDirectory(Path.Combine(PrivateTempDirectory.Path, "restart-" + Guid.NewGuid().ToString("N"))).FullName;
         var language = Loc.Language;

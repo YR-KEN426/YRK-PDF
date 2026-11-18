@@ -47,9 +47,20 @@ internal sealed class WpfTestApp : IDisposable
         var dictionary = applicationXaml.Descendants().First(e => e.Name.LocalName == "ResourceDictionary");
         foreach (var attribute in applicationXaml.Attributes().Where(a => a.IsNamespaceDeclaration))
             if (dictionary.Attribute(attribute.Name) is null) dictionary.Add(new XAttribute(attribute));
+        // Publish the root before loading its merged dictionaries, like Application.InitializeComponent.
+        // Loading the whole dictionary off-tree leaves StaticResource references in Styles templates
+        // unresolved: Colors must already be visible in Application.Current.Resources during parsing.
+        var merged = dictionary.Elements().SingleOrDefault(e => e.Name.LocalName == "ResourceDictionary.MergedDictionaries");
+        var entries = merged?.Elements().ToArray() ?? [];
+        merged?.Remove();
         var parser = new ParserContext { BaseUri = new Uri("pack://application:,,,/YrkEasyPdf;component/App.xaml") };
         using var xml = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(dictionary.ToString()));
         _application.Resources = (ResourceDictionary)XamlReader.Load(xml, parser);
+        foreach (var entry in entries)
+        {
+            using var entryXml = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(entry.ToString()));
+            _application.Resources.MergedDictionaries.Add((ResourceDictionary)XamlReader.Load(entryXml, parser));
+        }
         CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(language);
         Loc.Language = language;
     }
