@@ -1,0 +1,46 @@
+# ข้อความการ์ดหน้าแรก
+
+ร่างตาม `HomeTools()` เรียงตามลำดับในโค้ด คำอธิบายบนการ์ดย่อจากข้อความเดิม ส่วน tooltip เป็นข้อมูลเสริมและอ้างแหล่งยืนยันไว้ท้ายแต่ละแถว
+
+| id และหมวด | ชื่อการ์ด (ไทย / อังกฤษ) | คำอธิบายสั้นบนการ์ด (ไทย / อังกฤษ) | Tooltip บรรทัด 2–3 (ไทย / อังกฤษ) | ปุ่มลัด | อ้างอิงที่มา |
+|---|---|---|---|---|---|
+| `combine` · organize | รวม PDF / Combine PDF | หลายไฟล์เป็นไฟล์เดียว / Several files, one PDF | ลากเรียงลำดับไฟล์ก่อนรวมได้ / Drag files to set their order before combining. | - | `Views/CombineFilesDialog.xaml`; README.md (Combine PDFs) |
+| `split` · organize | แยก PDF / Split PDF | เลือกหน้าเพื่อแยกไฟล์ / Save selected pages separately | ระบุช่วงหน้า หรือแยกทุก N หน้าได้ / Enter page ranges or split every N pages. | - | `Views/SplitDialog.xaml` |
+| `pages` · organize | จัดหน้า / Organize pages | จัดการหน้า PDF / Manage PDF pages | หมุน ลบ ย้าย แทรก และแยกหน้าได้ / Rotate, delete, move, insert, and extract pages. | - | README.md (page tools); `MainWindow.Home.cs` (case `pages`) |
+| `scanpdf` · organize | สแกนเข้า PDF / Scan to PDF | สแกนกระดาษเป็น PDF / Scan paper into PDF | สแกนต่อหลายหน้า และเลือก OCR ได้ / Scan more pages and optionally recognize text. | - | `Views/ScanDialog.xaml`; `MainWindow.Home.cs` (case `scanpdf`) |
+| `scan` · organize | จัดหน้าสแกน / Clean up scans | ปรับภาพหน้าสแกน / Adjust scanned pages | ปรับเอียง ตัดขอบมืด และลบหน้าว่าง / Straighten, trim dark edges, and remove blank pages. | - | `Views/ScanCleanupDialog.xaml`; `MainWindow.Home.cs` (case `scan`) |
+| `images` · organize | รูปภาพเป็น PDF / Images to PDF | รวมรูปเป็น PDF / Make a PDF from images | รองรับรูป JPG และ PNG / Accepts JPG and PNG images. | - | `MainWindow.Home.cs` (HomeTools `images`); README.md (Images to PDF) |
+| `batch` · organize | ทำทีละหลายไฟล์ / Process many files | ทำงานกับทั้งโฟลเดอร์ / Process a whole folder | บีบอัด แปลง หรือใส่เครื่องหมายหลายไฟล์ / Compress, convert, or mark many files. | - | `Views/BatchDialog.xaml`; `MainWindow.Home.cs` (HomeTools `batch`) |
+| `convertscan` · convert | แปลงเอกสารสแกน / Convert scanned documents | แปลงสแกนเป็นไฟล์ใช้ต่อ / Convert scans for reuse | เลือก PDF ค้นข้อความได้, Word หรือข้อความ / Choose searchable PDF, Word, or text output. | - | `Views/ConvertScanDialog.xaml`; `MainWindow.Home.cs` (HomeTools `convertscan`) |
+| `word` · convert | PDF เป็น Word / PDF to Word | ข้อความแก้ไขได้ / Editable text | ตารางและรูปภาพคงตำแหน่งโดยประมาณ / Tables and pictures stay in place. | - | README.md (PDF to Word) |
+| `excel` · convert | PDF เป็น Excel / PDF to Excel | ตารางเป็นเซลล์ / Tables become cells | จำนวนเงินส่งออกเป็นตัวเลขที่นำไปคำนวณได้ / Amounts are exported as numbers you can add up. | - | README.md (PDF to Excel) |
+| `powerpoint` · convert | PDF เป็น PowerPoint / PDF to PowerPoint | หน้าละหนึ่งสไลด์ / One slide per page | สไลด์มีหน้าตาเหมือน PDF / Slides look like the PDF pages. | - | README.md (PDF to PowerPoint) |
+| `pictures` · convert | PDF เป็นรูปภาพ / PDF to images | แปลงแต่ละหน้าเป็นภาพ / Export each page as an image | เลือก PNG หรือ JPG ได้ / Choose PNG or JPG. | - | README.md (PDF to images) |
+| `compress` · convert | บีบอัด PDF / Compress PDF | ลดขนาดไฟล์ / Make the file smaller | มี 3 ระดับ และบันทึกเป็นไฟล์ใหม่ / Choose from three levels and save a new file. | - | README.md (Compress PDF) |
+| `ocr` · convert | แปลงภาพเป็นข้อความ (OCR) / Recognize text (OCR) | ค้นหาและคัดลอกจากภาพได้ / Search and copy scanned text | รองรับภาษาไทย; ตรวจทานผลจากภาพก่อนใช้ / Thai is supported; check recognized text before use. | - | README.md (OCR); `Views/OcrDialog.xaml` |
+| `pdfa` · convert | PDF/A สำหรับเก็บถาวร / PDF/A for archiving | บันทึกเป็น PDF/A / Save as PDF/A | ใช้รูปแบบเก็บเอกสารระยะยาวที่หลายสำนักงานร้องขอ / A long-term archive format requested by many offices. | - | README.md (PDF/A for archiving) |
+| `etax` · accounting | ใบกำกับภาษี (e-Tax Invoice) / e-Tax Invoice | สร้างเอกสารภาษี PDF/A-3 / Create tax documents as PDF/A-3 | รองรับใบกำกับภาษี ใบเพิ่มหนี้ และใบลดหนี้ พร้อม XML กรมสรรพากร / Supports tax invoices, debit and credit notes with Revenue Department XML. | - | `Views/ETaxInvoiceDialog.xaml`; README.md (e-Tax Invoice) |
+| `amount` · accounting | จำนวนเงินเป็นตัวหนังสือ / Amount in words | แปลงยอดเงินเป็นคำ / Convert amounts to words | แสดงผลเป็นภาษาไทยและอังกฤษ / Produces Thai and English wording. | - | `Views/AmountWordsDialog.xaml`; `MainWindow.Home.cs` (HomeTools `amount`) |
+| `edittext` · edit | แก้ไขข้อความ / Edit text | แก้คำใน PDF / Change words in a PDF | แก้ข้อความทีละบรรทัด ไม่จัดย่อหน้าใหม่ / Edits one line at a time; paragraphs do not reflow. | - | README.md (Text editing) |
+| `addtext` · edit | เพิ่มข้อความ / Add text | พิมพ์ข้อความบนหน้า / Type on a page | ปรับแบบอักษรและขนาดได้ / Choose the font and size. | - | `MainWindow.Home.cs` (HomeTools `addtext`); README.md (Fill & Sign) |
+| `addpicture` · edit | เพิ่มรูปภาพ / Add a picture | วางและปรับรูปบนหน้า / Place and resize a picture | ใช้ไฟล์ภาพที่เปิดอ่านได้ / Use a readable image file. | - | `MainWindow.Home.cs` (HomeTools `addpicture`); README.md (Fill & Sign) |
+| `fill` · edit | กรอกแบบฟอร์ม / Fill in a form | กรอกหรือสร้างช่องฟอร์ม / Fill or create form fields | เพิ่มช่องกรอกลงในเอกสารได้ / Add form fields to a document. | - | `MainWindow.Home.cs` (HomeTools `fill`); README.md (Forms) |
+| `sign` · edit | เซ็น / Sign | วางลายเซ็นเขียนมือ / Place a handwritten signature | วาด พิมพ์ชื่อ หรือใช้ภาพลายเซ็น / Draw, type, or use an image of your signature. | - | `Views/SignatureDialog.xaml` |
+| `digital` · edit | ลายเซ็นดิจิทัล / Digital signature | เซ็นด้วย Digital ID / Sign with a Digital ID | แสดงเมื่อเอกสารถูกเปลี่ยนภายหลัง / Later changes are shown. | - | `Views/DigitalSignDialog.xaml`; README.md (Digital signatures) |
+| `certified` · edit | สำเนาถูกต้อง / Certified true copy | ประทับสำเนาพร้อมลายเซ็น / Stamp a copy with your signature | ข้อความตราเป็นข้อความจริง ส่วนกรอบและลายเซ็นเป็นภาพ / Stamp words are text; its frame and signature are images. | - | `Views/CertifiedCopyDialog.xaml`; README.md (Fill & Sign) |
+| `stamp` · edit | ตรายาง / Rubber stamp | เลือกหรือปรับตรา / Choose or edit a stamp | เปลี่ยนข้อความ สี และวันที่ หรือบันทึกตราบริษัทไว้ใช้ซ้ำ / Change words, colour, and date, or save a company stamp for reuse. | - | `Views/StampDialog.xaml` |
+| `comment` · edit | ไฮไลต์และความคิดเห็น / Highlight and comment | ทำเครื่องหมายและจดบันทึก / Mark and annotate | มีไฮไลต์ ขีดเส้นใต้ บันทึก และวาด / Includes highlighting, underlining, notes, and drawing. | - | `MainWindow.Home.cs` (case `comment`); README.md (Comments) |
+| `marks` · edit | ลายน้ำและเลขหน้า / Watermark and page numbers | เพิ่มเครื่องหมายบนหน้า / Add marks to pages | เพิ่มลายน้ำ หัวกระดาษ ท้ายกระดาษ หรือเลขหน้า / Add a watermark, header, footer, or page numbers. | - | `MainWindow.Home.cs` (case `marks`); README.md (Page marks) |
+| `dwg` · drawings | เปิดไฟล์ DWG และ DXF / Open DWG and DXF | เปิดแบบโดยไม่ใช้ AutoCAD / View drawings without AutoCAD | ข้อความใน MText และการตัดขอบ viewport บางแบบอาจแสดงไม่ครบ / Some MText formatting and viewport clipping are not preserved. | - | README.md (Drawings) |
+| `measure` · drawings | วัดระยะ / Measure | วัดตามสเกลแบบ / Measure at drawing scale | การจับจุดช่วยหาปลายและกึ่งกลางเส้น / Snapping finds line ends and midpoints. | - | README.md (Measure and compare) |
+| `count` · drawings | นับจำนวน / Count items | คลิกนับรายการบนแบบ / Click to count items | ส่งออกรายการนับได้ / Export the count list. | - | `MainWindow.Home.cs` (HomeTools `count`); README.md (Count items) |
+| `compare` · drawings | เปรียบเทียบแบบ / Compare versions | ดูความต่างระหว่างฉบับ / See differences between revisions | เปรียบเทียบจากไฟล์ที่บันทึกไว้ จึงไม่รวมการแก้ไขที่ยังไม่บันทึก / Compares saved files, so unsaved changes are excluded. | - | README.md (Measure and compare) |
+| `protect` · security | ใส่รหัสผ่านป้องกัน / Protect with password | ตั้งรหัสเปิดหรือจำกัดสิทธิ์ / Set an open password or restrictions | เลือกจำกัดการพิมพ์ คัดลอก แก้ไข และการทำงานอื่นได้ / Choose restrictions such as printing, copying, or editing. | - | `Views/ProtectDialog.xaml`; README.md (Protect with password) |
+| `unprotect` · security | ปลดรหัสผ่าน / Remove password | บันทึกสำเนาที่ปลดล็อก / Save an unlocked copy | ไฟล์ที่จำกัดสิทธิ์ต้องใช้รหัสผ่านเจ้าของ / Files with restrictions require the owner password. | - | README.md (Remove password protection) |
+| `redact` · security | ลบข้อมูลถาวร (ทึบดำ) / Black out (redact) | ลบข้อมูลส่วนตัวถาวร / Permanently remove private details | PDF ที่มีรหัสผ่านยังลบข้อมูลถาวรไม่ได้ / Password-protected PDFs cannot be redacted yet. | - | README.md (Redaction) |
+
+## ข้อสงสัย
+
+- `images`: ยืนยันชนิด JPG/PNG จากข้อความเดิมใน `HomeTools()`; ยังไม่พบคำอธิบายรูปแบบอินพุตเพิ่มเติมใน README ที่ตรวจพบ
+- `count`: ข้อความอ้างอิงใน README เรื่องส่งออกรายการนับต้องยืนยันกับหน้าเครื่องมือ/โค้ดบันทึกรายการโดยตรงก่อนใช้จริง
+- `pages`, `addtext`, `addpicture`, `fill`, `count`, `marks`: รายละเอียด tooltip อาศัยคำอธิบายจาก `HomeTools()` หรือ README เป็นหลัก ยังควรตรวจหน้าเครื่องมือกับ implementation เฉพาะจุด
