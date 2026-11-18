@@ -751,6 +751,14 @@ public partial class MainWindow : Window
 
     private void OnFindExecuted(object sender, ExecutedRoutedEventArgs e)
     {
+        if (HomePage.IsVisible)
+        {
+            // On the start page Ctrl+F is for finding a tool.
+            HomeSearchBox.Focus();
+            HomeSearchBox.SelectAll();
+            return;
+        }
+
         SearchBox.Focus();
         SearchBox.SelectAll();
     }

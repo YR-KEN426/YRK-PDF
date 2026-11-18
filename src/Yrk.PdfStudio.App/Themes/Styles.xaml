@@ -610,34 +610,53 @@
         <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
     </Style>
 
-    <!-- Start page: a tool card, and a category chip above the cards. -->
     <Style x:Key="HomeCard" TargetType="Button">
-        <Setter Property="Width" Value="236" />
-        <Setter Property="Height" Value="124" />
-        <Setter Property="Margin" Value="0,0,14,14" />
+        <Setter Property="Margin" Value="7" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
-        <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource HomeTextBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-        <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="Card" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
-                            CornerRadius="8" Padding="14,12">
-                        <ContentPresenter />
+                    <Border x:Name="Card" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource HomeBorderBrush}" BorderThickness="1"
+                            CornerRadius="14" Padding="16">
+                        <Border.RenderTransform>
+                            <TranslateTransform x:Name="Lift" Y="0" />
+                        </Border.RenderTransform>
+                        <ContentPresenter VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource HomeBorderStrongBrush}" />
+                            <Setter TargetName="Card" Property="Effect">
+                                <Setter.Value>
+                                    <DropShadowEffect BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.18" Color="{DynamicResource HomeShadowColor}" />
+                                </Setter.Value>
+                            </Setter>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="-2" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation Storyboard.TargetName="Lift" Storyboard.TargetProperty="Y" To="0" Duration="0:0:0.12" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.ExitActions>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Card" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                             <Setter TargetName="Card" Property="BorderThickness" Value="2" />
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="Card" Property="Background" Value="{DynamicResource CheckedBrush}" />
+                            <Setter TargetName="Card" Property="Background" Value="{DynamicResource HomeFillBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -645,26 +664,72 @@
         </Setter>
     </Style>
 
-    <Style x:Key="HomeChip" TargetType="RadioButton">
+    <!-- The category buttons of the start page: a TabControl with only its buttons (capsules that wrap), no content area. -->
+    <Style x:Key="HomeTabs" TargetType="TabControl">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <WrapPanel IsItemsHost="True" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="HomeTabItem" TargetType="TabItem">
         <Setter Property="Margin" Value="0,0,8,8" />
         <Setter Property="Cursor" Value="Hand" />
-        <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource HomeTextBrush}" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="RadioButton">
-                    <Border x:Name="Chip" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
-                            CornerRadius="16" Padding="14,6">
-                        <ContentPresenter VerticalAlignment="Center" />
+                <ControlTemplate TargetType="TabItem">
+                    <Border x:Name="Chip" Height="36" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource HomeBorderStrongBrush}"
+                            BorderThickness="1" CornerRadius="18" Padding="14,0">
+                        <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource HomeMutedTextBrush}" />
                         </Trigger>
-                        <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Chip" Property="Background" Value="{DynamicResource TextBrush}" />
-                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource TextBrush}" />
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Chip" Property="Background" Value="{DynamicResource HomeTextBrush}" />
+                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource HomeTextBrush}" />
                             <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chip" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
+                            <Setter TargetName="Chip" Property="BorderThickness" Value="2" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- The "All 34 tools" link on the start page, at least 44 high to press. -->
+    <Style x:Key="HomeLink" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="MinHeight" Value="44" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Link" Background="Transparent" BorderBrush="Transparent" BorderThickness="2" CornerRadius="8"
+                            Padding="10,0" MinHeight="{TemplateBinding MinHeight}">
+                        <TextBlock x:Name="Label" Text="{TemplateBinding Content}" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Label" Property="TextDecorations" Value="Underline" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Link" Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

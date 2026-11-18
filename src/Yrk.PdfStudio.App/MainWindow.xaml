@@ -1904,7 +1904,7 @@
                     <Grid>
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE721;" FontSize="18" Margin="18,0,0,0" HorizontalAlignment="Left"
                                    IsHitTestVisible="False" Foreground="{DynamicResource HomeMutedTextBrush}" />
-                        <TextBox x:Name="HomeSearchBox" BorderThickness="0" Background="Transparent" FontSize="15" Padding="52,0,86,0"
+                        <TextBox x:Name="HomeSearchBox" TextChanged="OnHomeSearchChanged" KeyDown="OnHomeSearchKeyDown" BorderThickness="0" Background="Transparent" FontSize="15" Padding="52,0,86,0"
                                  VerticalContentAlignment="Center" Foreground="{DynamicResource HomeTextBrush}" GotKeyboardFocus="OnTextBoxGotKeyboardFocus"
                                  AutomationProperties.Name="Search tools" />
                         <TextBlock Text="Search tools, for example: merge, Word, sign" FontSize="15" Margin="52,0,86,0" VerticalAlignment="Center"
@@ -1963,17 +1963,16 @@
                             </DockPanel>
                         </Grid>
 
-                        <!-- Tools by what people want to do; a card opens a file first when the tool needs one. -->
-                        <WrapPanel x:Name="HomeCategories" Margin="0,28,0,8">
-                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="all" Content="All tools" IsChecked="True" Checked="OnHomeCategoryChecked" />
-                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="accounting" Content="Accounting" Checked="OnHomeCategoryChecked" />
-                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="organize" Content="Organize" Checked="OnHomeCategoryChecked" />
-                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="convert" Content="Convert" Checked="OnHomeCategoryChecked" />
-                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="edit" Content="Edit and sign" Checked="OnHomeCategoryChecked" />
-                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="drawings" Content="Construction drawings" Checked="OnHomeCategoryChecked" />
-                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="security" Content="Security" Checked="OnHomeCategoryChecked" />
-                        </WrapPanel>
-                        <WrapPanel x:Name="HomeCards" />
+                        <!-- Tools: the frequently used ones first; "All" shows every tool by category (MainWindow.Home.cs). The category
+                             buttons are a real TabControl, so a screen reader hears tabs and which one is selected. -->
+                        <DockPanel x:Name="HomeFrequentHeader" Margin="0,28,0,6">
+                            <Button x:Name="HomeAllToolsLink" DockPanel.Dock="Right" Style="{StaticResource HomeLink}" Click="OnHomeAllToolsClick" />
+                            <TextBlock Text="Frequently used tools" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource HomeTextBrush}" />
+                        </DockPanel>
+                        <TabControl x:Name="HomeTabs" Style="{StaticResource HomeTabs}" Margin="0,28,0,14" Visibility="Collapsed"
+                                    AutomationProperties.Name="Tool categories" SelectionChanged="OnHomeTabChanged" />
+                        <StackPanel x:Name="HomeCards" />
                     </StackPanel>
 
                     <!-- Recent files: only those still there (see HomeRecentList). Right-click a line for its folder or to remove it. -->

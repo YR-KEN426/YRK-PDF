@@ -96,10 +96,6 @@
     <SolidColorBrush x:Key="DigitalPreviewFillBrush" Color="#300F6CBD" />
     <SolidColorBrush x:Key="CropHandleBrush" Color="#4169E1" />
     <SolidColorBrush x:Key="RulerTextBrush" Color="#696969" />
-    <SolidColorBrush x:Key="HomeConvertBrush" Color="#1A73E8" />
-    <SolidColorBrush x:Key="HomeEditBrush" Color="#7B4FC9" />
-    <SolidColorBrush x:Key="HomeDrawingsBrush" Color="#00897B" />
-    <SolidColorBrush x:Key="HomeAccountingBrush" Color="#2E7D32" />
     <SolidColorBrush x:Key="PrintFoldBrush" Color="#C0C0C0" />
 
     <!-- Start page (brief sections 0 to 6). BrandBrush is for the start page only; AccentBrush stays blue. -->

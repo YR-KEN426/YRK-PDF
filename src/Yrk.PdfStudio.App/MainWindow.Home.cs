@@ -1,7 +1,10 @@
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Shapes;
 using System.Windows.Threading;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.App.ViewModels;
@@ -14,99 +17,125 @@ namespace Yrk.PdfStudio.App;
 /// </summary>
 public partial class MainWindow
 {
+    /// <summary>
+    /// One card. The texts are English keys (shown through <see cref="Loc"/>), so a search can look in both languages.
+    /// </summary>
     /// <param name="NeedsDocument">False for tools that pick their own files (combine, images to PDF, many files).</param>
     /// <param name="Accounting">Shown in the Accounting group too, besides its own group.</param>
-    private sealed record HomeTool(string Id, string Category, string Glyph, string Title, string Text, bool NeedsDocument = true, bool Accounting = false);
-
-    private static readonly Dictionary<string, string> CategoryBrushKeys = new()
+    private sealed record HomeTool(string Id, string Category, string Glyph, string TitleKey, string TextKey, string KeywordsKey,
+        bool NeedsDocument = true, bool Accounting = false)
     {
-        ["organize"] = "MeasureAccentBrush",
-        ["convert"] = "HomeConvertBrush",
-        ["edit"] = "HomeEditBrush",
-        ["drawings"] = "HomeDrawingsBrush",
-        ["security"] = "BrandBrush",
-        ["accounting"] = "HomeAccountingBrush",
-    };
+        public string Title => Loc.T(TitleKey);
 
-    private string _homeCategory = "all";
+        public string Text => Loc.T(TextKey);
+    }
+
+    /// <summary>Marks an English text as one the page translates (the translation check reads these).</summary>
+    private static string K(string english) => english;
+
+    /// <summary>The categories in the order of the buttons and the headings (brief 4.1), with their colours (Colors.xaml).</summary>
+    private static readonly (string Id, string NameKey, string Brush, string SoftBrush)[] HomeCategories =
+    [
+        ("organize", K("Organize"), "OrganizeBrush", "OrganizeSoftBrush"),
+        ("convert", K("Convert"), "ConvertBrush", "ConvertSoftBrush"),
+        ("edit", K("Edit and sign"), "EditBrush", "EditSoftBrush"),
+        ("accounting", K("Accounting"), "AccountingBrush", "AccountingSoftBrush"),
+        ("drawings", K("Construction drawings"), "DrawingsBrush", "DrawingsSoftBrush"),
+        ("security", K("Security"), "SecurityBrush", "SecuritySoftBrush"),
+    ];
+
+    /// <summary>The cards of the "Frequently used" view, in this order. Fixed in one place; nothing is counted.</summary>
+    internal static readonly string[] FrequentToolIds = ["combine", "split", "compress", "word", "edittext", "sign", "etax", "dwg"];
+
+    private const string FrequentTab = "frequent";
+    private const string AllTab = "all";
+
+    /// <summary>The buttons in order: Frequently used, All, then the six categories.</summary>
+    internal static readonly string[] HomeTabIds = [FrequentTab, AllTab, .. HomeCategories.Select(c => c.Id)];
+
+    private string _homeTab = FrequentTab;
+    private string _homeQuery = string.Empty;
+    private bool _buildingTabs;
+    private readonly List<UniformGrid> _homeGrids = [];
 
     private HomeRecentList _homeRecent = null!;
 
     /// <summary>The cards, in the language shown (made again when it changes).</summary>
     private static List<HomeTool> HomeTools() =>
     [
-        new("combine", "organize", "\uE8F1",
-            Loc.T("Combine PDF"), Loc.T("Join several files into one, in the order you choose"), NeedsDocument: false),
-        new("split", "organize", "\uE8C6",
-            Loc.T("Split PDF"), Loc.T("Save chosen pages, or every few pages, as separate files")),
-        new("pages", "organize", "\uE7C3",
-            Loc.T("Organize pages"), Loc.T("Turn, delete, move, insert and extract pages")),
-        new("scanpdf", "organize", "\uE8FE",
-            Loc.T("Scan to PDF"), Loc.T("Scan paper from your scanner straight into a PDF, with optional text recognition"), NeedsDocument: false, Accounting: true),
-        new("scan", "organize", "",
-            Loc.T("Clean up scans"), Loc.T("Straighten tilted pages, trim dark edges, delete blank pages"), Accounting: true),
-        new("images", "organize", "\uEB9F",
-            Loc.T("Images to PDF"), Loc.T("Make one PDF from photos and scans (JPG, PNG)"), NeedsDocument: false),
-        new("batch", "organize", "\uE762",
-            Loc.T("Process many files"), Loc.T("Compress, convert or mark a whole folder at once"), NeedsDocument: false, Accounting: true),
-        new("convertscan", "convert", "\uE8B7",
-            Loc.T("Convert scanned documents"), Loc.T("Scans to searchable PDF, editable Word or text"), NeedsDocument: false),
+        new("combine", "organize", "",
+            K("Combine PDF"), K("Join several files into one, in the order you choose"), K("merge, join, combine, put files together"), NeedsDocument: false),
+        new("split", "organize", "",
+            K("Split PDF"), K("Save chosen pages, or every few pages, as separate files"), K("split, separate, cut, extract pages")),
+        new("pages", "organize", "",
+            K("Organize pages"), K("Turn, delete, move, insert and extract pages"), K("pages, rotate, delete pages, reorder, move pages")),
+        new("scanpdf", "organize", "",
+            K("Scan to PDF"), K("Scan paper from your scanner straight into a PDF, with optional text recognition"), K("scan, scanner, paper to PDF"), NeedsDocument: false, Accounting: true),
+        new("scan", "organize", "\uE7A8",
+            K("Clean up scans"), K("Straighten tilted pages, trim dark edges, delete blank pages"), K("deskew, straighten, crop, blank pages, dark edges"), Accounting: true),
+        new("images", "organize", "",
+            K("Images to PDF"), K("Make one PDF from photos and scans (JPG, PNG)"), K("images, photos, JPG, PNG, picture to PDF"), NeedsDocument: false),
+        new("batch", "organize", "",
+            K("Process many files"), K("Compress, convert or mark a whole folder at once"), K("batch, many files, folder, bulk"), NeedsDocument: false, Accounting: true),
 
-        new("word", "convert", "\uE8A5",
-            Loc.T("PDF to Word"), Loc.T("Editable text with tables and pictures in place")),
-        new("excel", "convert", "\uE80A",
-            Loc.T("PDF to Excel"), Loc.T("Tables as cells; amounts as numbers you can add up"), Accounting: true),
-        new("powerpoint", "convert", "\uE7F4",
-            Loc.T("PDF to PowerPoint"), Loc.T("One slide per page, looking just like the PDF")),
-        new("pictures", "convert", "\uE722",
-            Loc.T("PDF to images"), Loc.T("Each page as a PNG or JPG picture")),
-        new("compress", "convert", "\uE7B8",
-            Loc.T("Compress PDF"), Loc.T("Make the file smaller for email and chat")),
-        new("ocr", "convert", "\uE8FF",
-            Loc.T("Recognize text (OCR)"), Loc.T("Make scans searchable and copyable, Thai included"), Accounting: true),
-        new("pdfa", "convert", "\uE81C",
-            Loc.T("PDF/A for archiving"), Loc.T("The long-term archive format many offices ask for")),
-        new("etax", "accounting", "\uE8C7",
-            Loc.T("e-Tax Invoice"), Loc.T("Tax invoices, debit notes and credit notes as PDF/A-3 with the Revenue Department's XML"), NeedsDocument: false),
-        new("amount", "accounting", "\uE8EF",
-            Loc.T("Amount in words"), Loc.T("Turn 12,500.50 into words in Thai and English"), NeedsDocument: false),
+        new("word", "convert", "",
+            K("PDF to Word"), K("Editable text with tables and pictures in place"), K("Word, docx, convert to Word, editable")),
+        new("excel", "convert", "",
+            K("PDF to Excel"), K("Tables as cells; amounts as numbers you can add up"), K("Excel, xlsx, spreadsheet, table, numbers"), Accounting: true),
+        new("compress", "convert", "",
+            K("Compress PDF"), K("Make the file smaller for email and chat"), K("compress, smaller, reduce size, shrink, email")),
+        new("powerpoint", "convert", "",
+            K("PDF to PowerPoint"), K("One slide per page, looking just like the PDF"), K("PowerPoint, pptx, slides, presentation")),
+        new("pictures", "convert", "",
+            K("PDF to images"), K("Each page as a PNG or JPG picture"), K("PNG, JPG, page to picture, save as pictures")),
+        new("ocr", "convert", "",
+            K("Recognize text (OCR)"), K("Make scans searchable and copyable, Thai included"), K("OCR, text recognition, searchable, read scanned text"), Accounting: true),
+        new("convertscan", "convert", "",
+            K("Convert scanned documents"), K("Scans to searchable PDF, editable Word or text"), K("scanned documents, searchable PDF, scans to Word, scans to text"), NeedsDocument: false),
+        new("pdfa", "convert", "",
+            K("PDF/A for archiving"), K("The long-term archive format many offices ask for"), K("PDF/A, archive, archiving, long-term")),
 
-        new("edittext", "edit", "\uE8AC",
-            Loc.T("Edit text"), Loc.T("Change words in the PDF itself, Thai included")),
-        new("addtext", "edit", "\uE8D2",
-            Loc.T("Add text"), Loc.T("Type anywhere on a page, in the font and size you like")),
-        new("addpicture", "edit", "\uEB9F",
-            Loc.T("Add a picture"), Loc.T("Put a picture on a page, then move and resize it")),
-        new("fill", "edit", "\uE73A",
-            Loc.T("Fill in a form"), Loc.T("Type in the boxes of a form, or make your own form")),
-        new("sign", "edit", "\uE76D",
-            Loc.T("Sign"), Loc.T("Place your handwritten signature")),
-        new("digital", "edit", "\uE8D7",
-            Loc.T("Digital signature"), Loc.T("Sign with a digital ID; later changes show"), Accounting: true),
-        new("certified", "edit", "\uEB95",
-            Loc.T("Certified true copy"), Loc.T("Stamp \"สำเนาถูกต้อง\" with your signature"), Accounting: true),
-        new("stamp", "edit", "",
-            Loc.T("Rubber stamp"), Loc.T("Approved, received, paid, with the Thai date, or your company stamp"), Accounting: true),
-        new("comment", "edit", "\uE7E6",
-            Loc.T("Highlight and comment"), Loc.T("Highlight, underline, notes and drawing")),
-        new("marks", "edit", "\uE8A1",
-            Loc.T("Watermark and page numbers"), Loc.T("Add a watermark, header, footer or page numbers")),
+        new("edittext", "edit", "",
+            K("Edit text"), K("Change words in the PDF itself, Thai included"), K("edit text, change text, correct text, typo")),
+        new("addtext", "edit", "",
+            K("Add text"), K("Type anywhere on a page, in the font and size you like"), K("add text, type, write on PDF, text box")),
+        new("addpicture", "edit", "",
+            K("Add a picture"), K("Put a picture on a page, then move and resize it"), K("add picture, insert image, logo, photo")),
+        new("fill", "edit", "",
+            K("Fill in a form"), K("Type in the boxes of a form, or make your own form"), K("fill form, form, fields, create form, checkbox")),
+        new("sign", "edit", "",
+            K("Sign"), K("Place your handwritten signature"), K("sign, signature, handwritten, autograph")),
+        new("digital", "edit", "",
+            K("Digital signature"), K("Sign with a digital ID; later changes show"), K("digital signature, certificate, digital ID"), Accounting: true),
+        new("certified", "edit", "",
+            K("Certified true copy"), K("Stamp \"สำเนาถูกต้อง\" with your signature"), K("certified copy, true copy, certify"), Accounting: true),
+        new("stamp", "edit", "\uE930",
+            K("Rubber stamp"), K("Approved, received, paid, with the Thai date, or your company stamp"), K("rubber stamp, approved, received, paid, company stamp"), Accounting: true),
+        new("comment", "edit", "",
+            K("Highlight and comment"), K("Highlight, underline, notes and drawing"), K("highlight, comment, note, underline, annotate, draw")),
+        new("marks", "edit", "",
+            K("Watermark and page numbers"), K("Add a watermark, header, footer or page numbers"), K("watermark, page numbers, header, footer")),
 
-        new("dwg", "drawings", "\uE81E",
-            Loc.T("Open DWG and DXF"), Loc.T("View AutoCAD drawings without AutoCAD")),
-        new("measure", "drawings", "\uED5E",
-            Loc.T("Measure"), Loc.T("Distances, perimeters and areas at the drawing's scale")),
-        new("count", "drawings", "\uE8EF",
-            Loc.T("Count items"), Loc.T("Click to count doors, lights or anything, and export the list")),
-        new("compare", "drawings", "\uE8AB",
-            Loc.T("Compare versions"), Loc.T("See what changed between two revisions of a drawing")),
+        new("etax", "accounting", "",
+            K("e-Tax Invoice"), K("Tax invoices, debit notes and credit notes as PDF/A-3 with the Revenue Department's XML"), K("e-Tax, tax invoice, invoice, credit note, debit note, Revenue Department"), NeedsDocument: false),
+        new("amount", "accounting", "",
+            K("Amount in words"), K("Turn 12,500.50 into words in Thai and English"), K("amount in words, baht text, number to text"), NeedsDocument: false),
 
-        new("protect", "security", "\uE72E",
-            Loc.T("Protect with password"), Loc.T("Lock the file, or only printing and copying")),
-        new("unprotect", "security", "\uE785",
-            Loc.T("Remove password"), Loc.T("Save a copy without the password")),
-        new("redact", "security", "\uE75C",
-            Loc.T("Black out (redact)"), Loc.T("Remove private details for good, not just hide them")),
+        new("dwg", "drawings", "",
+            K("Open DWG and DXF"), K("View AutoCAD drawings without AutoCAD"), K("DWG, DXF, AutoCAD, drawing, CAD")),
+        new("measure", "drawings", "",
+            K("Measure"), K("Distances, perimeters and areas at the drawing's scale"), K("measure, distance, area, length, perimeter, scale")),
+        new("count", "drawings", "",
+            K("Count items"), K("Click to count doors, lights or anything, and export the list"), K("count, counting, quantity, takeoff, doors, lights")),
+        new("compare", "drawings", "",
+            K("Compare versions"), K("See what changed between two revisions of a drawing"), K("compare, revisions, differences, versions, changes")),
+
+        new("protect", "security", "",
+            K("Protect with password"), K("Lock the file, or only printing and copying"), K("password, protect, encrypt, lock, permissions")),
+        new("unprotect", "security", "",
+            K("Remove password"), K("Save a copy without the password"), K("remove password, unlock, decrypt, open protected")),
+        new("redact", "security", "",
+            K("Black out (redact)"), K("Remove private details for good, not just hide them"), K("redact, black out, hide private, censor, sensitive")),
     ];
 
     private void InitializeHome()
@@ -130,75 +159,269 @@ public partial class MainWindow
             MainViewModel.ShowRecentOnHomeChanged -= OnShowRecentChanged;
             _homeRecent.Dispose();
         };
-        // Look at the files again each time the page comes back, so one deleted meanwhile leaves the list.
+        // Each time the page comes back: look at the files again (one deleted meanwhile leaves the list), and start from the
+        // frequently used tools with an empty search.
         HomePage.IsVisibleChanged += (_, _) =>
         {
-            if (HomePage.IsVisible) _ = _homeRecent.RefreshAsync();
+            if (!HomePage.IsVisible) return;
+            _ = _homeRecent.RefreshAsync();
+            _homeTab = FrequentTab;
+            _homeQuery = string.Empty;
+            HomeSearchBox.Clear();
+            ShowHomeTabs();
         };
         HomePage.SizeChanged += (_, _) => UpdateHomeLayout();
+        HomeMain.SizeChanged += (_, _) => UpdateCardColumns();
 
-        BuildHomeCards();
+        ShowHomeTabs();
         ShowHomeLanguage();
         UpdateHomeLayout();
         _ = _homeRecent.RefreshAsync();
         Loc.LanguageChanged += (_, _) => Dispatcher.BeginInvoke(() =>
         {
-            BuildHomeCards();
+            ShowHomeTabs();
             ShowHomeLanguage();
         });
     }
 
+    // --- Tabs, cards and search -------------------------------------------------------------------------
+
+    private static (string Id, string NameKey, string Brush, string SoftBrush) CategoryOf(string id) => HomeCategories.Single(c => c.Id == id);
+
+    /// <summary>Makes the category buttons (in the language shown) and then the cards.</summary>
+    private void ShowHomeTabs()
+    {
+        _buildingTabs = true;
+        HomeTabs.Items.Clear();
+        foreach (var id in HomeTabIds)
+        {
+            var name = Loc.T(id switch { FrequentTab => "Frequently used", AllTab => "All tools", _ => CategoryOf(id).NameKey });
+            var header = new StackPanel { Orientation = Orientation.Horizontal };
+            if (id is not (FrequentTab or AllTab))
+            {
+                header.Children.Add(ThemeResources.Apply(new Ellipse { Width = 8, Height = 8, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center },
+                    (Shape.FillProperty, CategoryOf(id).Brush)));
+            }
+
+            header.Children.Add(new TextBlock { Text = name, FontSize = 13, VerticalAlignment = VerticalAlignment.Center, Tag = UiTranslator.KeepText });
+            var item = new TabItem { Header = header, Tag = id, Style = (Style)FindResource("HomeTabItem"), IsSelected = id == _homeTab };
+            AutomationProperties.SetName(item, name);
+            HomeTabs.Items.Add(item);
+        }
+
+        _buildingTabs = false;
+        BuildHomeCards();
+    }
+
+    private void OnHomeTabChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_buildingTabs || e.OriginalSource != HomeTabs || HomeTabs.SelectedItem is not TabItem { Tag: string id })
+        {
+            return;
+        }
+
+        _homeTab = id;
+        BuildHomeCards();
+    }
+
+    private void SelectHomeTab(string id)
+    {
+        _homeTab = id;
+        ShowHomeTabs();
+    }
+
+    private void OnHomeAllToolsClick(object sender, RoutedEventArgs e) => SelectHomeTab(AllTab);
+
+    private bool IsSearching => _homeQuery.Trim().Length > 0;
+
+    /// <summary>The cards of the view chosen: the frequent ones, every category, one category, or the search result.</summary>
     private void BuildHomeCards()
     {
         HomeCards.Children.Clear();
-        foreach (var tool in HomeTools().Where(t => _homeCategory == "all" || t.Category == _homeCategory || (t.Accounting && _homeCategory == "accounting")).OrderBy(t => _homeCategory == t.Category ? 0 : 1))
-        {
-            var brushKey = CategoryBrushKeys[tool.Category];
-            var icon = new Border
-            {
-                Width = 34,
-                Height = 34,
-                CornerRadius = new CornerRadius(7),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Child = new TextBlock
-                {
-                    Style = (Style)FindResource("IconText"),
-                    Text = tool.Glyph,
-                    FontSize = 17,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                },
-            };
-            icon.SetResourceReference(Border.BackgroundProperty, brushKey);
-            ((TextBlock)icon.Child).SetResourceReference(TextBlock.ForegroundProperty, "OnAccentTextBrush");
-            var content = new DockPanel();
-            DockPanel.SetDock(icon, Dock.Top);
-            content.Children.Add(icon);
-            var title = new TextBlock { Text = tool.Title, FontWeight = FontWeights.SemiBold, FontSize = 14, Margin = new Thickness(0, 10, 0, 2), Tag = UiTranslator.KeepText };
-            DockPanel.SetDock(title, Dock.Top);
-            content.Children.Add(title);
-            content.Children.Add(ThemeResources.Apply(new TextBlock
-            {
-                Text = tool.Text,
-                TextWrapping = TextWrapping.Wrap,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                FontSize = 12,
-                Tag = UiTranslator.KeepText,
-            }, (TextBlock.ForegroundProperty, "SecondaryTextBrush")));
+        _homeGrids.Clear();
+        var tools = HomeTools();
+        var searching = IsSearching;
+        var frequent = !searching && _homeTab == FrequentTab;
+        HomeDropZone.Visibility = searching ? Visibility.Collapsed : Visibility.Visible;
+        HomeFrequentHeader.Visibility = frequent ? Visibility.Visible : Visibility.Collapsed;
+        HomeTabs.Visibility = !searching && !frequent ? Visibility.Visible : Visibility.Collapsed;
+        HomeAllToolsLink.Tag = UiTranslator.KeepText;
+        HomeAllToolsLink.Content = Loc.F("All {0} tools →", tools.Count);
 
-            var card = new Button { Style = (Style)FindResource("HomeCard"), Content = content, Tag = tool.Id, ToolTip = tool.Text };
-            AutomationProperties.SetName(card, tool.Title);
-            card.Click += OnHomeCardClick;
-            HomeCards.Children.Add(card);
+        if (searching)
+        {
+            var found = SearchTools(tools, _homeQuery);
+            if (found.Count == 0)
+            {
+                HomeCards.Children.Add(new TextBlock
+                {
+                    Text = Loc.T("No tools found. Try another word."), FontSize = 15, Margin = new Thickness(0, 24, 0, 24),
+                    HorizontalAlignment = HorizontalAlignment.Center, Tag = UiTranslator.KeepText,
+                }.Tinted("HomeMutedTextBrush"));
+            }
+            else
+            {
+                HomeCards.Children.Add(CardGrid("results", found));
+            }
+        }
+        else if (frequent)
+        {
+            HomeCards.Children.Add(CardGrid("frequent", FrequentToolIds.Select(id => tools.Single(t => t.Id == id)).ToList()));
+        }
+        else
+        {
+            foreach (var category in HomeCategories.Where(c => _homeTab == AllTab || _homeTab == c.Id))
+            {
+                // Each card once, in its own category. A card also shown in Accounting appears there only when that category is picked.
+                var own = tools.Where(t => t.Category == category.Id).ToList();
+                if (_homeTab == category.Id && category.Id == "accounting")
+                {
+                    own.AddRange(tools.Where(t => t.Accounting && t.Category != "accounting"));
+                }
+
+                var section = new StackPanel { Margin = new Thickness(0, 0, 0, 25) };
+                var heading = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 8) };
+                heading.Children.Add(ThemeResources.Apply(new Ellipse { Width = 8, Height = 8, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center },
+                    (Shape.FillProperty, category.Brush)));
+                heading.Children.Add(new TextBlock { Text = Loc.T(category.NameKey), FontSize = 15, FontWeight = FontWeights.Bold, Tag = UiTranslator.KeepText }
+                    .Tinted("HomeTextBrush"));
+                heading.Children.Add(new TextBlock
+                {
+                    Text = Loc.F("{0} tools", own.Count), FontSize = 13, Margin = new Thickness(8, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                    Tag = UiTranslator.KeepText,
+                }.Tinted("HomeMutedTextBrush"));
+                AutomationProperties.SetName(heading, Loc.T(category.NameKey));
+                AutomationProperties.SetHeadingLevel(heading, AutomationHeadingLevel.Level2);
+                section.Children.Add(heading);
+                section.Children.Add(CardGrid(category.Id, own));
+                HomeCards.Children.Add(section);
+            }
+        }
+
+        UpdateCardColumns();
+        UpdateHomeLayout();
+    }
+
+    private UniformGrid CardGrid(string kind, List<HomeTool> tools)
+    {
+        var grid = new UniformGrid { Tag = kind, Margin = new Thickness(-7, 0, -7, 0) };
+        foreach (var tool in tools)
+        {
+            grid.Children.Add(MakeCard(tool));
+        }
+
+        _homeGrids.Add(grid);
+        return grid;
+    }
+
+    private Button MakeCard(HomeTool tool)
+    {
+        var category = CategoryOf(tool.Category);
+        var icon = ThemeResources.Apply(new Border
+        {
+            Width = 36,
+            Height = 36,
+            CornerRadius = new CornerRadius(10),
+            Child = ThemeResources.Apply(new TextBlock
+            {
+                Style = (Style)FindResource("IconText"),
+                Text = tool.Glyph,
+                FontSize = 18,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            }, (TextBlock.ForegroundProperty, category.Brush)),
+        }, (Border.BackgroundProperty, category.SoftBrush));
+        var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        text.Children.Add(new TextBlock
+        {
+            Text = tool.Title, FontWeight = FontWeights.SemiBold, FontSize = 14, TextTrimming = TextTrimming.CharacterEllipsis, Tag = UiTranslator.KeepText,
+        });
+        text.Children.Add(ThemeResources.Apply(new TextBlock
+        {
+            Text = tool.Text, FontSize = 12, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Tag = UiTranslator.KeepText,
+        }, (TextBlock.ForegroundProperty, "HomeMutedTextBrush")));
+        var content = new Grid();
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.Children.Add(icon);
+        Grid.SetColumn(text, 1);
+        content.Children.Add(text);
+
+        // The full description stays in the tooltip, since the line on the card is cut to one line.
+        var card = new Button { Style = (Style)FindResource("HomeCard"), Content = content, Tag = tool.Id, ToolTip = tool.Text };
+        AutomationProperties.SetName(card, tool.Title);
+        card.Click += OnHomeCardClick;
+        return card;
+    }
+
+    /// <summary>
+    /// 4 columns by 2 rows for the frequent tools (2 by 4 when a card would be under 150 wide); other views as many columns as
+    /// fit cards at least 180 wide, up to 4.
+    /// </summary>
+    private void UpdateCardColumns()
+    {
+        var width = HomeMain.ActualWidth;
+        foreach (var grid in _homeGrids)
+        {
+            grid.Columns = width <= 0 ? 4
+                : (string?)grid.Tag == "frequent" ? ((width - 3 * 14) / 4 >= 150 ? 4 : 2)
+                : Math.Clamp((int)((width + 14) / (180 + 14)), 1, 4);
         }
     }
 
-    private void OnHomeCategoryChecked(object sender, RoutedEventArgs e)
+    /// <summary>
+    /// Tools matching every word of the search, best first: a word in the name counts most, then the search words of the card,
+    /// then its description. Looks in English and Thai, whichever language is shown.
+    /// </summary>
+    private static List<HomeTool> SearchTools(List<HomeTool> tools, string query)
     {
-        if (sender is FrameworkElement { Tag: string category } && HomeCards is not null)
+        var words = query.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        static bool Has(string[] texts, string word) => texts.Any(t => t.Contains(word, StringComparison.OrdinalIgnoreCase));
+        return tools.Select((tool, index) =>
+            {
+                string[] title = [tool.TitleKey, Loc.InThai(tool.TitleKey)];
+                string[] keywords = [tool.KeywordsKey, Loc.InThai(tool.KeywordsKey)];
+                string[] text = [tool.TextKey, Loc.InThai(tool.TextKey)];
+                var score = 0;
+                foreach (var word in words)
+                {
+                    var best = Has(title, word) ? 3 : Has(keywords, word) ? 2 : Has(text, word) ? 1 : 0;
+                    if (best == 0) return (tool, index, score: 0);
+                    score += best;
+                }
+
+                return (tool, index, score);
+            })
+            .Where(x => x.score > 0).OrderByDescending(x => x.score).ThenBy(x => x.index).Select(x => x.tool).ToList();
+    }
+
+    private void OnHomeSearchChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_homeQuery == HomeSearchBox.Text)
         {
-            _homeCategory = category;
-            BuildHomeCards();
+            return;
+        }
+
+        _homeQuery = HomeSearchBox.Text;
+        BuildHomeCards();
+    }
+
+    /// <summary>Enter opens the first card found; Esc clears the search and goes back to the view that was open.</summary>
+    private void OnHomeSearchKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            HomeSearchBox.Clear();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.Return && IsSearching)
+        {
+            if (HomeCards.Children.OfType<UniformGrid>().FirstOrDefault()?.Children.OfType<Button>().FirstOrDefault() is { } first)
+            {
+                first.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            }
+
+            e.Handled = true;
         }
     }
 
@@ -401,6 +624,8 @@ public partial class MainWindow
             return;
         }
 
+        _homeRecent.Suppressed = IsSearching;
+
         var hasRecent = _homeRecent.HasRows;
         var narrow = HomePage.ActualWidth > 0 && HomePage.ActualWidth < HomeWideWidth;
         if (!hasRecent)
@@ -408,7 +633,7 @@ public partial class MainWindow
             HomeRecentColumn.Width = new GridLength(0);
             Grid.SetColumn(HomeRecentPanel, 1);
             Grid.SetRow(HomeRecentPanel, 0);
-            HomeMain.MaxWidth = HomeAloneMaxWidth; // Stretched but limited: WPF centres it.
+            HomeMain.MaxWidth = IsSearching ? double.PositiveInfinity : HomeAloneMaxWidth; // Stretched but limited: WPF centres it.
             HomeMain.HorizontalAlignment = HorizontalAlignment.Stretch;
             HomeMain.Margin = new Thickness(0);
             HomeRecentPanel.Margin = new Thickness(0);
@@ -485,4 +710,10 @@ public partial class MainWindow
     }
 
     private void OnWindowDragLeave(object sender, DragEventArgs e) => SetHomeDropActive(false);
+}
+
+internal static class HomeTextBlockExtensions
+{
+    /// <summary>Sets the colour of a text from a theme brush (a resource reference, so a new theme reaches it).</summary>
+    public static TextBlock Tinted(this TextBlock text, string brushKey) => ThemeResources.Apply(text, (TextBlock.ForegroundProperty, brushKey));
 }

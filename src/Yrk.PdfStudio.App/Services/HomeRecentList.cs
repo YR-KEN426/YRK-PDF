@@ -84,7 +84,21 @@ public sealed class HomeRecentList : INotifyPropertyChanged, IDisposable
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>The panel has something to show (the right-hand column exists only then).</summary>
-    public bool HasRows => _enabled && Rows.Count > 0;
+    public bool HasRows => _enabled && !_suppressed && Rows.Count > 0;
+
+    private bool _suppressed;
+
+    /// <summary>True while the start page shows search results: the panel steps aside without losing its rows.</summary>
+    public bool Suppressed
+    {
+        get => _suppressed;
+        set
+        {
+            if (_suppressed == value) return;
+            _suppressed = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasRows)));
+        }
+    }
 
     /// <summary>More than 6 files exist, so "View all" is offered.</summary>
     public bool CanExpand => _enabled && _found.Count > CollapsedRows;

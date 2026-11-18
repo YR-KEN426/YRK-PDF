@@ -41,23 +41,23 @@ public sealed class ThemeSwapTests
             {
                 Show(window);
                 var cards = (Panel)window.FindName("HomeCards");
-                Assert.NotEmpty(cards.Children.Cast<UIElement>());
-                var card = cards.Children.OfType<Button>().First();
-                var content = (DockPanel)card.Content;
+                var card = WpfTestApp.Descendants(cards).OfType<Button>().First();
+                var content = (Grid)card.Content;
                 var icon = content.Children.OfType<Border>().Single();
-                var description = content.Children.OfType<TextBlock>().Last();
-                var title = content.Children.OfType<TextBlock>().First();
+                var texts = content.Children.OfType<StackPanel>().Single().Children.OfType<TextBlock>().ToArray();
+                var description = texts[1];
+                var title = texts[0];
                 var divider = WpfTestApp.Descendants(window).OfType<Border>()
                     .First(b => ReferenceEquals(b.Background, Application.Current.Resources["DividerBrush"]));
                 var original = new[] { ColorOf(window.Background), ColorOf(card.Foreground), ColorOf(icon.Background), ColorOf(description.Foreground) };
 
                 var surface = resources.Replace("SurfaceBrush", 30, 10, 60);
-                var text = resources.Replace("TextBrush", 240, 30, 170);
+                var text = resources.Replace("HomeTextBrush", 240, 30, 170);
                 var accent = resources.Replace("AccentBrush", 0, 240, 30);
                 var line = resources.Replace("DividerBrush", 240, 220, 0);
                 var hover = resources.Replace("HoverBrush", 50, 120, 220);
-                var secondary = resources.Replace("SecondaryTextBrush", 0, 210, 210);
-                var category = resources.Replace("MeasureAccentBrush", 220, 20, 240);
+                var secondary = resources.Replace("HomeMutedTextBrush", 0, 210, 210);
+                var category = resources.Replace("OrganizeSoftBrush", 220, 20, 240);
                 var brand = resources.Replace("BrandBrush", 250, 120, 10);
                 var homeBackground = resources.Replace("HomeBackgroundBrush", 10, 120, 80);
                 WpfTestApp.Layout(window);

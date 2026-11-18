@@ -46,6 +46,9 @@ public static class Loc
     /// <summary>The text in the current language.</summary>
     public static string T(string english) => Texts.TryGetValue(english, out var text) ? text : english;
 
+    /// <summary>The Thai text of an English key whatever language is shown (the key itself when there is none): for searching in both languages.</summary>
+    public static string InThai(string english) => ThaiTexts.Value.TryGetValue(english, out var text) ? text : english;
+
     /// <summary>A composite format ("Saved {0}") in the current language, filled in.</summary>
     public static string F(string englishFormat, params object?[] args) =>
         string.Format(FormatCulture, T(englishFormat), args);

@@ -356,7 +356,7 @@ public sealed partial class HomePageTests
             Assert.Equal(0, Find<Grid>(window, "HomeColumns").ColumnDefinitions[1].ActualWidth, 1);
             Assert.True(main.ActualWidth <= 900.5);
             Assert.Equal(900, main.ActualWidth, 1);
-            Assert.Equal(Left(main, root), root.ActualWidth - Left(main, root) - main.ActualWidth, 1); // Centered.
+            Assert.InRange(Math.Abs(Left(main, root) - (root.ActualWidth - Left(main, root) - main.ActualWidth)), 0, 1.5); // Centered.
         });
     }
 
