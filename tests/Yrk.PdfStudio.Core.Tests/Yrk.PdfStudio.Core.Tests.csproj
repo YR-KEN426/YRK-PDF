@@ -17,6 +17,10 @@
     <Using Include="Xunit" />
     <Using Include="System.IO" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../../tools/WindowRenderer/WindowCatalog.cs" Link="App/WindowCatalog.cs" />
+    <EmbeddedResource Include="../../src/Yrk.PdfStudio.App/App.xaml" LogicalName="WindowRenderer.AppResources.xaml" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Yrk.PdfStudio.Core\Yrk.PdfStudio.Core.csproj" />

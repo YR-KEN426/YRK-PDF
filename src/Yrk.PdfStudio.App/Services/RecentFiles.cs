@@ -21,13 +21,56 @@ public static class RecentFiles
 {
     public const int MaxCount = 12;
 
-    private static readonly string FilePath = System.IO.Path.Combine(
+    private static readonly string DefaultFilePath = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "recent.json");
+
+    // Async-local overrides keep independent app harnesses from sharing either the user's list or each other's list.
+    private sealed class TestStorage(string path, Func<DateTimeOffset> utcNow)
+    {
+        public string Path { get; } = path;
+        public Func<DateTimeOffset> UtcNow { get; } = utcNow;
+        public ObservableCollection<RecentFile>? Items { get; set; }
+        public TestStorage? Parent { get; init; }
+        public bool Disposed { get; set; }
+    }
+
+    private static readonly AsyncLocal<TestStorage?> Storage = new();
+    private static TestStorage? CurrentStorage
+    {
+        get
+        {
+            var storage = Storage.Value;
+            while (storage?.Disposed == true) storage = storage.Parent;
+            return storage;
+        }
+    }
+    private static string FilePath => CurrentStorage?.Path ?? DefaultFilePath;
+
+    // The current paths-only format has no timestamps. Keep this clock available for the Home history work
+    // without adding timestamps or changing ordering/serialization in this preparation step.
+    internal static DateTimeOffset UtcNow => CurrentStorage?.UtcNow() ?? DateTimeOffset.UtcNow;
+
+    internal static IDisposable UseStorage(string path, Func<DateTimeOffset>? utcNow = null)
+    {
+        var previous = CurrentStorage;
+        var storage = new TestStorage(path, utcNow ?? (() => DateTimeOffset.UtcNow)) { Parent = previous };
+        Storage.Value = storage;
+        // Disposal can run after an await in a child execution context; invalidate the shared frame too.
+        return new StorageScope(() => { storage.Disposed = true; Storage.Value = previous; });
+    }
+
+    private sealed class StorageScope(Action restore) : IDisposable
+    {
+        private Action? _restore = restore;
+        public void Dispose() => Interlocked.Exchange(ref _restore, null)?.Invoke();
+    }
 
     private static ObservableCollection<RecentFile>? s_items;
 
     /// <summary>The list for binding (loaded on first use). Change it only on the UI thread.</summary>
-    public static ObservableCollection<RecentFile> Items => s_items ??= new ObservableCollection<RecentFile>(Load().Select(p => new RecentFile(p)));
+    public static ObservableCollection<RecentFile> Items => CurrentStorage is { } storage
+        ? storage.Items ??= new ObservableCollection<RecentFile>(Load().Select(p => new RecentFile(p)))
+        : s_items ??= new ObservableCollection<RecentFile>(Load().Select(p => new RecentFile(p)));
 
     /// <summary>Puts a file at the top of the list.</summary>
     public static void Add(string path)

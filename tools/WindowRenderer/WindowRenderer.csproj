@@ -6,5 +6,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Yrk.PdfStudio.App/Yrk.PdfStudio.App.csproj" />
+    <Compile Include="../../tests/Yrk.PdfStudio.Core.Tests/App/WpfTestApp.cs" Link="WpfTestApp.cs" />
+    <EmbeddedResource Include="../../src/Yrk.PdfStudio.App/App.xaml" LogicalName="WindowRenderer.AppResources.xaml" />
   </ItemGroup>
 </Project>

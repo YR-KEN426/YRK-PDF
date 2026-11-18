@@ -14,12 +14,14 @@ internal sealed class AppTestHarness : IAsyncDisposable
     public PdfiumEngine Engine { get; } = new();
     public ScriptedDialogs Dialogs { get; } = new();
     public MainViewModel Model { get; }
+    private readonly IDisposable _recentFiles;
     public TrustedCertificateStore TrustedCertificates { get; }
     public string? FailedWritePath { get; private set; }
     public bool PartialFileExistedAtFailure { get; private set; }
 
     public AppTestHarness(bool failWriteMidway = false, Func<IPdfDocument, IPdfDocument>? wrapOpenedDocument = null)
     {
+        _recentFiles = RecentFiles.UseStorage(PathFor("recent.json"));
         var store = DispatchProxy.Create<ISignatureStore, SignatureSecurityTests.TestProxy>();
         ((SignatureSecurityTests.TestProxy)(object)store).Handle = (method, _) => method.Name == "LoadAll"
             ? Array.Empty<SavedSignature>() : throw new InvalidOperationException(method.Name);
@@ -108,6 +110,7 @@ internal sealed class AppTestHarness : IAsyncDisposable
         }
         finally
         {
+            _recentFiles.Dispose();
             Engine.Dispose();
             Directory.Delete(Folder, recursive: true);
         }

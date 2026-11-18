@@ -1,0 +1,86 @@
+﻿# WindowRenderer / step 1
+
+The construction table in `WindowCatalog.cs` is compiled into both this tool and `AllWindowsLoadTests`. The coverage test checks all 39 concrete app windows. `SupportBrands` and `ThaiAddressFields` are UserControls, not separate windows.
+
+`WpfTestApp` embeds the real `App.xaml` and loads its ResourceDictionary with the app pack URI as the base URI. Adding a merged dictionary to App.xaml requires no duplicate dictionary list. App startup/exit services are never run. The helper runs layout, translates the visual tree, visits tabs and opens ComboBox/DatePicker popup templates. Binding, ResourceDictionary and Markup traces (warning/error), plus dispatcher exceptions, fail the test. It restores culture, language, trace listeners and Application state on cleanup.
+
+```powershell
+dotnet run --project tools/WindowRenderer -- --all <scratchpad/baseline-1.2.4>
+dotnet run --project tools/WindowRenderer -- --allow-any-window MainWindow th <outside-repo/example.png>
+dotnet run --project tools/WindowRenderer -- --list
+```
+
+Batch mode isolates each window/language in a child process (45-second limit), writes PNGs, per-case diagnostic logs and `manifest.json`, and returns nonzero for any unavailable/error case. Existing PNGs are never overwritten. A PNG may still be captured when bindings fail; its exit code and log retain the defect. Store all output outside the project. The renderer uses synthetic document names/paths, fresh settings objects and temporary certificate stores. Digital signing is deliberately unavailable because its store cannot be isolated from the Windows user certificate store. No signing, printing, importing, exporting or settings-save action is invoked.
+
+## Construction / exclusion table
+
+| Window | Fixture | Exclusion reason |
+|---|---|---|
+| MainWindow | Empty MainViewModel, no personal signatures or recent files |  |
+| AboutDialog | AboutModel from fixture MainViewModel |  |
+| AmountWordsDialog | Placement enabled |  |
+| BackupDialog | UI only; no backup action |  |
+| BatchDialog | Empty file list |  |
+| CertifiedCopyDialog | Empty signature list |  |
+| CompareWindow | Two synthetic one-page documents with example names |  |
+| CompressDialog | Default options |  |
+| ConvertScanDialog | Empty input list |  |
+| ConvertScanResultDialog | Example output paths and text |  |
+| CreateDigitalIdDialog | UI only; no certificate created |  |
+| DigitalSignDialog | Requires DigitalIdStore.LoadAll | DigitalIdStore.LoadAll always enumerates the current user's Windows certificates; no injectable certificate source. Cannot construct with only synthetic data. |
+| ErrorDialog | Catalogue error with no real exception/path |  |
+| ETaxInvoiceDialog | Fresh in-memory settings |  |
+| ExportDialog | Three pages, current page zero |  |
+| FeedbackDialog | Example version |  |
+| FileListDialog | Combine PDFs, empty list |  |
+| FormFieldDialog | Example text field |  |
+| ImportDialog | UI only; no import selected |  |
+| LengthDialog | Millimetres |  |
+| OcrDialog | Default language choices; no OCR/download |  |
+| OcrReviewDialog | Synthetic document and one uncertain example word |  |
+| PageMarksDialog | Synthetic document and example filename |  |
+| PasswordDialog | Example filename |  |
+| PrintDialog | Synthetic one-page document and example printer name; no print submitted |  |
+| PrivacyDialog | UI only; no clear action |  |
+| PrivacyPolicyDialog | UI only |  |
+| ProtectDialog | UI only |  |
+| ReaderBookmarkDialog | Example bookmark |  |
+| ScanCleanupDialog | Example page classifications |  |
+| ScanDialog | Default constructor uses FakeScannerService, no scan requested |  |
+| ShortcutsDialog | UI only |  |
+| SignAgainDialog | One signature, no edits |  |
+| SignatureDialog | Empty signature canvas, no PDF import |  |
+| SplitDialog | Three pages, example output folder and bookmark |  |
+| StampDialog | Fresh in-memory stamp settings |  |
+| SupportDialog | UI only |  |
+| TrustCertificateDialog | Ephemeral self-signed example certificate |  |
+| TrustedCertificatesDialog | Empty isolated certificate store |  |
+
+
+## Step 1 findings (application bugs intentionally not fixed)
+
+| Window / issue | Evidence | Status |
+|---|---|---|
+| DigitalSignDialog (th/en) | `DigitalIdStore.LoadAll` reads the current user's Windows certificate store; it is sealed and has no injectable source. | Explicit skipped theory with reason; no baseline PNG. The runner reports one skipped theory covering both language rows. |
+| ScanDialog (th/en) | `SelectedScope` initially has null Content, while `PresetChip` binds AutomationProperties.Name to Content. PresentationTraceSources reports Data Error 5. Popup/tab traversal also reports ComboBoxItem ancestor alignment bindings (Data Error 4). | Tests remain failing; baseline PNGs are retained with diagnostic logs. No app fix or diagnostic suppression. |
+| PageMarksDialog (observed in th/en) | PresentationTraceSources intermittently reports Data Error 2: RotateTransform.Angle cannot find its governing FrameworkElement/DataContext during preview lifecycle. | Intermittent test failure retained; not skipped or filtered. Needs investigation before step 2. |
+
+`RecentFiles.UseStorage(path, utcNow)` is internal and scoped to the execution context. The app harness redirects its recent list, and tests cover nested scopes, JSON reload and disposal after an await. Production still uses the same default path, paths-only JSON, filtering, ordering and 12-item limit. RecentFiles does not currently use timestamps; its injected clock is available for the planned Home history work without changing current behavior.
+
+Baseline output: 76 top-level PNGs (38 windows x th/en), with `manifest.json` and per-case logs in the requested external scratchpad `baseline-1.2.4` folder. Earlier attempts are preserved in its `previous-attempt` subfolder. No images are added to the project. Print screenshots use an example printer name as well as synthetic document paths.
+
+Verification: the four new test classes contain 97 runner cases (including one explicitly skipped theory); all text, form, page operation and RecentFiles cases pass. The related run also includes AppSaveTests and AppTabTests because the harness now redirects RecentFiles. WPF diagnostics are left visible as failing tests. See the external TRX results for exact per-run counts; intermittent preview diagnostics can change the failure count.
+
+
+
+Existing suite skips (unchanged; included in the full-suite skip count):
+
+| Existing test | Reason reported by the runner |
+|---|---|
+| SavedItemEditingTests.Saved_item_reviewer_screenshots | Requires explicit YRK_SHOT_DIR opt-in. Baselines for this task use WindowRenderer instead. |
+| AppLogTests.LogMessage_does_not_follow_a_daily_file_reparse_point | File symlink creation privileges unavailable in this process. |
+| ScanPreviewBenchmarkTests.Slider_update_cost | Requires YRK_SCAN_BENCH=1 opt-in for the performance benchmark. |
+
+Latest full solution run: `dotnet test YrkPdfStudio.slnx --no-restore -p:RunAnalyzers=false` — 2,368 passed, 4 failed, 4 skipped, 2,376 total. All four failures are the ScanDialog and PageMarksDialog window cases in th/en. Full TRX: external temp folder `yrk-step1-results/step1-full-final.trx`.
+
+Latest related run (four new classes plus AppSaveTests and AppTabTests): 115 passed, 4 failed, 1 skipped, 120 total. Of these, the new classes account for 97 cases: 92 passed, 4 failed, 1 skipped. Related TRX: external temp folder `yrk-step1-results/step1-related-latest.trx`. `git diff --check` passes. No plan checkbox or commit was made.

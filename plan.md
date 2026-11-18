@@ -371,6 +371,7 @@
 ## สถานะ
 - [x] ขั้น 0 บันทึกการตัดสินใจ
 - [ ] ขั้น 1 เทสต์ App + เปิดทุกหน้าต่าง
+  - หมายเหตุ: ทำเสร็จและ commit แล้ว แต่ยังไม่ติ๊ก เพราะ `AllWindowsLoadTests` fail 4 เคส (ScanDialog th/en: binding `SelectedScope`/ComboBoxItem, PageMarksDialog th/en: `RotateTransform.Angle`) รอ Claude ตัดสินและแก้ก่อนขั้น 2; ภาพต้นแบบอยู่ใน scratchpad `baseline-1.2.4` (ไม่ commit)
 - [ ] ขั้น 2a ชุดสีกลาง + เทสต์กันสี
 - [ ] ขั้น 2b ย้ายสีที่เหลือ + DynamicResource
 - [ ] ขั้น 3 style กลางของตัวควบคุม

@@ -1,19 +1,12 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Threading;
-using Yrk.PdfStudio.App.Localization;
 
 internal static class Program
 {
-    // Reviewed constructors/XAML: SupportDialog initializes UI only; TrustCertificateDialog
-    // describes its certificate; TrustedCertificatesDialog calls the read-only LoadAll.
-    // TrustCertificateDialog uses an in-memory fixture; TrustedCertificatesDialog
-    // still requires a store argument and is not supported by Render.
+    // Preserve the small default allowlist. --allow-any-window/--all use the reviewed construction table.
     private static readonly HashSet<string> ReadOnlyWindows = new(StringComparer.Ordinal)
     {
         "Yrk.PdfStudio.App.Views.SupportDialog",
@@ -40,13 +33,20 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args is ["--all", var folder]) return RenderAll(folder);
+        if (args is ["--list"])
+        {
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(Yrk.PdfStudio.Testing.WindowCatalog.Cases
+                .Select(c => new { c.Name, c.Fixture, c.Unavailable })));
+            return 0;
+        }
         var xamlMode = args.Contains("--xaml", StringComparer.Ordinal);
         var allowAny = args.Contains("--allow-any-window", StringComparer.Ordinal) || xamlMode;
         var positional = args.Where(arg => arg is not ("--allow-any-window" or "--xaml")).ToArray();
         if (positional.Length != 3 || args.Length != 3 + (args.Contains("--allow-any-window", StringComparer.Ordinal) ? 1 : 0) + (xamlMode ? 1 : 0)
             || positional[1] is not ("th" or "en"))
         {
-            Console.Error.WriteLine("Usage: WindowRenderer [--allow-any-window] <Views window class> <th|en> <output.png>");
+            Console.Error.WriteLine("Usage: WindowRenderer [--allow-any-window] <window class> <th|en> <output.png> | --all <folder> | --list");
             return 2;
         }
 
@@ -68,7 +68,10 @@ internal static class Program
                 || output.StartsWith(dataFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("PNG output must be outside the App data folder.");
             // Read metadata only. Never create the folder, copy files or restore user data.
-            before = UiOnlyWindows.Contains(name) ? null : Snapshot(dataFolder);
+            // Catalog factories use synthetic document/certificate stores and have no data-writing actions.
+            // Do not enumerate unrelated personal folders (including DigitalIDs) for these reviewed fixtures.
+            before = UiOnlyWindows.Contains(name) || Yrk.PdfStudio.Testing.WindowCatalog.Cases.Any(c =>
+                c.Name == name.Split('.').Last() && c.Create is not null) ? null : Snapshot(dataFolder);
         }
         catch (Exception ex)
         {
@@ -107,6 +110,49 @@ internal static class Program
         }
         if (result == 0) Console.WriteLine(success);
         return result;
+    }
+
+    private static int RenderAll(string folder)
+    {
+        folder = Path.GetFullPath(folder);
+        Directory.CreateDirectory(folder);
+        var results = new List<object>();
+        var failures = 0;
+        foreach (var entry in Yrk.PdfStudio.Testing.WindowCatalog.Cases)
+        foreach (var language in new[] { "th", "en" })
+        {
+            var output = Path.Combine(folder, entry.Name + "." + language + ".png");
+            string detail;
+            int exitCode;
+            if (entry.Create is null) { detail = entry.Unavailable!; exitCode = 3; }
+            else
+            {
+                var start = new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!)
+                {
+                    UseShellExecute = false, CreateNoWindow = true,
+                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+                    RedirectStandardOutput = true, RedirectStandardError = true
+                };
+                if (string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "dotnet", StringComparison.OrdinalIgnoreCase))
+                    start.ArgumentList.Add(typeof(Program).Assembly.Location);
+                foreach (var arg in new[] { "--allow-any-window", entry.Name, language, output }) start.ArgumentList.Add(arg);
+                using var process = System.Diagnostics.Process.Start(start)!;
+                var stdout = process.StandardOutput.ReadToEndAsync();
+                var stderr = process.StandardError.ReadToEndAsync();
+                if (!process.WaitForExit(45000)) { process.Kill(entireProcessTree: true); process.WaitForExit(); exitCode = 124; }
+                else exitCode = process.ExitCode;
+                detail = stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult();
+                if (exitCode == 124) detail += "Timed out after 45 seconds.";
+            }
+            var captured = File.Exists(output);
+            results.Add(new { Window = entry.Name, Language = language, entry.Fixture, Captured = captured, ExitCode = exitCode, Detail = detail });
+            File.WriteAllText(Path.Combine(folder, entry.Name + "." + language + ".log"), detail);
+            Console.WriteLine($"{entry.Name} [{language}]: {(captured ? "captured" : "unavailable")}, exit {exitCode}");
+            if (exitCode != 0) failures++;
+            File.WriteAllText(Path.Combine(folder, "manifest.json"), System.Text.Json.JsonSerializer.Serialize(results,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        }
+        return failures == 0 ? 0 : 1;
     }
 
     private static FolderSnapshot Snapshot(string folder)
@@ -152,80 +198,34 @@ internal static class Program
         return differences;
     }
 
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static string Render(string name, string language, string output)
     {
-        // A plain Application loads the App resources without running App.OnStartup/OnExit,
-        // which start the main UI, updater, settings and recovery services.
-        var assembly = typeof(Yrk.PdfStudio.App.App).Assembly;
-        // Relative pack URIs (/Assets/x.jpg) resolve against Application.ResourceAssembly, which WPF has already fixed to this tool;
-        // the setter then throws, so point the private field at App directly.
-        typeof(Application).GetField("_resourceAssembly", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.SetValue(null, assembly);
-        var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        app.Resources.MergedDictionaries.Add(new ResourceDictionary
+        using var app = new Yrk.PdfStudio.Testing.WpfTestApp(language);
+        using var fixture = new Yrk.PdfStudio.Testing.WindowFixture();
+        Window window;
+        if (name.StartsWith("XAML:", StringComparison.Ordinal))
         {
-            Source = new Uri($"pack://application:,,,/{assembly.GetName().Name};component/Themes/Styles.xaml")
-        });
-        CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo(language);
-        Loc.Language = language;
-        UiTranslator.Start();
-        var xamlPath = name.StartsWith("XAML:", StringComparison.Ordinal) ? name[5..] : null;
-        var fullName = name.Contains('.') ? name : "Yrk.PdfStudio.App.Views." + name;
-        var type = xamlPath is null ? assembly.GetType(fullName, throwOnError: true)! : typeof(Window);
-        if (xamlPath is null && (type.Namespace != "Yrk.PdfStudio.App.Views" || !typeof(Window).IsAssignableFrom(type)))
-            throw new ArgumentException("Choose a Window class in App.Views.");
-        var isCertificate = fullName == "Yrk.PdfStudio.App.Views.TrustCertificateDialog";
-        if (xamlPath is null && !isCertificate && type.GetConstructor(Type.EmptyTypes) is null)
-            throw new ArgumentException($"{name} needs constructor arguments; this tool supports parameterless windows only.");
-        Window? window = null;
+            using var stream = File.OpenRead(name[5..]);
+            window = new Window { SizeToContent = SizeToContent.WidthAndHeight, WindowStyle = WindowStyle.None,
+                Background = Brushes.White, Content = System.Windows.Markup.XamlReader.Load(stream) };
+        }
+        else
+        {
+            var shortName = name.Split('.').Last();
+            var entry = Yrk.PdfStudio.Testing.WindowCatalog.Cases.Single(c => c.Name == shortName);
+            if (entry.Create is null) throw new NotSupportedException(entry.Unavailable);
+            window = entry.Create(fixture);
+        }
+        var closed = false;
         try
         {
-            // Ephemeral fixture: never read user certificates or import into a store.
-            using var key = isCertificate ? RSA.Create(2048) : null;
-            using var certificate = key is null ? null : new CertificateRequest(
-                "CN=WindowRenderer Example, O=YRK Test", key, HashAlgorithmName.SHA256,
-                RSASignaturePadding.Pkcs1).CreateSelfSigned(
-                    new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
-                    new DateTimeOffset(2036, 1, 1, 0, 0, 0, TimeSpan.Zero));
-            if (xamlPath is not null)
-            {
-                // A loose XAML fragment (e.g. a toolbar copied from MainWindow) shown with the App styles.
-                using var stream = File.OpenRead(xamlPath);
-                window = new Window
-                {
-                    SizeToContent = SizeToContent.WidthAndHeight,
-                    WindowStyle = WindowStyle.None,
-                    Background = Brushes.White,
-                    Content = System.Windows.Markup.XamlReader.Load(stream)
-                };
-            }
-            else
-            {
-                window = (Window)(isCertificate
-                    ? Activator.CreateInstance(type, certificate!)!
-                    : Activator.CreateInstance(type)!);
-            }
             window.WindowStartupLocation = WindowStartupLocation.Manual;
-            window.Left = -32000;
-            window.Top = -32000;
-            window.ShowActivated = false;
-            window.ShowInTaskbar = false;
+            window.Left = -32000; window.Top = -32000;
+            window.ShowActivated = false; window.ShowInTaskbar = false;
             window.Show();
-            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-            // Windows that fill themselves asynchronously (e.g. the scan dialog's demo pages): pump messages first.
-            if (int.TryParse(Environment.GetEnvironmentVariable("YRK_RENDER_WAIT_MS"), out var waitMs) && waitMs is > 0 and <= 20000)
-            {
-                var until = DateTime.UtcNow.AddMilliseconds(waitMs);
-                while (DateTime.UtcNow < until)
-                {
-                    window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
-                    System.Threading.Thread.Sleep(50);
-                }
-            }
-            window.Measure(new Size(window.ActualWidth, window.ActualHeight));
-            window.Arrange(new Rect(0, 0, window.ActualWidth, window.ActualHeight));
-            window.UpdateLayout();
-            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ApplicationIdle);
+            Yrk.PdfStudio.Testing.WpfTestApp.Layout(window);
+            var popupCount = Yrk.PdfStudio.Testing.WpfTestApp.ExercisePopups(window);
+            Yrk.PdfStudio.Testing.WpfTestApp.Layout(window);
             var width = checked((int)Math.Ceiling(window.ActualWidth));
             var height = checked((int)Math.Ceiling(window.ActualHeight));
             if (width <= 0 || height <= 0 || width > 10000 || height > 10000)
@@ -240,15 +240,14 @@ internal static class Program
             if (colors.Count < 8) throw new InvalidOperationException("Blank image: fewer than eight visible colors.");
             var png = new PngBitmapEncoder();
             png.Frames.Add(BitmapFrame.Create(bitmap));
-            // Do not replace an existing screenshot accidentally.
             using var file = new FileStream(output, FileMode.CreateNew);
             png.Save(file);
-            return $"PASS: {output} ({width}x{height}, {colors.Count} colors)";
+            window.Close(); closed = true;
+            Yrk.PdfStudio.Testing.WpfTestApp.Pump();
+            // Keep baseline evidence even when a real binding defect is found, but return failure visibly.
+            if (app.Errors.Count != 0) throw new InvalidOperationException("Image saved with WPF diagnostics: " + string.Join("\n", app.Errors));
+            return $"PASS: {output} ({width}x{height}, {colors.Count} colors, {popupCount} popups)";
         }
-        finally
-        {
-            try { window?.Close(); }
-            finally { app.Shutdown(); }
-        }
+        finally { if (!closed) window.Close(); Yrk.PdfStudio.Testing.WpfTestApp.Pump(); }
     }
 }
