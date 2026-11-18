@@ -49,7 +49,7 @@ foreach ($line in [IO.File]::ReadAllLines((Join-Path $app "Localization\th.json"
 # into a signed document's appearance.
 $english = @(
     'YRK PDF', 'Digital ID', 'Digital IDs', ('Language / ' + [char]0x0E20 + [char]0x0E32 + [char]0x0E29 + [char]0x0E32),
-    'Aa', '.pdf', ' and more', 'JIS ', 'Regular', 'd MMMM yyyy', 'Date: ', 'Reason: ', 'Digitally signed by ',
+    'Aa', 'EN', 'Ctrl+F', '.pdf', ' and more', 'JIS ', 'Regular', 'd MMMM yyyy', 'Date: ', 'Reason: ', 'Digitally signed by ',
     '|All files (*.*)|*.*', 'AutoCAD drawings (*.dwg;*.dxf)|*.dwg;*.dxf|Illustrator files (*.ai)|*.ai|All files (*.*)|*.*',
     'Brush Script MT', 'Dancing Script', 'Freestyle Script', 'Great Vibes', 'Ink Free', 'Lucida Handwriting',
     'Segoe Print', 'Segoe Script', 'Leelawadee UI', 'Leelawadee UI, Segoe UI', 'Segoe UI', 'jpeg', 'png')

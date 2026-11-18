@@ -50,10 +50,17 @@
                 <TextBlock Style="{StaticResource Body}" Text="Recovery copies of unsaved documents are deleted on save, cancel or normal close. Temporary files in the Windows Temp folder are deleted on close, or at the next start after an abnormal close." />
                 <TextBlock Style="{StaticResource Body}" Text="The local error log may contain file or folder names. It is never sent anywhere, is limited to 1 MB per day and is deleted after 14 days." />
 
+                <CheckBox x:Name="ShowRecentBox" Content="Show recent files on the start page" Margin="16,10,0,0" FontWeight="SemiBold"
+                          Checked="OnShowRecentChanged" Unchecked="OnShowRecentChanged" AutomationProperties.Name="Show recent files on the start page" />
+                <TextBlock Style="{StaticResource Body}" Margin="16,2,0,0"
+                           Text="This only decides whether the list appears on the start page. The app still remembers recent files on this computer until you clear them below." />
+
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                    <Button x:Name="ClearRecentButton" Content="Clear recent files" Style="{StaticResource SecondaryButton}" Click="OnClearRecent" />
+                    <Button x:Name="ClearRecentButton" Content="Clear recent files and reading history" Style="{StaticResource SecondaryButton}" Click="OnClearRecent" />
                     <Button Content="Open the data folder" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" Click="OnOpenFolder" />
                 </StackPanel>
+                <TextBlock Style="{StaticResource Body}" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="11"
+                           Text="Clears the list of recent files, the page where you stopped reading each file, and your reading bookmarks. Your documents are not touched." />
 
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                     <Button Content="Back up data…" Style="{StaticResource SecondaryButton}" Click="OnBackup"/>

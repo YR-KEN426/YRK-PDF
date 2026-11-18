@@ -1,12 +1,13 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 
 
 namespace Yrk.PdfStudio.App.Services;
 
-/// <summary>A file in the recent list: its path, name and folder for display.</summary>
-public sealed record RecentFile(string Path)
+/// <summary>A file in the recent list: its path, name and folder for display, and when it was last opened (if known).</summary>
+public sealed record RecentFile(string Path, DateTimeOffset? LastOpened = null)
 {
     public string Name => System.IO.Path.GetFileName(Path);
 
@@ -14,8 +15,14 @@ public sealed record RecentFile(string Path)
 }
 
 /// <summary>
-/// Recently opened files, newest first, shared by all tabs. Kept only on this computer, in
-/// %LOCALAPPDATA%\YRK\EasyPdf\recent.json (paths only, never file contents), and can be cleared.
+/// Recently opened files, newest first, shared by all tabs. Kept only on this computer, never file contents, and can be cleared.
+/// <para>
+/// recent.json (in %LOCALAPPDATA%\YRK\EasyPdf) is the main file and keeps its original format, a plain list of paths, so an older
+/// version of the app can still read it. The time each file was last opened lives beside it in recent-times.json (path to time).
+/// That file is only a decoration: times for paths that are not in recent.json are ignored and dropped on the next write, and a
+/// missing or damaged file just means no times are shown. Both files are written through a temporary file and replaced in one
+/// step, recent.json first, so a stop half way never brings back a path that was cleared. Neither is part of a backup.
+/// </para>
 /// </summary>
 public static class RecentFiles
 {
@@ -46,8 +53,11 @@ public static class RecentFiles
     }
     private static string FilePath => CurrentStorage?.Path ?? DefaultFilePath;
 
-    // The current paths-only format has no timestamps. Keep this clock available for the Home history work
-    // without adding timestamps or changing ordering/serialization in this preparation step.
+    /// <summary>recent-times.json for recent.json (for any other name, x.json gives x-times.json), in the same folder.</summary>
+    private static string TimesFilePath => System.IO.Path.Combine(
+        System.IO.Path.GetDirectoryName(FilePath) ?? string.Empty, System.IO.Path.GetFileNameWithoutExtension(FilePath) + "-times.json");
+
+    // The clock for the time a file was opened (tests set their own).
     internal static DateTimeOffset UtcNow => CurrentStorage?.UtcNow() ?? DateTimeOffset.UtcNow;
 
     internal static IDisposable UseStorage(string path, Func<DateTimeOffset>? utcNow = null)
@@ -69,8 +79,8 @@ public static class RecentFiles
 
     /// <summary>The list for binding (loaded on first use). Change it only on the UI thread.</summary>
     public static ObservableCollection<RecentFile> Items => CurrentStorage is { } storage
-        ? storage.Items ??= new ObservableCollection<RecentFile>(Load().Select(p => new RecentFile(p)))
-        : s_items ??= new ObservableCollection<RecentFile>(Load().Select(p => new RecentFile(p)));
+        ? storage.Items ??= new ObservableCollection<RecentFile>(LoadItems())
+        : s_items ??= new ObservableCollection<RecentFile>(LoadItems());
 
     /// <summary>Puts a file at the top of the list.</summary>
     public static void Add(string path)
@@ -82,7 +92,7 @@ public static class RecentFiles
 
         var full = System.IO.Path.GetFullPath(path);
         Remove(full, save: false);
-        Items.Insert(0, new RecentFile(full));
+        Items.Insert(0, new RecentFile(full, UtcNow));
         while (Items.Count > MaxCount)
         {
             Items.RemoveAt(Items.Count - 1);
@@ -118,6 +128,13 @@ public static class RecentFiles
     private static bool IsTemporary(string path) =>
         System.IO.Path.GetFullPath(path).StartsWith(System.IO.Path.GetFullPath(System.IO.Path.GetTempPath()), StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>The paths of recent.json, each with its time from recent-times.json when there is one.</summary>
+    private static List<RecentFile> LoadItems()
+    {
+        var times = LoadTimes();
+        return Load().Select(p => new RecentFile(p, times.TryGetValue(p, out var time) ? time : null)).ToList();
+    }
+
     private static List<string> Load()
     {
         try
@@ -130,16 +147,80 @@ public static class RecentFiles
         }
     }
 
-    private static void Save()
+    /// <summary>Times by path. A file that cannot be read, or is not what we wrote, gives no times at all.</summary>
+    private static Dictionary<string, DateTimeOffset> LoadTimes()
     {
+        var times = new Dictionary<string, DateTimeOffset>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(Items.Select(i => i.Path).ToList()));
+            if (File.Exists(TimesFilePath) && JsonSerializer.Deserialize<Dictionary<string, string?>>(File.ReadAllText(TimesFilePath)) is { } stored)
+            {
+                foreach (var (path, text) in stored)
+                {
+                    if (DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var time))
+                    {
+                        times[path] = time;
+                    }
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            times.Clear();
+        }
+
+        return times;
+    }
+
+    /// <summary>Writes recent.json, then recent-times.json (only for paths still in the list). The second is skipped if the first fails.</summary>
+    private static void Save()
+    {
+        if (!WriteAtomically(FilePath, JsonSerializer.Serialize(Items.Select(i => i.Path).ToList())))
+        {
+            return;
+        }
+
+        var times = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in Items.Where(i => i.LastOpened is not null))
+        {
+            times[item.Path] = item.LastOpened!.Value.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        if (times.Count == 0)
+        {
+            try
+            {
+                File.Delete(TimesFilePath);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // Could not delete it: write it empty instead, so no path is left in it.
+            }
+        }
+
+        WriteAtomically(TimesFilePath, JsonSerializer.Serialize(times));
+    }
+
+    /// <summary>Writes a temporary file beside the target and replaces the target with it. False when that failed (only a convenience).</summary>
+    private static bool WriteAtomically(string path, string content)
+    {
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
+            File.WriteAllText(temporary, content);
+            File.Move(temporary, path, overwrite: true);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Only a convenience.
+            return false;
+        }
+        finally
+        {
+            try { File.Delete(temporary); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
     }
 }

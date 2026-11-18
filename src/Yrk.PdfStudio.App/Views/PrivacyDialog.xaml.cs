@@ -21,6 +21,7 @@ public partial class PrivacyDialog : Window
         InitializeComponent();
         AutoUpdateBox.IsChecked = about?.CheckAutomatically ?? false;
         AutoUpdateBox.Visibility = about?.CanUpdate == true ? Visibility.Visible : Visibility.Collapsed;
+        ShowRecentBox.IsChecked = about?.ShowRecentOnHome ?? true;
         ShowUpdateLine();
         _ready = true;
     }
@@ -40,6 +41,12 @@ public partial class PrivacyDialog : Window
         if (!_ready || _about is null) return;
         _about.CheckAutomatically = AutoUpdateBox.IsChecked == true;
         ShowUpdateLine();
+    }
+
+    private void OnShowRecentChanged(object sender, RoutedEventArgs e)
+    {
+        if (!_ready || _about is null) return;
+        _about.ShowRecentOnHome = ShowRecentBox.IsChecked == true;
     }
 
     private void OnClearRecent(object sender, RoutedEventArgs e)

@@ -30,6 +30,8 @@ public partial class MainWindow
 
     private string _homeCategory = "all";
 
+    private HomeRecentList _homeRecent = null!;
+
     /// <summary>The cards, in the language shown (made again when it changes).</summary>
     private static List<HomeTool> HomeTools() =>
     [
@@ -118,8 +120,27 @@ public partial class MainWindow
             bar.IsVisibleChanged += (_, _) => KeepBelowBars();
         }
 
+        _homeRecent = new HomeRecentList(dispatcher: Dispatcher) { Enabled = _viewModel.ShowRecentOnHome };
+        HomeRecentPanel.DataContext = _homeRecent;
+        _homeRecent.PropertyChanged += (_, _) => UpdateHomeLayout();
+        void OnShowRecentChanged(object? sender, EventArgs e) => _homeRecent.Enabled = _viewModel.ShowRecentOnHome;
+        MainViewModel.ShowRecentOnHomeChanged += OnShowRecentChanged;
+        Closed += (_, _) =>
+        {
+            MainViewModel.ShowRecentOnHomeChanged -= OnShowRecentChanged;
+            _homeRecent.Dispose();
+        };
+        // Look at the files again each time the page comes back, so one deleted meanwhile leaves the list.
+        HomePage.IsVisibleChanged += (_, _) =>
+        {
+            if (HomePage.IsVisible) _ = _homeRecent.RefreshAsync();
+        };
+        HomePage.SizeChanged += (_, _) => UpdateHomeLayout();
+
         BuildHomeCards();
         ShowHomeLanguage();
+        UpdateHomeLayout();
+        _ = _homeRecent.RefreshAsync();
         Loc.LanguageChanged += (_, _) => Dispatcher.BeginInvoke(() =>
         {
             BuildHomeCards();
@@ -353,4 +374,115 @@ public partial class MainWindow
     }
 
     private void OnHomeClick(object sender, RoutedEventArgs e) => ShowHome();
+
+    // --- Layout: tools on the left, recent files on the right --------------------------------------
+
+    /// <summary>Below this width the recent files go under the tools, across the whole page.</summary>
+    private const double HomeWideWidth = 1100;
+
+    private const double HomeRecentWidth = 340;
+    private const double HomeColumnGap = 24;
+    private const double HomeAloneMaxWidth = 900;
+
+    /// <summary>
+    /// Wide window and recent files to show: two columns (tools, then 340 wide recent files). Narrower: the recent files below the
+    /// tools. No recent files (none yet, all missing, or turned off): the tools alone, at most 900 wide and in the middle.
+    /// </summary>
+    private void UpdateHomeLayout()
+    {
+        if (_homeRecent is null)
+        {
+            return;
+        }
+
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(UpdateHomeLayout);
+            return;
+        }
+
+        var hasRecent = _homeRecent.HasRows;
+        var narrow = HomePage.ActualWidth > 0 && HomePage.ActualWidth < HomeWideWidth;
+        if (!hasRecent)
+        {
+            HomeRecentColumn.Width = new GridLength(0);
+            Grid.SetColumn(HomeRecentPanel, 1);
+            Grid.SetRow(HomeRecentPanel, 0);
+            HomeMain.MaxWidth = HomeAloneMaxWidth; // Stretched but limited: WPF centres it.
+            HomeMain.HorizontalAlignment = HorizontalAlignment.Stretch;
+            HomeMain.Margin = new Thickness(0);
+            HomeRecentPanel.Margin = new Thickness(0);
+            return;
+        }
+
+        HomeMain.MaxWidth = double.PositiveInfinity;
+        HomeMain.HorizontalAlignment = HorizontalAlignment.Stretch;
+        if (narrow)
+        {
+            HomeRecentColumn.Width = new GridLength(0);
+            Grid.SetColumn(HomeRecentPanel, 0);
+            Grid.SetRow(HomeRecentPanel, 1);
+            HomeMain.Margin = new Thickness(0);
+            HomeRecentPanel.Margin = new Thickness(0, 4, 0, 0);
+        }
+        else
+        {
+            HomeRecentColumn.Width = new GridLength(HomeRecentWidth);
+            Grid.SetColumn(HomeRecentPanel, 1);
+            Grid.SetRow(HomeRecentPanel, 0);
+            HomeMain.Margin = new Thickness(0, 0, HomeColumnGap, 0);
+            HomeRecentPanel.Margin = new Thickness(0);
+        }
+    }
+
+    // --- Recent files ----------------------------------------------------------------------------------
+
+    private void OnHomeRecentToggle(object sender, RoutedEventArgs e) => _homeRecent.ToggleExpanded();
+
+    private async void OnHomeRecentRowClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string path })
+        {
+            await _viewModel.OpenRecentCommand.ExecuteAsync(path);
+        }
+    }
+
+    /// <summary>Right-click: show the file in its folder. Nothing is changed or opened.</summary>
+    private void OnHomeRecentOpenFolder(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: RecentRow row })
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", RevealArguments(row.Path)) { UseShellExecute = false });
+            }
+            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+            {
+                App.LogMessage("Could not open the folder: " + ex.Message);
+            }
+        }
+    }
+
+    /// <summary>The Explorer arguments that select a file in its folder.</summary>
+    internal static string RevealArguments(string path) => $"/select,\"{path}\"";
+
+    /// <summary>Right-click: take the file off the list (and its time). The file itself is not touched.</summary>
+    private void OnHomeRecentRemove(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: RecentRow row })
+        {
+            RecentFiles.Remove(row.Path);
+        }
+    }
+
+    // --- Drop a file onto the window ---------------------------------------------------------------------
+
+    /// <summary>While a file is dragged over the window the drop zone's frame turns brand red and its fill a very light red.</summary>
+    private void SetHomeDropActive(bool active)
+    {
+        HomeDropFrame.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, active ? "BrandBrush" : "HomeBorderStrongBrush");
+        HomeDropFrame.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, active ? "BrandFaintBrush" : "SurfaceBrush");
+    }
+
+    private void OnWindowDragLeave(object sender, DragEventArgs e) => SetHomeDropActive(false);
 }

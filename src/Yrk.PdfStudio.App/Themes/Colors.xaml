@@ -101,6 +101,19 @@
     <SolidColorBrush x:Key="HomeDrawingsBrush" Color="#00897B" />
     <SolidColorBrush x:Key="HomeAccountingBrush" Color="#2E7D32" />
     <SolidColorBrush x:Key="PrintFoldBrush" Color="#C0C0C0" />
+
+    <!-- Start page (brief sections 0 to 6). BrandBrush is for the start page only; AccentBrush stays blue. -->
+    <SolidColorBrush x:Key="HomeBackgroundBrush" Color="#F6F7F9" />
+    <SolidColorBrush x:Key="HomeBorderBrush" Color="#E6E8EC" />
+    <SolidColorBrush x:Key="HomeBorderStrongBrush" Color="#D3D7DE" />
+    <SolidColorBrush x:Key="HomeFillBrush" Color="#F1F2F4" />
+    <SolidColorBrush x:Key="HomeTextBrush" Color="#0E1116" />
+    <SolidColorBrush x:Key="HomeMutedTextBrush" Color="#5B6270" />
+    <SolidColorBrush x:Key="BrandHoverBrush" Color="#AD2222" />
+    <SolidColorBrush x:Key="BrandPressedBrush" Color="#961D1D" />
+    <SolidColorBrush x:Key="BrandFaintBrush" Color="#FFF6F6" />
+    <SolidColorBrush x:Key="PdfBadgeTextBrush" Color="#B71C1C" />
+    <Color x:Key="HomeShadowColor">#0E1116</Color>
     <!-- Exact WPF Calendar background, including the coincident 0.16 stops. Keep the native template. -->
     <Color x:Key="CalendarTopColor">#FFE4EAF0</Color>
     <Color x:Key="CalendarUpperColor">#FFECF0F4</Color>

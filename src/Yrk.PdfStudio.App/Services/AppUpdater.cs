@@ -237,6 +237,9 @@ public sealed class AppSettings
     /// <summary>The unit for measuring and the rulers (mm, cm, m, in, ft, pt).</summary>
     public string MeasureUnit { get; set; } = "mm";
 
+    /// <summary>Show the recent files panel on the start page. Off only hides it: the history is still kept (clear it in Privacy and safety).</summary>
+    public bool ShowRecentOnHome { get; set; } = true;
+
     public static AppSettings Load()
     {
         try

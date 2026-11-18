@@ -58,6 +58,8 @@ public sealed class ThemeSwapTests
                 var hover = resources.Replace("HoverBrush", 50, 120, 220);
                 var secondary = resources.Replace("SecondaryTextBrush", 0, 210, 210);
                 var category = resources.Replace("MeasureAccentBrush", 220, 20, 240);
+                var brand = resources.Replace("BrandBrush", 250, 120, 10);
+                var homeBackground = resources.Replace("HomeBackgroundBrush", 10, 120, 80);
                 WpfTestApp.Layout(window);
                 Assert.Same(surface, window.Background);
                 Assert.Same(surface, card.Background);
@@ -78,6 +80,10 @@ public sealed class ThemeSwapTests
                     .First(b => ReferenceEquals(b.Background, accent));
                 Assert.Same(accent, primary.Background);
                 Assert.NotNull(hover);
+                // The start page follows replaced brushes too: its background, and the one brand red button.
+                Assert.Same(homeBackground, ((ScrollViewer)window.FindName("HomePage")).Background);
+                var open = WpfTestApp.Descendants(window).OfType<Button>().First(b => ReferenceEquals(b.Background, brand));
+                Assert.Same(brand, open.Background);
             }
             finally { window.Close(); WpfTestApp.Pump(); }
             var errors = UnexpectedSwapErrors(app.Errors);

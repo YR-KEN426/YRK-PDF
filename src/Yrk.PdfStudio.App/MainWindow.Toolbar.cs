@@ -38,6 +38,11 @@ public partial class MainWindow
     private void FitTopBar()
     {
         _fitQueued = false;
+        if (!_viewModel.ShowsDocument)
+        {
+            return; // The start page hides the buttons this measures; fit again when a document shows them.
+        }
+
         var compact = OpenLabel.Visibility != Visibility.Visible;
         if (!compact)
         {

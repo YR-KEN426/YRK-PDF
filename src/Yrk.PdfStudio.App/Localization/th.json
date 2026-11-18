@@ -1949,5 +1949,21 @@
   "Purple": "ม่วง",
   "Rename": "เปลี่ยนชื่อ",
   "Change colour": "เปลี่ยนสี",
-  "You can keep up to {0} reading marks per file.": "เก็บที่คั่นได้สูงสุด {0} อันต่อไฟล์"
+  "You can keep up to {0} reading marks per file.": "เก็บที่คั่นได้สูงสุด {0} อันต่อไฟล์",
+  "What would you like to do with your files today?": "วันนี้จะทำอะไรกับไฟล์",
+  "Search tools, for example: merge, Word, sign": "ค้นหาเครื่องมือ เช่น รวม, Word, เซ็น",
+  "Search tools": "ค้นหาเครื่องมือ",
+  "Drop a file here": "ลากไฟล์มาวางที่นี่",
+  "PDF, DWG, DXF and AI": "PDF, DWG, DXF และ AI",
+  "View all": "ดูทั้งหมด",
+  "Show fewer": "แสดงน้อยลง",
+  "View all recent files": "ดูไฟล์ล่าสุดทั้งหมด",
+  "Today {0}": "วันนี้ {0}",
+  "Yesterday": "เมื่อวาน",
+  "Open containing folder": "เปิดโฟลเดอร์ที่เก็บไฟล์",
+  "Remove from list": "เอาออกจากรายการ",
+  "Show recent files on the start page": "แสดงไฟล์ล่าสุดในหน้าแรก",
+  "This only decides whether the list appears on the start page. The app still remembers recent files on this computer until you clear them below.": "ตัวเลือกนี้กำหนดแค่ว่าจะแสดงรายการบนหน้าแรกหรือไม่ โปรแกรมยังจำไฟล์ล่าสุดไว้ในเครื่องนี้จนกว่าคุณจะล้างด้านล่าง",
+  "Clear recent files and reading history": "ล้างไฟล์ล่าสุดและประวัติการอ่าน",
+  "Clears the list of recent files, the page where you stopped reading each file, and your reading bookmarks. Your documents are not touched.": "ล้างรายการไฟล์ล่าสุด หน้าที่อ่านค้างของแต่ละไฟล์ และที่คั่นหนังสือของคุณ ส่วนเอกสารของคุณไม่ถูกแตะต้อง"
 }

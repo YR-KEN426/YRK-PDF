@@ -15,6 +15,7 @@
         WindowStartupLocation="CenterScreen"
         AllowDrop="True"
         PreviewDragOver="OnPreviewDragOver"
+        DragLeave="OnWindowDragLeave"
         PreviewDrop="OnPreviewDrop"
         Background="{DynamicResource SurfaceBrush}"
         Foreground="{DynamicResource TextBrush}"
@@ -24,6 +25,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:InverseBooleanToVisibilityConverter x:Key="NoDocumentVisibility" />
         <vm:ReadingMarkConverter x:Key="ReadingMarkForPage" />
         <Style x:Key="ReadingMarkOverlay" TargetType="ContentControl">
             <Style.Triggers>
@@ -361,7 +363,14 @@
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding ToggleSidebarCommand}" ToolTip="Show or hide the sidebar" AutomationProperties.Name="Sidebar">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE700;" />
                     </Button>
-                    <Button Style="{StaticResource ToolbarButton}" Click="OnHomeClick" ToolTip="Start page: all tools" AutomationProperties.Name="Start page">
+                    <!-- On the start page only: the logo and name, in place of the buttons that need a document. -->
+                    <StackPanel x:Name="TopBarBrand" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,14,0"
+                                Visibility="{Binding ShowsDocument, Converter={StaticResource NoDocumentVisibility}}">
+                        <Image Source="/Assets/app.ico" Width="26" Height="26" />
+                        <TextBlock Text="YRK PDF" FontSize="15" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Style="{StaticResource ToolbarButton}" Click="OnHomeClick" ToolTip="Start page: all tools" AutomationProperties.Name="Start page"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE80F;" />
                     </Button>
                     <!-- File and View menus, for people used to Office: every command is also a button or a shortcut. -->
@@ -373,6 +382,7 @@
                         </StackPanel>
                     </Button>
                     <Button x:Name="ViewMenuButton" Style="{StaticResource ToolbarButton}" Click="OnViewMenuClick"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="View: zoom, sidebar, rulers (Alt+V)" AutomationProperties.Name="View">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="View" Margin="2,0,4,0" VerticalAlignment="Center" />
@@ -380,6 +390,7 @@
                         </StackPanel>
                     </Button>
                     <Button x:Name="InsertMenuButton" Style="{StaticResource ToolbarButton}" Click="OnInsertMenuClick"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Insert: text, picture, symbol, signature, lines and shapes (Alt+I)" AutomationProperties.Name="Insert">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="Insert" Margin="2,0,4,0" VerticalAlignment="Center" />
@@ -408,19 +419,22 @@
                         </StackPanel>
                     </Button>
 
-                    <Border Style="{StaticResource ToolbarDivider}" />
+                    <Border Style="{StaticResource ToolbarDivider}" Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}" />
 
-                    <Button Style="{StaticResource ToolbarButton}" Command="ApplicationCommands.Open" ToolTip="Open (Ctrl+O)">
+                    <Button Style="{StaticResource ToolbarButton}" Command="ApplicationCommands.Open" ToolTip="Open (Ctrl+O)"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" />
                             <TextBlock x:Name="OpenLabel" Text="Open" Margin="6,0,2,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Click="OnRecentMenuClick" Padding="3,0" Margin="-2,0,0,0"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Recent files" AutomationProperties.Name="Recent files">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" FontSize="10" />
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Command="ApplicationCommands.Save" IsEnabled="{Binding CanSave}"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Save (Ctrl+S)" AutomationProperties.Name="Save">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE74E;" />
@@ -428,23 +442,26 @@
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding SaveAsCommand}" IsEnabled="{Binding HasDocument}"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Save a copy (Ctrl+Shift+S)" AutomationProperties.Name="Save as">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE792;" />
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding PrintCommand}" IsEnabled="{Binding HasDocument}"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Print (Ctrl+P)" AutomationProperties.Name="Print">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE749;" />
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding ReadingMarkCommand}"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Reading marks (Ctrl+D)" AutomationProperties.Name="Reading marks">
                         <StackPanel Orientation="Horizontal">
                             <Path Data="M 0,0 L 12,0 L 12,18 L 6,13 L 0,18 Z" Fill="{DynamicResource AccentBrush}" Width="12" Height="18" />
                             <TextBlock Text="Reading marks" Margin="6,0,2,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Border Style="{StaticResource ToolbarDivider}" />
+                    <Border Style="{StaticResource ToolbarDivider}" Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}" />
 
-                    <StackPanel Orientation="Horizontal" IsEnabled="{Binding HasDocument}">
+                    <StackPanel Orientation="Horizontal" IsEnabled="{Binding HasDocument}" Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}">
                         <Button Style="{StaticResource ToolbarButton}" Command="{Binding PreviousPageCommand}" ToolTip="Previous page" AutomationProperties.Name="Previous page">
                             <TextBlock Style="{StaticResource IconText}" Text="&#xE70E;" />
                         </Button>
@@ -482,8 +499,26 @@
                 </WrapPanel>
 
 
+                <!-- Language, on the start page only (the search box takes its place when a document is open). Written in both
+                     languages so it can be found whichever is shown. -->
+                <Border x:Name="TopBarLanguage" Grid.Column="1" Background="{DynamicResource HomeFillBrush}" CornerRadius="14" Padding="2"
+                        VerticalAlignment="Center" Margin="8,0,6,0"
+                        Visibility="{Binding ShowsDocument, Converter={StaticResource NoDocumentVisibility}}">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="HomeThai" Style="{StaticResource LanguageSegment}" Tag="keep-text"
+                                     Checked="OnHomeLanguageChecked" AutomationProperties.Name="ไทย (Thai)">
+                            <TextBlock Text="ไทย" Tag="keep-text" />
+                        </RadioButton>
+                        <RadioButton x:Name="HomeEnglish" Style="{StaticResource LanguageSegment}" Tag="keep-text"
+                                     Checked="OnHomeLanguageChecked" AutomationProperties.Name="English">
+                            <TextBlock Text="EN" Tag="keep-text" />
+                        </RadioButton>
+                    </StackPanel>
+                </Border>
+
                 <!-- Search -->
-                <StackPanel x:Name="SearchPanel" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,0,0" IsEnabled="{Binding HasDocument}">
+                <StackPanel x:Name="SearchPanel" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="8,0,0,0" IsEnabled="{Binding HasDocument}"
+                            Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}">
                     <TextBlock Text="{Binding SearchStatus}" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" />
                     <Grid x:Name="SearchField" Width="220" VerticalAlignment="Center">
                         <TextBox x:Name="SearchBox" Style="{StaticResource ToolbarTextBox}" Padding="26,4,4,4"
@@ -1829,9 +1864,9 @@
             </Grid>
             </DockPanel>
 
-            <!-- Start page (no document in this tab): open a file, or pick a tool by what you want to do. -->
+            <!-- Start page (no document in this tab): drop or open a file, or pick a tool by what you want to do. -->
             <ScrollViewer x:Name="HomePage" Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
-                          Background="{DynamicResource ViewerBrush}">
+                          Background="{DynamicResource HomeBackgroundBrush}">
                 <ScrollViewer.Style>
                     <Style TargetType="ScrollViewer">
                         <Setter Property="Visibility" Value="Collapsed" />
@@ -1846,112 +1881,180 @@
                         </Style.Triggers>
                     </Style>
                 </ScrollViewer.Style>
-            <StackPanel Margin="40,28,26,28" MaxWidth="1264" HorizontalAlignment="Center">
-                <DockPanel>
-                    <!-- Language, written in both languages so it can be found whichever is shown. -->
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-                        <TextBlock Style="{StaticResource IconText}" Text="&#xE774;" VerticalAlignment="Center" Margin="0,0,8,0"
-                                   Foreground="{DynamicResource SecondaryTextBrush}" />
-                        <RadioButton x:Name="HomeThai" Style="{StaticResource HomeChip}" Tag="keep-text" Margin="0,0,6,0"
-                                     Checked="OnHomeLanguageChecked" AutomationProperties.Name="ไทย (Thai)">
-                            <TextBlock Text="ไทย" Tag="keep-text" />
-                        </RadioButton>
-                        <RadioButton x:Name="HomeEnglish" Style="{StaticResource HomeChip}" Tag="keep-text" Margin="0"
-                                     Checked="OnHomeLanguageChecked" AutomationProperties.Name="English">
-                            <TextBlock Text="English" Tag="keep-text" />
-                        </RadioButton>
-                    </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <Image Source="/Assets/app.ico" Width="48" Height="48" VerticalAlignment="Center" />
-                        <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="YRK PDF" FontSize="26" FontWeight="SemiBold" />
-                            <TextBlock Text="Everything you need for PDFs, in one free program" Foreground="{DynamicResource SecondaryTextBrush}" FontSize="14" />
-                        </StackPanel>
-                    </StackPanel>
-                </DockPanel>
+            <StackPanel x:Name="HomeContent" Margin="48,40" MaxWidth="1264">
+                <TextBlock Text="What would you like to do with your files today?" FontSize="26" FontWeight="Bold" TextAlignment="Center"
+                           TextWrapping="Wrap" Foreground="{DynamicResource HomeTextBrush}" />
 
-                <WrapPanel Margin="0,14,0,0">
-                    <WrapPanel.Resources>
+                <!-- Search for a tool (the typing is handled in MainWindow.Home.cs). -->
+                <Border x:Name="HomeSearchField" MaxWidth="640" Height="52" Margin="0,18,0,0" Background="{DynamicResource SurfaceBrush}"
+                        BorderThickness="1" CornerRadius="14">
+                    <Border.Style>
                         <Style TargetType="Border">
-                            <Setter Property="Background" Value="{DynamicResource FormSuccessBackgroundBrush}" />
-                            <Setter Property="CornerRadius" Value="12" />
-                            <Setter Property="Padding" Value="10,3" />
-                            <Setter Property="Margin" Value="0,0,8,0" />
-                        </Style>
-                    </WrapPanel.Resources>
-                    <Border><TextBlock Text="✓ Free, for personal and business use" Foreground="{DynamicResource FormSuccessTextBrush}" FontSize="12" /></Border>
-                    <Border><TextBlock Text="✓ Works on this computer: files are never uploaded" Foreground="{DynamicResource FormSuccessTextBrush}" FontSize="12" /></Border>
-                    <Border><TextBlock Text="✓ No ads, no account" Foreground="{DynamicResource FormSuccessTextBrush}" FontSize="12" /></Border>
-                </WrapPanel>
-
-                <!-- Open: the main way in. -->
-                <Border Margin="0,20,14,0" Padding="20,16" CornerRadius="10" Background="{DynamicResource SurfaceBrush}"
-                        BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1.5">
-                    <DockPanel>
-                        <Button DockPanel.Dock="Left" Style="{StaticResource PrimaryButton}" Command="ApplicationCommands.Open" Padding="18,8"
-                                AutomationProperties.Name="Open file">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" FontSize="16" />
-                                <TextBlock Text="Open file" Margin="8,0,0,0" FontSize="14" />
-                            </StackPanel>
-                        </Button>
-                        <StackPanel Margin="18,0,0,0" VerticalAlignment="Center">
-                            <TextBlock Text="or drag a file onto this window" FontSize="14" />
-                            <TextBlock Text="PDF, AutoCAD drawings (DWG, DXF) and Illustrator files (AI)" Foreground="{DynamicResource SecondaryTextBrush}" />
-                        </StackPanel>
-                    </DockPanel>
-                </Border>
-
-                <!-- Tools by what people want to do; a card opens a file first when the tool needs one. -->
-                <WrapPanel x:Name="HomeCategories" Margin="0,24,0,8">
-                    <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="all" Content="All tools" IsChecked="True" Checked="OnHomeCategoryChecked" />
-                    <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="accounting" Content="Accounting" Checked="OnHomeCategoryChecked" />
-                    <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="organize" Content="Organize" Checked="OnHomeCategoryChecked" />
-                    <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="convert" Content="Convert" Checked="OnHomeCategoryChecked" />
-                    <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="edit" Content="Edit and sign" Checked="OnHomeCategoryChecked" />
-                    <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="drawings" Content="Construction drawings" Checked="OnHomeCategoryChecked" />
-                    <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="security" Content="Security" Checked="OnHomeCategoryChecked" />
-                </WrapPanel>
-                <WrapPanel x:Name="HomeCards" />
-
-                <!-- Recent files (kept only on this computer). -->
-                <StackPanel Margin="0,14,14,0" Width="520" HorizontalAlignment="Left">
-                    <StackPanel.Style>
-                        <Style TargetType="StackPanel">
+                            <Setter Property="BorderBrush" Value="{DynamicResource HomeBorderStrongBrush}" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding Count, Source={x:Static svc:RecentFiles.Items}}" Value="0">
-                                    <Setter Property="Visibility" Value="Collapsed" />
+                                <DataTrigger Binding="{Binding IsKeyboardFocusWithin, ElementName=HomeSearchField}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource FocusBrush}" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>
-                    </StackPanel.Style>
-                    <DockPanel Margin="0,0,0,6">
-                        <Button DockPanel.Dock="Right" Style="{StaticResource ToolbarButton}" Command="{Binding ClearRecentCommand}" Padding="6,2"
-                                AutomationProperties.Name="Clear recent files" ToolTip="Clear the list (the files are not touched)">
-                            <TextBlock Text="Clear list" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" />
-                        </Button>
-                        <TextBlock Text="Recent files" FontWeight="SemiBold" VerticalAlignment="Center" />
-                    </DockPanel>
-                    <ScrollViewer MaxHeight="330" VerticalScrollBarVisibility="Auto" Focusable="False">
-                    <ItemsControl ItemsSource="{x:Static svc:RecentFiles.Items}" Focusable="False">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type svc:RecentFile}">
-                                <Button Style="{StaticResource ToolbarButton}" HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" Padding="8,4"
-                                        Command="{Binding DataContext.OpenRecentCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                        CommandParameter="{Binding Path}" ToolTip="{Binding Path}" AutomationProperties.Name="{Binding Name}">
-                                    <DockPanel Width="488">
-                                        <TextBlock Style="{StaticResource IconText}" Text="&#xE8A5;" Margin="0,0,10,0" VerticalAlignment="Center" Foreground="{DynamicResource AccentBrush}" />
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                            <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextTrimming="CharacterEllipsis" />
-                                        </StackPanel>
-                                    </DockPanel>
+                    </Border.Style>
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="8" ShadowDepth="1" Direction="270" Opacity="0.06" Color="{DynamicResource HomeShadowColor}" />
+                    </Border.Effect>
+                    <Grid>
+                        <TextBlock Style="{StaticResource IconText}" Text="&#xE721;" FontSize="18" Margin="18,0,0,0" HorizontalAlignment="Left"
+                                   IsHitTestVisible="False" Foreground="{DynamicResource HomeMutedTextBrush}" />
+                        <TextBox x:Name="HomeSearchBox" BorderThickness="0" Background="Transparent" FontSize="15" Padding="52,0,86,0"
+                                 VerticalContentAlignment="Center" Foreground="{DynamicResource HomeTextBrush}" GotKeyboardFocus="OnTextBoxGotKeyboardFocus"
+                                 AutomationProperties.Name="Search tools" />
+                        <TextBlock Text="Search tools, for example: merge, Word, sign" FontSize="15" Margin="52,0,86,0" VerticalAlignment="Center"
+                                   IsHitTestVisible="False" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource HomeMutedTextBrush}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=HomeSearchBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Border HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,14,0" Padding="8,3" CornerRadius="6"
+                                Background="{DynamicResource HomeFillBrush}" IsHitTestVisible="False">
+                            <TextBlock Text="Ctrl+F" Tag="keep-text" FontSize="12" Foreground="{DynamicResource HomeMutedTextBrush}" />
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- Two columns: the tools, and the recent files. Below about 1100 pixels, or with no recent files, the layout
+                     changes (UpdateHomeLayout in MainWindow.Home.cs). -->
+                <Grid x:Name="HomeColumns" Margin="0,28,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition x:Name="HomeRecentColumn" Width="340" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel x:Name="HomeMain" Grid.Column="0" Grid.Row="0">
+                        <!-- Open: drop a file here, or choose one. The frame turns brand red while a file is dragged over the window. -->
+                        <Grid x:Name="HomeDropZone">
+                            <Rectangle x:Name="HomeDropFrame" RadiusX="16" RadiusY="16" StrokeThickness="2" StrokeDashArray="4 3"
+                                       Stroke="{DynamicResource HomeBorderStrongBrush}" Fill="{DynamicResource SurfaceBrush}" />
+                            <DockPanel Margin="22,20">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource BrandButton}" Command="ApplicationCommands.Open" VerticalAlignment="Center"
+                                        AutomationProperties.Name="Open file">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource IconText}" Text="&#xE8E5;" FontSize="16" />
+                                        <TextBlock Text="Open file" Margin="8,0,0,0" FontSize="14" VerticalAlignment="Center" />
+                                    </StackPanel>
                                 </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    </ScrollViewer>
-                </StackPanel>
+                                <Border DockPanel.Dock="Left" Width="48" Height="48" CornerRadius="14" Background="{DynamicResource BrandSoftBrush}" VerticalAlignment="Center">
+                                    <TextBlock Style="{StaticResource IconText}" Text="&#xE898;" FontSize="22" HorizontalAlignment="Center"
+                                               Foreground="{DynamicResource BrandBrush}" />
+                                </Border>
+                                <StackPanel Margin="16,0,16,0" VerticalAlignment="Center">
+                                    <TextBlock Text="Drop a file here" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource HomeTextBrush}" />
+                                    <TextBlock Text="PDF, DWG, DXF and AI" FontSize="13" Foreground="{DynamicResource HomeMutedTextBrush}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Grid>
+
+                        <!-- Tools by what people want to do; a card opens a file first when the tool needs one. -->
+                        <WrapPanel x:Name="HomeCategories" Margin="0,28,0,8">
+                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="all" Content="All tools" IsChecked="True" Checked="OnHomeCategoryChecked" />
+                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="accounting" Content="Accounting" Checked="OnHomeCategoryChecked" />
+                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="organize" Content="Organize" Checked="OnHomeCategoryChecked" />
+                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="convert" Content="Convert" Checked="OnHomeCategoryChecked" />
+                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="edit" Content="Edit and sign" Checked="OnHomeCategoryChecked" />
+                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="drawings" Content="Construction drawings" Checked="OnHomeCategoryChecked" />
+                            <RadioButton Style="{StaticResource HomeChip}" GroupName="HomeCategory" Tag="security" Content="Security" Checked="OnHomeCategoryChecked" />
+                        </WrapPanel>
+                        <WrapPanel x:Name="HomeCards" />
+                    </StackPanel>
+
+                    <!-- Recent files: only those still there (see HomeRecentList). Right-click a line for its folder or to remove it. -->
+                    <Border x:Name="HomeRecentPanel" Grid.Column="1" Grid.Row="0" VerticalAlignment="Top" Padding="14,12" CornerRadius="16"
+                            Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource HomeBorderBrush}" BorderThickness="1"
+                            Visibility="{Binding HasRows, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <DockPanel Margin="8,2,8,8">
+                                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Margin="0" FontSize="13" Content="{Binding ToggleText}"
+                                        Click="OnHomeRecentToggle" Visibility="{Binding CanExpand, Converter={StaticResource BoolToVisibility}}"
+                                        AutomationProperties.Name="View all recent files" />
+                                <TextBlock Text="Recent files" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource HomeTextBrush}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <ItemsControl x:Name="HomeRecentRows" ItemsSource="{Binding Rows}" Focusable="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type svc:RecentRow}">
+                                        <Button Style="{StaticResource HomeRecentRow}" Tag="{Binding Path}" Click="OnHomeRecentRowClick"
+                                                ToolTip="{Binding Path}" AutomationProperties.Name="{Binding Name}">
+                                            <Button.ContextMenu>
+                                                <ContextMenu>
+                                                    <MenuItem Header="Open containing folder" Click="OnHomeRecentOpenFolder" />
+                                                    <MenuItem Header="Remove from list" Click="OnHomeRecentRemove" />
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Border Width="34" Height="34" CornerRadius="8" VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{DynamicResource HomeFillBrush}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Kind}" Value="Pdf">
+                                                                    <Setter Property="Background" Value="{DynamicResource BrandSoftBrush}" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding Kind}" Value="Cad">
+                                                                    <Setter Property="Background" Value="{DynamicResource DrawingsSoftBrush}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <TextBlock Text="{Binding Badge}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Foreground" Value="{DynamicResource HomeMutedTextBrush}" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Kind}" Value="Pdf">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource PdfBadgeTextBrush}" />
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Kind}" Value="Cad">
+                                                                        <Setter Property="Foreground" Value="{DynamicResource DrawingsBrush}" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Border>
+                                                <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="13" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource HomeTextBrush}" />
+                                                    <TextBlock Text="{Binding TimeText}" FontSize="12" Foreground="{DynamicResource HomeMutedTextBrush}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding HasTime}" Value="False">
+                                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </StackPanel>
             </ScrollViewer>
         </Grid>

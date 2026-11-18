@@ -1890,11 +1890,13 @@ public partial class MainWindow : Window
         {
             e.Effects = DragDropEffects.Copy;
             e.Handled = true;
+            SetHomeDropActive(true);
         }
     }
 
     private async void OnPreviewDrop(object sender, DragEventArgs e)
     {
+        SetHomeDropActive(false);
         if (GetDroppedPicture(e.Data) is { } picture)
         {
             e.Handled = true;

@@ -109,6 +109,22 @@ public sealed partial class MainViewModel
 
     private IRelayCommand? _showFeedbackCommand;
 
+    /// <summary>Raised when "Show recent files on the start page" is changed (by any tab).</summary>
+    public static event EventHandler? ShowRecentOnHomeChanged;
+
+    /// <summary>The setting "Show recent files on the start page" (on by default). It only hides the panel; the history is kept.</summary>
+    public bool ShowRecentOnHome
+    {
+        get => SharedSettings.ShowRecentOnHome;
+        set
+        {
+            if (SharedSettings.ShowRecentOnHome == value) return;
+            SharedSettings.ShowRecentOnHome = value;
+            SharedSettings.Save();
+            ShowRecentOnHomeChanged?.Invoke(null, EventArgs.Empty);
+        }
+    }
+
     /// <summary>Switches the menus to "en" or "th" at once and remembers the choice.</summary>
     public IRelayCommand<string> SetLanguageCommand => _setLanguageCommand ??= new RelayCommand<string>(language =>
     {
@@ -343,6 +359,12 @@ public sealed partial class MainViewModel
                 owner._settings.CheckForUpdates = value;
                 owner._settings.Save();
             }
+        }
+
+        public bool ShowRecentOnHome
+        {
+            get => owner.ShowRecentOnHome;
+            set => owner.ShowRecentOnHome = value;
         }
 
         public bool IsUpdateReady => owner.IsUpdateReady;

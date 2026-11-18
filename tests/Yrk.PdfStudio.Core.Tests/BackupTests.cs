@@ -150,7 +150,7 @@ public sealed class BackupTests : IDisposable
         using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
         var certPath = "TrustedCertificates/" + TrustedCertificateStore.Fingerprint(certificate) + ".cer";
         Put(Source, certPath, certificate.RawData);
-        var excluded = new[] { "recent.json", "reading-positions.json", "digital-sign.json", "Recovery/doc.pdf", "logs/errors.log",
+        var excluded = new[] { "recent.json", "recent-times.json", "reading-positions.json", "digital-sign.json", "Recovery/doc.pdf", "logs/errors.log",
             "tessdata/tha.traineddata", "Backups/old.yrkbackup", "DigitalIDs/cache.json", "unknown.json", "Signatures/cache.png" };
         foreach (var name in excluded) Put(Source, name, "never include this"u8.ToArray());
         var protector = new Protector(1);
