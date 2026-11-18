@@ -195,8 +195,14 @@ internal sealed class WpfTestApp : IDisposable
 
     private sealed class ErrorListener : TraceListener
     {
+        // Trace sources are process-wide: WPF tests outside this collection run in parallel on their own
+        // threads, so keep only what this app's thread reports.
+        private readonly Thread _owner = Thread.CurrentThread;
         public List<string> Messages { get; set; } = [];
-        public override void Write(string? message) { if (!string.IsNullOrWhiteSpace(message)) Messages.Add(message); }
+        public override void Write(string? message)
+        {
+            if (Thread.CurrentThread == _owner && !string.IsNullOrWhiteSpace(message)) Messages.Add(message);
+        }
         public override void WriteLine(string? message) => Write(message);
     }
 }

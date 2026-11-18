@@ -68,7 +68,6 @@ public partial class ScanDialog : Window
         Loaded += OnLoaded;
         Closing += OnClosing;
         Closed += OnClosed;
-        Loc.LanguageChanged += OnLanguageChanged;
         _model.PropertyChanged += OnModelPropertyChanged;
         UpdateButtons();
     }
@@ -114,6 +113,13 @@ public partial class ScanDialog : Window
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
+        // A window whose dispatcher has ended (closed while busy, so OnClosed never ran) must drop off the static event.
+        if (Dispatcher.HasShutdownStarted || !CheckAccess())
+        {
+            Loc.LanguageChanged -= OnLanguageChanged;
+            return;
+        }
+
         ShowAdjustments();
         ShowPaperSizes();
         UpdateCropNumbers();
@@ -121,6 +127,10 @@ public partial class ScanDialog : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        // Listen only once shown: OnClosed unsubscribes, and a window that is built but never shown
+        // never closes, so subscribing in the constructor would leave it on the static event for good.
+        Loc.LanguageChanged -= OnLanguageChanged;
+        Loc.LanguageChanged += OnLanguageChanged;
         await WorkAsync(async () => { await FindAsync(); await _model.LoadPagesAsync(); });
 #if DEBUG
         if (int.TryParse(Environment.GetEnvironmentVariable("YRK_SCAN_DEMO_PAGES"), out var count) && count is >= 1 and <= 6 && !_closePending)
