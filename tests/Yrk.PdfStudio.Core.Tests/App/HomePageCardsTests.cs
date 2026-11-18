@@ -18,13 +18,13 @@ namespace Yrk.PdfStudio.Core.Tests;
 /// <summary>Start page, step 4b: the frequent tools, the All view by category, the category buttons (a real tab control) and the search.</summary>
 public sealed partial class HomePageTests
 {
-    private sealed record ToolInfo(string Id, string Category, string TitleKey, string TextKey, string KeywordsKey, bool Accounting);
+    private sealed record ToolInfo(string Id, string Category, string TitleKey, string TextKey, string KeywordsKey, string TipKey, bool Accounting);
 
     private static List<ToolInfo> Tools() => ((IEnumerable)typeof(MainWindow).GetMethod("HomeTools", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, null)!)
         .Cast<object>().Select(t =>
         {
             string S(string p) => (string)t.GetType().GetProperty(p)!.GetValue(t)!;
-            return new ToolInfo(S("Id"), S("Category"), S("TitleKey"), S("TextKey"), S("KeywordsKey"), (bool)t.GetType().GetProperty("Accounting")!.GetValue(t)!);
+            return new ToolInfo(S("Id"), S("Category"), S("TitleKey"), S("TextKey"), S("KeywordsKey"), S("TipKey"), (bool)t.GetType().GetProperty("Accounting")!.GetValue(t)!);
         }).ToList();
 
     private static readonly string[] CategoryIds = ["organize", "convert", "edit", "accounting", "drawings", "security"];
@@ -203,7 +203,8 @@ public sealed partial class HomePageTests
                 Assert.NotSame(resources["BrandBrush"], icon.Background);
                 Assert.NotSame(resources["MeasureAccentBrush"], icon.Background);
                 Assert.Equal(AutomationProperties.GetName(card), texts[0].Text);
-                Assert.Equal(Loc.T(tool.TextKey), card.ToolTip); // Today's wording, whole, in the tooltip (new texts come in 4c).
+                Assert.Equal(Loc.T(tool.TextKey), texts[1].Text);
+                Assert.IsType<ToolTip>(card.ToolTip);
             }
         });
     }
@@ -403,5 +404,54 @@ public sealed partial class HomePageTests
 
         foreach (var text in new[] { "Frequently used", "Frequently used tools", "All {0} tools →", "{0} tools", "No tools found. Try another word.", "Tool categories" })
             Assert.Contains(text, keys);
+    }
+
+    [Fact]
+    public void Every_card_has_a_short_description_and_a_tooltip_in_Thai_and_English_that_come_from_the_translation_file()
+    {
+        static bool HasThai(string text) => text.Any(c => c is >= '฀' and <= '๿');
+        var tools = Tools();
+        Assert.Equal(34, tools.Count);
+        Assert.Equal(34, tools.Select(t => t.TextKey).Distinct().Count()); // No two cards say the same.
+        foreach (var language in new[] { "en", "th" })
+        {
+            WithWindow((app, window, _) =>
+            {
+                SelectTab(window, "all");
+                var cards = Cards(window);
+                Assert.Equal(34, cards.Count);
+                foreach (var card in cards)
+                {
+                    var tool = tools.Single(t => t.Id == (string)card.Tag);
+                    var thai = language == "th";
+                    var texts = ((Grid)card.Content).Children.OfType<StackPanel>().Single().Children.OfType<TextBlock>().ToArray();
+                    var tip = Assert.IsType<ToolTip>(card.ToolTip);
+                    var lines = ((StackPanel)tip.Content).Children.OfType<TextBlock>().Select(t => t.Text).ToArray();
+
+                    Assert.Equal(thai ? Loc.InThai(tool.TextKey) : tool.TextKey, texts[1].Text);
+                    Assert.Equal(2, lines.Length);
+                    Assert.Equal(texts[0].Text, lines[0]); // The tooltip starts with the card name,
+                    Assert.Equal(thai ? Loc.InThai(tool.TipKey) : tool.TipKey, lines[1]); // then the detail.
+                    Assert.False(string.IsNullOrWhiteSpace(texts[1].Text), tool.Id);
+                    Assert.False(string.IsNullOrWhiteSpace(lines[1]), tool.Id);
+                    Assert.NotEqual(texts[1].Text, lines[1]); // The tooltip adds something the card does not say.
+                    Assert.Same(Application.Current.Resources["CardToolTip"], tip.Style);
+                    Assert.Equal(System.Windows.Controls.Primitives.PlacementMode.Bottom, ((Style)tip.Style).Setters.OfType<Setter>().Single(s => s.Property == ToolTip.PlacementProperty).Value);
+                    Assert.Equal(600, ToolTipService.GetInitialShowDelay(card));
+                    if (thai)
+                    {
+                        Assert.Contains(tool.TextKey, Loc.ThaiKeys); // The Thai texts are in th.json, not just left in English.
+                        Assert.Contains(tool.TipKey, Loc.ThaiKeys);
+                        Assert.True(HasThai(texts[1].Text), tool.Id);
+                        Assert.True(HasThai(lines[1]), tool.Id);
+                    }
+                    else
+                    {
+                        Assert.False(HasThai(texts[1].Text), tool.Id);
+                        Assert.False(HasThai(lines[1]), tool.Id);
+                    }
+                }
+            }, language: language);
+        }
     }
 }

@@ -52,6 +52,7 @@
     <SolidColorBrush x:Key="SecuritySoftBrush" Color="#EEF1F5" />
     <SolidColorBrush x:Key="PaperBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ToolTipBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ToolTipMutedTextBrush" Color="#4A5160" />
     <SolidColorBrush x:Key="OnAccentTextBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="SnapMarkerBrush" Color="#00A86B" />
     <SolidColorBrush x:Key="FieldPreviewStrokeBrush" Color="#1C64A8" />

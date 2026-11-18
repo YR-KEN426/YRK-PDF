@@ -21,13 +21,16 @@ public partial class MainWindow
     /// One card. The texts are English keys (shown through <see cref="Loc"/>), so a search can look in both languages.
     /// </summary>
     /// <param name="NeedsDocument">False for tools that pick their own files (combine, images to PDF, many files).</param>
+    /// <param name="TipKey">The detail lines of the tooltip, after the name.</param>
     /// <param name="Accounting">Shown in the Accounting group too, besides its own group.</param>
-    private sealed record HomeTool(string Id, string Category, string Glyph, string TitleKey, string TextKey, string KeywordsKey,
+    private sealed record HomeTool(string Id, string Category, string Glyph, string TitleKey, string TextKey, string KeywordsKey, string TipKey,
         bool NeedsDocument = true, bool Accounting = false)
     {
         public string Title => Loc.T(TitleKey);
 
         public string Text => Loc.T(TextKey);
+
+        public string Tip => Loc.T(TipKey);
     }
 
     /// <summary>Marks an English text as one the page translates (the translation check reads these).</summary>
@@ -64,78 +67,78 @@ public partial class MainWindow
     private static List<HomeTool> HomeTools() =>
     [
         new("combine", "organize", "",
-            K("Combine PDF"), K("Join several files into one, in the order you choose"), K("merge, join, combine, put files together"), NeedsDocument: false),
+            K("Combine PDF"), K("Several files, one PDF"), K("merge, join, combine, put files together"), K("Drag files to set their order before combining."), NeedsDocument: false),
         new("split", "organize", "",
-            K("Split PDF"), K("Save chosen pages, or every few pages, as separate files"), K("split, separate, cut, extract pages")),
+            K("Split PDF"), K("Save selected pages separately"), K("split, separate, cut, extract pages"), K("Enter page ranges or split every N pages.")),
         new("pages", "organize", "",
-            K("Organize pages"), K("Turn, delete, move, insert and extract pages"), K("pages, rotate, delete pages, reorder, move pages")),
+            K("Organize pages"), K("Manage PDF pages"), K("pages, rotate, delete pages, reorder, move pages"), K("Rotate, delete, move, insert, and extract pages.")),
         new("scanpdf", "organize", "",
-            K("Scan to PDF"), K("Scan paper from your scanner straight into a PDF, with optional text recognition"), K("scan, scanner, paper to PDF"), NeedsDocument: false, Accounting: true),
+            K("Scan to PDF"), K("Scan paper into PDF"), K("scan, scanner, paper to PDF"), K("Scan more pages and optionally recognize text."), NeedsDocument: false, Accounting: true),
         new("scan", "organize", "\uE7A8",
-            K("Clean up scans"), K("Straighten tilted pages, trim dark edges, delete blank pages"), K("deskew, straighten, crop, blank pages, dark edges"), Accounting: true),
+            K("Clean up scans"), K("Adjust scanned pages"), K("deskew, straighten, crop, blank pages, dark edges"), K("Straighten, trim dark edges, and remove blank pages."), Accounting: true),
         new("images", "organize", "",
-            K("Images to PDF"), K("Make one PDF from photos and scans (JPG, PNG)"), K("images, photos, JPG, PNG, picture to PDF"), NeedsDocument: false),
+            K("Images to PDF"), K("Make a PDF from images"), K("images, photos, JPG, PNG, picture to PDF"), K("Accepts JPG and PNG images."), NeedsDocument: false),
         new("batch", "organize", "",
-            K("Process many files"), K("Compress, convert or mark a whole folder at once"), K("batch, many files, folder, bulk"), NeedsDocument: false, Accounting: true),
+            K("Process many files"), K("Process a whole folder"), K("batch, many files, folder, bulk"), K("Compress, convert, or mark many files."), NeedsDocument: false, Accounting: true),
 
         new("word", "convert", "",
-            K("PDF to Word"), K("Editable text with tables and pictures in place"), K("Word, docx, convert to Word, editable")),
+            K("PDF to Word"), K("Editable text"), K("Word, docx, convert to Word, editable"), K("Tables and pictures stay in place.")),
         new("excel", "convert", "",
-            K("PDF to Excel"), K("Tables as cells; amounts as numbers you can add up"), K("Excel, xlsx, spreadsheet, table, numbers"), Accounting: true),
+            K("PDF to Excel"), K("Tables become cells"), K("Excel, xlsx, spreadsheet, table, numbers"), K("Amounts are exported as numbers you can add up."), Accounting: true),
         new("compress", "convert", "",
-            K("Compress PDF"), K("Make the file smaller for email and chat"), K("compress, smaller, reduce size, shrink, email")),
+            K("Compress PDF"), K("Make the file smaller"), K("compress, smaller, reduce size, shrink, email"), K("Choose from three levels and save a new file.")),
         new("powerpoint", "convert", "",
-            K("PDF to PowerPoint"), K("One slide per page, looking just like the PDF"), K("PowerPoint, pptx, slides, presentation")),
+            K("PDF to PowerPoint"), K("One slide per page"), K("PowerPoint, pptx, slides, presentation"), K("Slides look like the PDF pages.")),
         new("pictures", "convert", "",
-            K("PDF to images"), K("Each page as a PNG or JPG picture"), K("PNG, JPG, page to picture, save as pictures")),
+            K("PDF to images"), K("Export each page as an image"), K("PNG, JPG, page to picture, save as pictures"), K("Choose PNG or JPG.")),
         new("ocr", "convert", "",
-            K("Recognize text (OCR)"), K("Make scans searchable and copyable, Thai included"), K("OCR, text recognition, searchable, read scanned text"), Accounting: true),
+            K("Recognize text (OCR)"), K("Search and copy scanned text"), K("OCR, text recognition, searchable, read scanned text"), K("Thai is supported; check recognized text before use."), Accounting: true),
         new("convertscan", "convert", "",
-            K("Convert scanned documents"), K("Scans to searchable PDF, editable Word or text"), K("scanned documents, searchable PDF, scans to Word, scans to text"), NeedsDocument: false),
+            K("Convert scanned documents"), K("Convert scans for reuse"), K("scanned documents, searchable PDF, scans to Word, scans to text"), K("Choose searchable PDF, Word, or text output."), NeedsDocument: false),
         new("pdfa", "convert", "",
-            K("PDF/A for archiving"), K("The long-term archive format many offices ask for"), K("PDF/A, archive, archiving, long-term")),
+            K("PDF/A for archiving"), K("Save as PDF/A"), K("PDF/A, archive, archiving, long-term"), K("A long-term archive format requested by many offices.")),
 
         new("edittext", "edit", "",
-            K("Edit text"), K("Change words in the PDF itself, Thai included"), K("edit text, change text, correct text, typo")),
+            K("Edit text"), K("Change words in a PDF"), K("edit text, change text, correct text, typo"), K("Edits one line at a time; paragraphs do not reflow.")),
         new("addtext", "edit", "",
-            K("Add text"), K("Type anywhere on a page, in the font and size you like"), K("add text, type, write on PDF, text box")),
+            K("Add text"), K("Type on a page"), K("add text, type, write on PDF, text box"), K("Choose the font and size.")),
         new("addpicture", "edit", "",
-            K("Add a picture"), K("Put a picture on a page, then move and resize it"), K("add picture, insert image, logo, photo")),
+            K("Add a picture"), K("Place and resize a picture"), K("add picture, insert image, logo, photo"), K("Move, turn and fade it; still editable after saving.")),
         new("fill", "edit", "",
-            K("Fill in a form"), K("Type in the boxes of a form, or make your own form"), K("fill form, form, fields, create form, checkbox")),
+            K("Fill in a form"), K("Fill or create form fields"), K("fill form, form, fields, create form, checkbox"), K("Works with text boxes, check boxes, radio buttons and drop-downs.")),
         new("sign", "edit", "",
-            K("Sign"), K("Place your handwritten signature"), K("sign, signature, handwritten, autograph")),
+            K("Sign"), K("Place a handwritten signature"), K("sign, signature, handwritten, autograph"), K("Draw, type, or use an image of your signature.")),
         new("digital", "edit", "",
-            K("Digital signature"), K("Sign with a digital ID; later changes show"), K("digital signature, certificate, digital ID"), Accounting: true),
+            K("Digital signature"), K("Sign with a Digital ID"), K("digital signature, certificate, digital ID"), K("Later changes are shown."), Accounting: true),
         new("certified", "edit", "",
-            K("Certified true copy"), K("Stamp \"สำเนาถูกต้อง\" with your signature"), K("certified copy, true copy, certify"), Accounting: true),
+            K("Certified true copy"), K("Stamp a copy with your signature"), K("certified copy, true copy, certify"), K("Add a \"for … only\" line and the date."), Accounting: true),
         new("stamp", "edit", "\uE930",
-            K("Rubber stamp"), K("Approved, received, paid, with the Thai date, or your company stamp"), K("rubber stamp, approved, received, paid, company stamp"), Accounting: true),
+            K("Rubber stamp"), K("Choose or edit a stamp"), K("rubber stamp, approved, received, paid, company stamp"), K("Change words, colour, and date, or save a company stamp for reuse."), Accounting: true),
         new("comment", "edit", "",
-            K("Highlight and comment"), K("Highlight, underline, notes and drawing"), K("highlight, comment, note, underline, annotate, draw")),
+            K("Highlight and comment"), K("Mark and annotate"), K("highlight, comment, note, underline, annotate, draw"), K("Includes highlighting, underlining, notes, and drawing.")),
         new("marks", "edit", "",
-            K("Watermark and page numbers"), K("Add a watermark, header, footer or page numbers"), K("watermark, page numbers, header, footer")),
+            K("Watermark and page numbers"), K("Add marks to pages"), K("watermark, page numbers, header, footer"), K("Add a watermark, header, footer, or page numbers.")),
 
         new("etax", "accounting", "",
-            K("e-Tax Invoice"), K("Tax invoices, debit notes and credit notes as PDF/A-3 with the Revenue Department's XML"), K("e-Tax, tax invoice, invoice, credit note, debit note, Revenue Department"), NeedsDocument: false),
+            K("e-Tax Invoice"), K("Create tax documents as PDF/A-3"), K("e-Tax, tax invoice, invoice, credit note, debit note, Revenue Department"), K("Supports tax invoices, debit and credit notes with Revenue Department XML."), NeedsDocument: false),
         new("amount", "accounting", "",
-            K("Amount in words"), K("Turn 12,500.50 into words in Thai and English"), K("amount in words, baht text, number to text"), NeedsDocument: false),
+            K("Amount in words"), K("Convert amounts to words"), K("amount in words, baht text, number to text"), K("Produces Thai and English wording."), NeedsDocument: false),
 
         new("dwg", "drawings", "",
-            K("Open DWG and DXF"), K("View AutoCAD drawings without AutoCAD"), K("DWG, DXF, AutoCAD, drawing, CAD")),
+            K("Open DWG and DXF"), K("View drawings without AutoCAD"), K("DWG, DXF, AutoCAD, drawing, CAD"), K("Switch layers on and off and measure at the drawing's scale.")),
         new("measure", "drawings", "",
-            K("Measure"), K("Distances, perimeters and areas at the drawing's scale"), K("measure, distance, area, length, perimeter, scale")),
+            K("Measure"), K("Measure at drawing scale"), K("measure, distance, area, length, perimeter, scale"), K("Snapping finds line ends and midpoints.")),
         new("count", "drawings", "",
-            K("Count items"), K("Click to count doors, lights or anything, and export the list"), K("count, counting, quantity, takeoff, doors, lights")),
+            K("Count items"), K("Click to count items"), K("count, counting, quantity, takeoff, doors, lights"), K("Export the count list.")),
         new("compare", "drawings", "",
-            K("Compare versions"), K("See what changed between two revisions of a drawing"), K("compare, revisions, differences, versions, changes")),
+            K("Compare versions"), K("See differences between revisions"), K("compare, revisions, differences, versions, changes"), K("Compares saved files, so unsaved changes are excluded.")),
 
         new("protect", "security", "",
-            K("Protect with password"), K("Lock the file, or only printing and copying"), K("password, protect, encrypt, lock, permissions")),
+            K("Protect with password"), K("Set an open password or restrictions"), K("password, protect, encrypt, lock, permissions"), K("Choose restrictions such as printing, copying, or editing.")),
         new("unprotect", "security", "",
-            K("Remove password"), K("Save a copy without the password"), K("remove password, unlock, decrypt, open protected")),
+            K("Remove password"), K("Save an unlocked copy"), K("remove password, unlock, decrypt, open protected"), K("Files with restrictions require the owner password.")),
         new("redact", "security", "",
-            K("Black out (redact)"), K("Remove private details for good, not just hide them"), K("redact, black out, hide private, censor, sensitive")),
+            K("Black out (redact)"), K("Permanently remove private details"), K("redact, black out, hide private, censor, sensitive"), K("Text, drawings and comments under the box are removed; can mark every match of a search.")),
     ];
 
     private void InitializeHome()
@@ -347,8 +350,18 @@ public partial class MainWindow
         Grid.SetColumn(text, 1);
         content.Children.Add(text);
 
-        // The full description stays in the tooltip, since the line on the card is cut to one line.
-        var card = new Button { Style = (Style)FindResource("HomeCard"), Content = content, Tag = tool.Id, ToolTip = tool.Text };
+        // The tooltip adds what the card does not say: the name, then one or two lines of detail (brief 7.1).
+        var tip = new StackPanel();
+        tip.Children.Add(new TextBlock { Text = tool.Title, FontSize = 13, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Tag = UiTranslator.KeepText }
+            .Tinted("HomeTextBrush"));
+        tip.Children.Add(new TextBlock { Text = tool.Tip, FontSize = 12, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap, Tag = UiTranslator.KeepText }
+            .Tinted("ToolTipMutedTextBrush"));
+        var card = new Button
+        {
+            Style = (Style)FindResource("HomeCard"), Content = content, Tag = tool.Id,
+            ToolTip = new ToolTip { Style = (Style)FindResource("CardToolTip"), Content = tip },
+        };
+        ToolTipService.SetInitialShowDelay(card, 600);
         AutomationProperties.SetName(card, tool.Title);
         card.Click += OnHomeCardClick;
         return card;
@@ -381,7 +394,7 @@ public partial class MainWindow
             {
                 string[] title = [tool.TitleKey, Loc.InThai(tool.TitleKey)];
                 string[] keywords = [tool.KeywordsKey, Loc.InThai(tool.KeywordsKey)];
-                string[] text = [tool.TextKey, Loc.InThai(tool.TextKey)];
+                string[] text = [tool.TextKey, Loc.InThai(tool.TextKey), tool.TipKey, Loc.InThai(tool.TipKey)];
                 var score = 0;
                 foreach (var word in words)
                 {
