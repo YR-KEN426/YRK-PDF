@@ -1,4 +1,7 @@
+using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.Services;
@@ -41,6 +44,102 @@ public sealed class StampCompatibilityTests : IDisposable
         catch (JsonException) { return new(); }
     }
     private void OldSave(OldSettings settings) => File.WriteAllText(FilePath, JsonSerializer.Serialize(settings, OldJson));
+
+    private static ZipArchive OpenBackup(string path)
+    {
+        var bytes = File.ReadAllBytes(path);
+        var header = bytes.AsSpan(0, BackupFormat.HeaderBytes);
+        var plain = new byte[bytes.Length - BackupFormat.HeaderBytes - BackupFormat.TagBytes];
+        var key = BackupFormat.Key("test-password".AsSpan(), header);
+        try
+        {
+            using var aes = new AesGcm(key, BackupFormat.TagBytes);
+            aes.Decrypt(header.Slice(7 + BackupFormat.SaltBytes, BackupFormat.NonceBytes),
+                bytes.AsSpan(BackupFormat.HeaderBytes, plain.Length), bytes.AsSpan(bytes.Length - BackupFormat.TagBytes), plain, header);
+            return new ZipArchive(new MemoryStream(plain), ZipArchiveMode.Read);
+        }
+        finally { CryptographicOperations.ZeroMemory(key); }
+    }
+
+    // The old CheckPath root-file branch, with its independent pre-1.2.4 settings list.
+    // Nested-file validation is unchanged; this fixture exports only root settings files.
+    private static void OldCheckPath(string path, bool manifest = false)
+    {
+        string[] settings = ["settings.json", "stamps.json", "etax.json", "reader-bookmarks.json"];
+        if (manifest && path == "manifest.json" || settings.Contains(path, StringComparer.Ordinal)) return;
+        if (path.Split('/').Length != 2) throw new InvalidDataException();
+        BackupFormat.CheckPath(path);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Backup_embeds_shapes_and_is_readable_by_old_path_checker_and_stamp_schema(bool lastOnly)
+    {
+        var source = SaveTwins();
+        if (lastOnly)
+        {
+            source.MyStamps = [Design(StampShape.Oval)];
+            source.Save(FilePath);
+        }
+        var main = File.ReadAllBytes(FilePath);
+        var shapes = File.ReadAllBytes(Shapes);
+        var archive = Path.Combine(_folder.FullName, "test.yrkbackup");
+        var manifest = new BackupWriter().Write(archive, _folder.FullName, "test-password".AsSpan(), "test", BackupSelection.Stamps);
+        Assert.Equal("stamps.json", Assert.Single(manifest.Files).Path);
+        Assert.Throws<InvalidDataException>(() => OldCheckPath(StampSettings.ShapesFileName));
+        using var zip = OpenBackup(archive);
+        Assert.Equal(2, zip.Entries.Count);
+        Assert.All(zip.Entries, entry => OldCheckPath(entry.FullName, manifest: true));
+        Assert.Null(zip.GetEntry(StampSettings.ShapesFileName));
+        using var stream = zip.GetEntry("stamps.json")!.Open();
+        using var json = JsonDocument.Parse(stream);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(source.SerializeShapes()), JsonNode.Parse(json.RootElement.GetProperty("YrkShapes").GetRawText())));
+        var old = JsonSerializer.Deserialize<OldSettings>(json.RootElement, OldJson)!;
+        Assert.Equal(source.MyStamps.Count, old.MyStamps.Count);
+        Assert.Equal(lastOnly ? [OldShape.Oval] : new[] { OldShape.Box, OldShape.Box, OldShape.Oval }, old.MyStamps.Select(s => s.Shape));
+        Assert.Equal(OldShape.Box, old.Last!.Shape);
+        Assert.Equal(main, File.ReadAllBytes(FilePath));
+        Assert.Equal(shapes, File.ReadAllBytes(Shapes));
+        var target = Path.Combine(_folder.FullName, "target", "stamps.json");
+        new BackupReader().Import(archive, Path.GetDirectoryName(target)!, Path.Combine(_folder.FullName, "staging"), "test-password".AsSpan());
+        Assert.Equal(source.MyStamps, StampSettings.Load(target).MyStamps);
+        Assert.Equal(source.Last, StampSettings.Load(target).Last);
+        Assert.False(JsonNode.Parse(File.ReadAllBytes(target))!.AsObject().ContainsKey("YrkShapes"));
+    }
+
+    [Fact]
+    public void Saving_without_new_shapes_removes_sidecar_and_backup_omits_embedded_shapes()
+    {
+        SaveTwins();
+        var source = new StampSettings { MyStamps = [Design(StampShape.Box)], Last = Design(StampShape.Oval) };
+        source.Save(FilePath);
+        Assert.False(File.Exists(Shapes));
+        var archive = Path.Combine(_folder.FullName, "test.yrkbackup");
+        var manifest = new BackupWriter().Write(archive, _folder.FullName, "test-password".AsSpan(), "test", BackupSelection.Stamps);
+        Assert.Equal("stamps.json", Assert.Single(manifest.Files).Path);
+        using var zip = OpenBackup(archive);
+        Assert.Null(zip.GetEntry(StampSettings.ShapesFileName));
+        using var stream = zip.GetEntry("stamps.json")!.Open();
+        using var json = JsonDocument.Parse(stream);
+        Assert.False(json.RootElement.TryGetProperty("YrkShapes", out _));
+        Assert.Equal(source.MyStamps, StampSettings.Load(FilePath).MyStamps);
+    }
+
+    [Fact]
+    public void Load_ignores_leftover_YrkShapes_with_future_enum_names()
+    {
+        var source = SaveTwins();
+        var json = JsonNode.Parse(File.ReadAllBytes(FilePath))!.AsObject();
+        json["YrkShapes"] = JsonNode.Parse(source.SerializeShapes());
+        File.WriteAllText(FilePath, json.ToJsonString());
+        Assert.Equal(source.MyStamps, StampSettings.Load(FilePath).MyStamps);
+        Assert.Equal(source.Last, StampSettings.Load(FilePath).Last);
+        File.Delete(Shapes);
+        var loaded = StampSettings.Load(FilePath);
+        Assert.Equal([StampShape.Box, StampShape.Box, StampShape.Oval], loaded.MyStamps.Select(s => s.Shape));
+        Assert.Equal(StampShape.Box, loaded.Last!.Shape);
+    }
 
     [Theory]
     [InlineData("Ribbon")]
@@ -182,6 +281,7 @@ public sealed class StampCompatibilityTests : IDisposable
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
+    [InlineData(false, true)]
     [InlineData(true, true)]
     public void Backup_import_keeps_shapes_in_empty_or_colliding_store_and_rekeys_after_rename(bool collision, bool legacyArchive)
     {
@@ -189,11 +289,12 @@ public sealed class StampCompatibilityTests : IDisposable
         if (legacyArchive) File.Delete(Shapes);
         var archive = Path.Combine(_folder.FullName, "test.yrkbackup");
         var manifest = new BackupWriter().Write(archive, _folder.FullName, "test-password".AsSpan(), "test", BackupSelection.Stamps);
-        Assert.Equal(!legacyArchive, manifest.Files.Any(f => f.Path == StampSettings.ShapesFileName));
+        Assert.Equal("stamps.json", Assert.Single(manifest.Files).Path);
         var target = Path.Combine(_folder.FullName, "target", "stamps.json");
         var existing = new StampSettings { MyStamps = [Design(StampShape.Seal)] };
         if (collision) existing.Save(target);
         new BackupReader().Import(archive, Path.GetDirectoryName(target)!, Path.Combine(_folder.FullName, "staging"), "test-password".AsSpan(), true);
+        Assert.False(JsonNode.Parse(File.ReadAllBytes(target))!.AsObject().ContainsKey("YrkShapes"));
         var loaded = StampSettings.Load(target);
         Assert.Equal(collision ? 4 : 3, loaded.MyStamps.Count);
         if (collision) Assert.Equal(existing.MyStamps[0], loaded.MyStamps[0]);

@@ -239,8 +239,6 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
         var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in manifest.Files)
         {
-            // Shapes travel with stamps, including when the archive predates the sidecar.
-            if (file.Path == StampSettings.ShapesFileName) continue;
             var staged = BackupFormat.Under(staging, file.Path);
             var target = BackupFormat.Under(data, file.Path);
             BackupFormat.CheckNoLinks(target);
@@ -254,15 +252,19 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
                 var shapesTarget = StampSettings.ShapesPath(target);
                 BackupFormat.CheckNoLinks(shapesTarget);
                 if (Directory.Exists(shapesTarget)) throw BackupFormat.Invalid();
-                var hasShapes = File.Exists(StampSettings.ShapesPath(staged)) || File.Exists(shapesTarget);
-                if (exists) MergeStamps(staged, target);
-                else if (hasShapes)
+                var imported = MergeStamps(staged, exists ? target : null);
+                // Clear any stale local keys even when the imported archive has no new shapes.
+                if (imported.HasNewShapes || File.Exists(shapesTarget))
                 {
-                    var imported = ReadStamps(staged);
-                    BackupFormat.AtomicWrite(StampSettings.ShapesPath(staged), imported.SerializeShapes(), overwrite: true);
-                }
-                if (hasShapes)
+                    var shapes = imported.SerializeShapes();
+                    try
+                    {
+                        if (shapes.Length > BackupFormat.MaxFileBytes) throw BackupFormat.Invalid();
+                        BackupFormat.AtomicWrite(StampSettings.ShapesPath(staged), shapes);
+                    }
+                    finally { CryptographicOperations.ZeroMemory(shapes); }
                     result.Add(new(StampSettings.ShapesFileName, StampSettings.ShapesPath(staged), shapesTarget, File.Exists(shapesTarget)));
+                }
             }
             if (file.Path.StartsWith("TrustedCertificates/", StringComparison.Ordinal))
             {
@@ -320,60 +322,74 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
         return result;
     }
 
-    private static void MergeStamps(string staged, string existing)
+    private static StampSettings MergeStamps(string staged, string? existing)
     {
         // Use the actual StampSettings schema; retain unknown settings and the existing designs.
-        var currentBytes = BackupFormat.ReadBounded(existing, BackupFormat.MaxFileBytes);
+        var currentBytes = existing is null ? null : BackupFormat.ReadBounded(existing, BackupFormat.MaxFileBytes);
         var importedBytes = BackupFormat.ReadBounded(staged, BackupFormat.MaxFileBytes);
         try
         {
-            var current = JsonNode.Parse(currentBytes)?.AsObject() ?? throw BackupFormat.Invalid();
             var imported = JsonNode.Parse(importedBytes)?.AsObject() ?? throw BackupFormat.Invalid();
-            var stamps = current["MyStamps"]?.AsArray() ?? throw BackupFormat.Invalid();
-            var incoming = imported["MyStamps"]?.AsArray() ?? throw BackupFormat.Invalid();
-            var currentDesigns = ReadStamps(existing);
-            var importedDesigns = ReadStamps(staged);
-            var incomingIndex = 0;
-            var names = new HashSet<string>(stamps.Select(s => s?["Text"]?.GetValue<string>() ?? throw BackupFormat.Invalid()), StringComparer.OrdinalIgnoreCase);
-            foreach (var stamp in incoming)
+            var importedDesigns = ReadStamps(staged, embeddedShapes: true);
+            var designs = importedDesigns;
+            if (currentBytes is not null)
             {
-                var copy = stamp?.DeepClone().AsObject() ?? throw BackupFormat.Invalid();
-                var name = copy["Text"]?.GetValue<string>() ?? throw BackupFormat.Invalid();
-                var chosen = name;
-                for (var n = 1; !names.Add(chosen); n++) chosen = name + (n == 1 ? " (นำเข้า)" : $" (นำเข้า) ({n})");
-                copy["Text"] = chosen;
-                stamps.Add(copy);
-                currentDesigns.MyStamps.Add(importedDesigns.MyStamps[incomingIndex++] with { Text = chosen });
+                var current = JsonNode.Parse(currentBytes)?.AsObject() ?? throw BackupFormat.Invalid();
+                var stamps = current["MyStamps"]?.AsArray() ?? throw BackupFormat.Invalid();
+                var incoming = imported["MyStamps"]?.AsArray() ?? throw BackupFormat.Invalid();
+                designs = ReadStamps(existing!);
+                var incomingIndex = 0;
+                var names = new HashSet<string>(stamps.Select(s => s?["Text"]?.GetValue<string>() ?? throw BackupFormat.Invalid()), StringComparer.OrdinalIgnoreCase);
+                foreach (var stamp in incoming)
+                {
+                    var copy = stamp?.DeepClone().AsObject() ?? throw BackupFormat.Invalid();
+                    var name = copy["Text"]?.GetValue<string>() ?? throw BackupFormat.Invalid();
+                    var chosen = name;
+                    for (var n = 1; !names.Add(chosen); n++) chosen = name + (n == 1 ? " (นำเข้า)" : $" (นำเข้า) ({n})");
+                    copy["Text"] = chosen;
+                    stamps.Add(copy);
+                    designs.MyStamps.Add(importedDesigns.MyStamps[incomingIndex++] with { Text = chosen });
+                }
+                imported["MyStamps"] = stamps.DeepClone();
+                // Last is independent of the list and retains the imported Last's own shape.
+                designs.Last = importedDesigns.Last;
             }
-            imported["MyStamps"] = stamps.DeepClone();
+            var hadShapes = imported.Remove("YrkShapes");
+            if (currentBytes is null && !hadShapes) return designs;
             var merged = JsonSerializer.SerializeToUtf8Bytes(imported);
             try
             {
                 if (merged.Length > BackupFormat.MaxFileBytes) throw BackupFormat.Invalid();
                 BackupFormat.AtomicWrite(staged, merged, overwrite: true);
-                // Last is independent of the list and retains the imported Last's own shape.
-                currentDesigns.Last = importedDesigns.Last;
-                if (File.Exists(StampSettings.ShapesPath(staged)) || File.Exists(StampSettings.ShapesPath(existing)))
-                    BackupFormat.AtomicWrite(StampSettings.ShapesPath(staged), currentDesigns.SerializeShapes(), overwrite: true);
             }
             finally { CryptographicOperations.ZeroMemory(merged); }
+            return designs;
         }
         finally
         {
-            CryptographicOperations.ZeroMemory(currentBytes);
+            if (currentBytes is not null) CryptographicOperations.ZeroMemory(currentBytes);
             CryptographicOperations.ZeroMemory(importedBytes);
         }
     }
 
-    private static StampSettings ReadStamps(string path)
+    private static StampSettings ReadStamps(string path, bool embeddedShapes = false)
     {
         var bytes = BackupFormat.ReadBounded(path, BackupFormat.MaxFileBytes);
         byte[]? shapes = null;
         try
         {
-            var sidecar = StampSettings.ShapesPath(path);
-            BackupFormat.CheckNoLinks(sidecar);
-            if (File.Exists(sidecar)) shapes = BackupFormat.ReadBounded(sidecar, BackupFormat.MaxFileBytes);
+            if (embeddedShapes)
+            {
+                using var json = JsonDocument.Parse(bytes);
+                if (json.RootElement.TryGetProperty("YrkShapes", out var extra))
+                    shapes = JsonSerializer.SerializeToUtf8Bytes(extra);
+            }
+            else
+            {
+                var sidecar = StampSettings.ShapesPath(path);
+                BackupFormat.CheckNoLinks(sidecar);
+                if (File.Exists(sidecar)) shapes = BackupFormat.ReadBounded(sidecar, BackupFormat.MaxFileBytes);
+            }
             return StampSettings.Deserialize(bytes, shapes);
         }
         finally

@@ -37,6 +37,7 @@ public sealed class StampSettings
 
     internal static string ShapesPath(string path) => Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path))!, ShapesFileName);
     private static bool IsNew(StampShape shape) => shape is StampShape.Ribbon or StampShape.Seal;
+    internal bool HasNewShapes => MyStamps.Any(s => IsNew(s.Shape)) || Last is not null && IsNew(Last.Shape);
     private static StampDesign Legacy(StampDesign design) => IsNew(design.Shape) ? design with { Shape = StampShape.Box } : design;
 
     internal byte[] SerializeLegacy() => JsonSerializer.SerializeToUtf8Bytes(new StampSettings
@@ -116,7 +117,12 @@ public sealed class StampSettings
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             BackupFormat.AtomicWrite(path, SerializeLegacy(), overwrite: true);
-            BackupFormat.AtomicWrite(ShapesPath(path), SerializeShapes(), overwrite: true);
+            if (HasNewShapes) BackupFormat.AtomicWrite(ShapesPath(path), SerializeShapes(), overwrite: true);
+            else
+            {
+                BackupFormat.CheckNoLinks(ShapesPath(path));
+                File.Delete(ShapesPath(path));
+            }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

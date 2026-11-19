@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Yrk.PdfStudio.App.Services.Backup;
 
@@ -33,6 +34,12 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
                     var bytes = BackupFormat.ReadBounded(BackupFormat.Under(dataDirectory, path), BackupFormat.MaxFileBytes);
                     try
                     {
+                        if (path == "stamps.json")
+                        {
+                            var stamps = EmbedShapes(bytes, BackupFormat.Under(dataDirectory, path));
+                            CryptographicOperations.ZeroMemory(bytes);
+                            bytes = stamps;
+                        }
                         if (BackupFormat.IsSignature(path))
                         {
                             var portable = _signatures.Unprotect(bytes);
@@ -80,12 +87,30 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
     {
         "settings.json" => BackupSelection.Settings,
         "reader-bookmarks.json" => BackupSelection.Settings,
-        "stamps.json" or "stamp-shapes.json" => BackupSelection.Stamps,
+        "stamps.json" => BackupSelection.Stamps,
         "etax.json" => BackupSelection.ETax,
         _ when path.StartsWith("Signatures/", StringComparison.Ordinal) => BackupSelection.Signatures,
         _ when path.StartsWith("DigitalIDs/", StringComparison.Ordinal) => BackupSelection.DigitalIds,
         _ => BackupSelection.TrustedCertificates
     };
+
+    private static byte[] EmbedShapes(byte[] bytes, string path)
+    {
+        byte[]? shapes = null;
+        try
+        {
+            var sidecar = StampSettings.ShapesPath(path);
+            BackupFormat.CheckNoLinks(sidecar);
+            if (File.Exists(sidecar)) shapes = BackupFormat.ReadBounded(sidecar, BackupFormat.MaxFileBytes);
+            var settings = StampSettings.Deserialize(bytes, shapes);
+            var json = JsonNode.Parse(bytes)?.AsObject() ?? throw BackupFormat.Invalid();
+            var hadShapes = json.Remove("YrkShapes");
+            if (!settings.HasNewShapes && !hadShapes) return bytes.ToArray();
+            if (settings.HasNewShapes) json["YrkShapes"] = JsonNode.Parse(settings.SerializeShapes());
+            return JsonSerializer.SerializeToUtf8Bytes(json);
+        }
+        finally { if (shapes is not null) CryptographicOperations.ZeroMemory(shapes); }
+    }
 
     internal static IEnumerable<string> Sources(string root)
     {
