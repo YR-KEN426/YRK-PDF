@@ -47,15 +47,15 @@
 
   <h3>Opening files</h3>
   <ul>
-    <li>Drag one or more PDFs from File Explorer onto the window.</li>
+    <li>Drag one or more PDF, DWG, DXF or AI files from File Explorer onto the window.</li>
     <li>Or press <kbd>Ctrl</kbd>+<kbd>O</kbd>, or the <span class="path">Open</span> button. The arrow next to it lists recent files.</li>
     <li>Select several files in the <span class="path">Open</span> dialog; each one gets its own tab. If you select or drop more than 20 files, the app asks before opening them. If a file cannot be opened or you cancel its password prompt, the app skips it and continues with the next file.</li>
     <li>Besides PDF, AutoCAD drawings (DWG, DXF) open too.</li>
-    <li>Reopening a file returns to the page you last read. The last 200 files are remembered on this computer only; clearing the recent files list clears this history too.</li>
+    <li>When you reopen a file, the app returns to your last-read page. The home page's recent files panel shows when each file was last opened; this is stored locally in recent-times.json. Hide the panel in the <span class="path">Privacy</span> window. <span class="path">File → Clear list</span> also clears recent files, reading marks and last-read positions.</li>
   </ul>
 
   <h3>Start page</h3>
-  <p>With no file open, or after the house button, the start page shows every tool, grouped by task. Click a card to start.</p>
+  <p>With no file open, or after the house button, the home page shows the logo, Thai|EN language buttons and a centered tool search (press <kbd>Ctrl</kbd>+<kbd>F</kbd>). Drop a PDF, DWG, DXF or AI file in the drop area, or press <span class="path">Open file</span> to choose one. Document buttons are hidden from the top bar while on the home page. Tool cards have two views: <span class="path">Frequently used</span> (8 cards) and <span class="path">All</span>, grouped by category with category tabs. Cards show a short description and a tooltip with the full description; long tool names can use two lines.</p>
   <figure><img src="../release-repo/site-src/img/en/home.jpg" alt=""><figcaption>The start page: every tool, grouped by task</figcaption></figure>
 
   <h3>The main window</h3>
@@ -186,7 +186,7 @@
   <figure class="half"><img src="../release-repo/site-src/img/en/certified-copy.jpg" alt=""><figcaption>The certified copy stamp with its purpose and signature</figcaption></figure>
 
   <h3>Rubber stamps</h3>
-  <p><span class="path">Rubber stamp</span> has the stamps offices use every day: approved, received, paid, checked, original, copy, urgent, cancelled and confidential, with the date (Thai Buddhist year or English). Choose Thai, English, or both (the Thai word with the English one under it). Pick another date, change the words, colour and shape, or add small lines under the word, such as your company name or "by ......", then click <span class="path">Save to my stamps</span> to use it again.</p>
+  <p><span class="path">Rubber stamp</span> has the stamps offices use every day: approved, received, paid, checked, original, copy, urgent, cancelled and confidential, with a date. Choose Thai, English, or both (the Thai word with the English one under it). Pick another date, change the words, colour and shape. The new Ribbon and double-circle Seal shapes center the text in the stamp. Choose ink colour with the colour wheel; the selected stamp has a thick border. New shapes are included in and can be imported from backup files, and stamps saved in older versions still open. In an older version, a new shape appears as a rectangle, but the stamp remains. Then click <span class="path">Save to my stamps</span> to use it again.</p>
   <p>Click on the page to place the stamp; drag to move or resize it. Use the <span class="path">Rotate</span> handle above the box to rotate freely (hold <kbd>Shift</kbd> to snap to 15° steps), or press <span class="path">Rotate 90° clockwise</span> (the ↻ 90° button), and use the ◐ button to set opacity from 10–100%. Its words are saved as real text, so they can be searched and copied.</p>
   <h3>Edit saved pictures, stamps and signatures</h3>
   <p>Open the <span class="path">Edit</span> tab and click an item placed by YRK and saved in the file to move, rotate, change its opacity or delete it (<kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes the change). Pictures not placed by YRK can only be deleted. Saved items cannot yet be resized.</p>
