@@ -25,7 +25,7 @@
             </StackPanel>
         </Grid>
         <TextBlock Text="Province" Style="{StaticResource AddressLabel}" />
-        <ComboBox x:Name="ProvinceInput" DisplayMemberPath="Name" AutomationProperties.Name="Province" SelectionChanged="OnProvinceChanged" />
+        <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="ProvinceInput" DisplayMemberPath="Name" AutomationProperties.Name="Province" SelectionChanged="OnProvinceChanged" />
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition />
@@ -34,15 +34,15 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="District" Style="{StaticResource AddressLabel}" />
-                <ComboBox x:Name="DistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="District" SelectionChanged="OnDistrictChanged" />
+                <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="DistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="District" SelectionChanged="OnDistrictChanged" />
             </StackPanel>
             <StackPanel Grid.Column="2">
                 <TextBlock Text="Subdistrict" Style="{StaticResource AddressLabel}" />
-                <ComboBox x:Name="SubdistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="Subdistrict" SelectionChanged="OnSubdistrictChanged" />
+                <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="SubdistrictInput" DisplayMemberPath="Name" AutomationProperties.Name="Subdistrict" SelectionChanged="OnSubdistrictChanged" />
             </StackPanel>
         </Grid>
         <TextBlock Text="Postcode" Style="{StaticResource AddressLabel}" />
-        <ComboBox x:Name="PostcodeInput" IsEditable="True" IsTextSearchEnabled="False"
+        <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="PostcodeInput" IsEditable="True" IsTextSearchEnabled="False"
                   TextSearch.TextPath="Postcode" AutomationProperties.Name="Postcode">
             <ComboBox.ItemTemplate>
                 <DataTemplate>

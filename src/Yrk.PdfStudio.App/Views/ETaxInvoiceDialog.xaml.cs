@@ -101,6 +101,12 @@ public partial class ETaxInvoiceDialog : Window
 
     public TaxInvoice? Invoice { get; private set; }
 
+    private void OnFormContentRendered(object? sender, EventArgs e)
+    {
+        // Initial seller/buyer focus must not scroll the document fields out of view.
+        FormScrollViewer.ScrollToTop();
+    }
+
     private static DataGridTextColumn Column(string header, string path, DataGridLength width, bool right = false, bool readOnly = false)
     {
         var column = new DataGridTextColumn
@@ -226,11 +232,13 @@ public partial class ETaxInvoiceDialog : Window
         TotalText.Text = invoice.Lines.Count == 0
             ? string.Empty
             : (invoice.IsDebitCreditNote
-                ? Loc.F("Original {0} · Correct {1} · Difference {2} · VAT {3} · Total {4}", Money(invoice.OriginalValue), Money(invoice.CorrectValue), Money(invoice.Difference), Money(invoice.Vat), Money(invoice.GrandTotal))
+                ? Loc.F("Original {0} · Correct {1} · Difference {2} · VAT {3}", Money(invoice.OriginalValue), Money(invoice.CorrectValue), Money(invoice.Difference), Money(invoice.Vat))
                 : hasDiscount
-                    ? Loc.F("Before discount {0} · Discount {1} · Before VAT {2} · VAT {3} · Total {4}", Money(invoice.Lines.Sum(l => l.Gross)), Money(invoice.Lines.Sum(l => l.DiscountAmount) + invoice.DiscountAmount), Money(invoice.TaxBasis), Money(invoice.Vat), Money(invoice.GrandTotal))
-                    : Loc.F("Before VAT {0} · VAT {1} · Total {2}", Money(invoice.TaxBasis), Money(invoice.Vat), Money(invoice.GrandTotal)))
-              + $"  ({AmountInWords.Thai(invoice.GrandTotal)})";
+                    ? Loc.F("Before discount {0} · Discount {1} · Before VAT {2} · VAT {3}", Money(invoice.Lines.Sum(l => l.Gross)), Money(invoice.Lines.Sum(l => l.DiscountAmount) + invoice.DiscountAmount), Money(invoice.TaxBasis), Money(invoice.Vat))
+                    : Loc.F("Before VAT {0} · VAT {1}", Money(invoice.TaxBasis), Money(invoice.Vat)));
+        GrandTotalText.Text = invoice.Lines.Count == 0
+            ? string.Empty
+            : Loc.F("Total {0}", Money(invoice.GrandTotal)) + $"  ({AmountInWords.Thai(invoice.GrandTotal)})";
         ErrorText.Text = string.Join("\n", problems.Take(3).Select(Loc.T));
         OkButton.IsEnabled = problems.Count == 0;
     }

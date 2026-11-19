@@ -3,13 +3,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:Yrk.PdfStudio.App.Views"
         Title="e-Tax Invoice"
-        Width="780"
+        Width="820"
         Height="760"
-        MinWidth="640"
-        MinHeight="480"
+        MinWidth="480"
+        MinHeight="360"
+        MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
+        MaxWidth="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Width}"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
-        Background="{DynamicResource SurfaceBrush}"
+        ContentRendered="OnFormContentRendered"
+        Background="{DynamicResource PageBackgroundBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
@@ -20,53 +23,63 @@
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="5,4" />
         </Style>
+        <Style x:Key="FormCard" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtleBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="16" />
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+        <Style x:Key="CardHeading" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="16" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
     </Window.Resources>
     <DockPanel Margin="20,16,20,16">
-        <StackPanel DockPanel.Dock="Top">
-            <TextBlock Text="Make an e-Tax document (tax invoice, debit note, credit note)" FontSize="16" FontWeight="SemiBold" />
-            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,6"
-                       Text="The PDF is made as PDF/A-3 with the Revenue Department's XML (ETDA standard) inside. Sign it with your digital ID afterwards, then email it to the buyer." />
-            <TextBlock Text="YRK PDF e-Tax status" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,2" />
-            <TextBlock Text="• Follows ETDA standard ขมธอ. 3-2560, version 2.0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-            <TextBlock Text="• A sample XML file passed the structure check on the Revenue Department's validation page" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-            <TextBlock Text="• It has never been tested by actually submitting to the e-Tax Invoice system" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-            <TextBlock Text="• It is not certified by the Revenue Department" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-            <TextBlock Text="• YRK PDF is not an e-Tax Invoice service provider. You must check the file and are responsible for submitting it yourself" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-        </StackPanel>
-
-        <StackPanel DockPanel.Dock="Bottom">
-            <TextBlock x:Name="TotalText" FontWeight="SemiBold" Margin="0,10,0,0" TextWrapping="Wrap" />
+        <Border DockPanel.Dock="Bottom" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="16,10,16,0"><StackPanel>
+            <TextBlock x:Name="TotalText" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" />
+            <TextBlock x:Name="GrandTotalText" FontSize="22" FontWeight="Bold" Margin="0,6,0,0" TextWrapping="Wrap" />
             <TextBlock x:Name="ErrorText" Foreground="{DynamicResource ErrorBrush}" Margin="0,6,0,0" TextWrapping="Wrap" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                 <Button x:Name="OkButton" Content="Create e-Tax Invoice" IsDefault="True" Style="{StaticResource PrimaryButton}" Click="OnOk" />
                 <Button Content="Cancel" IsCancel="True" Style="{StaticResource SecondaryButton}" Margin="8,0,0,0" />
             </StackPanel>
+        </StackPanel></Border>
+
+        <ScrollViewer x:Name="FormScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="0,0,8,0">
+        <StackPanel Margin="0,0,0,12">
+            <TextBlock Text="Make an e-Tax document (tax invoice, debit note, credit note)" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+            <Expander Header="YRK PDF e-Tax status" Margin="0,4,0,0"><StackPanel>
+            <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,6"
+                       Text="The PDF is made as PDF/A-3 with the Revenue Department's XML (ETDA standard) inside. Sign it with your digital ID afterwards, then email it to the buyer." />
+
+            <TextBlock Text="• Follows ETDA standard ขมธอ. 3-2560, version 2.0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock Text="• A sample XML file passed the structure check on the Revenue Department's validation page" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock Text="• It has never been tested by actually submitting to the e-Tax Invoice system" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock Text="• It is not certified by the Revenue Department" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            <TextBlock Text="• YRK PDF is not an e-Tax Invoice service provider. You must check the file and are responsible for submitting it yourself" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+            </StackPanel></Expander>
         </StackPanel>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="0,0,8,0">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="2*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="1.5*" />
-                        <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="1.2*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel>
+                <Border Style="{StaticResource FormCard}"><StackPanel>
+                <TextBlock Text="Document" Style="{StaticResource CardHeading}" />
+                <WrapPanel>
+                    <StackPanel Width="260" Margin="0,0,12,0">
                         <TextBlock Text="Document" Style="{StaticResource Label}" />
-                        <ComboBox x:Name="TypeInput" AutomationProperties.Name="Document" SelectionChanged="OnTypeChanged" />
+                        <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="TypeInput" AutomationProperties.Name="Document" SelectionChanged="OnTypeChanged" />
                     </StackPanel>
-                    <StackPanel Grid.Column="2">
+                    <StackPanel Width="170" Margin="0,0,12,0">
                         <TextBlock Text="Number" Style="{StaticResource Label}" />
                         <TextBox x:Name="NumberInput" AutomationProperties.Name="Number" TextChanged="OnChanged" />
                     </StackPanel>
-                    <StackPanel Grid.Column="4">
+                    <StackPanel Width="170">
                         <TextBlock Text="Date" Style="{StaticResource Label}" />
-                        <DatePicker x:Name="DateInput" AutomationProperties.Name="Date" SelectedDateChanged="OnChanged" />
+                        <DatePicker Style="{StaticResource {x:Type DatePicker}}" x:Name="DateInput" AutomationProperties.Name="Date" SelectedDateChanged="OnChanged" />
                     </StackPanel>
-                </Grid>
-
+                </WrapPanel>
                 <StackPanel x:Name="ReferencePanel" Visibility="Collapsed" Margin="0,10,0,0">
                     <TextBlock Text="Original tax invoice" FontWeight="SemiBold" />
                     <WrapPanel>
@@ -76,7 +89,7 @@
                         </StackPanel>
                         <StackPanel Width="170" Margin="0,0,8,0">
                             <TextBlock Text="Date" Style="{StaticResource Label}" />
-                            <DatePicker x:Name="ReferenceDateInput" AutomationProperties.Name="Original invoice date" SelectedDateChanged="OnChanged" Loaded="OnReferenceDateLoaded" />
+                            <DatePicker Style="{StaticResource {x:Type DatePicker}}" x:Name="ReferenceDateInput" AutomationProperties.Name="Original invoice date" SelectedDateChanged="OnChanged" Loaded="OnReferenceDateLoaded" />
                         </StackPanel>
                         <StackPanel Width="170">
                             <TextBlock Text="Value before VAT" Style="{StaticResource Label}" />
@@ -84,22 +97,17 @@
                         </StackPanel>
                     </WrapPanel>
                     <TextBlock Text="Original invoice type" Style="{StaticResource Label}" />
-                    <ComboBox x:Name="ReferenceTypeInput" AutomationProperties.Name="Original invoice type" SelectionChanged="OnChanged" />
+                    <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="ReferenceTypeInput" AutomationProperties.Name="Original invoice type" SelectionChanged="OnChanged" />
                     <TextBlock Text="Reason" Style="{StaticResource Label}" />
-                    <ComboBox x:Name="ReasonInput" AutomationProperties.Name="Reason" SelectionChanged="OnReasonChanged" />
+                    <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="ReasonInput" AutomationProperties.Name="Reason" SelectionChanged="OnReasonChanged" />
                     <TextBlock Text="Reason details" Style="{StaticResource Label}" />
                     <TextBox x:Name="ReasonDetailsInput" AutomationProperties.Name="Reason details" TextChanged="OnChanged" TextWrapping="Wrap" AcceptsReturn="True" MinLines="2" IsEnabled="False" />
                 </StackPanel>
 
-                <Grid Margin="0,10,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition />
-                        <ColumnDefinition Width="20" />
-                        <ColumnDefinition />
-                    </Grid.ColumnDefinitions>
-
+                </StackPanel></Border>
+                <Border Style="{StaticResource FormCard}">
                     <StackPanel>
-                        <TextBlock Text="Seller (your business, remembered)" FontWeight="SemiBold" Margin="0,6,0,0" />
+                        <TextBlock Text="Seller (your business, remembered)" Style="{StaticResource CardHeading}" />
                         <TextBlock Text="Name" Style="{StaticResource Label}" />
                         <TextBox x:Name="SellerName" AutomationProperties.Name="Seller name" TextChanged="OnChanged" />
                         <Grid>
@@ -125,8 +133,10 @@
                         <TextBox x:Name="SellerEmail" AutomationProperties.Name="Seller email" />
                     </StackPanel>
 
-                    <StackPanel Grid.Column="2">
-                        <TextBlock Text="Buyer" FontWeight="SemiBold" Margin="0,6,0,0" />
+                </Border>
+                <Border Style="{StaticResource FormCard}">
+                    <StackPanel>
+                        <TextBlock Text="Buyer" Style="{StaticResource CardHeading}" />
                         <TextBlock Text="Name" Style="{StaticResource Label}" />
                         <TextBox x:Name="BuyerName" AutomationProperties.Name="Buyer name" TextChanged="OnChanged" />
                         <Grid>
@@ -139,7 +149,7 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <TextBlock Text="Identified by" Style="{StaticResource Label}" />
-                                <ComboBox x:Name="BuyerKind" AutomationProperties.Name="Buyer identified by" SelectionChanged="OnChanged" />
+                                <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="BuyerKind" AutomationProperties.Name="Buyer identified by" SelectionChanged="OnChanged" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
                                 <TextBlock Text="Number" Style="{StaticResource Label}" />
@@ -164,24 +174,48 @@
                         <TextBlock Text="Email" Style="{StaticResource Label}" />
                         <TextBox x:Name="BuyerEmail" AutomationProperties.Name="Buyer email" />
                     </StackPanel>
-                </Grid>
+                </Border>
 
-                <TextBlock Text="Items" FontWeight="SemiBold" Margin="0,16,0,4" />
+                <Border Style="{StaticResource FormCard}"><StackPanel>
+                <TextBlock Text="Items" Style="{StaticResource CardHeading}" />
                 <DataGrid x:Name="ItemsGrid" AutoGenerateColumns="False" CanUserAddRows="True" CanUserDeleteRows="True"
-                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" MinHeight="140" RowHeight="26"
-                          AutomationProperties.Name="Items" CellEditEnding="OnCellEditEnding" RowEditEnding="OnRowEditEnding" />
+                          HeadersVisibility="Column" GridLinesVisibility="Horizontal" MinHeight="140" MaxHeight="320" MinRowHeight="32"
+                          AutomationProperties.Name="Items" CellEditEnding="OnCellEditEnding" RowEditEnding="OnRowEditEnding">
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource CheckedBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="{DynamicResource CheckedBrush}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource CheckedBrush}" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+                </DataGrid>
                 <TextBlock Text="Type in the empty last row to add an item; select a row and press Delete to remove it." FontSize="11"
                            Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,3,0,0" />
 
                 <TextBlock Text="Bill discount" Style="{StaticResource Label}" />
                 <TextBox x:Name="BillDiscountInput" AutomationProperties.Name="Bill discount" TextChanged="OnChanged" />
-                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                <WrapPanel Margin="0,12,0,0">
                     <TextBlock Text="VAT %" VerticalAlignment="Center" />
                     <TextBox x:Name="VatInput" Width="50" Margin="6,0,16,0" Text="7" TextAlignment="Center" AutomationProperties.Name="VAT percent" TextChanged="OnChanged" />
                     <CheckBox x:Name="IncludesVatInput" Content="Prices include VAT" VerticalAlignment="Center" Click="OnChanged" />
-                </StackPanel>
+                </WrapPanel>
                 <TextBlock Text="Note (optional)" Style="{StaticResource Label}" />
                 <TextBox x:Name="NoteInput" AutomationProperties.Name="Note" />
+                </StackPanel></Border>
             </StackPanel>
         </ScrollViewer>
     </DockPanel>
