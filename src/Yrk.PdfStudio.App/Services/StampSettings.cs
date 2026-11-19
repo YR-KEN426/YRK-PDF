@@ -62,30 +62,35 @@ public sealed class StampSettings
     {
         var settings = JsonSerializer.Deserialize<StampSettings>(bytes, Json) ?? new();
         settings.MyStamps ??= [];
-        if (shapes is null) return settings;
+        settings.RestoreShapes(shapes);
+        return settings;
+    }
+
+    internal void RestoreShapes(byte[]? shapes)
+    {
+        if (shapes is null) return;
         try
         {
             var extra = JsonSerializer.Deserialize<ShapeSettings>(shapes, Json);
-            if (extra is null) return settings;
+            if (extra is null) return;
             // Validate all matches before changing any design.
-            var groups = settings.MyStamps.Select((design, index) => (design, index))
+            var groups = MyStamps.Select((design, index) => (design, index))
                 .GroupBy(item => item.design).ToDictionary(g => g.Key, g => g.Select(item => item.index).ToArray());
             var matches = new List<(int Index, StampShape Shape)>();
             foreach (var group in (extra.Stamps ?? []).Where(e => e is not null).GroupBy(e => e.Design))
             {
-                if (group.Key is null || !groups.TryGetValue(group.Key, out var indices)) continue;
+                if (group.Key is null || group.Key.Shape != StampShape.Box || !groups.TryGetValue(group.Key, out var indices)) continue;
                 var entries = group.ToList();
                 if (entries.Any(e => e.Count != indices.Length || e.Ordinal < 0 || e.Ordinal >= indices.Length || !IsNew(e.Shape))
                     || entries.Select(e => e.Ordinal).Distinct().Count() != entries.Count) continue;
                 matches.AddRange(entries.Select(e => (indices[e.Ordinal], e.Shape)));
             }
             foreach (var match in matches)
-                settings.MyStamps[match.Index] = settings.MyStamps[match.Index] with { Shape = match.Shape };
-            if (extra.Last is { } last && IsNew(last.Shape) && settings.Last == last.Design && settings.Last is not null)
-                settings.Last = settings.Last with { Shape = last.Shape };
+                MyStamps[match.Index] = MyStamps[match.Index] with { Shape = match.Shape };
+            if (extra.Last is { } last && IsNew(last.Shape) && Last == last.Design && Last is { Shape: StampShape.Box })
+                Last = Last with { Shape = last.Shape };
         }
         catch (JsonException) { /* A damaged sidecar must never discard stamps. */ }
-        return settings;
     }
 
     public static StampSettings Load(string? path = null)
@@ -121,9 +126,20 @@ public sealed class StampSettings
         path = Path.GetFullPath(path ?? _path ?? DefaultPath);
         try
         {
+            var preserveShapes = _shapesUnreadable && string.Equals(path, Path.GetFullPath(_path ?? DefaultPath), StringComparison.OrdinalIgnoreCase);
+            if (preserveShapes)
+            {
+                var shapes = ReadShapes(path, out var unreadable);
+                if (!unreadable)
+                {
+                    RestoreShapes(shapes);
+                    _shapesUnreadable = false;
+                    preserveShapes = false;
+                }
+            }
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             BackupFormat.AtomicWrite(path, SerializeLegacy(), overwrite: true);
-            if (_shapesUnreadable && string.Equals(path, Path.GetFullPath(_path ?? DefaultPath), StringComparison.OrdinalIgnoreCase))
+            if (preserveShapes)
             {
                 // Leave the unreadable sidecar alone; the next load may read it again.
             }

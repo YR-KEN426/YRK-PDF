@@ -355,7 +355,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     private IRelayCommand? _clearRecentCommand;
 
-    public IRelayCommand ClearRecentCommand => _clearRecentCommand ??= new RelayCommand(RecentFiles.Clear);
+    public IRelayCommand ClearRecentCommand => _clearRecentCommand ??= new RelayCommand(() =>
+    {
+        if (!RecentFiles.Clear())
+            _dialogs.ShowInfo(Loc.T("Some recent-file data could not be cleared. Close other programs that may be using it and try again."));
+    });
 
     /// <summary>
     /// Opens <paramref name="path"/> and replaces the current document. With <paramref name="keepEdits"/>

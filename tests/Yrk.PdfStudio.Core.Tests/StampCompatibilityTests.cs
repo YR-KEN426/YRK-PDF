@@ -265,6 +265,40 @@ public sealed class StampCompatibilityTests : IDisposable
     }
 
     [Fact]
+    public void Save_recovers_unlocked_sidecar_and_preserves_old_and_new_shapes()
+    {
+        var expected = SaveTwins();
+        StampSettings loaded;
+        using (var locked = new FileStream(Shapes, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            loaded = StampSettings.Load(FilePath);
+            Assert.Equal(StampShape.Box, loaded.MyStamps[0].Shape);
+        }
+        var added = Design(StampShape.Seal) with { Text = "New seal" };
+        loaded.MyStamps.Add(added);
+        loaded.Save();
+        var actual = StampSettings.Load(FilePath);
+        Assert.Equal(expected.MyStamps.Append(added), actual.MyStamps);
+        Assert.Equal(expected.Last, actual.Last);
+        Assert.Equal(expected.Language, actual.Language);
+    }
+
+    [Fact]
+    public void Save_leaves_still_locked_sidecar_unchanged()
+    {
+        SaveTwins();
+        var bytes = File.ReadAllBytes(Shapes);
+        using (var locked = new FileStream(Shapes, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var loaded = StampSettings.Load(FilePath);
+            loaded.MyStamps.Add(Design(StampShape.Seal) with { Text = "New seal" });
+            loaded.Save();
+        }
+        Assert.Equal(bytes, File.ReadAllBytes(Shapes));
+        Assert.Equal(4, StampSettings.Load(FilePath).MyStamps.Count);
+    }
+
+    [Fact]
     public void Legacy_only_data_loads_unchanged_and_failed_atomic_replace_keeps_original_bytes()
     {
         SaveTwins();

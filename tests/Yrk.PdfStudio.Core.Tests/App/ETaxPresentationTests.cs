@@ -47,12 +47,12 @@ public sealed class ETaxPresentationTests
                 static string Money(decimal value) => value.ToString("#,##0.00", CultureInfo.InvariantCulture);
                 // Compare to the pre-change combined display, including every subtotal and baht text.
                 var legacy = invoice.IsDebitCreditNote
-                    ? Loc.F("Original {0} · Correct {1} · Difference {2} · VAT {3} · Total {4}", Money(invoice.OriginalValue), Money(invoice.CorrectValue), Money(invoice.Difference), Money(invoice.Vat), Money(invoice.GrandTotal))
+                    ? Loc.F("Original {0} · Correct {1} · Difference {2} · VAT {3}", Money(invoice.OriginalValue), Money(invoice.CorrectValue), Money(invoice.Difference), Money(invoice.Vat))
                     : discount.Length > 0
-                        ? Loc.F("Before discount {0} · Discount {1} · Before VAT {2} · VAT {3} · Total {4}", Money(invoice.Lines.Sum(l => l.Gross)), Money(invoice.Lines.Sum(l => l.DiscountAmount) + invoice.DiscountAmount), Money(invoice.TaxBasis), Money(invoice.Vat), Money(invoice.GrandTotal))
-                        : Loc.F("Before VAT {0} · VAT {1} · Total {2}", Money(invoice.TaxBasis), Money(invoice.Vat), Money(invoice.GrandTotal));
+                        ? Loc.F("Before discount {0} · Discount {1} · Before VAT {2} · VAT {3}", Money(invoice.Lines.Sum(l => l.Gross)), Money(invoice.Lines.Sum(l => l.DiscountAmount) + invoice.DiscountAmount), Money(invoice.TaxBasis), Money(invoice.Vat))
+                        : Loc.F("Before VAT {0} · VAT {1}", Money(invoice.TaxBasis), Money(invoice.Vat));
                 var subtotal = Field<TextBlock>("TotalText").Text;
-                Assert.Equal(legacy[..legacy.LastIndexOf(" · ", StringComparison.Ordinal)], subtotal);
+                Assert.Equal(legacy, subtotal);
                 Assert.Equal(Loc.F("Total {0}", Money(invoice.GrandTotal)) + $"  ({AmountInWords.Thai(invoice.GrandTotal)})", Field<TextBlock>("GrandTotalText").Text);
             }
             items.Clear();

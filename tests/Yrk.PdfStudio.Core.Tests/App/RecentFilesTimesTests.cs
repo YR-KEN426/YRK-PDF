@@ -156,13 +156,98 @@ public sealed class RecentFilesTimesTests : IDisposable
         using var storage = Use();
         RecentFiles.Add(Doc("a.pdf"));
         ReadingPositions.Save(Doc("a.pdf"), 3);
-        RecentFiles.Clear();
+        Assert.True(RecentFiles.Clear());
         Assert.Empty(RecentFiles.Items);
         Assert.Empty(Paths());
         Assert.False(File.Exists(Times), "No path may stay behind in the times file.");
         Assert.Equal(0, ReadingPositions.GetPageIndex(Doc("a.pdf")));
         using var reload = Use();
         Assert.Empty(RecentFiles.Items);
+    }
+
+    [Fact]
+    public void Clear_deletes_only_exact_temporary_names_even_when_recent_json_is_locked()
+    {
+        using var storage = Use();
+        RecentFiles.Add(Doc("a.pdf"));
+        var original = File.ReadAllBytes(Main);
+        string[] temporary = [
+            "recent.json.0123456789abcdef0123456789abcdef.tmp",
+            "recent-times.json.0123456789ABCDEF0123456789ABCDEF.tmp",
+        ];
+        string[] kept = [
+            "kept.pdf", "other.json.0123456789abcdef0123456789abcdef.tmp",
+            "recent.json.tmp", "recent.json.0123456789abcdef0123456789abcde.tmp",
+            "recent.json.0123456789abcdef0123456789abcdef0.tmp",
+            "recent.json.0123456789abcdef0123456789abcdeg.tmp",
+            "prefix-recent.json.0123456789abcdef0123456789abcdef.tmp",
+            "recent-times.json.0123456789abcdef0123456789abcdef.tmp.bak",
+        ];
+        foreach (var name in temporary.Concat(kept)) File.WriteAllText(Path.Combine(_folder, name), "keep content");
+        using (var locked = new FileStream(Main, FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.False(RecentFiles.Clear());
+        Assert.Empty(RecentFiles.Items);
+        Assert.Equal(original, File.ReadAllBytes(Main));
+        foreach (var name in temporary) Assert.False(File.Exists(Path.Combine(_folder, name)));
+        foreach (var name in kept) Assert.Equal("keep content", File.ReadAllText(Path.Combine(_folder, name)));
+        Assert.True(RecentFiles.Clear());
+        Assert.Empty(Paths());
+        Assert.False(File.Exists(Times));
+    }
+
+    [Fact]
+    public void Clear_reports_locked_times_file_and_can_be_retried()
+    {
+        using var storage = Use();
+        RecentFiles.Add(Doc("a.pdf"));
+        using (var locked = new FileStream(Times, FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.False(RecentFiles.Clear());
+        Assert.Empty(Paths());
+        Assert.True(RecentFiles.Clear());
+        Assert.False(File.Exists(Times));
+    }
+
+    [Fact]
+    public void Clear_reports_a_locked_leftover_temporary_file()
+    {
+        using var storage = Use();
+        RecentFiles.Add(Doc("a.pdf"));
+        var temporary = Main + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        File.WriteAllText(temporary, "old history");
+        using (var locked = new FileStream(temporary, FileMode.Open, FileAccess.Read, FileShare.None))
+            Assert.False(RecentFiles.Clear());
+        Assert.Empty(Paths());
+        Assert.True(File.Exists(temporary));
+        Assert.True(RecentFiles.Clear());
+        Assert.False(File.Exists(temporary));
+    }
+
+    [AppLogTests.FileSymbolicLinkFact]
+    public void Clear_rejects_temporary_and_main_file_symlinks_without_touching_the_target()
+    {
+        using var storage = Use();
+        RecentFiles.Add(Doc("a.pdf"));
+        var target = Path.Combine(_folder, "private.txt");
+        File.WriteAllText(target, "private content");
+        var temporary = Main + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        File.CreateSymbolicLink(temporary, target);
+        try
+        {
+            Assert.False(RecentFiles.Clear());
+            Assert.Equal("private content", File.ReadAllText(target));
+            Assert.True((File.GetAttributes(temporary) & FileAttributes.ReparsePoint) != 0);
+        }
+        finally { File.Delete(temporary); }
+
+        File.Delete(Main);
+        File.CreateSymbolicLink(Main, target);
+        try
+        {
+            Assert.False(RecentFiles.Clear());
+            Assert.Equal("private content", File.ReadAllText(target));
+            Assert.True((File.GetAttributes(Main) & FileAttributes.ReparsePoint) != 0);
+        }
+        finally { File.Delete(Main); }
     }
 
     [Fact]

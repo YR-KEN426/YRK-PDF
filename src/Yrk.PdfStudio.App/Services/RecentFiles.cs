@@ -2,6 +2,8 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.IO;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using Yrk.PdfStudio.App.Services.Backup;
 
 
 namespace Yrk.PdfStudio.App.Services;
@@ -27,6 +29,7 @@ public sealed record RecentFile(string Path, DateTimeOffset? LastOpened = null)
 public static class RecentFiles
 {
     public const int MaxCount = 12;
+    private static readonly Regex TemporaryFileName = new(@"\Arecent(?:-times)?\.json\.[0-9a-fA-F]{32}\.tmp\z", RegexOptions.CultureInvariant);
 
     private static readonly string DefaultFilePath = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "recent.json");
@@ -103,12 +106,37 @@ public static class RecentFiles
 
     public static void Remove(string path) => Remove(path, save: true);
 
-    public static void Clear()
+    /// <summary>Clears the list and its leftover temporary files; false if any recent-file data could not be cleared.</summary>
+    public static bool Clear()
     {
         ReadingPositions.Clear();
         ReaderBookmarks.Clear();
         Items.Clear();
-        Save();
+        var saved = Save();
+        var cleaned = ClearTemporaryFiles();
+        return saved && cleaned;
+    }
+
+    private static bool ClearTemporaryFiles()
+    {
+        var folder = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(FilePath))!;
+        var cleared = true;
+        try
+        {
+            BackupFormat.CheckNoLinks(folder);
+            if (!Directory.Exists(folder)) return true;
+            foreach (var path in Directory.EnumerateFiles(folder))
+            {
+                if (TemporaryFileName.IsMatch(System.IO.Path.GetFileName(path)))
+                    cleared &= TryWithRetry(() =>
+                    {
+                        BackupFormat.CheckNoLinks(path);
+                        File.Delete(path);
+                    });
+            }
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { return false; }
+        return cleared;
     }
 
     private static void Remove(string path, bool save)
@@ -173,11 +201,11 @@ public static class RecentFiles
     }
 
     /// <summary>Writes recent.json, then recent-times.json (only for paths still in the list). The second is skipped if the first fails.</summary>
-    private static void Save()
+    private static bool Save()
     {
         if (!WriteAtomically(FilePath, JsonSerializer.Serialize(Items.Select(i => i.Path).ToList())))
         {
-            return;
+            return false;
         }
 
         var times = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -188,39 +216,47 @@ public static class RecentFiles
 
         if (times.Count == 0)
         {
-            try
+            if (TryWithRetry(() =>
             {
+                BackupFormat.CheckNoLinks(TimesFilePath);
                 File.Delete(TimesFilePath);
-                return;
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                // Could not delete it: write it empty instead, so no path is left in it.
-            }
+            })) return true;
+            // Could not delete it: write it empty instead, so no path is left in it.
         }
 
-        WriteAtomically(TimesFilePath, JsonSerializer.Serialize(times));
+        return WriteAtomically(TimesFilePath, JsonSerializer.Serialize(times));
+    }
+
+    private static bool TryWithRetry(Action action)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            try { action(); return true; }
+            catch (InvalidDataException) { return false; } // A link is unsafe, rather than temporarily busy.
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt < 2) Thread.Sleep(50);
+            }
+        }
+        return false;
     }
 
     /// <summary>Writes a temporary file beside the target and replaces the target with it. False when that failed (only a convenience).</summary>
-    private static bool WriteAtomically(string path, string content)
+    private static bool WriteAtomically(string path, string content) => TryWithRetry(() =>
     {
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
+            BackupFormat.CheckNoLinks(path);
+            BackupFormat.CheckNoLinks(temporary);
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path)!);
             File.WriteAllText(temporary, content);
             File.Move(temporary, path, overwrite: true);
-            return true;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            return false;
         }
         finally
         {
-            try { File.Delete(temporary); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            try { BackupFormat.CheckNoLinks(temporary); File.Delete(temporary); }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
         }
-    }
+    });
 }
