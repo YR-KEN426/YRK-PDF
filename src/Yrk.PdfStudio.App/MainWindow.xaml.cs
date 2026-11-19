@@ -1625,7 +1625,7 @@ public partial class MainWindow : Window
         else
         {
             menu.Items.Add(new Separator());
-            menu.Items.Add(new MenuItem { Header = "Clear the list", Command = _viewModel.ClearRecentCommand });
+            menu.Items.Add(new MenuItem { Header = "Clear the list (also bookmarks and reading positions)", Command = _viewModel.ClearRecentCommand });
         }
     }
 

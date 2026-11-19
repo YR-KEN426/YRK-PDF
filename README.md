@@ -428,7 +428,7 @@ powershell -ExecutionPolicy Bypass -File build/release.ps1 -UpdateUrl https://do
   tables are turned into images rather than edited. Text that is not on the page itself is not searched:
   bookmarks, document properties and tagged-PDF alternate text may still mention a redacted word. A path
   that only partly lies under a mark (a table line, for example) stays, covered by the black box.
-  Password-protected PDFs cannot be redacted yet.
+  Password-protected PDFs can be redacted too; the result keeps the same passwords.
 - **Text editing** works one line at a time and does not reflow paragraphs. A line in a font without
   exact measurements (see redaction) cannot be edited. Lines with stacked Thai marks are drawn as glyph
   outlines over invisible text (it looks the same and copies correctly, but other editors see shapes).
