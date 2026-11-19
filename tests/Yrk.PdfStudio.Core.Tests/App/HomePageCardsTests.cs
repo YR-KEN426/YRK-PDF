@@ -18,13 +18,13 @@ namespace Yrk.PdfStudio.Core.Tests;
 /// <summary>Start page, step 4b: the frequent tools, the All view by category, the category buttons (a real tab control) and the search.</summary>
 public sealed partial class HomePageTests
 {
-    private sealed record ToolInfo(string Id, string Category, string TitleKey, string TextKey, string KeywordsKey, string TipKey, bool Accounting);
+    private sealed record ToolInfo(string Id, string Category, string TitleKey, string TextKey, string KeywordsKey, string TipKey, bool Accounting, string? FullKey);
 
     private static List<ToolInfo> Tools() => ((IEnumerable)typeof(MainWindow).GetMethod("HomeTools", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, null)!)
         .Cast<object>().Select(t =>
         {
             string S(string p) => (string)t.GetType().GetProperty(p)!.GetValue(t)!;
-            return new ToolInfo(S("Id"), S("Category"), S("TitleKey"), S("TextKey"), S("KeywordsKey"), S("TipKey"), (bool)t.GetType().GetProperty("Accounting")!.GetValue(t)!);
+            return new ToolInfo(S("Id"), S("Category"), S("TitleKey"), S("TextKey"), S("KeywordsKey"), S("TipKey"), (bool)t.GetType().GetProperty("Accounting")!.GetValue(t)!, (string?)t.GetType().GetProperty("FullKey")!.GetValue(t));
         }).ToList();
 
     private static readonly string[] CategoryIds = ["organize", "convert", "edit", "accounting", "drawings", "security"];
@@ -429,9 +429,11 @@ public sealed partial class HomePageTests
                     var lines = ((StackPanel)tip.Content).Children.OfType<TextBlock>().Select(t => t.Text).ToArray();
 
                     Assert.Equal(thai ? Loc.InThai(tool.TextKey) : tool.TextKey, texts[1].Text);
-                    Assert.Equal(2, lines.Length);
+                    var full = tool.FullKey is { } k && (thai ? Loc.InThai(k) : k) != (thai ? Loc.InThai(tool.TextKey) : tool.TextKey) ? (thai ? Loc.InThai(k) : k) : null;
+                    Assert.Equal(full is null ? 2 : 3, lines.Length);
+                    if (full is not null) Assert.Equal(full, lines[1]); // A shortened card line shows in full here.
                     Assert.Equal(texts[0].Text, lines[0]); // The tooltip starts with the card name,
-                    Assert.Equal(thai ? Loc.InThai(tool.TipKey) : tool.TipKey, lines[1]); // then the detail.
+                    Assert.Equal(thai ? Loc.InThai(tool.TipKey) : tool.TipKey, lines[^1]); // then the detail.
                     Assert.False(string.IsNullOrWhiteSpace(texts[1].Text), tool.Id);
                     Assert.False(string.IsNullOrWhiteSpace(lines[1]), tool.Id);
                     Assert.NotEqual(texts[1].Text, lines[1]); // The tooltip adds something the card does not say.

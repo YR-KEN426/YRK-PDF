@@ -24,11 +24,15 @@ public partial class MainWindow
     /// <param name="TipKey">The detail lines of the tooltip, after the name.</param>
     /// <param name="Accounting">Shown in the Accounting group too, besides its own group.</param>
     private sealed record HomeTool(string Id, string Category, string Glyph, string TitleKey, string TextKey, string KeywordsKey, string TipKey,
-        bool NeedsDocument = true, bool Accounting = false)
+        bool NeedsDocument = true, bool Accounting = false, string? FullKey = null)
     {
         public string Title => Loc.T(TitleKey);
 
         public string Text => Loc.T(TextKey);
+
+        /// <summary>The full description, when the card line is a shortened one; the tooltip shows it.</summary>
+        /// Null when the language says both the same way (in Thai some short lines need no shortening).
+        public string? Full => FullKey is null || Loc.T(FullKey) == Text ? null : Loc.T(FullKey);
 
         public string Tip => Loc.T(TipKey);
     }
@@ -69,7 +73,7 @@ public partial class MainWindow
         new("combine", "organize", "",
             K("Combine PDF"), K("Several files, one PDF"), K("merge, join, combine, put files together"), K("Drag files to set their order before combining."), NeedsDocument: false),
         new("split", "organize", "",
-            K("Split PDF"), K("Save selected pages separately"), K("split, separate, cut, extract pages"), K("Enter page ranges or split every N pages.")),
+            K("Split PDF"), K("Save pages separately"), K("split, separate, cut, extract pages"), K("Enter page ranges or split every N pages."), FullKey: K("Save selected pages separately")),
         new("pages", "organize", "",
             K("Organize pages"), K("Manage PDF pages"), K("pages, rotate, delete pages, reorder, move pages"), K("Rotate, delete, move, insert, and extract pages.")),
         new("scanpdf", "organize", "",
@@ -77,7 +81,7 @@ public partial class MainWindow
         new("scan", "organize", "\uE7A8",
             K("Clean up scans"), K("Adjust scanned pages"), K("deskew, straighten, crop, blank pages, dark edges"), K("Straighten, trim dark edges, and remove blank pages."), Accounting: true),
         new("images", "organize", "",
-            K("Images to PDF"), K("Make a PDF from images"), K("images, photos, JPG, PNG, picture to PDF"), K("Accepts JPG and PNG images."), NeedsDocument: false),
+            K("Images to PDF"), K("Pictures into one PDF"), K("images, photos, JPG, PNG, picture to PDF"), K("Accepts JPG and PNG images."), NeedsDocument: false, FullKey: K("Make a PDF from images")),
         new("batch", "organize", "",
             K("Process many files"), K("Process a whole folder"), K("batch, many files, folder, bulk"), K("Compress, convert, or mark many files."), NeedsDocument: false, Accounting: true),
 
@@ -90,9 +94,9 @@ public partial class MainWindow
         new("powerpoint", "convert", "",
             K("PDF to PowerPoint"), K("One slide per page"), K("PowerPoint, pptx, slides, presentation"), K("Slides look like the PDF pages.")),
         new("pictures", "convert", "",
-            K("PDF to images"), K("Export each page as an image"), K("PNG, JPG, page to picture, save as pictures"), K("Choose PNG or JPG.")),
+            K("PDF to images"), K("Pages as JPG or PNG"), K("PNG, JPG, page to picture, save as pictures"), K("Choose PNG or JPG."), FullKey: K("Export each page as an image")),
         new("ocr", "convert", "",
-            K("Recognize text (OCR)"), K("Search and copy scanned text"), K("OCR, text recognition, searchable, read scanned text"), K("Thai is supported; check recognized text before use."), Accounting: true),
+            K("Recognize text (OCR)"), K("Make scans searchable"), K("OCR, text recognition, searchable, read scanned text"), K("Thai is supported; check recognized text before use."), Accounting: true, FullKey: K("Search and copy scanned text")),
         new("convertscan", "convert", "",
             K("Convert scanned documents"), K("Convert scans for reuse"), K("scanned documents, searchable PDF, scans to Word, scans to text"), K("Choose searchable PDF, Word, or text output."), NeedsDocument: false),
         new("pdfa", "convert", "",
@@ -103,15 +107,15 @@ public partial class MainWindow
         new("addtext", "edit", "",
             K("Add text"), K("Type on a page"), K("add text, type, write on PDF, text box"), K("Choose the font and size.")),
         new("addpicture", "edit", "",
-            K("Add a picture"), K("Place and resize a picture"), K("add picture, insert image, logo, photo"), K("Move, turn and fade it; still editable after saving.")),
+            K("Add a picture"), K("Place a picture"), K("add picture, insert image, logo, photo"), K("Move, turn and fade it; still editable after saving."), FullKey: K("Place and resize a picture")),
         new("fill", "edit", "",
             K("Fill in a form"), K("Fill or create form fields"), K("fill form, form, fields, create form, checkbox"), K("Works with text boxes, check boxes, radio buttons and drop-downs.")),
         new("sign", "edit", "",
-            K("Sign"), K("Place a handwritten signature"), K("sign, signature, handwritten, autograph"), K("Draw, type, or use an image of your signature.")),
+            K("Sign"), K("Place your signature"), K("sign, signature, handwritten, autograph"), K("Draw, type, or use an image of your signature."), FullKey: K("Place a handwritten signature")),
         new("digital", "edit", "",
             K("Digital signature"), K("Sign with a Digital ID"), K("digital signature, certificate, digital ID"), K("Later changes are shown."), Accounting: true),
         new("certified", "edit", "",
-            K("Certified true copy"), K("Stamp a copy with your signature"), K("certified copy, true copy, certify"), K("Add a \"for … only\" line and the date."), Accounting: true),
+            K("Certified true copy"), K("Certify a copy"), K("certified copy, true copy, certify"), K("Add a \"for … only\" line and the date."), Accounting: true, FullKey: K("Stamp a copy with your signature")),
         new("stamp", "edit", "\uE930",
             K("Rubber stamp"), K("Choose or edit a stamp"), K("rubber stamp, approved, received, paid, company stamp"), K("Change words, colour, and date, or save a company stamp for reuse."), Accounting: true),
         new("comment", "edit", "",
@@ -120,25 +124,25 @@ public partial class MainWindow
             K("Watermark and page numbers"), K("Add marks to pages"), K("watermark, page numbers, header, footer"), K("Add a watermark, header, footer, or page numbers.")),
 
         new("etax", "accounting", "",
-            K("e-Tax Invoice"), K("Create tax documents as PDF/A-3"), K("e-Tax, tax invoice, invoice, credit note, debit note, Revenue Department"), K("Supports tax invoices, debit and credit notes with Revenue Department XML."), NeedsDocument: false),
+            K("e-Tax Invoice"), K("Create tax invoices"), K("e-Tax, tax invoice, invoice, credit note, debit note, Revenue Department"), K("Supports tax invoices, debit and credit notes with Revenue Department XML."), NeedsDocument: false, FullKey: K("Create tax documents as PDF/A-3")),
         new("amount", "accounting", "",
-            K("Amount in words"), K("Convert amounts to words"), K("amount in words, baht text, number to text"), K("Produces Thai and English wording."), NeedsDocument: false),
+            K("Amount in words"), K("Amounts as words"), K("amount in words, baht text, number to text"), K("Produces Thai and English wording."), NeedsDocument: false, FullKey: K("Convert amounts to words")),
 
         new("dwg", "drawings", "",
-            K("Open DWG and DXF"), K("View drawings without AutoCAD"), K("DWG, DXF, AutoCAD, drawing, CAD"), K("Switch layers on and off and measure at the drawing's scale.")),
+            K("Open DWG and DXF"), K("View without AutoCAD"), K("DWG, DXF, AutoCAD, drawing, CAD"), K("Switch layers on and off and measure at the drawing's scale."), FullKey: K("View drawings without AutoCAD")),
         new("measure", "drawings", "",
-            K("Measure"), K("Measure at drawing scale"), K("measure, distance, area, length, perimeter, scale"), K("Snapping finds line ends and midpoints.")),
+            K("Measure"), K("Measure to scale"), K("measure, distance, area, length, perimeter, scale"), K("Snapping finds line ends and midpoints."), FullKey: K("Measure at drawing scale")),
         new("count", "drawings", "",
             K("Count items"), K("Click to count items"), K("count, counting, quantity, takeoff, doors, lights"), K("Export the count list.")),
         new("compare", "drawings", "",
-            K("Compare versions"), K("See differences between revisions"), K("compare, revisions, differences, versions, changes"), K("Compares saved files, so unsaved changes are excluded.")),
+            K("Compare versions"), K("Spot revision changes"), K("compare, revisions, differences, versions, changes"), K("Compares saved files, so unsaved changes are excluded."), FullKey: K("See differences between revisions")),
 
         new("protect", "security", "",
-            K("Protect with password"), K("Set an open password or restrictions"), K("password, protect, encrypt, lock, permissions"), K("Choose restrictions such as printing, copying, or editing.")),
+            K("Protect with password"), K("Add a password"), K("password, protect, encrypt, lock, permissions"), K("Choose restrictions such as printing, copying, or editing."), FullKey: K("Set an open password or restrictions")),
         new("unprotect", "security", "",
             K("Remove password"), K("Save an unlocked copy"), K("remove password, unlock, decrypt, open protected"), K("Files with restrictions require the owner password.")),
         new("redact", "security", "",
-            K("Black out (redact)"), K("Permanently remove private details"), K("redact, black out, hide private, censor, sensitive"), K("Text, drawings and comments under the box are removed; can mark every match of a search.")),
+            K("Black out (redact)"), K("Erase private details"), K("redact, black out, hide private, censor, sensitive"), K("Text, drawings and comments under the box are removed; can mark every match of a search."), FullKey: K("Permanently remove private details")),
     ];
 
     private void InitializeHome()
@@ -360,6 +364,12 @@ public partial class MainWindow
         var tip = new StackPanel();
         tip.Children.Add(new TextBlock { Text = tool.Title, FontSize = 13, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Tag = UiTranslator.KeepText }
             .Tinted("HomeTextBrush"));
+        if (tool.Full is { } full)
+        {
+            tip.Children.Add(new TextBlock { Text = full, FontSize = 12, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap, Tag = UiTranslator.KeepText }
+                .Tinted("ToolTipMutedTextBrush"));
+        }
+
         tip.Children.Add(new TextBlock { Text = tool.Tip, FontSize = 12, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap, Tag = UiTranslator.KeepText }
             .Tinted("ToolTipMutedTextBrush"));
         var card = new Button
@@ -400,7 +410,8 @@ public partial class MainWindow
             {
                 string[] title = [tool.TitleKey, Loc.InThai(tool.TitleKey)];
                 string[] keywords = [tool.KeywordsKey, Loc.InThai(tool.KeywordsKey)];
-                string[] text = [tool.TextKey, Loc.InThai(tool.TextKey), tool.TipKey, Loc.InThai(tool.TipKey)];
+                string[] text = [tool.TextKey, Loc.InThai(tool.TextKey), tool.TipKey, Loc.InThai(tool.TipKey),
+                    .. tool.FullKey is { } fullKey ? new[] { fullKey, Loc.InThai(fullKey) } : []];
                 var score = 0;
                 foreach (var word in words)
                 {
