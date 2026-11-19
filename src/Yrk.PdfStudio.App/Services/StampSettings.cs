@@ -93,8 +93,10 @@ public sealed class StampSettings
         path ??= DefaultPath;
         try
         {
-            var settings = File.Exists(path) ? Deserialize(File.ReadAllBytes(path), ReadShapes(path)) : new();
+            var shapes = ReadShapes(path, out var unreadable);
+            var settings = File.Exists(path) ? Deserialize(File.ReadAllBytes(path), shapes) : new();
             settings._path = path;
+            settings._shapesUnreadable = unreadable;
             return settings;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -103,10 +105,14 @@ public sealed class StampSettings
         }
     }
 
-    private static byte[]? ReadShapes(string path)
+    // True when the sidecar exists but could not be read (locked, no access): saving must not replace or delete it.
+    private bool _shapesUnreadable;
+
+    private static byte[]? ReadShapes(string path, out bool unreadable)
     {
+        unreadable = false;
         try { return File.Exists(ShapesPath(path)) ? File.ReadAllBytes(ShapesPath(path)) : null; }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { unreadable = true; return null; }
     }
 
     public void Save(string? path = null)
@@ -117,7 +123,11 @@ public sealed class StampSettings
         {
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             BackupFormat.AtomicWrite(path, SerializeLegacy(), overwrite: true);
-            if (HasNewShapes) BackupFormat.AtomicWrite(ShapesPath(path), SerializeShapes(), overwrite: true);
+            if (_shapesUnreadable && string.Equals(path, Path.GetFullPath(_path ?? DefaultPath), StringComparison.OrdinalIgnoreCase))
+            {
+                // Leave the unreadable sidecar alone; the next load may read it again.
+            }
+            else if (HasNewShapes) BackupFormat.AtomicWrite(ShapesPath(path), SerializeShapes(), overwrite: true);
             else
             {
                 BackupFormat.CheckNoLinks(ShapesPath(path));
