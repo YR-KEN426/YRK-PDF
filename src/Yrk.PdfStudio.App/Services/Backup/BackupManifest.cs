@@ -47,7 +47,7 @@ public static class BackupFormat
     internal const string ReadError = "The backup could not be read. The password is incorrect or the file is damaged.";
     internal const string WriteError = "The backup could not be created.";
     internal const string ImportError = "The backup could not be imported.";
-    internal static readonly string[] Settings = ["settings.json", "stamps.json", "etax.json", "reader-bookmarks.json"];
+    internal static readonly string[] Settings = ["settings.json", "stamps.json", "stamp-shapes.json", "etax.json", "reader-bookmarks.json"];
     internal static readonly string[] Folders = ["Signatures", "DigitalIDs", "TrustedCertificates"];
     internal static readonly JsonSerializerOptions Json = new()
     {

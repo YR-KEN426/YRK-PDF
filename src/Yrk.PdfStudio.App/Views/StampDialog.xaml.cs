@@ -12,7 +12,7 @@ public sealed record StampTile(StampDesign Design, BitmapSource Image);
 
 public partial class StampDialog : Window
 {
-    private static readonly StampShape[] Shapes = [StampShape.Box, StampShape.DoubleBox, StampShape.Oval];
+    private static readonly StampShape[] Shapes = [StampShape.Box, StampShape.DoubleBox, StampShape.Oval, StampShape.Ribbon, StampShape.Seal];
     private static readonly StampDateStyle[] DateStyles =
         [StampDateStyle.None, StampDateStyle.ThaiShort, StampDateStyle.ThaiLong, StampDateStyle.ThaiNumeric, StampDateStyle.English];
 
@@ -44,7 +44,7 @@ public partial class StampDialog : Window
             PlaceButton.Content = Loc.T("Next");
         }
 
-        ShapeChoice.ItemsSource = new[] { Loc.T("Box"), Loc.T("Double border"), Loc.T("Oval") };
+        ShapeChoice.ItemsSource = new[] { Loc.T("Box"), Loc.T("Double border"), Loc.T("Oval"), Loc.T("Ribbon"), Loc.T("Seal") };
         DateInput.SelectedDate = DateTime.Today;
         FillDateChoices();
         ((settings.Language ?? RubberStamp.DefaultLanguage) switch
@@ -106,11 +106,11 @@ public partial class StampDialog : Window
         NoMyStamps.Visibility = _settings.MyStamps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>The date choices show the chosen date in each style.</summary>
+    /// <summary>Style names leave the DatePicker as the single date input.</summary>
     private void FillDateChoices()
     {
         var index = DateChoice.SelectedIndex;
-        DateChoice.ItemsSource = DateStyles.Select(s => RubberStamp.FormatDate(Date, s) ?? Loc.T("No date")).ToList();
+        DateChoice.ItemsSource = new[] { Loc.T("No date"), Loc.T("Thai short date"), Loc.T("Thai long date"), Loc.T("Thai numeric date"), Loc.T("English date") };
         DateChoice.SelectedIndex = index;
     }
 

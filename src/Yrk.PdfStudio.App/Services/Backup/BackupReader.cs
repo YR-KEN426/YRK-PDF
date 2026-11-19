@@ -239,6 +239,8 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
         var reserved = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var file in manifest.Files)
         {
+            // Shapes travel with stamps, including when the archive predates the sidecar.
+            if (file.Path == StampSettings.ShapesFileName) continue;
             var staged = BackupFormat.Under(staging, file.Path);
             var target = BackupFormat.Under(data, file.Path);
             BackupFormat.CheckNoLinks(target);
@@ -247,7 +249,21 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
             var settings = BackupFormat.IsSettings(file.Path);
             if (settings && exists && !replaceSettings) continue;
             if (Directory.Exists(target)) throw BackupFormat.Invalid();
-            if (settings && exists && file.Path == "stamps.json") MergeStamps(staged, target);
+            if (file.Path == "stamps.json")
+            {
+                var shapesTarget = StampSettings.ShapesPath(target);
+                BackupFormat.CheckNoLinks(shapesTarget);
+                if (Directory.Exists(shapesTarget)) throw BackupFormat.Invalid();
+                var hasShapes = File.Exists(StampSettings.ShapesPath(staged)) || File.Exists(shapesTarget);
+                if (exists) MergeStamps(staged, target);
+                else if (hasShapes)
+                {
+                    var imported = ReadStamps(staged);
+                    BackupFormat.AtomicWrite(StampSettings.ShapesPath(staged), imported.SerializeShapes(), overwrite: true);
+                }
+                if (hasShapes)
+                    result.Add(new(StampSettings.ShapesFileName, StampSettings.ShapesPath(staged), shapesTarget, File.Exists(shapesTarget)));
+            }
             if (file.Path.StartsWith("TrustedCertificates/", StringComparison.Ordinal))
             {
                 var bytes = BackupFormat.ReadBounded(staged, BackupFormat.MaxFileBytes);
@@ -315,6 +331,9 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
             var imported = JsonNode.Parse(importedBytes)?.AsObject() ?? throw BackupFormat.Invalid();
             var stamps = current["MyStamps"]?.AsArray() ?? throw BackupFormat.Invalid();
             var incoming = imported["MyStamps"]?.AsArray() ?? throw BackupFormat.Invalid();
+            var currentDesigns = ReadStamps(existing);
+            var importedDesigns = ReadStamps(staged);
+            var incomingIndex = 0;
             var names = new HashSet<string>(stamps.Select(s => s?["Text"]?.GetValue<string>() ?? throw BackupFormat.Invalid()), StringComparer.OrdinalIgnoreCase);
             foreach (var stamp in incoming)
             {
@@ -324,6 +343,7 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
                 for (var n = 1; !names.Add(chosen); n++) chosen = name + (n == 1 ? " (นำเข้า)" : $" (นำเข้า) ({n})");
                 copy["Text"] = chosen;
                 stamps.Add(copy);
+                currentDesigns.MyStamps.Add(importedDesigns.MyStamps[incomingIndex++] with { Text = chosen });
             }
             imported["MyStamps"] = stamps.DeepClone();
             var merged = JsonSerializer.SerializeToUtf8Bytes(imported);
@@ -331,6 +351,10 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
             {
                 if (merged.Length > BackupFormat.MaxFileBytes) throw BackupFormat.Invalid();
                 BackupFormat.AtomicWrite(staged, merged, overwrite: true);
+                // Last is independent of the list and retains the imported Last's own shape.
+                currentDesigns.Last = importedDesigns.Last;
+                if (File.Exists(StampSettings.ShapesPath(staged)) || File.Exists(StampSettings.ShapesPath(existing)))
+                    BackupFormat.AtomicWrite(StampSettings.ShapesPath(staged), currentDesigns.SerializeShapes(), overwrite: true);
             }
             finally { CryptographicOperations.ZeroMemory(merged); }
         }
@@ -338,6 +362,24 @@ public sealed class BackupReader(IBackupSignatureProtection? signatures = null)
         {
             CryptographicOperations.ZeroMemory(currentBytes);
             CryptographicOperations.ZeroMemory(importedBytes);
+        }
+    }
+
+    private static StampSettings ReadStamps(string path)
+    {
+        var bytes = BackupFormat.ReadBounded(path, BackupFormat.MaxFileBytes);
+        byte[]? shapes = null;
+        try
+        {
+            var sidecar = StampSettings.ShapesPath(path);
+            BackupFormat.CheckNoLinks(sidecar);
+            if (File.Exists(sidecar)) shapes = BackupFormat.ReadBounded(sidecar, BackupFormat.MaxFileBytes);
+            return StampSettings.Deserialize(bytes, shapes);
+        }
+        finally
+        {
+            CryptographicOperations.ZeroMemory(bytes);
+            if (shapes is not null) CryptographicOperations.ZeroMemory(shapes);
         }
     }
 }

@@ -5,6 +5,7 @@ using Yrk.PdfStudio.App.Services;
 namespace Yrk.PdfStudio.Core.Tests;
 
 /// <summary>Rubber stamps: Thai dates, the words saved as text, and the user's own stamps.</summary>
+[Collection("WPF Application")]
 public sealed class RubberStampTests
 {
     private static readonly DateTime Day = new(2026, 10, 29);
@@ -24,6 +25,8 @@ public sealed class RubberStampTests
     [InlineData(StampShape.Box)]
     [InlineData(StampShape.DoubleBox)]
     [InlineData(StampShape.Oval)]
+    [InlineData(StampShape.Ribbon)]
+    [InlineData(StampShape.Seal)]
     public void Keeps_the_words_as_text_inside_the_border(StampShape shape)
     {
         var design = new StampDesign("อนุมัติ", "บริษัท ABC จำกัด\nฝ่ายบัญชี", StampInk.Green, shape, StampDateStyle.ThaiShort);
@@ -100,7 +103,8 @@ public sealed class RubberStampTests
     [Fact]
     public void Remembers_the_users_own_stamps()
     {
-        var path = Path.Combine(Path.GetTempPath(), "yrk-stamps-" + Guid.NewGuid().ToString("N") + ".json");
+        var folder = Directory.CreateTempSubdirectory("yrk-stamps-");
+        var path = Path.Combine(folder.FullName, "stamps.json");
         try
         {
             var company = new StampDesign("รับเงินแล้ว", "บริษัท ABC จำกัด", StampInk.Blue, StampShape.Oval, StampDateStyle.ThaiLong);
@@ -117,7 +121,7 @@ public sealed class RubberStampTests
         }
         finally
         {
-            File.Delete(path);
+            folder.Delete(true);
         }
     }
 }

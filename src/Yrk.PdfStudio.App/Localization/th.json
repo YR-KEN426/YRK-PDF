@@ -1,4 +1,11 @@
 {
+  "Ribbon": "ริบบิ้น",
+  "Seal": "วงกลมคู่",
+  "Date style": "รูปแบบวันที่",
+  "Thai short date": "ไทยแบบย่อ",
+  "Thai long date": "ไทยแบบเต็ม",
+  "Thai numeric date": "ไทยแบบตัวเลข",
+  "English date": "อังกฤษ",
   "Open {0} files in tabs? This may take a while.": "เปิด {0} ไฟล์ในแท็บหรือไม่? อาจใช้เวลาสักครู่",
   "Text is read from an image, so it can be wrong,": "โปรแกรมอ่านข้อความจากภาพ จึงอาจอ่านผิดได้",
   "especially when the image is blurry, tilted, small or handwritten. Always check the result before you use it.": "โดยเฉพาะภาพที่เบลอ เอียง ตัวเล็ก หรือลายมือ ควรตรวจทานผลลัพธ์ก่อนนำไปใช้ทุกครั้ง",

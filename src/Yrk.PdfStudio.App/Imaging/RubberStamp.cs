@@ -19,6 +19,8 @@ public enum StampShape
     Box,
     DoubleBox,
     Oval,
+    Ribbon,
+    Seal,
 }
 
 public enum StampDateStyle
@@ -166,6 +168,9 @@ internal static class RubberStamp
         var (width, height) = design.Shape switch
         {
             StampShape.Oval => ((contentWidth * Math.Sqrt(2)) + 12, (contentHeight * Math.Sqrt(2)) + 8),
+            StampShape.Seal => (Math.Sqrt(contentWidth * contentWidth + contentHeight * contentHeight) + 20,
+                Math.Sqrt(contentWidth * contentWidth + contentHeight * contentHeight) + 20),
+            StampShape.Ribbon => (contentWidth + 46, contentHeight + 16),
             StampShape.DoubleBox => (contentWidth + 28, contentHeight + 18),
             _ => (contentWidth + 22, contentHeight + 12),
         };
@@ -183,6 +188,19 @@ internal static class RubberStamp
                 var light = new Pen(ink, thin);
                 switch (design.Shape)
                 {
+                    case StampShape.Ribbon:
+                        const double notch = 12;
+                        var ribbon = new StreamGeometry();
+                        using (var path = ribbon.Open())
+                        {
+                            path.BeginFigure(outer.TopLeft, false, true);
+                            path.PolyLineTo([outer.TopRight, new Point(outer.Right - notch, height / 2),
+                                outer.BottomRight, outer.BottomLeft, new Point(outer.Left + notch, height / 2)], true, false);
+                        }
+                        ribbon.Freeze();
+                        context.DrawGeometry(null, heavy, ribbon);
+                        break;
+                    case StampShape.Seal:
                     case StampShape.Oval:
                         context.DrawEllipse(null, heavy, Center(outer), outer.Width / 2, outer.Height / 2);
                         context.DrawEllipse(null, light, Center(inner), inner.Width / 2, inner.Height / 2);

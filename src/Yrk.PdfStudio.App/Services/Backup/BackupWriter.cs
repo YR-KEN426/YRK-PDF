@@ -80,7 +80,7 @@ public sealed class BackupWriter(IBackupSignatureProtection? signatures = null)
     {
         "settings.json" => BackupSelection.Settings,
         "reader-bookmarks.json" => BackupSelection.Settings,
-        "stamps.json" => BackupSelection.Stamps,
+        "stamps.json" or "stamp-shapes.json" => BackupSelection.Stamps,
         "etax.json" => BackupSelection.ETax,
         _ when path.StartsWith("Signatures/", StringComparison.Ordinal) => BackupSelection.Signatures,
         _ when path.StartsWith("DigitalIDs/", StringComparison.Ordinal) => BackupSelection.DigitalIds,

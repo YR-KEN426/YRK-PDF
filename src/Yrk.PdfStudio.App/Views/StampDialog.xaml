@@ -14,6 +14,17 @@
         <!-- A stamp in the lists: its picture on white, like on paper. -->
         <DataTemplate x:Key="StampTile">
             <Border Background="{DynamicResource SurfaceBrush}" Width="150" Height="58" Padding="6" ToolTip="{Binding Design.Text}">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+                        <Setter Property="BorderThickness" Value="2" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=ListBoxItem}}" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <Image Source="{Binding Image}" Stretch="Uniform" />
             </Border>
         </DataTemplate>
@@ -105,7 +116,7 @@
                                 <ComboBox x:Name="ShapeChoice" SelectionChanged="OnDesignChanged" />
                             </StackPanel>
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Date" Margin="0,0,0,4" />
+                                <TextBlock Text="Date style" Margin="0,0,0,4" />
                                 <ComboBox x:Name="DateChoice" SelectionChanged="OnDesignChanged" />
                             </StackPanel>
                         </Grid>
