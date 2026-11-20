@@ -182,3 +182,11 @@
 - [ ] ขั้น 6 หลายขนาด / DPI / High Contrast
 - [ ] ขั้น 7 ตรวจคู่มือกับโปรแกรม
 - [ ] ขั้น 8 ตรวจรอบสุดท้าย + ปล่อยรุ่น
+
+## ส่งต่อ (2026-11-20 ดึก)
+- **ทำถึงไหน:** ขั้น 0, 5b, 1a เสร็จและ commit แล้ว (5b `3d30471` Ken ลองรูปจริงผ่าน, 1a `bb25d7d` Claude ตรวจ diff แล้วผ่าน) ยังไม่ push
+- **ถัดไป:** ขั้น 1 (ชุดสีมืด + ตัวสลับธีม) `gpt-6.1-sol` · high — Ken พิมพ์ "ทำขั้น 1 ต่อ"
+- **ข้อควรระวัง:**
+  - build เทสต์ไป OutDir **นอกโฟลเดอร์ repo** ทำให้เทสต์ที่หาไฟล์ใน repo ล้ม 28 ข้อ (ErrorUsageGuard, Localization, ColorUsageGuard, UpdateSignerVerify, SignaturePhoto decode ฯลฯ) ไม่ใช่บั๊ก; ใช้ build ปกติ หรือ OutDir ใต้ repo ที่ไม่ commit
+  - 1a: ถ้า settings.json เสียและมี `settings.json.bad` อยู่แล้ว จะไม่บันทึกค่าใหม่จนกว่าจะลบ `.bad` (ตั้งใจ ตาม Codex รอบ 2) ดูอีกครั้งในรุ่นตรวจ 1.2.6
+  - ผู้เรียกส่วนใหญ่ยังใช้ `Save()` (ทาง merge เดียวกัน) มีแค่ `RememberScanFolder` ที่ใช้ `Update()`; ขั้น 1 ให้ตัวเลือกธีมใช้ `AppSettings.Update`
