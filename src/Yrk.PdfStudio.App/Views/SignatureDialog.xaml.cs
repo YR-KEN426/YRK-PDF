@@ -79,29 +79,38 @@ public partial class SignatureDialog : Window
             Filter = Loc.T("Signatures (*.png;*.jpg;*.jpeg;*.bmp;*.svg;*.pdf)|*.png;*.jpg;*.jpeg;*.bmp;*.svg;*.pdf"),
             CheckFileExists = true,
         };
-        if (dialog.ShowDialog(this) != true)
-        {
-            return;
-        }
+        await ImportSignatureFileAsync(dialog.ShowDialog(this) == true ? dialog.FileName : null);
+    }
 
+    internal async Task ImportSignatureFileAsync(string? path)
+    {
+        if (path is null) return; // Cancelling the picker leaves the current import and message alone.
         try
         {
-            var path = dialog.FileName;
-            _imported = Path.GetExtension(path).ToLowerInvariant() switch
+            var imported = Path.GetExtension(path).ToLowerInvariant() switch
             {
                 ".svg" => SignatureArt.FromVector(SvgImport.Load(path)),
                 ".pdf" => await _preparePdf(await File.ReadAllBytesAsync(path))
                     ?? throw new FormatException(Loc.T("The PDF has no signature on its first page.")),
-                _ => SignatureArt.FromImage(SignatureImaging.FromImageFile(path)),
+                _ => SignatureImaging.FromImageFile(path) is { } image ? SignatureArt.FromImage(image) : null,
             };
-            ImportedPreview.Source = _imported.Preview;
+            SetImportedSignature(imported, paperRemovalFailed: imported is null);
         }
         catch (Exception ex) when (ex is IOException or NotSupportedException or FileFormatException or UnauthorizedAccessException or FormatException or PdfException)
         {
+            SetImportedSignature(null);
             ShowError(ErrorCatalog.SignatureImageImport, ex);
         }
 
         UpdateUseButton();
+    }
+
+    private void SetImportedSignature(SignatureArt? imported, bool paperRemovalFailed = false)
+    {
+        _imported = imported;
+        ImportedPreview.Source = imported?.Preview;
+        ImportTips.Visibility = imported is null ? Visibility.Visible : Visibility.Collapsed;
+        ImportFailure.Visibility = paperRemovalFailed ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void OnUse(object sender, RoutedEventArgs e)

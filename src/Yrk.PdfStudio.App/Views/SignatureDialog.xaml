@@ -15,7 +15,7 @@
         <TextBlock Text="Draw it, type your name, or use a photo of your signature on white paper."
                    Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,4,0,12" TextWrapping="Wrap" />
 
-        <TabControl x:Name="Modes" Height="250" SelectionChanged="OnInputChanged">
+        <TabControl x:Name="Modes" Height="320" SelectionChanged="OnInputChanged">
             <TabItem Header="Draw">
                 <Grid Margin="8">
                     <Grid.RowDefinitions>
@@ -64,15 +64,30 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Choose file…" Style="{StaticResource SecondaryButton}" Click="OnChooseImage" />
-                        <TextBlock Text="PNG or JPG (white background removed), SVG or PDF (kept as sharp vector lines)." Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
+                        <TextBlock Text="PNG or JPG (paper removed automatically), SVG or PDF (kept as sharp vector lines)." Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
                                    Foreground="{DynamicResource SecondaryTextBrush}" />
                     </StackPanel>
                     <Border Grid.Row="1" Margin="0,8,0,0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}">
-                        <Image x:Name="ImportedPreview" Stretch="Uniform" Margin="12" />
+                        <Grid>
+                            <Image x:Name="ImportedPreview" Stretch="Uniform" Margin="12" />
+                            <ScrollViewer x:Name="ImportTips" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="12">
+                                <StackPanel>
+                                    <TextBlock Text="Tips for a good signature photo" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    <TextBlock Text="• Sign with a dark pen (blue or black) on plain white paper" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    <TextBlock Text="• Shoot straight on in good light, with no hand or phone shadow over the signature" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    <TextBlock Text="• Let the signature fill about half the photo; no need to crop" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    <TextBlock Text="• Send the photo to this PC at original quality. The paper is removed and trimmed for you." Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Grid>
                     </Border>
+                    <TextBlock x:Name="ImportFailure" Grid.Row="2" Visibility="Collapsed" Margin="0,8,0,0" TextWrapping="Wrap"
+                               Text="Couldn't remove the paper well. Try again in good light with no shadow."
+                               Foreground="{DynamicResource SecondaryTextBrush}" />
                 </Grid>
             </TabItem>
         </TabControl>
