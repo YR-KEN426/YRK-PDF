@@ -1945,7 +1945,7 @@
   "Clears the list of recent files, the page where you stopped reading each file, and your reading bookmarks. Your documents are not touched.": "ล้างรายการไฟล์ล่าสุด หน้าที่อ่านค้างของแต่ละไฟล์ และที่คั่นหนังสือของคุณ ส่วนเอกสารของคุณไม่ถูกแตะต้อง",
   "Frequently used": "ใช้บ่อย",
   "Frequently used tools": "เครื่องมือที่ใช้บ่อย",
-  "All {0} tools →": "เครื่องมือทั้งหมด {0} อย่าง →",
+  "All tools →": "เครื่องมือทั้งหมด →",
   "{0} tools": "{0} เครื่องมือ",
   "No tools found. Try another word.": "ไม่พบเครื่องมือ ลองคำอื่น",
   "Tool categories": "หมวดเครื่องมือ",

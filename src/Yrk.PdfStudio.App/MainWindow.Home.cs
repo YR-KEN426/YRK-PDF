@@ -253,7 +253,7 @@ public partial class MainWindow
         HomeFrequentHeader.Visibility = frequent ? Visibility.Visible : Visibility.Collapsed;
         HomeTabs.Visibility = !searching && !frequent ? Visibility.Visible : Visibility.Collapsed;
         HomeAllToolsLink.Tag = UiTranslator.KeepText;
-        HomeAllToolsLink.Content = Loc.F("All {0} tools →", tools.Count);
+        HomeAllToolsLink.Content = Loc.T("All tools →");
 
         if (searching)
         {

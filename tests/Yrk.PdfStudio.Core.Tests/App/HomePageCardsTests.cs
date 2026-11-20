@@ -74,7 +74,7 @@ public sealed partial class HomePageTests
             Assert.Equal(Visibility.Visible, Find<DockPanel>(window, "HomeFrequentHeader").Visibility);
             Assert.Empty(SectionNames(window)); // No category headings here.
             var link = Find<Button>(window, "HomeAllToolsLink");
-            Assert.Equal("All 34 tools →", link.Content);
+            Assert.Equal("All tools →", link.Content);
             Assert.True(link.ActualHeight >= 44);
             var widths = grid.Children.Cast<FrameworkElement>().Select(c => c.ActualWidth).ToArray();
             Assert.All(widths, w => Assert.True(w >= 150));
@@ -97,12 +97,12 @@ public sealed partial class HomePageTests
     {
         WithWindow((app, window, _) =>
         {
-            Assert.Equal($"All {Tools().Count} tools →", Find<Button>(window, "HomeAllToolsLink").Content);
+            Assert.Equal("All tools →", Find<Button>(window, "HomeAllToolsLink").Content);
         });
         var thai = Loc.Language;
         WithWindow((app, window, _) =>
         {
-            Assert.Equal($"เครื่องมือทั้งหมด {Tools().Count} อย่าง →", Find<Button>(window, "HomeAllToolsLink").Content);
+            Assert.Equal("เครื่องมือทั้งหมด →", Find<Button>(window, "HomeAllToolsLink").Content);
         }, language: "th");
         Assert.Equal(thai, Loc.Language);
     }
@@ -402,7 +402,7 @@ public sealed partial class HomePageTests
             Assert.Contains(tool.TitleKey, keys);
         }
 
-        foreach (var text in new[] { "Frequently used", "Frequently used tools", "All {0} tools →", "{0} tools", "No tools found. Try another word.", "Tool categories" })
+        foreach (var text in new[] { "Frequently used", "Frequently used tools", "All tools →", "{0} tools", "No tools found. Try another word.", "Tool categories" })
             Assert.Contains(text, keys);
     }
 
