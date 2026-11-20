@@ -1401,6 +1401,7 @@
   "Branch": "สาขา",
   "Address": "ที่อยู่",
   "Postcode": "รหัสไปรษณีย์",
+  "Tip: type the postcode first. The province, district and subdistrict lists then show only the matching areas.": "เคล็ดลับ: กรอกรหัสไปรษณีย์ก่อน แล้วรายการจังหวัด อำเภอ ตำบล จะเหลือเฉพาะพื้นที่ที่ตรงกัน",
   "Phone": "โทรศัพท์",
   "Buyer": "ผู้ซื้อ",
   "Identified by": "ระบุตัวตนด้วย",

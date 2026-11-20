@@ -24,6 +24,8 @@
                 <TextBox x:Name="StreetInput" AutomationProperties.Name="Street, soi, building (optional)" TextChanged="OnChanged" />
             </StackPanel>
         </Grid>
+        <TextBlock Text="Tip: type the postcode first. The province, district and subdistrict lists then show only the matching areas."
+                   FontSize="11" Foreground="{DynamicResource SecondaryTextBrush}" TextWrapping="Wrap" Margin="0,8,0,0" />
         <TextBlock Text="Province" Style="{StaticResource AddressLabel}" />
         <ComboBox Style="{StaticResource {x:Type ComboBox}}" x:Name="ProvinceInput" DisplayMemberPath="Name" AutomationProperties.Name="Province" SelectionChanged="OnProvinceChanged" />
         <Grid>
