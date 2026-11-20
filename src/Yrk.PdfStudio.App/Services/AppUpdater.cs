@@ -1,6 +1,7 @@
 using System.IO;
 using System.Reflection;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Velopack;
 using Velopack.Locators;
 using Velopack.Sources;
@@ -211,10 +212,23 @@ public sealed class UpdateVerificationException(string message, Exception? inner
 /// <summary>Small per-user preferences, kept in %LOCALAPPDATA%\YRK\EasyPdf\settings.json.</summary>
 public sealed class AppSettings
 {
+    private static readonly object SaveLock = new();
     private static volatile bool s_saveSuspended;
-    internal static void SuspendSavingUntilRestart() => s_saveSuspended = true;
+    internal static void SuspendSavingUntilRestart()
+    {
+        lock (SaveLock) s_saveSuspended = true;
+    }
+
+    // Tests must finish all pending saves before resetting process lifetime state.
+    internal static void ResetSavingForTests()
+    {
+        lock (SaveLock) s_saveSuspended = false;
+    }
+
     private static readonly string FilePath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "settings.json");
+    private static readonly JsonObject Defaults = Snapshot(new AppSettings());
+    private JsonObject? _baseline;
 
     public string ScanSaveFolder { get; set; } = string.Empty;
     public Dictionary<string, ScanPaperPreference> ScanPaperByPreset { get; set; } = [];
@@ -240,31 +254,136 @@ public sealed class AppSettings
     /// <summary>Show the recent files panel on the start page. Off only hides it: the history is still kept (clear it in Privacy and safety).</summary>
     public bool ShowRecentOnHome { get; set; } = true;
 
-    public static AppSettings Load()
+    public static AppSettings Load(string? path = null)
     {
-        try
+        lock (SaveLock)
         {
-            return File.Exists(FilePath) ? JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new() : new();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            return new();
+            Read(path ?? FilePath, out _, out var settings);
+            settings._baseline = Snapshot(settings);
+            return settings;
         }
     }
 
+    /// <summary>Changes the latest settings and commits only changed fields under the process-wide lock.</summary>
+    public static void Update(Action<AppSettings> change, string? path = null)
+    {
+        ArgumentNullException.ThrowIfNull(change);
+        lock (SaveLock)
+        {
+            if (s_saveSuspended) return;
+            path ??= FilePath;
+            var state = Read(path, out var latest, out var settings);
+            if (state == ReadState.Unreadable) return;
+            var baseline = Snapshot(settings);
+            change(settings);
+            Commit(path, state, latest, baseline, Snapshot(settings));
+        }
+    }
+
+    /// <summary>Merges changes since Load or the last successful Save into the latest file.</summary>
     public void Save(string? path = null)
     {
-        if (s_saveSuspended) return;
-        path ??= FilePath;
+        lock (SaveLock)
+        {
+            if (s_saveSuspended) return;
+            path ??= FilePath;
+            var state = Read(path, out var latest, out _);
+            if (state == ReadState.Unreadable) return;
+            var current = Snapshot(this);
+            if (Commit(path, state, latest, _baseline ?? Defaults, current))
+                _baseline = current;
+        }
+    }
+
+    private enum ReadState { Valid, Missing, Corrupt, Unreadable }
+
+    private static ReadState Read(string path, out JsonObject? latest, out AppSettings settings)
+    {
+        latest = null;
+        settings = new();
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, JsonSerializer.Serialize(this));
+            // Do not use File.Exists: it also returns false for some access failures.
+            latest = JsonNode.Parse(File.ReadAllText(path)) as JsonObject;
+            if (latest is null) return ReadState.Corrupt;
+            settings = latest.Deserialize<AppSettings>()!;
+            return ReadState.Valid;
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+        {
+            return ReadState.Missing;
+        }
+        catch (JsonException)
+        {
+            latest = null;
+            return ReadState.Corrupt;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Only a convenience.
+            return ReadState.Unreadable;
         }
+    }
+
+    private static JsonObject Snapshot(AppSettings settings) => JsonSerializer.SerializeToNode(settings)!.AsObject();
+
+    private static bool Commit(string path, ReadState state, JsonObject? latest, JsonObject baseline, JsonObject current)
+    {
+        if (s_saveSuspended) return false; // An Update callback can suspend saving while holding this lock.
+        // Loading a damaged file or saving an unchanged copy must not replace it with defaults.
+        if (state != ReadState.Missing && JsonNode.DeepEquals(baseline, current)) return true;
+        latest ??= (JsonObject)Defaults.DeepClone();
+        MergeChanges(baseline, current, latest);
+        string? temporary = null;
+        try
+        {
+            path = Path.GetFullPath(path);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            if (state == ReadState.Corrupt)
+            {
+                // Copy without overwrite. An existing backup (or any backup failure) blocks the save.
+                File.Copy(path, path + ".bad", overwrite: false);
+            }
+            temporary = Path.Combine(Path.GetDirectoryName(path)!, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                JsonSerializer.Serialize(stream, latest);
+                stream.Flush(flushToDisk: true);
+            }
+            if (state == ReadState.Missing) File.Move(temporary, path);
+            else File.Replace(temporary, path, destinationBackupFileName: null);
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return false; // Only a convenience. Keep the baseline so a later Save can retry.
+        }
+        finally
+        {
+            if (temporary is not null)
+            {
+                try { File.Delete(temporary); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            }
+        }
+    }
+
+    private static void MergeChanges(JsonObject baseline, JsonObject current, JsonObject latest)
+    {
+        foreach (var (key, value) in current)
+        {
+            var previous = baseline[key];
+            if (JsonNode.DeepEquals(previous, value)) continue;
+            if (previous is JsonObject previousObject && value is JsonObject currentObject)
+            {
+                // Merge dictionary entries too, preserving other presets and newer nested fields.
+                var target = latest[key] as JsonObject;
+                if (target is null) latest[key] = target = new JsonObject();
+                MergeChanges(previousObject, currentObject, target);
+            }
+            else latest[key] = value?.DeepClone();
+        }
+        foreach (var (key, _) in baseline)
+            if (!current.ContainsKey(key)) latest.Remove(key);
     }
 }
 

@@ -108,9 +108,8 @@ public sealed partial class MainViewModel
 
     private static void RememberScanFolder(string output)
     {
-        var settings = AppSettings.Load();
-        settings.ScanSaveFolder = Path.GetDirectoryName(Path.GetFullPath(output))!;
-        settings.Save();
+        var folder = Path.GetDirectoryName(Path.GetFullPath(output))!;
+        AppSettings.Update(settings => settings.ScanSaveFolder = folder);
     }
 
     internal static string ScanImagePath(string chosenPath, int page, int pageCount, ScanOutputFormat format)
