@@ -24,6 +24,7 @@ public partial class MessageDialog : Window
         Title = Loc.T(caption);
         MessageText.Text = message;
         Owner = owner;
+        Services.WindowSizing.FitToWorkArea(this);
         WindowStartupLocation = owner is null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner;
         IconText.Text = icon switch
         {

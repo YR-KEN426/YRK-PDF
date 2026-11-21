@@ -324,9 +324,11 @@ internal static class Program
     {
         private readonly System.Reflection.FieldInfo? _field;
         private readonly Rect _original = SystemParameters.WorkArea;
+        private readonly Rect? _sizingOriginal = Yrk.PdfStudio.App.Services.WindowSizing.WorkAreaOverride;
 
         public WorkAreaOverride(Rect area)
         {
+            Yrk.PdfStudio.App.Services.WindowSizing.WorkAreaOverride = area;
             _field = typeof(SystemParameters).GetField("_workArea",
                 System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
             if (_field is null)
@@ -339,6 +341,10 @@ internal static class Program
                 throw new InvalidOperationException("WPF WorkArea cache override did not take effect.");
         }
 
-        public void Dispose() => _field?.SetValue(null, _original);
+        public void Dispose()
+        {
+            _field?.SetValue(null, _original);
+            Yrk.PdfStudio.App.Services.WindowSizing.WorkAreaOverride = _sizingOriginal;
+        }
     }
 }
