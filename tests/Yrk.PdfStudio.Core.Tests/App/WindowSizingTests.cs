@@ -12,6 +12,68 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class WindowSizingTests
 {
     [Theory]
+    [InlineData("th", "light", true)]
+    [InlineData("th", "dark", true)]
+    [InlineData("en", "light", true)]
+    [InlineData("en", "dark", true)]
+    [InlineData("th", "light", false)]
+    [InlineData("th", "dark", false)]
+    public void Print_settings_open_at_top_without_clipping_first_heading_at_150_percent(string language, string theme, bool activated)
+    {
+        Sta.Run(() =>
+        {
+            using var app = new WpfTestApp(language, theme);
+            using var area = new SimulatedArea(new Rect(0, 0, 1366 / 1.5, 768 / 1.5 - 40));
+            using var fixture = new WindowFixture();
+            var dialog = (Yrk.PdfStudio.App.Views.PrintDialog)WindowCatalog.Cases.Single(c => c.Name == "PrintDialog").Create!(fixture);
+            dialog.ShowActivated = activated;
+            dialog.ShowInTaskbar = false;
+            void CheckOpening()
+            {
+                // Translate without re-arranging the window: inspect the actual HWND layout.
+                typeof(Yrk.PdfStudio.App.Localization.UiTranslator).GetMethod("TranslateNow",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, [dialog]);
+                WpfTestApp.Pump();
+                dialog.UpdateLayout();
+                var scroll = (ScrollViewer)dialog.FindName("SettingsScroll");
+                var heading = (TextBlock)dialog.FindName("PrinterHeading");
+                Assert.True(scroll.ScrollableHeight > 0);
+                Assert.Equal(0, scroll.VerticalOffset);
+                var viewport = WpfTestApp.Descendants(scroll).OfType<ScrollContentPresenter>().First();
+                var bounds = Bounds(heading, viewport);
+                Assert.True(bounds.Top >= 0, $"Heading top: {bounds.Top}");
+                Assert.True(bounds.Bottom <= viewport.ActualHeight);
+                Assert.True(heading.ActualHeight + heading.Margin.Top + heading.Margin.Bottom + .01 >= heading.DesiredSize.Height);
+                Assert.Empty(app.Errors);
+            }
+            try
+            {
+                if (activated)
+                {
+                    Exception? failure = null;
+                    dialog.ContentRendered += (_, _) => dialog.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+                        new Action(() =>
+                        {
+                            try { CheckOpening(); }
+                            catch (Exception ex) { failure = ex; }
+                            finally { dialog.Close(); }
+                        }));
+                    dialog.ShowDialog();
+                    if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+                }
+                else
+                {
+                    dialog.Show();
+                    WpfTestApp.Pump();
+                    CheckOpening();
+                }
+            }
+            finally { dialog.Close(); WpfTestApp.Pump(); }
+            return true;
+        });
+    }
+
+    [Theory]
     [InlineData(144, 800, 480)]
     [InlineData(192, 600, 360)]
     public void Monitor_pixels_convert_using_target_dpi(int dpi, double width, double height)

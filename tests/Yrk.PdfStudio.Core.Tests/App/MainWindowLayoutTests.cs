@@ -121,12 +121,37 @@ public sealed class MainWindowLayoutTests
                 var editor = (TextBox)window.FindName("SearchBox");
                 var controls = (StackPanel)window.FindName("SearchControls");
                 var icon = (Button)window.FindName("SearchIconButton");
+                var previous = Assert.IsType<Button>(controls.Children[1]);
+                var next = Assert.IsType<Button>(controls.Children[2]);
+                var matchCase = Assert.IsType<CheckBox>(controls.Children[3]);
+                Assert.Same(harness.Model.FindPreviousCommand, previous.Command);
+                Assert.Same(harness.Model.FindNextCommand, next.Command);
+                Assert.Equal("Aa", matchCase.Content);
+                Assert.True(previous.IsTabStop && next.IsTabStop && matchCase.IsTabStop);
+                Assert.True(field.TranslatePoint(new Point(field.ActualWidth, 0), controls).X <= previous.TranslatePoint(new Point(), controls).X);
+                Assert.True(next.TranslatePoint(new Point(next.ActualWidth, 0), controls).X <= matchCase.TranslatePoint(new Point(), controls).X);
+                var placeholder = field.Children.OfType<TextBlock>().Single(t => t.Text.Contains("Ctrl+F"));
+                Assert.Equal(language == "th" ? "ค้นหา (Ctrl+F) · Enter = ถัดไป" : "Find (Ctrl+F) · Enter = next", placeholder.Text);
                 Assert.Equal(220, field.Width);
                 ApplicationCommands.Find.Execute(null, window);
                 Settle();
                 Assert.True(editor.IsKeyboardFocusWithin, $"focus lost; width {field.Width}; top {((FrameworkElement)window.FindName("TopBar")).ActualWidth}");
                 // At 1280 the other buttons leave only ~250-300px; wider windows reach 400.
                 Assert.InRange(field.Width, 240, 400);
+                Assert.True(editor.IsKeyboardFocusWithin);
+                Assert.True(controls.TranslatePoint(new Point(controls.ActualWidth, 0), window).X <= window.ActualWidth);
+                // Follow the visual order with Tab, and return through it with Shift+Tab.
+                editor.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                Assert.True(previous.IsKeyboardFocusWithin);
+                previous.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                Assert.True(next.IsKeyboardFocusWithin);
+                next.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+                Assert.True(matchCase.IsKeyboardFocusWithin);
+                matchCase.MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous));
+                Assert.True(next.IsKeyboardFocusWithin);
+                next.MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous));
+                Assert.True(previous.IsKeyboardFocusWithin);
+                previous.MoveFocus(new TraversalRequest(FocusNavigationDirection.Previous));
                 Assert.True(editor.IsKeyboardFocusWithin);
                 var go = window.InputBindings.OfType<KeyBinding>().Single(b => b.Key == Key.G && b.Modifiers == ModifierKeys.Control);
                 go.Command.Execute(null);

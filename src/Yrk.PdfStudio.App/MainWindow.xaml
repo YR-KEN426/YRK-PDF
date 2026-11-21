@@ -511,7 +511,7 @@
                                    ToolTip="{Binding SearchStatus}" VerticalAlignment="Center" Foreground="{DynamicResource SecondaryTextBrush}" />
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE721;" FontSize="13" Margin="8,0,0,0"
                                    HorizontalAlignment="Left" IsHitTestVisible="False" Foreground="{DynamicResource SecondaryTextBrush}" />
-                        <TextBlock Text="Find (Ctrl+F)" Margin="28,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                        <TextBlock Text="Find (Ctrl+F) · Enter = next" Margin="28,0,8,0" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" IsHitTestVisible="False"
                                    Foreground="{DynamicResource SecondaryTextBrush}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
@@ -525,13 +525,13 @@
                             </TextBlock.Style>
                         </TextBlock>
                     </Grid>
-                    <CheckBox Content="Aa" IsChecked="{Binding MatchCase}" Margin="6,0,2,0" VerticalAlignment="Center" ToolTip="Match case" AutomationProperties.Name="Match case" />
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding FindPreviousCommand}" ToolTip="Previous result (Shift+F3)" AutomationProperties.Name="Previous result">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE70E;" />
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Command="{Binding FindNextCommand}" ToolTip="Next result (F3)" AutomationProperties.Name="Next result">
                         <TextBlock Style="{StaticResource IconText}" Text="&#xE70D;" />
                     </Button>
+                    <CheckBox Content="Aa" IsChecked="{Binding MatchCase}" Margin="6,0,2,0" VerticalAlignment="Center" ToolTip="Match case" AutomationProperties.Name="Match case" />
                     </StackPanel>
                 </StackPanel>
             </Grid>

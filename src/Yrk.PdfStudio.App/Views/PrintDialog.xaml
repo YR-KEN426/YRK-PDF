@@ -44,9 +44,9 @@
         </DockPanel>
 
         <!-- Settings -->
-        <ScrollViewer DockPanel.Dock="Left" Width="360" VerticalScrollBarVisibility="Auto" Margin="0,0,20,0">
+        <ScrollViewer x:Name="SettingsScroll" DockPanel.Dock="Left" Width="360" VerticalScrollBarVisibility="Auto" Margin="0,0,20,0">
             <StackPanel>
-                <TextBlock Text="Printer" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <TextBlock x:Name="PrinterHeading" Text="Printer" FontWeight="SemiBold" Margin="0,0,0,6" />
                 <ComboBox ItemsSource="{Binding Printers}" SelectedItem="{Binding Printer}" AutomationProperties.Name="Printer" />
 
                 <Grid Margin="0,10,0,0">
