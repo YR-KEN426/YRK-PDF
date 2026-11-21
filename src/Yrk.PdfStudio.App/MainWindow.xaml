@@ -132,9 +132,9 @@
                                 </Style>
                             </StackPanel.Style>
                             <TextBlock Style="{StaticResource IconText}" Text="&#xEB9F;" FontSize="18" HorizontalAlignment="Center"
-                                       Foreground="{DynamicResource AccentBrush}" />
+                                       Foreground="{DynamicResource FieldPromptBrush}" />
                             <TextBlock Text="Click to choose a picture" FontSize="8" Margin="0,3,0,0" HorizontalAlignment="Center"
-                                       Foreground="{DynamicResource AccentBrush}" />
+                                       Foreground="{DynamicResource FieldPromptBrush}" />
                         </StackPanel>
                     </Grid>
                 </Button>

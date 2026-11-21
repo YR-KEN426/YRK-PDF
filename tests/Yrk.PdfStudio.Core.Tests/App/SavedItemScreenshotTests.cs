@@ -43,10 +43,7 @@ public sealed partial class SavedItemEditingTests
                 .SetValue(null, typeof(MainWindow).Assembly);
             ResetApplication();
             var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-            application.Resources.MergedDictionaries.Add(new ResourceDictionary
-            {
-                Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative),
-            });
+            application.Resources.MergedDictionaries.Add(ThemeTestResources.Create());
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
             {
                 Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative),

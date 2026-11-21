@@ -1,0 +1,48 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Theme-independent category, signature status and PDF content/preview colors. -->
+    <!-- Opaque: the highlight layer supplies opacity once, avoiding darker overlaps. -->
+    <SolidColorBrush x:Key="SearchHighlightBrush" Color="#FFD43B" />
+    <SolidColorBrush x:Key="CurrentSearchHighlightBrush" Color="#FF8C00" />
+    <SolidColorBrush x:Key="PageBackgroundBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="FocusBrush" Color="#1565C0" />
+    <SolidColorBrush x:Key="SignatureValidBrush" Color="#107C10" />
+    <SolidColorBrush x:Key="SignatureWarningBrush" Color="#C17C00" />
+    <SolidColorBrush x:Key="SignatureInvalidBrush" Color="#C42B1C" />
+    <SolidColorBrush x:Key="OrganizeBrush" Color="#C2410C" />
+    <SolidColorBrush x:Key="OrganizeSoftBrush" Color="#FFEDD5" />
+    <SolidColorBrush x:Key="ConvertBrush" Color="#1D4ED8" />
+    <SolidColorBrush x:Key="ConvertSoftBrush" Color="#E8EEFF" />
+    <SolidColorBrush x:Key="EditBrush" Color="#7E22CE" />
+    <SolidColorBrush x:Key="EditSoftBrush" Color="#F3E8FF" />
+    <SolidColorBrush x:Key="AccountingBrush" Color="#137E3B" />
+    <SolidColorBrush x:Key="AccountingSoftBrush" Color="#E6F4EA" />
+    <SolidColorBrush x:Key="DrawingsBrush" Color="#0F766E" />
+    <SolidColorBrush x:Key="DrawingsSoftBrush" Color="#E0F2F1" />
+    <SolidColorBrush x:Key="SecurityBrush" Color="#475569" />
+    <SolidColorBrush x:Key="SecuritySoftBrush" Color="#EEF1F5" />
+    <SolidColorBrush x:Key="PaperBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="SnapMarkerBrush" Color="#00A86B" />
+    <SolidColorBrush x:Key="FieldPreviewStrokeBrush" Color="#1C64A8" />
+    <SolidColorBrush x:Key="FieldHoverBrush" Color="#201C64A8" />
+    <SolidColorBrush x:Key="MeasureSelectionBrush" Color="#30E8590C" />
+    <SolidColorBrush x:Key="FieldTintBrush" Color="#40B9CCFF" />
+    <SolidColorBrush x:Key="RedactPreviewFillBrush" Color="#40C42B1C" />
+    <SolidColorBrush x:Key="RedactSelectionBrush" Color="#50C42B1C" />
+    <SolidColorBrush x:Key="FieldSelectedBrush" Color="#55B9CCFF" />
+    <!-- Prompt text/icon of the image field, drawn over the white PDF page in every theme. -->
+    <SolidColorBrush x:Key="FieldPromptBrush" Color="#0F6CBD" />
+    <SolidColorBrush x:Key="SelectionOutlineBrush" Color="#60000000" />
+    <SolidColorBrush x:Key="FieldBrush" Color="#E3ECFF" />
+    <SolidColorBrush x:Key="CompareAddedBrush" Color="#146EE6" />
+    <SolidColorBrush x:Key="ComparePlaceholderBrush" Color="#BBBBBB" />
+    <SolidColorBrush x:Key="CompareRemovedBrush" Color="#D72828" />
+    <SolidColorBrush x:Key="CropAccentBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="CropShadeBrush" Color="#80000000" />
+    <SolidColorBrush x:Key="SelectionOverlayBrush" Color="#553399FF" />
+    <SolidColorBrush x:Key="FieldPreviewFillBrush" Color="#301C64A8" />
+    <SolidColorBrush x:Key="DigitalPreviewFillBrush" Color="#300F6CBD" />
+    <SolidColorBrush x:Key="CropHandleBrush" Color="#4169E1" />
+    <SolidColorBrush x:Key="PrintFoldBrush" Color="#C0C0C0" />
+</ResourceDictionary>

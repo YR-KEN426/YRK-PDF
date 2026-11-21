@@ -29,6 +29,14 @@
     <Using Include="Yrk.PdfStudio.App.Localization" />
   </ItemGroup>
 
+  <!-- WPF's default Page glob includes these dictionaries in the main assembly as BAML. -->
+  <ItemGroup>
+    <Page Update="Themes\Colors.Fixed.xaml;Themes\Colors.Light.xaml;Themes\Colors.Dark.xaml;Themes\Colors.HighContrast.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <!-- Installer, portable package and updates (MIT). The vpk tool in dotnet-tools.json must have the same version. -->

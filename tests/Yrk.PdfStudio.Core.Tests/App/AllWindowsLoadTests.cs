@@ -20,7 +20,7 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
             // WindowRenderer shares this host and the embedded real App.xaml, so this checks both paths.
             using var app = new WpfTestApp("en");
             var resources = Application.Current.Resources;
-            Assert.Equal(new[] { "Themes/Colors.xaml", "Themes/Styles.xaml" },
+            Assert.Equal(new[] { "Themes/Colors.Fixed.xaml", "Themes/Colors.Light.xaml", "Themes/Styles.xaml" },
                 resources.MergedDictionaries.Select(d => d.Source.OriginalString));
             Assert.Equal(System.Windows.Media.Color.FromRgb(0x0F, 0x6C, 0xBD),
                 ((System.Windows.Media.SolidColorBrush)resources["AccentBrush"]).Color);

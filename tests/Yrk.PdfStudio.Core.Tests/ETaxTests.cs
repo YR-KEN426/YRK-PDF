@@ -978,10 +978,7 @@ public sealed class ETaxTests : IDisposable
         {
             // Only in-memory controls: no application startup or window is shown.
             var application = new System.Windows.Application();
-            application.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
-            {
-                Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative),
-            });
+            application.Resources.MergedDictionaries.Add(ThemeTestResources.Create());
             application.Resources.MergedDictionaries.Add(new System.Windows.ResourceDictionary
             {
                 Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative),

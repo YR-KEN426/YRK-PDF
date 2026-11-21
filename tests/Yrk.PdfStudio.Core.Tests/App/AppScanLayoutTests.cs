@@ -104,8 +104,7 @@ public sealed class AppScanLayoutTests
         ResetApplication();
         typeof(Application).GetField("_resourceAssembly", BindingFlags.Static | BindingFlags.NonPublic)!.SetValue(null, typeof(ScanDialog).Assembly);
         var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        application.Resources.MergedDictionaries.Add(new ResourceDictionary
-        { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
+        application.Resources.MergedDictionaries.Add(ThemeTestResources.Create());
         application.Resources.MergedDictionaries.Add(new ResourceDictionary
         { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
         var window = new ScanDialog { ShowActivated = false, Left = -16000, Top = -16000, WindowStartupLocation = WindowStartupLocation.Manual,
@@ -131,8 +130,7 @@ public sealed class AppScanLayoutTests
         typeof(Application).GetField("_resourceAssembly", BindingFlags.Static | BindingFlags.NonPublic)!
             .SetValue(null, typeof(ScanDialog).Assembly);
         var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        application.Resources.MergedDictionaries.Add(new ResourceDictionary
-        { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
+        application.Resources.MergedDictionaries.Add(ThemeTestResources.Create());
         application.Resources.MergedDictionaries.Add(new ResourceDictionary
         { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
         var oldLanguage = Loc.Language;

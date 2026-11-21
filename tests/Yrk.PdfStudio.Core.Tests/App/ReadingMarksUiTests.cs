@@ -244,7 +244,7 @@ public sealed class ReadingMarksUiTests
             Reset();
             typeof(Application).GetField("_resourceAssembly", BindingFlags.NonPublic | BindingFlags.Static)!.SetValue(null, typeof(MainWindow).Assembly);
             var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-            application.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
+            application.Resources.MergedDictionaries.Add(ThemeTestResources.Create());
             application.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             var context = SynchronizationContext.Current;
             var recents = typeof(RecentFiles).GetField("s_items", BindingFlags.NonPublic | BindingFlags.Static)!;

@@ -29,6 +29,42 @@ public sealed class ThemeSwapTests
     }
 
     [Fact]
+    public void Open_window_follows_whole_palette_swaps_at_the_same_position()
+    {
+        Sta.Run(() =>
+        {
+            using var app = new WpfTestApp("en");
+            using var fixture = new WindowFixture();
+            var dictionaries = Application.Current.Resources.MergedDictionaries;
+            var fixedPalette = dictionaries[0];
+            var styles = dictionaries[2];
+            var window = WindowCatalog.Cases.Single(c => c.Name == "MainWindow").Create!(fixture);
+            try
+            {
+                Show(window);
+                var cards = (Panel)window.FindName("HomeCards");
+                var card = WpfTestApp.Descendants(cards).OfType<Button>().First();
+                foreach (var palette in new[] { "Dark", "HighContrast", "Light" })
+                {
+                    var replacement = ThemeTestResources.Load(palette);
+                    dictionaries[1] = replacement;
+                    WpfTestApp.Layout(window);
+                    Assert.Same(fixedPalette, dictionaries[0]);
+                    Assert.Same(styles, dictionaries[2]);
+                    Assert.Equal(3, dictionaries.Count);
+                    Assert.Same(replacement["SurfaceBrush"], window.Background);
+                    Assert.Same(replacement["HomeTextBrush"], card.Foreground);
+                    Assert.Same(replacement["HomeBackgroundBrush"], ((ScrollViewer)window.FindName("HomePage")).Background);
+                    Assert.Same(fixedPalette["PaperBrush"], Application.Current.Resources["PaperBrush"]);
+                }
+            }
+            finally { window.Close(); WpfTestApp.Pump(); }
+            Assert.Empty(UnexpectedSwapErrors(app.Errors));
+            return true;
+        });
+    }
+
+    [Fact]
     public void Open_home_and_generated_visuals_follow_replaced_brushes()
     {
         Sta.Run(() =>

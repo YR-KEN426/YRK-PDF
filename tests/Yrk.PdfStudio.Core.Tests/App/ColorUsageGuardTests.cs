@@ -33,14 +33,14 @@ public sealed class ColorUsageGuardTests
     [Fact]
     public void All_source_xaml_uses_dynamic_references_to_theme_brushes_and_colors()
     {
-        var palette = Path.Combine(AppSource, "Themes", "Colors.xaml");
+        var palettes = ThemeTestResources.PaletteNames
+            .Select(name => Path.Combine(AppSource, "Themes", $"Colors.{name}.xaml")).ToArray();
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-        var keys = XDocument.Load(palette).Root!.Elements()
-            .Where(e => e.Name.LocalName.EndsWith("Brush", StringComparison.Ordinal) || e.Name.LocalName == "Color")
+        var keys = palettes.SelectMany(p => XDocument.Load(p).Root!.Elements())
             .Select(e => (string?)e.Attribute(x + "Key")).OfType<string>().ToHashSet(StringComparer.Ordinal);
         Assert.NotEmpty(keys);
         var failures = SourceFiles(Directory.GetParent(AppSource)!.FullName)
-            .Where(p => Path.GetExtension(p) == ".xaml" && p != palette)
+            .Where(p => Path.GetExtension(p) == ".xaml" && !IsPalette(Path.GetRelativePath(AppSource, p).Replace('\\', '/')))
             .SelectMany(p => StaticThemeReferences(File.ReadAllText(p), keys)
                 .Select(key => $"{Path.GetRelativePath(AppSource, p)}: StaticResource {key}"));
         Assert.Empty(failures);
@@ -203,9 +203,11 @@ public sealed class ColorUsageGuardTests
             || name.EndsWith("Brush", StringComparison.Ordinal);
     }
 
+    private static bool IsPalette(string file) => Regex.IsMatch(file, @"^Themes/Colors\.[^/\\]+\.xaml$");
+
     private static IEnumerable<ColorUse> XamlColors(string source, string file)
     {
-        if (file == "Themes/Colors.xaml") yield break;
+        if (IsPalette(file)) yield break;
         var document = XDocument.Parse(source);
         foreach (var element in document.Descendants())
         {
@@ -290,7 +292,11 @@ public sealed class ColorUsageGuardTests
             </Border>
             """;
         Assert.Equal(4, XamlColors(source, "Example.xaml").Count());
-        Assert.Empty(XamlColors(source, "Themes/Colors.xaml"));
+        foreach (var palette in ThemeTestResources.PaletteNames)
+            Assert.Empty(XamlColors(source, $"Themes/Colors.{palette}.xaml"));
+        foreach (var other in new[] { "Themes/Colors.xaml", "Colors.Light.xaml", "Themes/Nested/Colors.Light.xaml",
+                     "Themes/Styles.xaml", "Other/Colors.Light.xaml", "Themes/Colors.Light.xaml.cs" })
+            Assert.Equal(4, XamlColors(source, other).Count());
     }
 
     [Fact]

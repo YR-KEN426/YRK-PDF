@@ -70,8 +70,7 @@ public sealed class AppOcrReviewTests
             typeof(Application).GetField("_resourceAssembly", BindingFlags.NonPublic | BindingFlags.Static)!
                 .SetValue(null, typeof(MainWindow).Assembly);
             var application = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-            application.Resources.MergedDictionaries.Add(new ResourceDictionary
-                { Source = new Uri("/YrkEasyPdf;component/Themes/Colors.xaml", UriKind.Relative) });
+            application.Resources.MergedDictionaries.Add(ThemeTestResources.Create());
             application.Resources.MergedDictionaries.Add(new ResourceDictionary
                 { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
             var document = DispatchProxy.Create<IPdfDocument, SignatureSecurityTests.TestProxy>();
