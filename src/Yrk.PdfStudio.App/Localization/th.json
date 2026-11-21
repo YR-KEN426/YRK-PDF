@@ -1,4 +1,6 @@
 {
+  "The recent files list and opening times will always be cleared. Choose any reading data to clear too.": "รายการไฟล์ล่าสุดและเวลาเปิดจะถูกล้างเสมอ เลือกข้อมูลการอ่านที่ต้องการล้างเพิ่มเติม",
+  "Saved reading positions": "ตำแหน่งที่อ่านค้าง",
   "Clear recent files, reading marks and saved reading positions?": "ล้างไฟล์ล่าสุด ที่คั่นหนังสือ และตำแหน่งที่อ่านค้างทั้งหมดหรือไม่?",
   "Theme": "ธีม",
   "Follow system": "ตามระบบ",

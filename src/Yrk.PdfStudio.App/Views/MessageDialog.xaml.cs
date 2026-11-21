@@ -13,7 +13,8 @@ public partial class MessageDialog : Window
     public MessageBoxResult Result { get; private set; }
 
     public MessageDialog(string message, string caption, IReadOnlyList<MessageDialogButton> buttons,
-        MessageBoxResult defaultResult, MessageBoxResult dismissResult, MessageBoxImage icon, Window? owner)
+        MessageBoxResult defaultResult, MessageBoxResult dismissResult, MessageBoxImage icon, Window? owner,
+        UIElement? additionalContent = null)
     {
         if (buttons.Count == 0 || buttons.Count(b => b.Result == defaultResult) != 1
             || buttons.Select(b => b.Result).Distinct().Count() != buttons.Count)
@@ -23,6 +24,7 @@ public partial class MessageDialog : Window
         Result = dismissResult;
         Title = Loc.T(caption);
         MessageText.Text = message;
+        AdditionalContent.Content = additionalContent;
         Owner = owner;
         Services.WindowSizing.FitToWorkArea(this);
         WindowStartupLocation = owner is null ? WindowStartupLocation.CenterScreen : WindowStartupLocation.CenterOwner;

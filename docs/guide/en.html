@@ -51,7 +51,7 @@
     <li>Or press <kbd>Ctrl</kbd>+<kbd>O</kbd>, or the <span class="path">Open</span> button. The arrow next to it lists recent files.</li>
     <li>Select several files in the <span class="path">Open</span> dialog; each one gets its own tab. If you select or drop more than 20 files, the app asks before opening them. If a file cannot be opened or you cancel its password prompt, the app skips it and continues with the next file.</li>
     <li>Besides PDF, AutoCAD drawings (DWG, DXF) open too. Right-click a file in the start page's recent files panel to open its containing folder or remove it from the list without deleting the file.</li>
-    <li>When you reopen a file, the app returns to your last-read page. The home page's recent files panel shows when each file was last opened; this is stored locally in recent-times.json. Hide the panel in <span class="path">Settings → Privacy and safety…</span>. Clear the list from <span class="path">File → Recent files → Clear the list (also bookmarks and reading positions)</span> or the <span class="path">Clear list</span> button on the start page. A confirmation appears first; choose <span class="path">OK</span> to continue or <span class="path">Cancel</span> to go back. This clears recent files, bookmarks and last-read positions.</li>
+    <li>When you reopen a file, the app returns to your last-read page. The home page's recent files panel shows when each file was last opened; this is stored locally in recent-times.json. Hide the panel in <span class="path">Settings → Privacy and safety…</span>. Clear the list from <span class="path">File → Recent files → Clear the list (also bookmarks and reading positions)</span> or the <span class="path">Clear list</span> button on the start page or in the Privacy window. The confirmation always clears the recent files list and opening times. Choose whether to also clear saved reading positions (checked by default) and reading marks (unchecked by default), including data in open tabs. Choose <span class="path">OK</span> to confirm. <span class="path">Cancel</span> is the default: pressing <kbd>Enter</kbd> or <kbd>Esc</kbd>, or closing with X, clears nothing. After clearing positions, open tabs will not save their position until you navigate yourself or explicitly open a file. The app reports if it cannot clear everything selected.</li>
   </ul>
 
   <h3>Start page</h3>
@@ -108,7 +108,7 @@
   </ol>
   <p>Reading marks are stored only on this computer, not in the PDF, so they also work with signed or read-only files. You can save up to 100 marks per file for the 200 most recently opened files.</p>
   <p>When you insert, move or delete pages, reading mark page numbers follow along and are saved with the document. Deleting a marked page also deletes its mark; Undo restores it with that step. If you discard unsaved page changes, marks return to match the original file. When you save as a new name, the marks go with the new file.</p>
-  <div class="tip warn"><b>Keep your reading marks:</b> they are also included in the app's backup file. Clearing recent files also clears reading marks and your last-read positions.</div>
+  <div class="tip warn"><b>Keep your reading marks:</b> they are also included in the app's backup file. When clearing recent files, you can choose whether to also clear reading marks and last-read positions. Leave the reading marks box unchecked to keep your marks.</div>
   <!-- TODO screenshot: Reading marks tab, ribbons on the page and thumbnail, and add/edit dialog with six colour choices -->
 </section>
 

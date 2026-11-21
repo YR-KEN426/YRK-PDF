@@ -96,6 +96,16 @@ public sealed class MessageDialogTests
                     Assert.Same(buttons[defaultIndex], FocusManager.GetFocusedElement(dialog));
                     if (site == "save") Assert.Equal(Loc.F("Save changes to \"{0}\"?", "example.pdf"), ((TextBlock)dialog.FindName("MessageText")).Text);
                     if (site == "scan") Assert.Equal(Loc.F("There are {0} unsaved pages. Close anyway?", 0), ((TextBlock)dialog.FindName("MessageText")).Text);
+                    if (site == "clear-recent")
+                    {
+                        var options = Assert.IsType<StackPanel>(((ContentControl)dialog.FindName("AdditionalContent")).Content);
+                        var boxes = options.Children.OfType<CheckBox>().ToArray();
+                        Assert.Equal(2, boxes.Length);
+                        Assert.Equal(Loc.T("Saved reading positions"), boxes[0].Content);
+                        Assert.True(boxes[0].IsChecked);
+                        Assert.Equal(Loc.T("Reading marks"), boxes[1].Content);
+                        Assert.False(boxes[1].IsChecked);
+                    }
                     switch (action)
                     {
                         case "enter": AccessKeyManager.ProcessKey(PresentationSource.FromVisual(dialog), "\r", false); break;
@@ -144,6 +154,7 @@ public sealed class MessageDialogTests
                     "save" or "scan" => new[] { SaveChangesChoice.Save, SaveChangesChoice.Discard, SaveChangesChoice.Cancel }[expectedIndex],
                     "cut" => expectedIndex == 0 ? MessageBoxResult.Yes : MessageBoxResult.Cancel,
                     "info" or "crash" => null,
+                    "clear-recent" => expectedIndex == 0 ? new ClearRecentChoice(true, false) : null,
                     _ => expectedIndex == 0,
                 };
                 Assert.Equal(expected, actual);
@@ -207,7 +218,7 @@ public sealed class MessageDialogTests
                 {
                     visited = true;
                     Assert.Same(privacy, dialog.Owner);
-                    Assert.Equal(Loc.T(RecentFiles.ClearConfirmation), ((TextBlock)dialog.FindName("MessageText")).Text);
+                    Assert.Equal(Loc.T("The recent files list and opening times will always be cleared. Choose any reading data to clear too."), ((TextBlock)dialog.FindName("MessageText")).Text);
                     var buttons = ((WrapPanel)dialog.FindName("Buttons")).Children.OfType<Button>().ToArray();
                     Assert.Equal(MessageBoxResult.Cancel, Assert.Single(buttons.Where(button => button.IsDefault)).Tag);
                 }
@@ -219,6 +230,51 @@ public sealed class MessageDialogTests
             Assert.True(visited);
             Assert.True(((Button)privacy.FindName("ClearRecentButton")).IsEnabled);
             privacy.Close();
+            Assert.Empty(app.Errors);
+            return true;
+        });
+    }
+
+    public static IEnumerable<object[]> ClearChoices =>
+        from theme in new[] { "light", "dark" }
+        from language in new[] { "en", "th" }
+        from positions in new[] { false, true }
+        from bookmarks in new[] { false, true }
+        select new object[] { theme, language, positions, bookmarks };
+
+    [Theory]
+    [MemberData(nameof(ClearChoices))]
+    public void Clear_dialog_returns_selected_options_in_both_themes(string theme, string language, bool positions, bool bookmarks)
+    {
+        Sta.Run(() =>
+        {
+            using var app = new WpfTestApp(language, theme);
+            Exception? failure = null;
+            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                var dialog = Application.Current.Windows.OfType<MessageDialog>().Single();
+                try
+                {
+                    var options = Assert.IsType<StackPanel>(((ContentControl)dialog.FindName("AdditionalContent")).Content);
+                    var boxes = options.Children.OfType<CheckBox>().ToArray();
+                    Assert.True(boxes[0].IsChecked);
+                    Assert.False(boxes[1].IsChecked);
+                    foreach (var box in boxes)
+                    {
+                        Assert.Same(Application.Current.Resources[typeof(CheckBox)], box.Style);
+                        Assert.Equal(((System.Windows.Media.SolidColorBrush)Application.Current.Resources["TextBrush"]).Color,
+                            ((System.Windows.Media.SolidColorBrush)box.Foreground).Color);
+                    }
+                    boxes[0].IsChecked = positions;
+                    boxes[1].IsChecked = bookmarks;
+                    var ok = ((WrapPanel)dialog.FindName("Buttons")).Children.OfType<Button>().Single(b => Equals(b.Tag, MessageBoxResult.OK));
+                    ok.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                }
+                catch (Exception ex) { failure = ex; dialog.Close(); }
+            }));
+            var result = new DialogService().ConfirmClearRecent();
+            Assert.Null(failure);
+            Assert.Equal(new ClearRecentChoice(positions, bookmarks), result);
             Assert.Empty(app.Errors);
             return true;
         });

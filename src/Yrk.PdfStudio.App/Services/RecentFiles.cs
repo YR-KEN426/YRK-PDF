@@ -29,7 +29,6 @@ public sealed record RecentFile(string Path, DateTimeOffset? LastOpened = null)
 public static class RecentFiles
 {
     public const int MaxCount = 12;
-    internal const string ClearConfirmation = "Clear recent files, reading marks and saved reading positions?";
     private static readonly Regex TemporaryFileName = new(@"\A(?:recent(?:-times)?|reader-bookmarks|reading-positions)\.json\.[0-9a-fA-F]{32}\.tmp\z", RegexOptions.CultureInvariant);
 
     private static readonly string DefaultFilePath = System.IO.Path.Combine(
@@ -107,12 +106,15 @@ public static class RecentFiles
 
     public static void Remove(string path) => Remove(path, save: true);
 
-    /// <summary>Attempts every local history store and clears open-tab reading state; false if any store could not be cleared.</summary>
-    public static bool Clear()
+    /// <summary>Clears all local history and reading data, including open tabs.</summary>
+    public static bool Clear() => Clear(new ClearRecentChoice(true, true));
+
+    /// <summary>Clears recent files and selected reading stores; false if any selected data could not be cleared.</summary>
+    public static bool Clear(ClearRecentChoice choice)
     {
-        ViewModels.MainViewModel.ClearOpenReadingData();
-        var positions = ReadingPositions.Clear();
-        var bookmarks = ReaderBookmarks.Clear();
+        ViewModels.MainViewModel.ClearOpenReadingData(choice);
+        var positions = !choice.Positions || ReadingPositions.Clear();
+        var bookmarks = !choice.Bookmarks || ReaderBookmarks.Clear();
         Items.Clear();
         var saved = WriteAtomically(FilePath, "[]");
         var times = TryWithRetry(() =>
@@ -120,11 +122,11 @@ public static class RecentFiles
             BackupFormat.CheckNoLinks(TimesFilePath);
             File.Delete(TimesFilePath);
         }) || WriteAtomically(TimesFilePath, "{}");
-        var cleaned = ClearTemporaryFiles();
+        var cleaned = ClearTemporaryFiles(choice);
         return positions && bookmarks && saved && times && cleaned;
     }
 
-    private static bool ClearTemporaryFiles()
+    private static bool ClearTemporaryFiles(ClearRecentChoice choice)
     {
         var folder = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(FilePath))!;
         var cleared = true;
@@ -134,7 +136,11 @@ public static class RecentFiles
             if (!Directory.Exists(folder)) return true;
             foreach (var path in Directory.EnumerateFiles(folder))
             {
-                if (TemporaryFileName.IsMatch(System.IO.Path.GetFileName(path)))
+                var name = System.IO.Path.GetFileName(path);
+                if (TemporaryFileName.IsMatch(name)
+                    && (name.StartsWith("recent", StringComparison.Ordinal)
+                        || choice.Positions && name.StartsWith("reading-positions.", StringComparison.Ordinal)
+                        || choice.Bookmarks && name.StartsWith("reader-bookmarks.", StringComparison.Ordinal)))
                     cleared &= TryWithRetry(() =>
                     {
                         BackupFormat.CheckNoLinks(path);

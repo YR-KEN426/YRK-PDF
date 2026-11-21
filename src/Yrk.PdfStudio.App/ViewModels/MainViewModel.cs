@@ -363,8 +363,8 @@ public sealed partial class MainViewModel : ObservableObject
 
     public IRelayCommand ClearRecentCommand => _clearRecentCommand ??= new RelayCommand(() =>
     {
-        if (!_dialogs.ConfirmClearRecent()) return;
-        if (!RecentFiles.Clear())
+        if (_dialogs.ConfirmClearRecent() is not { } choice) return;
+        if (!RecentFiles.Clear(choice))
             _dialogs.ShowInfo(Loc.T("Some recent-file data could not be cleared. Close other programs that may be using it and try again."));
     });
 

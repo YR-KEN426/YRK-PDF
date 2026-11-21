@@ -51,8 +51,8 @@ public partial class PrivacyDialog : Window
 
     private void OnClearRecent(object sender, RoutedEventArgs e)
     {
-        if (!new DialogService(this).ConfirmClearRecent()) return;
-        if (RecentFiles.Clear())
+        if (new DialogService(this).ConfirmClearRecent() is not { } choice) return;
+        if (RecentFiles.Clear(choice))
             ClearRecentButton.IsEnabled = false;
         else
             new DialogService(this).ShowInfo(Loc.T("Some recent-file data could not be cleared. Close other programs that may be using it and try again."));

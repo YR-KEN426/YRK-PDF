@@ -14,17 +14,20 @@ public sealed partial class MainViewModel
     private long _readingMarksGeneration;
     private bool _suppressReadingPosition;
 
-    internal static void ClearOpenReadingData()
+    internal static void ClearOpenReadingData(ClearRecentChoice choice)
     {
         lock (ReadingDataTabs)
         {
             foreach (var reference in ReadingDataTabs)
                 if (reference.TryGetTarget(out var tab))
                 {
-                    tab._readingMarksGeneration++;
-                    tab._workingReadingMarks = [];
-                    tab._suppressReadingPosition = true;
-                    tab.ReadingMarks = [];
+                    if (choice.Bookmarks)
+                    {
+                        tab._readingMarksGeneration++;
+                        tab._workingReadingMarks = [];
+                        tab.ReadingMarks = [];
+                    }
+                    if (choice.Positions) tab._suppressReadingPosition = true;
                 }
         }
     }

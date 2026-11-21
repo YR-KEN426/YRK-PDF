@@ -2,6 +2,8 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Windows;
+using CheckBox = System.Windows.Controls.CheckBox;
+using StackPanel = System.Windows.Controls.StackPanel;
 using System.Windows.Interop;
 using Microsoft.Win32;
 using Yrk.PdfStudio.App.Imaging;
@@ -317,8 +319,25 @@ public sealed class DialogService : IDialogService
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CryptUIDlgViewContext(uint contextType, IntPtr context, IntPtr owner, string title, uint flags, IntPtr reserved);
 
-    public bool ConfirmClearRecent() =>
-        Show(RecentFiles.ClearConfirmation, MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel) == MessageBoxResult.OK;
+    public ClearRecentChoice? ConfirmClearRecent()
+    {
+        var positions = new CheckBox
+        {
+            Content = Loc.T("Saved reading positions"), IsChecked = true, Margin = new Thickness(0, 12, 0, 0),
+        };
+        var bookmarks = new CheckBox
+        {
+            Content = Loc.T("Reading marks"), IsChecked = false, Margin = new Thickness(0, 8, 0, 0),
+        };
+        var options = new StackPanel();
+        options.Children.Add(positions);
+        options.Children.Add(bookmarks);
+        var dialog = new MessageDialog(Loc.T("The recent files list and opening times will always be cleared. Choose any reading data to clear too."),
+            Caption, [new("OK", MessageBoxResult.OK, 'O'), new("Cancel", MessageBoxResult.Cancel, 'C')],
+            MessageBoxResult.Cancel, MessageBoxResult.Cancel, MessageBoxImage.Question, Owner, options);
+        return dialog.ShowResult() == MessageBoxResult.OK
+            ? new ClearRecentChoice(positions.IsChecked == true, bookmarks.IsChecked == true) : null;
+    }
 
     public bool Confirm(string message) =>
         Show(message, MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;

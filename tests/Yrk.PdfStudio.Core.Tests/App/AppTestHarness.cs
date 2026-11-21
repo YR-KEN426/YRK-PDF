@@ -151,4 +151,6 @@ internal sealed class ScriptedDialogs
     }
 
     public Call[] Named(string name) => Calls.Where(call => call.Name == name).ToArray();
+
+    public void AnswerClearRecent(ClearRecentChoice? choice) => Answer(nameof(IDialogService.ConfirmClearRecent), (object?)choice);
 }

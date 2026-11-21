@@ -167,10 +167,13 @@ public interface IDialogService
     /// <summary>Save dialog for any file type; asks before overwriting.</summary>
     string? PickSaveFile(string suggestedFileName, string? initialFolder, string title, string filter, string extension);
 
-    /// <summary>Yes / No question; true for Yes.</summary>
-    bool ConfirmClearRecent();
+    /// <summary>Choose which reading data to clear with recent files; null when cancelled.</summary>
+    ClearRecentChoice? ConfirmClearRecent();
 
+    /// <summary>Yes / No question; true for Yes.</summary>
     bool AskYesNo(string message);
 
     void ShowError(ErrorInfo error, Exception? ex = null, params object[] args);
 }
+
+public sealed record ClearRecentChoice(bool Positions, bool Bookmarks);
