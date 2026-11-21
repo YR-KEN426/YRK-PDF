@@ -20,6 +20,15 @@ internal sealed record WindowCase(Type Type, string Fixture, Func<WindowFixture,
 /// <summary>Explicit, reviewed construction table. Tests assert it covers every concrete app Window.</summary>
 internal static class WindowCatalog
 {
+    public static IReadOnlyList<string> Themes { get; } = ["light", "dark"];
+
+    public static string PalettePath(string theme) => theme switch
+    {
+        "light" => "Themes/Colors.Light.xaml",
+        "dark" => "Themes/Colors.Dark.xaml",
+        _ => throw new ArgumentOutOfRangeException(nameof(theme), theme, "Expected light or dark.")
+    };
+
     public static IReadOnlyList<WindowCase> Cases { get; } =
     [
         new(typeof(MainWindow), "Empty MainViewModel, no personal signatures or recent files", f => new MainWindow(f.Model, () => f.Model)),

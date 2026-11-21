@@ -173,7 +173,7 @@
 ## สถานะ
 - [x] ขั้น 0 บันทึกแผน
 - [x] ขั้น 1a บันทึก settings ไม่ทับกัน
-- [ ] ขั้น 1 ชุดสีมืด + ตัวสลับธีม
+- [x] ขั้น 1 ชุดสีมืด + ตัวสลับธีม
 - [ ] ขั้น 2 ทุกหน้าต่างโหมดมืด + สีหลักแดง
 - [ ] ขั้น 3 กล่องคำถามแบบเดียวกัน
 - [ ] ขั้น 4 แถบสถานะล่าง + แถบบนไม่ล้น + ช่องค้นหา + ป้าย 12px
@@ -190,3 +190,4 @@
   - build เทสต์ไป OutDir **นอกโฟลเดอร์ repo** ทำให้เทสต์ที่หาไฟล์ใน repo ล้ม 28 ข้อ (ErrorUsageGuard, Localization, ColorUsageGuard, UpdateSignerVerify, SignaturePhoto decode ฯลฯ) ไม่ใช่บั๊ก; ใช้ build ปกติ หรือ OutDir ใต้ repo ที่ไม่ commit
   - 1a: ถ้า settings.json เสียและมี `settings.json.bad` อยู่แล้ว จะไม่บันทึกค่าใหม่จนกว่าจะลบ `.bad` (ตั้งใจ ตาม Codex รอบ 2) ดูอีกครั้งในรุ่นตรวจ 1.2.6
   - ผู้เรียกส่วนใหญ่ยังใช้ `Save()` (ทาง merge เดียวกัน) มีแค่ `RememberScanFolder` ที่ใช้ `Update()`; ขั้น 1 ให้ตัวเลือกธีมใช้ `AppSettings.Update`
+- หมายเหตุขั้น 1 (ส่งต่อขั้น 2): เพิ่ม `AccentTextBrush` (Light/Dark/HC) สำหรับ Accent ที่ใช้เป็นตัวอักษร/ไอคอนบนพื้น UI ขั้น 2 ต้องย้ายจุดที่ใช้ `AccentBrush` เป็น Foreground ไปใช้ตัวนี้; เพิ่ม `FieldPromptBrush` (Fixed) ให้ไอคอนช่องรูปภาพบนหน้า PDF; ปรับ MeasureAccent/ScanHintText (Light) และ AccountingBrush (Fixed) เข้มขึ้นเล็กน้อยให้ผ่าน 4.5:1; `check-translations.ps1` ได้ 27 คำ (เท่ากับก่อนเริ่มขั้น 1 ไม่ใช่ 12)

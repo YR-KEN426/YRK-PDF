@@ -12,22 +12,27 @@ namespace Yrk.PdfStudio.Core.Tests;
 [Collection("WPF Application")]
 public sealed class AllWindowsLoadTests(ITestOutputHelper output)
 {
-    [Fact]
-    public void Real_application_resources_load_colors_before_styles()
+    [Theory]
+    [InlineData("light")]
+    [InlineData("dark")]
+    public void Real_application_resources_load_colors_before_styles(string theme)
     {
         Sta.Run(() =>
         {
             // WindowRenderer shares this host and the embedded real App.xaml, so this checks both paths.
-            using var app = new WpfTestApp("en");
+            using var app = new WpfTestApp("en", theme);
             var resources = Application.Current.Resources;
-            Assert.Equal(new[] { "Themes/Colors.Fixed.xaml", "Themes/Colors.Light.xaml", "Themes/Styles.xaml" },
+            Assert.Equal(new[] { "Themes/Colors.Fixed.xaml", WindowCatalog.PalettePath(theme), "Themes/Styles.xaml" },
                 resources.MergedDictionaries.Select(d => d.Source.OriginalString));
-            Assert.Equal(System.Windows.Media.Color.FromRgb(0x0F, 0x6C, 0xBD),
+            Assert.Equal(((System.Windows.Media.SolidColorBrush)ThemeTestResources.Load(theme == "light" ? "Light" : "Dark")["AccentBrush"]).Color,
                 ((System.Windows.Media.SolidColorBrush)resources["AccentBrush"]).Color);
             Assert.Equal(System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28),
                 ((System.Windows.Media.SolidColorBrush)resources["BrandBrush"]).Color);
-            foreach (var (original, alias) in new[] { ("DividerBrush", "BorderSubtleBrush"),
-                         ("ErrorBrush", "SignatureInvalidBrush"), ("SuccessBrush", "SignatureValidBrush") })
+            // Signature status colours are fixed; they alias UI status colours only in Light.
+            var aliases = theme == "light"
+                ? new[] { ("DividerBrush", "BorderSubtleBrush"), ("ErrorBrush", "SignatureInvalidBrush"), ("SuccessBrush", "SignatureValidBrush") }
+                : new[] { ("DividerBrush", "BorderSubtleBrush") };
+            foreach (var (original, alias) in aliases)
                 Assert.Equal(((System.Windows.Media.SolidColorBrush)resources[original]).Color,
                     ((System.Windows.Media.SolidColorBrush)resources[alias]).Color);
             Assert.Empty(app.Errors);
@@ -35,8 +40,12 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
         });
     }
 
-    public static IEnumerable<object[]> Windows => WindowCatalog.Cases.Where(c => c.Create is not null).SelectMany(c => new[] { "th", "en" }
-        .Select(language => new object[] { c.Name, language }));
+    public static IEnumerable<object[]> Windows =>
+        from entry in WindowCatalog.Cases
+        where entry.Create is not null
+        from language in new[] { "th", "en" }
+        from theme in WindowCatalog.Themes
+        select new object[] { entry.Name, language, theme };
 
     [Fact]
     public void Construction_table_covers_all_39_windows_with_explicit_exclusions()
@@ -89,10 +98,10 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
 
     [Theory]
     [MemberData(nameof(Windows))]
-    public void Window_loads_layouts_and_opens_popups_without_diagnostics(string name, string language)
+    public void Window_loads_layouts_and_opens_popups_without_diagnostics(string name, string language, string theme)
     {
         var entry = WindowCatalog.Cases.Single(c => c.Name == name);
-        output.WriteLine($"{name} [{language}]: {entry.Fixture}");
+        output.WriteLine($"{name} [{language}, {theme}]: {entry.Fixture}");
         if (entry.Create is null)
         {
             output.WriteLine("UNAVAILABLE (construction table): " + entry.Unavailable);
@@ -101,7 +110,7 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
         }
         Sta.Run(() =>
         {
-            using var app = new WpfTestApp(language);
+            using var app = new WpfTestApp(language, theme);
             using var fixture = new WindowFixture();
             var window = entry.Create!(fixture);
             try

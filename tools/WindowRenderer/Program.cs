@@ -33,7 +33,20 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        if (args is ["--all", var folder]) return RenderAll(folder);
+        var theme = "light";
+        var themeIndex = Array.IndexOf(args, "--theme");
+        if (themeIndex >= 0)
+        {
+            if (themeIndex + 1 >= args.Length || !Yrk.PdfStudio.Testing.WindowCatalog.Themes.Contains(args[themeIndex + 1])
+                || args.Count(arg => arg == "--theme") != 1)
+            {
+                Console.Error.WriteLine("Usage: --theme light|dark (default: light)");
+                return 2;
+            }
+            theme = args[themeIndex + 1];
+            args = args.Take(themeIndex).Concat(args.Skip(themeIndex + 2)).ToArray();
+        }
+        if (args is ["--all", var folder]) return RenderAll(folder, theme);
         if (args is ["--list"])
         {
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(Yrk.PdfStudio.Testing.WindowCatalog.Cases
@@ -46,7 +59,7 @@ internal static class Program
         if (positional.Length != 3 || args.Length != 3 + (args.Contains("--allow-any-window", StringComparer.Ordinal) ? 1 : 0) + (xamlMode ? 1 : 0)
             || positional[1] is not ("th" or "en"))
         {
-            Console.Error.WriteLine("Usage: WindowRenderer [--allow-any-window] <window class> <th|en> <output.png> | --all <folder> | --list");
+            Console.Error.WriteLine("Usage: WindowRenderer [--theme light|dark] [--allow-any-window] <window class> <th|en> <output.png> | --all <folder> [--theme light|dark] | --list");
             return 2;
         }
 
@@ -83,7 +96,7 @@ internal static class Program
         try
         {
             // Keep App references behind this boundary until the initial snapshot is complete.
-            success = Render(name, positional[1], output);
+            success = Render(name, positional[1], output, theme);
         }
         catch (Exception ex)
         {
@@ -112,7 +125,7 @@ internal static class Program
         return result;
     }
 
-    private static int RenderAll(string folder)
+    private static int RenderAll(string folder, string theme)
     {
         folder = Path.GetFullPath(folder);
         Directory.CreateDirectory(folder);
@@ -135,7 +148,7 @@ internal static class Program
                 };
                 if (string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "dotnet", StringComparison.OrdinalIgnoreCase))
                     start.ArgumentList.Add(typeof(Program).Assembly.Location);
-                foreach (var arg in new[] { "--allow-any-window", entry.Name, language, output }) start.ArgumentList.Add(arg);
+                foreach (var arg in new[] { "--theme", theme, "--allow-any-window", entry.Name, language, output }) start.ArgumentList.Add(arg);
                 using var process = System.Diagnostics.Process.Start(start)!;
                 var stdout = process.StandardOutput.ReadToEndAsync();
                 var stderr = process.StandardError.ReadToEndAsync();
@@ -145,9 +158,9 @@ internal static class Program
                 if (exitCode == 124) detail += "Timed out after 45 seconds.";
             }
             var captured = File.Exists(output);
-            results.Add(new { Window = entry.Name, Language = language, entry.Fixture, Captured = captured, ExitCode = exitCode, Detail = detail });
+            results.Add(new { Window = entry.Name, Language = language, Theme = theme, entry.Fixture, Captured = captured, ExitCode = exitCode, Detail = detail });
             File.WriteAllText(Path.Combine(folder, entry.Name + "." + language + ".log"), detail);
-            Console.WriteLine($"{entry.Name} [{language}]: {(captured ? "captured" : "unavailable")}, exit {exitCode}");
+            Console.WriteLine($"{entry.Name} [{language}, {theme}]: {(captured ? "captured" : "unavailable")}, exit {exitCode}");
             if (exitCode != 0) failures++;
             File.WriteAllText(Path.Combine(folder, "manifest.json"), System.Text.Json.JsonSerializer.Serialize(results,
                 new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
@@ -198,9 +211,9 @@ internal static class Program
         return differences;
     }
 
-    private static string Render(string name, string language, string output)
+    private static string Render(string name, string language, string output, string theme)
     {
-        using var app = new Yrk.PdfStudio.Testing.WpfTestApp(language);
+        using var app = new Yrk.PdfStudio.Testing.WpfTestApp(language, theme);
         using var fixture = new Yrk.PdfStudio.Testing.WindowFixture();
         Window window;
         if (name.StartsWith("XAML:", StringComparison.Ordinal))
@@ -246,7 +259,7 @@ internal static class Program
             Yrk.PdfStudio.Testing.WpfTestApp.Pump();
             // Keep baseline evidence even when a real binding defect is found, but return failure visibly.
             if (app.Errors.Count != 0) throw new InvalidOperationException("Image saved with WPF diagnostics: " + string.Join("\n", app.Errors));
-            return $"PASS: {output} ({width}x{height}, {colors.Count} colors, {popupCount} popups)";
+            return $"PASS: {output} ({theme}, {width}x{height}, {colors.Count} colors, {popupCount} popups)";
         }
         finally { if (!closed) window.Close(); Yrk.PdfStudio.Testing.WpfTestApp.Pump(); }
     }

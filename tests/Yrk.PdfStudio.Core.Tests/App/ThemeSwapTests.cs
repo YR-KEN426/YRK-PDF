@@ -14,26 +14,14 @@ namespace Yrk.PdfStudio.Core.Tests;
 [Collection("WPF Application")]
 public sealed class ThemeSwapTests
 {
-    /// <summary>
-    /// Replacing brushes re-templates item containers, and the old, detached ones briefly log two known
-    /// errors from MainWindow.xaml: the count-mark ScaleTransform's FindAncestor binding to OverlayUnit and
-    /// the colour swatch SolidColorBrush Color="{Binding}". They are harmless today (no runtime theme switch)
-    /// but must be fixed with Dark mode in 1.2.5; until then only these two are tolerated, and only here.
-    /// </summary>
-    private static List<string> UnexpectedSwapErrors(IEnumerable<string> errors)
-    {
-        var messages = errors.Where(e => !System.Text.RegularExpressions.Regex.IsMatch(e.Trim(), @"^System\.Windows\.Data Error: \d+ :$")).ToList();
-        return messages.Where(m => !(m.Contains("Path=DataContext.OverlayUnit;") && m.Contains("'ScaleTransform'"))
-            && !(m.Contains("Cannot find governing FrameworkElement") && m.Contains("'SolidColorBrush'") && m.Contains("target property is 'Color'")))
-            .ToList();
-    }
-
-    [Fact]
-    public void Open_window_follows_whole_palette_swaps_at_the_same_position()
+    [Theory]
+    [InlineData("light")]
+    [InlineData("dark")]
+    public void Open_window_follows_whole_palette_swaps_at_the_same_position(string initialTheme)
     {
         Sta.Run(() =>
         {
-            using var app = new WpfTestApp("en");
+            using var app = new WpfTestApp("en", initialTheme);
             using var fixture = new WindowFixture();
             var dictionaries = Application.Current.Resources.MergedDictionaries;
             var fixedPalette = dictionaries[0];
@@ -44,7 +32,7 @@ public sealed class ThemeSwapTests
                 Show(window);
                 var cards = (Panel)window.FindName("HomeCards");
                 var card = WpfTestApp.Descendants(cards).OfType<Button>().First();
-                foreach (var palette in new[] { "Dark", "HighContrast", "Light" })
+                foreach (var palette in new[] { "Dark", "Light", "Dark", "HighContrast", "Light" })
                 {
                     var replacement = ThemeTestResources.Load(palette);
                     dictionaries[1] = replacement;
@@ -56,10 +44,13 @@ public sealed class ThemeSwapTests
                     Assert.Same(replacement["HomeTextBrush"], card.Foreground);
                     Assert.Same(replacement["HomeBackgroundBrush"], ((ScrollViewer)window.FindName("HomePage")).Background);
                     Assert.Same(fixedPalette["PaperBrush"], Application.Current.Resources["PaperBrush"]);
+                    var swatches = WpfTestApp.Descendants(window).OfType<Button>().Where(b => b.DataContext is Color).ToArray();
+                    Assert.NotEmpty(swatches);
+                    Assert.All(swatches, b => Assert.Equal((Color)b.DataContext, ColorOf(b.Background)));
                 }
             }
             finally { window.Close(); WpfTestApp.Pump(); }
-            Assert.Empty(UnexpectedSwapErrors(app.Errors));
+            Assert.True(app.Errors.Count == 0, string.Join(Environment.NewLine, app.Errors));
             return true;
         });
     }
@@ -122,8 +113,7 @@ public sealed class ThemeSwapTests
                 Assert.Same(brand, open.Background);
             }
             finally { window.Close(); WpfTestApp.Pump(); }
-            var errors = UnexpectedSwapErrors(app.Errors);
-            Assert.True(errors.Count == 0, string.Join(Environment.NewLine, errors));
+            Assert.True(app.Errors.Count == 0, string.Join(Environment.NewLine, app.Errors));
             return true;
         });
     }

@@ -25,6 +25,8 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:ColorToBrushConverter x:Key="ColorToBrush" />
+        <conv:OverlayScaleConverter x:Key="OverlayScale" />
         <conv:InverseBooleanToVisibilityConverter x:Key="NoDocumentVisibility" />
         <vm:ReadingMarkConverter x:Key="ReadingMarkForPage" />
         <Style x:Key="ReadingMarkOverlay" TargetType="ContentControl">
@@ -680,11 +682,7 @@
                                 <DataTemplate>
                                     <Button Style="{StaticResource SwatchButton}" ToolTip="Colour"
                                             Command="{Binding DataContext.SetColorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                            CommandParameter="{Binding}">
-                                        <Button.Background>
-                                            <SolidColorBrush Color="{Binding}" />
-                                        </Button.Background>
-                                    </Button>
+                                            CommandParameter="{Binding}" Background="{Binding Converter={StaticResource ColorToBrush}}" />
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
@@ -1606,14 +1604,7 @@
                                                 <DataTemplate DataType="{x:Type vm:CountMarkViewModel}">
                                                     <!-- Centred on the point and kept the same size on screen with one render transform:
                                                          a layout transform would clip the part moved left and up. -->
-                                                    <Border>
-                                                        <Border.RenderTransform>
-                                                            <TransformGroup>
-                                                                <TranslateTransform X="-11" Y="-11" />
-                                                                <ScaleTransform ScaleX="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                                ScaleY="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                                            </TransformGroup>
-                                                        </Border.RenderTransform>
+                                                    <Border RenderTransform="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource OverlayScale}, ConverterParameter=11}">
                                                         <Grid Width="22" Height="22">
                                                             <Ellipse Fill="{Binding Brush}" Stroke="{DynamicResource SurfaceBrush}" StrokeThickness="1.5" Opacity="0.9" />
                                                             <TextBlock Text="{Binding Number}" Foreground="{DynamicResource OnAccentTextBrush}" FontSize="10" FontWeight="SemiBold"
@@ -1645,7 +1636,8 @@
                                                             </Path.Style>
                                                         </Path>
                                                         <!-- Clicking the label selects the measurement: it turns dark and its corners get handles. -->
-                                                        <Border Canvas.Left="{Binding LabelLeft}" Canvas.Top="{Binding LabelTop}">
+                                                        <Border Canvas.Left="{Binding LabelLeft}" Canvas.Top="{Binding LabelTop}"
+                                                                LayoutTransform="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource OverlayScale}}">
                                                             <Border.Style>
                                                                 <Style TargetType="Border">
                                                                     <Setter Property="Background" Value="{DynamicResource MeasureAccentBrush}" />
@@ -1656,10 +1648,6 @@
                                                                     </Style.Triggers>
                                                                 </Style>
                                                             </Border.Style>
-                                                            <Border.LayoutTransform>
-                                                                <ScaleTransform ScaleX="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                                ScaleY="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                                            </Border.LayoutTransform>
                                                             <TextBlock Text="{Binding Result}" Foreground="{DynamicResource OnAccentTextBrush}" FontSize="12" Margin="6,2" />
                                                         </Border>
                                                         <ItemsControl ItemsSource="{Binding Handles}" ItemContainerStyle="{StaticResource CanvasItem}" Focusable="False"
@@ -1671,15 +1659,8 @@
                                                             </ItemsControl.ItemsPanel>
                                                             <ItemsControl.ItemTemplate>
                                                                 <DataTemplate DataType="{x:Type vm:MeasureHandle}">
-                                                                    <Rectangle Width="9" Height="9" Fill="{DynamicResource SurfaceBrush}" Stroke="{DynamicResource MeasureTextBrush}" StrokeThickness="1.5">
-                                                                        <Rectangle.RenderTransform>
-                                                                            <TransformGroup>
-                                                                                <TranslateTransform X="-4.5" Y="-4.5" />
-                                                                                <ScaleTransform ScaleX="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                                                ScaleY="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                                                            </TransformGroup>
-                                                                        </Rectangle.RenderTransform>
-                                                                    </Rectangle>
+                                                                    <Rectangle Width="9" Height="9" Fill="{DynamicResource SurfaceBrush}" Stroke="{DynamicResource MeasureTextBrush}" StrokeThickness="1.5"
+                                                                               RenderTransform="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource OverlayScale}, ConverterParameter=4.5}" />
                                                                 </DataTemplate>
                                                             </ItemsControl.ItemTemplate>
                                                         </ItemsControl>
@@ -1784,15 +1765,8 @@
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate DataType="{x:Type vm:MeasureHandle}">
-                                                        <Rectangle Width="8" Height="8" Fill="{DynamicResource SurfaceBrush}" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.5">
-                                                            <Rectangle.RenderTransform>
-                                                                <TransformGroup>
-                                                                    <TranslateTransform X="-4" Y="-4" />
-                                                                    <ScaleTransform ScaleX="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                                    ScaleY="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}}" />
-                                                                </TransformGroup>
-                                                            </Rectangle.RenderTransform>
-                                                        </Rectangle>
+                                                        <Rectangle Width="8" Height="8" Fill="{DynamicResource SurfaceBrush}" Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.5"
+                                                                   RenderTransform="{Binding DataContext.OverlayUnit, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource OverlayScale}, ConverterParameter=4}" />
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
@@ -1845,11 +1819,8 @@
                               VerticalAlignment="Center" ToolTip="Text colour" AutomationProperties.Name="Text colour">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Width="18" Height="14" CornerRadius="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
-                                    <Border.Background>
-                                        <SolidColorBrush Color="{Binding}" />
-                                    </Border.Background>
-                                </Border>
+                                <Border Width="18" Height="14" CornerRadius="2" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"
+                                        Background="{Binding Converter={StaticResource ColorToBrush}}" />
                             </DataTemplate>
                         </ComboBox.ItemTemplate>
                     </ComboBox>

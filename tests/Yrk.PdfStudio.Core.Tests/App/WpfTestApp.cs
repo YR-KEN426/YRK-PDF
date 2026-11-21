@@ -24,8 +24,9 @@ internal sealed class WpfTestApp : IDisposable
     private readonly List<(TraceSource Source, SourceLevels Level)> _sources = [];
     public List<string> Errors { get; } = [];
 
-    public WpfTestApp(string language)
+    public WpfTestApp(string language, string theme = "light")
     {
+        var palettePath = WindowCatalog.PalettePath(theme);
         ResetApplication();
         typeof(Application).GetField("_resourceAssembly", BindingFlags.NonPublic | BindingFlags.Static)!
             .SetValue(null, typeof(Yrk.PdfStudio.App.MainWindow).Assembly);
@@ -58,6 +59,9 @@ internal sealed class WpfTestApp : IDisposable
         _application.Resources = (ResourceDictionary)XamlReader.Load(xml, parser);
         foreach (var entry in entries)
         {
+            // Select the real palette before parsing Styles, matching App's resource order.
+            if ((string?)entry.Attribute("Source") == WindowCatalog.PalettePath("light"))
+                entry.SetAttributeValue("Source", palettePath);
             using var entryXml = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(entry.ToString()));
             _application.Resources.MergedDictionaries.Add((ResourceDictionary)XamlReader.Load(entryXml, parser));
         }

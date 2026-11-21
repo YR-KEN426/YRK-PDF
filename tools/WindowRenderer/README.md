@@ -4,9 +4,13 @@ The construction table in `WindowCatalog.cs` is compiled into both this tool and
 
 `WpfTestApp` embeds the real `App.xaml` and loads its ResourceDictionary with the app pack URI as the base URI. Adding a merged dictionary to App.xaml requires no duplicate dictionary list. App startup/exit services are never run. The helper runs layout, translates the visual tree, visits tabs and opens ComboBox/DatePicker popup templates. Binding, ResourceDictionary and Markup traces (warning/error), plus dispatcher exceptions, fail the test. It restores culture, language, trace listeners and Application state on cleanup.
 
+Use `--theme light|dark` in single-window or batch mode (default: `light`). The shared host loads the selected whole palette before Styles is parsed. `AllWindowsLoadTests` covers every available window in th/en and both themes; DigitalSignDialog remains explicitly skipped until step 6. Batch child processes receive the selected theme, which is also recorded in the manifest. Use separate output folders for each theme; existing images are never overwritten.
+
 ```powershell
 dotnet run --project tools/WindowRenderer -- --all <scratchpad/baseline-1.2.4>
+dotnet run --project tools/WindowRenderer -- --all <scratchpad/dark> --theme dark
 dotnet run --project tools/WindowRenderer -- --allow-any-window MainWindow th <outside-repo/example.png>
+dotnet run --project tools/WindowRenderer -- --theme dark --allow-any-window MainWindow en <outside-repo/example-dark.png>
 dotnet run --project tools/WindowRenderer -- --list
 ```
 
