@@ -14,6 +14,12 @@ namespace Yrk.PdfStudio.App;
 public partial class App : Application
 {
     private PdfiumEngine? _engine;
+    internal ThemeManager? Themes { get; private set; }
+
+    private static void OnWindowLoaded(object sender, RoutedEventArgs e)
+    {
+        if (Current is App app) app.Themes?.ApplyTitleBar((Window)sender);
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -27,7 +33,11 @@ public partial class App : Application
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
 
 
-        var language = AppSettings.Load().Language;
+        var settings = AppSettings.Load();
+        Themes = new ThemeManager(this);
+        Themes.Apply(settings.Theme);
+        EventManager.RegisterClassHandler(typeof(Window), Window.LoadedEvent, new RoutedEventHandler(OnWindowLoaded), true);
+        var language = settings.Language;
         Loc.Language = language is Loc.English or Loc.Thai ? language : Loc.SystemDefault;
         UiTranslator.Start();
 

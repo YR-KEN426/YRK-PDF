@@ -248,6 +248,14 @@ public sealed class AppSettings
     /// <summary>"auto" (follow Windows), "en" or "th".</summary>
     public string Language { get; set; } = "auto";
 
+    private string _theme = "system";
+    /// <summary>"system", "light" or "dark". Unknown and null values follow Windows.</summary>
+    public string Theme
+    {
+        get => _theme;
+        set => _theme = ThemeManager.Normalize(value);
+    }
+
     /// <summary>The unit for measuring and the rulers (mm, cm, m, in, ft, pt).</summary>
     public string MeasureUnit { get; set; } = "mm";
 

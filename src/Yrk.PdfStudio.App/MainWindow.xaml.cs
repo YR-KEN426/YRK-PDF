@@ -1761,10 +1761,32 @@ public partial class MainWindow : Window
         }
 
         menu.Items.Add(language);
+        if (Application.Current is App { Themes: { } themes }) menu.Items.Add(CreateThemeMenu(themes));
         if (!Services.PackageIdentity.Current.UsesStoreUpdates)
             menu.Items.Add(new MenuItem { Header = "Updates…", Command = _viewModel.ShowAboutCommand });
         menu.Items.Add(new MenuItem { Header = "Privacy and safety…", Command = _viewModel.ShowPrivacyCommand });
         menu.IsOpen = true;
+    }
+
+    internal static MenuItem CreateThemeMenu(Services.ThemeManager themes, string? settingsPath = null)
+    {
+        var menu = new MenuItem { Header = Loc.T("Theme") };
+        foreach (var (code, label) in new[] { ("system", "Follow system"), ("light", "Light"), ("dark", "Dark") })
+        {
+            var item = new MenuItem
+            {
+                Header = Loc.T(label), IsCheckable = true, IsChecked = themes.Preference == code,
+                CommandParameter = code,
+            };
+            item.Click += (_, _) =>
+            {
+                themes.Apply(code);
+                Services.AppSettings.Update(s => s.Theme = code, settingsPath);
+                foreach (MenuItem choice in menu.Items) choice.IsChecked = Equals(choice.CommandParameter, code);
+            };
+            menu.Items.Add(item);
+        }
+        return menu;
     }
 
     private void OnHelpButtonClick(object sender, RoutedEventArgs e)
