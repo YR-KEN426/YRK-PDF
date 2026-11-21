@@ -174,6 +174,8 @@ public sealed class RecentFilesTimesTests : IDisposable
         string[] temporary = [
             "recent.json.0123456789abcdef0123456789abcdef.tmp",
             "recent-times.json.0123456789ABCDEF0123456789ABCDEF.tmp",
+            "reader-bookmarks.json.0123456789abcdef0123456789abcdef.tmp",
+            "reading-positions.json.0123456789ABCDEF0123456789ABCDEF.tmp",
         ];
         string[] kept = [
             "kept.pdf", "other.json.0123456789abcdef0123456789abcdef.tmp",
@@ -182,6 +184,10 @@ public sealed class RecentFilesTimesTests : IDisposable
             "recent.json.0123456789abcdef0123456789abcdeg.tmp",
             "prefix-recent.json.0123456789abcdef0123456789abcdef.tmp",
             "recent-times.json.0123456789abcdef0123456789abcdef.tmp.bak",
+            "reader-bookmarks.json.tmp", "reading-positions.json.0123456789abcdef0123456789abcde.tmp",
+            "reader-bookmarks.json.0123456789abcdef0123456789abcdeg.tmp",
+            "prefix-reading-positions.json.0123456789abcdef0123456789abcdef.tmp",
+            "reader-bookmarks.json.0123456789abcdef0123456789abcdef.tmp.bak",
         ];
         foreach (var name in temporary.Concat(kept)) File.WriteAllText(Path.Combine(_folder, name), "keep content");
         using (var locked = new FileStream(Main, FileMode.Open, FileAccess.Read, FileShare.None))
@@ -207,12 +213,15 @@ public sealed class RecentFilesTimesTests : IDisposable
         Assert.False(File.Exists(Times));
     }
 
-    [Fact]
-    public void Clear_reports_a_locked_leftover_temporary_file()
+    [Theory]
+    [InlineData("recent.json")]
+    [InlineData("reader-bookmarks.json")]
+    [InlineData("reading-positions.json")]
+    public void Clear_reports_a_locked_leftover_temporary_file(string name)
     {
         using var storage = Use();
         RecentFiles.Add(Doc("a.pdf"));
-        var temporary = Main + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var temporary = Path.Combine(_folder, name) + "." + Guid.NewGuid().ToString("N") + ".tmp";
         File.WriteAllText(temporary, "old history");
         using (var locked = new FileStream(temporary, FileMode.Open, FileAccess.Read, FileShare.None))
             Assert.False(RecentFiles.Clear());
@@ -229,15 +238,18 @@ public sealed class RecentFilesTimesTests : IDisposable
         RecentFiles.Add(Doc("a.pdf"));
         var target = Path.Combine(_folder, "private.txt");
         File.WriteAllText(target, "private content");
-        var temporary = Main + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        File.CreateSymbolicLink(temporary, target);
-        try
+        foreach (var name in new[] { "recent.json", "reader-bookmarks.json", "reading-positions.json" })
         {
-            Assert.False(RecentFiles.Clear());
-            Assert.Equal("private content", File.ReadAllText(target));
-            Assert.True((File.GetAttributes(temporary) & FileAttributes.ReparsePoint) != 0);
+            var temporary = Path.Combine(_folder, name) + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            File.CreateSymbolicLink(temporary, target);
+            try
+            {
+                Assert.False(RecentFiles.Clear());
+                Assert.Equal("private content", File.ReadAllText(target));
+                Assert.True((File.GetAttributes(temporary) & FileAttributes.ReparsePoint) != 0);
+            }
+            finally { File.Delete(temporary); }
         }
-        finally { File.Delete(temporary); }
 
         File.Delete(Main);
         File.CreateSymbolicLink(Main, target);

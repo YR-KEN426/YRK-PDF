@@ -30,7 +30,7 @@ public static class RecentFiles
 {
     public const int MaxCount = 12;
     internal const string ClearConfirmation = "Clear recent files, reading marks and saved reading positions?";
-    private static readonly Regex TemporaryFileName = new(@"\Arecent(?:-times)?\.json\.[0-9a-fA-F]{32}\.tmp\z", RegexOptions.CultureInvariant);
+    private static readonly Regex TemporaryFileName = new(@"\A(?:recent(?:-times)?|reader-bookmarks|reading-positions)\.json\.[0-9a-fA-F]{32}\.tmp\z", RegexOptions.CultureInvariant);
 
     private static readonly string DefaultFilePath = System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "YRK", "EasyPdf", "recent.json");

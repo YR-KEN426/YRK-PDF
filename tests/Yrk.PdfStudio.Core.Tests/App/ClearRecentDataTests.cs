@@ -68,6 +68,67 @@ public sealed class ClearRecentDataTests : IDisposable
         return path;
     }
 
+    [AppLogTests.FileSymbolicLinkFact]
+    public void Reading_stores_reject_file_and_dangling_links_on_write_and_clear()
+    {
+        var document = Path.Combine(_folder, "book.pdf");
+        foreach (var marks in new[] { false, true })
+        foreach (var dangling in new[] { false, true })
+        {
+            var store = marks ? ReaderBookmarks.FilePath : ReadingPositions.FilePath;
+            var target = Path.Combine(_folder, "private.json");
+            if (!dangling) File.WriteAllText(target, "private content");
+            File.CreateSymbolicLink(store, target);
+            try
+            {
+                if (marks) ReaderBookmarks.Add(document, 1, "Remember", "blue");
+                else ReadingPositions.Save(document, 2);
+                Assert.False(marks ? ReaderBookmarks.Clear() : ReadingPositions.Clear());
+                Assert.True((File.GetAttributes(store) & FileAttributes.ReparsePoint) != 0);
+                if (dangling) Assert.False(File.Exists(target));
+                else Assert.Equal("private content", File.ReadAllText(target));
+                Assert.Empty(Directory.GetFiles(_folder, "*.tmp"));
+            }
+            finally { File.Delete(store); File.Delete(target); }
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Reading_stores_reject_linked_parent_or_ancestor_without_creating_or_changing_files(bool ancestor)
+    {
+        var originalMarks = ReaderBookmarks.FilePath;
+        var originalPositions = ReadingPositions.FilePath;
+        var target = Directory.CreateDirectory(Path.Combine(_folder, "outside")).FullName;
+        var link = Path.Combine(_folder, "linked");
+        ScanSessionTests.MakeJunction(link, target);
+        try
+        {
+            foreach (var marks in new[] { false, true })
+            {
+                var name = marks ? "reader-bookmarks.json" : "reading-positions.json";
+                var stored = Path.Combine(target, name);
+                File.WriteAllText(stored, "private content");
+                var store = ancestor ? Path.Combine(link, "missing", name) : Path.Combine(link, name);
+                if (marks) ReaderBookmarks.FilePath = store;
+                else ReadingPositions.FilePath = store;
+                if (marks) ReaderBookmarks.Add(Path.Combine(_folder, "book.pdf"), 1, "Remember", "blue");
+                else ReadingPositions.Save(Path.Combine(_folder, "book.pdf"), 2);
+                Assert.False(marks ? ReaderBookmarks.Clear() : ReadingPositions.Clear());
+                Assert.Equal("private content", File.ReadAllText(stored));
+                Assert.False(Directory.Exists(Path.Combine(target, "missing")));
+                Assert.Empty(Directory.GetFiles(target, "*.tmp"));
+            }
+        }
+        finally
+        {
+            ReaderBookmarks.FilePath = originalMarks;
+            ReadingPositions.FilePath = originalPositions;
+            Directory.Delete(link); // Remove the junction itself, never its target.
+        }
+    }
+
     private static async Task Undo(AppTestHarness app, bool redo = false)
     {
         (redo ? app.Model.RedoCommand : app.Model.UndoCommand).Execute(null);
@@ -145,7 +206,11 @@ public sealed class ClearRecentDataTests : IDisposable
         app.Model.SaveReadingPosition();
         Assert.Equal("{}", File.ReadAllText(ReadingPositions.FilePath));
         if (action == "navigate") app.Model.GoToPage(2);
-        else if (action == "scroll") app.Model.UpdateViewport(1600, 950, 700);
+        else if (action == "scroll")
+        {
+            app.Model.OnUserNavigation();
+            app.Model.UpdateViewport(1600, 950, 700);
+        }
         else await app.Model.OpenFileAsync(path);
         app.Model.SaveReadingPosition();
         Assert.NotEqual("{}", File.ReadAllText(ReadingPositions.FilePath));

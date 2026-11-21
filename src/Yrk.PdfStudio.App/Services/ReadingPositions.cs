@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using Yrk.PdfStudio.App.Services.Backup;
 
 namespace Yrk.PdfStudio.App.Services;
 
@@ -75,21 +76,34 @@ internal static class ReadingPositions
     private static bool Write(Dictionary<string, Position> positions)
     {
         var temporary = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var cleanTemporary = false;
         try
         {
+            BackupFormat.CheckNoLinks(FilePath);
+            BackupFormat.CheckNoLinks(temporary);
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
+            cleanTemporary = true;
             File.WriteAllText(temporary, JsonSerializer.Serialize(positions));
+            BackupFormat.CheckNoLinks(FilePath);
+            BackupFormat.CheckNoLinks(temporary);
             File.Move(temporary, FilePath, overwrite: true);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
             return false;
         }
         finally
         {
-            try { File.Delete(temporary); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            try
+            {
+                if (cleanTemporary)
+                {
+                    BackupFormat.CheckNoLinks(temporary);
+                    File.Delete(temporary);
+                }
+            }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
         }
     }
 }

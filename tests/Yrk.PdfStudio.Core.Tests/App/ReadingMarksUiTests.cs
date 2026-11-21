@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -16,6 +17,117 @@ namespace Yrk.PdfStudio.Core.Tests;
 [Collection("WPF Application")]
 public sealed class ReadingMarksUiTests
 {
+    [Fact]
+    public void Clear_at_document_end_then_zoom_out_and_close_does_not_save_a_clamped_position()
+    {
+        WithReadingHistoryWindow((app, window, scroller, path) =>
+        {
+            scroller.ScrollToBottom();
+            Layout();
+            Assert.True(app.Model.CurrentPageIndex > 0);
+            Assert.True(RecentFiles.Clear());
+            var requested = 0.0;
+            app.Model.ScrollRequested += (_, offset) => requested = offset;
+            app.Model.ZoomBy(-1);
+            Layout();
+            Assert.True(requested > scroller.ScrollableHeight + 1.5,
+                "The requested zoom anchor must be clamped by the real ScrollViewer.");
+            Assert.Equal(scroller.ScrollableHeight, scroller.VerticalOffset, 1);
+            // Another layout pass and a window resize also remain programmatic.
+            window.Height -= 30;
+            Layout();
+            window.Close();
+            Assert.Equal("{}", File.ReadAllText(ReadingPositions.FilePath));
+            Await(app.Model.CloseTabAsync(keepAlive: true));
+            Await(app.OpenAsync(path));
+            Assert.Equal(0, app.Model.CurrentPageIndex);
+        });
+    }
+
+    [Theory]
+    [InlineData("wheel")]
+    [InlineData("scrollbar")]
+    [InlineData("key")]
+    [InlineData("page button")]
+    [InlineData("page input")]
+    public void Explicit_user_navigation_resumes_reading_history(string action)
+    {
+        WithReadingHistoryWindow((app, window, scroller, _) =>
+        {
+            Assert.True(RecentFiles.Clear());
+            // Arbitrary offsets, including clamps, cannot resume history by themselves.
+            scroller.ScrollToVerticalOffset(800);
+            Layout();
+            app.Model.SaveReadingPosition();
+            Assert.Equal("{}", File.ReadAllText(ReadingPositions.FilePath));
+            switch (action)
+            {
+                case "wheel":
+                    scroller.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, -120)
+                        { RoutedEvent = UIElement.PreviewMouseWheelEvent });
+                    break;
+                case "scrollbar":
+                    var bar = Descendants<ScrollBar>(scroller).Single(b => b.Orientation == Orientation.Vertical
+                        && b.TemplatedParent == scroller);
+                    bar.RaiseEvent(new ScrollEventArgs(ScrollEventType.ThumbTrack, 1000));
+                    break;
+                case "key":
+                    scroller.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(window), 0, Key.Down)
+                        { RoutedEvent = UIElement.PreviewKeyDownEvent });
+                    break;
+                case "page button":
+                    app.Model.NextPageCommand.Execute(null);
+                    break;
+                case "page input":
+                    app.Model.PageInput = "2";
+                    break;
+            }
+            Layout();
+            app.Model.SaveReadingPosition();
+            Assert.NotEqual("{}", File.ReadAllText(ReadingPositions.FilePath));
+        });
+    }
+
+    private static void WithReadingHistoryWindow(Action<AppTestHarness, MainWindow, ScrollViewer, string> action)
+    {
+        WithApplication(() =>
+        {
+            var oldMarks = ReaderBookmarks.FilePath;
+            var oldPositions = ReadingPositions.FilePath;
+            var folder = Directory.CreateDirectory(PrivateTempDirectory.Path + "-reading-scroll-" + Guid.NewGuid().ToString("N")).FullName;
+            var app = new AppTestHarness();
+            using var recents = RecentFiles.UseStorage(Path.Combine(folder, "recent.json"));
+            MainWindow? window = null;
+            try
+            {
+                ReaderBookmarks.FilePath = Path.Combine(folder, "reader-bookmarks.json");
+                ReadingPositions.FilePath = Path.Combine(folder, "reading-positions.json");
+                var path = Path.Combine(folder, "book.pdf");
+                File.Copy(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf"), path);
+                Await(app.OpenAsync(path));
+                window = new MainWindow(app.Model, () => throw new NotSupportedException())
+                {
+                    ShowActivated = false, Left = -16000, Top = -16000,
+                    Width = 1000, Height = 750, WindowStartupLocation = WindowStartupLocation.Manual
+                };
+                window.Show();
+                app.Model.ActualSizeCommand.Execute(null);
+                Layout();
+                action(app, window, (ScrollViewer)window.FindName("PageScroller"), path);
+            }
+            finally
+            {
+                Await(app.DisposeAsync().AsTask());
+                window?.Close();
+                ReaderBookmarks.FilePath = oldMarks;
+                ReadingPositions.FilePath = oldPositions;
+                Directory.Delete(folder, recursive: true);
+            }
+        });
+    }
+
+    private static void Layout() => Dispatcher.CurrentDispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+
     [Fact]
     public void Context_menus_edit_the_clicked_page_without_navigation_or_losing_thumbnail_selection()
     {

@@ -1465,6 +1465,7 @@
                           Focusable="True"
                           FocusVisualStyle="{x:Null}"
                           ScrollChanged="OnPageScrollerScrollChanged"
+                          PreviewKeyDown="OnPageScrollerKeyDown"
                           MouseLeave="OnPageScrollerMouseLeave"
                           PreviewMouseDown="OnPageScrollerPreviewMouseDown"
                           PreviewMouseMove="OnPageScrollerPreviewMouseMove"

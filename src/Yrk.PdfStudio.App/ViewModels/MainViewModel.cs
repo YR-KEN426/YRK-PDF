@@ -446,10 +446,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var moved = Math.Abs(offset - _scrollOffset) > 0.5;
         var resized = Math.Abs(width - _viewportWidth) > 0.5 || Math.Abs(height - _viewportHeight) > 0.5;
-        // Layout, save/reload and arriving at a requested offset do not resume reading history.
-        if (moved && !resized && !IsBusy && !IsReopeningDocument && _pendingRestore is null
-            && (_requestedScrollOffset is null || Math.Abs(_requestedScrollOffset.Value - offset) > 1.5))
-            _suppressReadingPosition = false;
+        // Offset changes also come from zoom, layout, restore and ScrollViewer clamping.
+        // Only explicit user navigation resumes reading history.
         _scrollOffset = offset;
         _viewportWidth = width;
         _viewportHeight = height;
@@ -486,10 +484,16 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
-        if (!IsBusy && !IsReopeningDocument) _suppressReadingPosition = false;
+        OnUserNavigation();
         index = Math.Clamp(index, 0, Pages.Count - 1);
         SetCurrentPage(index);
         RequestScroll(_pageTops[index] - PageGap, navigationTarget: index);
+    }
+
+    /// <summary>Called by the view for user scrolling, never for layout or requested offsets.</summary>
+    public void OnUserNavigation()
+    {
+        if (_document is not null && !IsBusy && !IsReopeningDocument) _suppressReadingPosition = false;
     }
 
     public void NavigateTo(BookmarkViewModel? bookmark)

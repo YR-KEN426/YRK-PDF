@@ -29,6 +29,7 @@ public partial class MainWindow : Window
         WindowSizing.FitToWorkArea(this);
         _createTab = createTab;
         _viewModel = viewModel;
+        PageScroller.AddHandler(ScrollBar.ScrollEvent, new ScrollEventHandler(OnPageScrollerUserScroll));
         Tabs.Add(viewModel);
         TabStrip.ItemsSource = Tabs;
         Tabs.CollectionChanged += (_, _) => UpdateTabStrip();
@@ -505,6 +506,22 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnPageScrollerUserScroll(object sender, ScrollEventArgs e)
+    {
+        if (e.OriginalSource is ScrollBar bar && bar.TemplatedParent == PageScroller
+            && e.ScrollEventType != ScrollEventType.EndScroll)
+            _viewModel.OnUserNavigation();
+    }
+
+    private void OnPageScrollerKeyDown(object sender, KeyEventArgs e)
+    {
+        // Editors inside pages own their arrow/home/end keys. Ctrl+PageUp/Down switches tabs.
+        if (e.OriginalSource == PageScroller && (Keyboard.Modifiers & ModifierKeys.Alt) == 0
+            && !((Keyboard.Modifiers & ModifierKeys.Control) != 0 && e.Key is Key.PageUp or Key.PageDown)
+            && e.Key is Key.Up or Key.Down or Key.Left or Key.Right or Key.PageUp or Key.PageDown or Key.Home or Key.End)
+            _viewModel.OnUserNavigation();
+    }
+
     private void ReportViewport()
     {
         if (_restoringScroll)
@@ -594,6 +611,7 @@ public partial class MainWindow : Window
         }
 
         var position = e.GetPosition(PageScroller);
+        if (position != _panStart) _viewModel.OnUserNavigation();
         PageScroller.ScrollToHorizontalOffset(_panStartOffset.X - (position.X - _panStart.X));
         PageScroller.ScrollToVerticalOffset(_panStartOffset.Y - (position.Y - _panStart.Y));
         e.Handled = true;
@@ -641,6 +659,7 @@ public partial class MainWindow : Window
     {
         if ((Keyboard.Modifiers & ModifierKeys.Control) == 0)
         {
+            if (e.Delta != 0) _viewModel.OnUserNavigation();
             return;
         }
 

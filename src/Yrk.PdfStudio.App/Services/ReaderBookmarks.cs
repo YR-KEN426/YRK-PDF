@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using Yrk.PdfStudio.App.Services.Backup;
 
 namespace Yrk.PdfStudio.App.Services;
 
@@ -189,23 +190,36 @@ internal static class ReaderBookmarks
     private static bool Write(Dictionary<string, Document> documents)
     {
         var temporary = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var cleanTemporary = false;
         try
         {
+            BackupFormat.CheckNoLinks(FilePath);
+            BackupFormat.CheckNoLinks(temporary);
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(FilePath))!);
             var limited = documents.OrderByDescending(p => p.Value.LastUsed).Take(MaxCount)
                 .ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
+            cleanTemporary = true;
             File.WriteAllText(temporary, JsonSerializer.Serialize(limited));
+            BackupFormat.CheckNoLinks(FilePath);
+            BackupFormat.CheckNoLinks(temporary);
             File.Move(temporary, FilePath, overwrite: true);
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException)
         {
             return false;
         }
         finally
         {
-            try { File.Delete(temporary); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+            try
+            {
+                if (cleanTemporary)
+                {
+                    BackupFormat.CheckNoLinks(temporary);
+                    File.Delete(temporary);
+                }
+            }
+            catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException) { }
         }
     }
 }
