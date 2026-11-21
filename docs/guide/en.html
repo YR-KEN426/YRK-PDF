@@ -50,30 +50,32 @@
     <li>Drag one or more PDF, DWG, DXF or AI files from File Explorer onto the window.</li>
     <li>Or press <kbd>Ctrl</kbd>+<kbd>O</kbd>, or the <span class="path">Open</span> button. The arrow next to it lists recent files.</li>
     <li>Select several files in the <span class="path">Open</span> dialog; each one gets its own tab. If you select or drop more than 20 files, the app asks before opening them. If a file cannot be opened or you cancel its password prompt, the app skips it and continues with the next file.</li>
-    <li>Besides PDF, AutoCAD drawings (DWG, DXF) open too.</li>
-    <li>When you reopen a file, the app returns to your last-read page. The home page's recent files panel shows when each file was last opened; this is stored locally in recent-times.json. Hide the panel in the <span class="path">Privacy</span> window. <span class="path">File → Clear list</span> also clears recent files, reading marks and last-read positions.</li>
+    <li>Besides PDF, AutoCAD drawings (DWG, DXF) open too. Right-click a file in the start page's recent files panel to open its containing folder or remove it from the list without deleting the file.</li>
+    <li>When you reopen a file, the app returns to your last-read page. The home page's recent files panel shows when each file was last opened; this is stored locally in recent-times.json. Hide the panel in <span class="path">Settings → Privacy and safety…</span>. Clear the list from <span class="path">File → Recent files → Clear the list (also bookmarks and reading positions)</span> or the <span class="path">Clear list</span> button on the start page. A confirmation appears first; choose <span class="path">OK</span> to continue or <span class="path">Cancel</span> to go back. This clears recent files, bookmarks and last-read positions.</li>
   </ul>
 
   <h3>Start page</h3>
-  <p>With no file open, or after the house button, the home page shows the logo, Thai|EN language buttons and a centered tool search (press <kbd>Ctrl</kbd>+<kbd>F</kbd>). Drop a PDF, DWG, DXF or AI file in the drop area, or press <span class="path">Open file</span> to choose one. Document buttons are hidden from the top bar while on the home page. Tool cards have two views: <span class="path">Frequently used</span> (8 cards) and <span class="path">All</span>, grouped by category with category tabs. Cards show a short description and a tooltip with the full description; long tool names can use two lines.</p>
+  <p>With no file open, or after the house button, the home page shows the logo, Thai|EN language buttons and a centered tool search (press <kbd>Ctrl</kbd>+<kbd>F</kbd>). Type a query and press <kbd>Enter</kbd> to open the first matching tool, or <kbd>Esc</kbd> to clear it. Drop a PDF, DWG, DXF or AI file in the drop area, or press <span class="path">Open file</span> to choose one. Document buttons are hidden from the top bar while on the home page. Tool cards have two views: <span class="path">Frequently used</span> (8 cards) and <span class="path">All tools</span>, grouped by category with category tabs. Right-click a recent file to open its containing folder or remove it from the list without deleting it. Cards show a short description and a tooltip with the full description; long tool names can use two lines.</p>
   <figure><img src="../release-repo/site-src/img/en/home.jpg" alt=""><figcaption>The start page: every tool, grouped by task</figcaption></figure>
 
   <h3>The main window</h3>
   <ul>
-    <li><b>Top row:</b> the <span class="path">File, View, Tools, Settings, Help</span> menus (<kbd>Alt</kbd> and the first letter, such as <kbd>Alt</kbd>+<kbd>F</kbd>), then Open, Save, Print, page buttons, zoom and the search box.</li>
+    <li><b>Top row:</b> the <span class="path">File, View, Insert, Tools, Settings, Help</span> menus (<kbd>Alt</kbd> and the first letter, such as <kbd>Alt</kbd>+<kbd>F</kbd> or <kbd>Alt</kbd>+<kbd>I</kbd> for Insert), then Open, Save, Print and the search box. Page buttons, page number and count, and zoom are at the lower right.</li>
     <li><b>Second row:</b> the task tabs <span class="path">Comment · Edit · Fill &amp; Sign · Pages · Measure · Redact</span>, each with its own tools. Undo and Redo are at the far right.</li>
     <li><b>Sidebar:</b> page thumbnails, the comment list, signatures, drawing layers, bookmarks and reading marks. The three-line button at the top left shows or hides it.</li>
   </ul>
-  <div class="tip"><b>Language:</b> <span class="path">Settings → Language / ภาษา</span> switches between English and Thai.</div>
+  <p>Status messages appear at the left of the bottom bar, such as saving or saved. Hover over a shortened message to read it in full.</p>
+  <p>Each open file has its own tab. Switch to the next tab with <kbd>Ctrl</kbd>+<kbd>Tab</kbd> or <kbd>Ctrl</kbd>+<kbd>PageDown</kbd>; go back with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> or <kbd>Ctrl</kbd>+<kbd>PageUp</kbd>.</p>
+  <div class="tip"><b>Language and theme:</b> <span class="path">Settings → Language / ภาษา</span> switches between English and Thai. Choose <span class="path">Settings → Theme</span> and <span class="path">Follow system</span>, <span class="path">Light</span> or <span class="path">Dark</span> to change the theme; the choice is saved immediately.</div>
 </section>
 
 <section id="scan">
   <h2>Scan to PDF</h2>
   <ol>
-    <li>Turn on your scanner and choose <span class="path">Scan to PDF</span> from the start page. Select the scanner and a preset: Black-and-white document, Color document, Receipt, Two-sided ID card, Photo or Custom.</li>
+    <li>Turn on your scanner and choose <span class="path">Scan to PDF</span> from the start page. Select the scanner and a preset: B&amp;W document, Color document, Receipt, Two-sided card, Photo or Custom.</li>
     <li>Place the document on the glass or in the feeder, then press <span class="path">Scan</span>. To add another page, press <kbd>Space</kbd> or <span class="path">Scan next page</span>.</li>
     <li>Preview the pages. Select an area to scan, or use the handles on the image to crop it. Drag thumbnails to reorder pages; rotate or delete them as needed.</li>
-    <li>Adjust brightness, contrast, sharpness and white background, or straighten the page. Choose whether the changes apply to this page, selected pages or all pages.</li>
+    <li>Adjust brightness, contrast, sharpness and white background, or straighten the page. Choose whether the changes apply to this page, selected pages or all pages. You can also auto-rotate to text orientation; its data (about 10 MB) downloads the first time.</li>
     <li>Turn on OCR to make Thai and English text searchable in the PDF, then save as PDF or JPEG/PNG.</li>
   </ol>
   <div class="tip"><b>Tips:</b> Pick a preset for the job; press <kbd>Space</kbd> to scan the next page; use the crop handles to fine-tune the edges; apply adjustments to this page, selected pages or all pages; turn on OCR to search the PDF text.</div>
@@ -91,7 +93,7 @@
   </ul>
   <h3>Finding and copying</h3>
   <ul>
-    <li>Press <kbd>Ctrl</kbd>+<kbd>F</kbd>, type, then <kbd>Enter</kbd> or <kbd>F3</kbd> for the next result. Tick <span class="path">Aa</span> to match upper and lower case.</li>
+    <li>The search box is at the upper right and may collapse to a magnifying-glass icon when the window is narrow. Press <kbd>Ctrl</kbd>+<kbd>F</kbd> to open and focus it. Type, then press <kbd>Enter</kbd>, <kbd>F3</kbd> or <kbd>Shift</kbd>+<kbd>Enter</kbd> while in the search box for the next result; <kbd>Shift</kbd>+<kbd>F3</kbd> goes to the previous result. Tick <span class="path">Aa</span> to match case. The result count appears in the box.</li>
     <li>Drag over text with the <span class="path">Select</span> tool and press <kbd>Ctrl</kbd>+<kbd>C</kbd> to copy it.</li>
     <li>Thai stored with its vowels or tone marks out of order is put right when you copy and search. Pages printed from Excel, whose stored text is jumbled, are copied and searched line by line as printed.</li>
   </ul>
@@ -173,7 +175,7 @@
   <ul>
     <li>On the <span class="path">Fill &amp; Sign</span> tab, press <span class="path">Add picture</span>, choose a file and click where it should go. Or copy a picture and press <kbd>Ctrl</kbd>+<kbd>V</kbd>, or drop a picture file on the window.</li>
     <li>Drag the picture to move it, and its lower-right corner to resize it (the proportions stay). Use the <span class="path">Rotate</span> handle above the box to rotate freely (hold <kbd>Shift</kbd> to snap to 15° steps), or press <span class="path">Rotate 90° clockwise</span> (the ↻ 90° button), and use the ◐ button to set opacity from 10–100%. <kbd>Delete</kbd> or the × removes it; <kbd>Ctrl</kbd>+<kbd>Z</kbd> undoes.</li>
-    <li>Once the file is saved the picture is part of the page and can no longer be moved or resized, so place it before saving.</li>
+    <li>After saving, select an item placed by YRK on the <span class="path">Edit</span> tab to move, rotate or change its opacity. Resizing saved items is not yet available.</li>
   </ul>
   <h3>Signing</h3>
   <ol>
@@ -196,9 +198,10 @@
   <figure><img src="img/en/stamp-page.jpg" alt=""><figcaption>An "APPROVED" stamp with the company name and date on a quotation</figcaption></figure>
 
   <h3>Digital signatures (Digital ID)</h3>
-  <p>A digital signature (PAdES) proves who signed and shows whether the document changed afterwards. Press <span class="path">Digital ID</span> and choose an ID on a USB token, add a .pfx file from your certificate authority, or create your own. Choose whether the signature shows on the page and whether to add a trusted timestamp (needs internet). Signatures in a file are listed in the sidebar's <span class="path">Signatures</span> tab.</p>
+  <p>A digital signature (PAdES) proves who signed and shows whether the document changed afterwards. Press <span class="path">Digital ID</span> and choose an ID on a USB token, add a .pfx file from your certificate authority, or create your own. Choose whether the signature shows on the page and whether to add a trusted timestamp (needs internet). Signatures in a file are listed in the sidebar's <span class="path">Signatures</span> tab. To add an image signature and then certify the document with a Digital ID, select the option to lock the document with your Digital ID after placing the image signature.</p>
   <p><b>Trusted certificates:</b> In the <span class="path">Signatures</span> panel, you can trust a signer using a self-signed certificate after checking its SHA-256 fingerprint with the owner through another channel. The status becomes <span class="path">Valid: you chose to trust this signer</span>. This trust applies only in YRK on this computer; Acrobat may still show an unknown signer. Manage the list with the <span class="path">My trusted certificates</span> button on the <span class="path">Fill &amp; Sign</span> tab: use <span class="path">Import .cer / .crt…</span>, select a certificate and press <span class="path">Certificate</span> to view it, or <span class="path">Delete</span> to remove it. In your Digital ID details, open <span class="path">Certificate details…</span> to see its fingerprint and use <span class="path">Export certificate (.cer)</span> to export your public certificate.</p>
   <ul>
+    <li><b>Certified copy:</b> the button is named <span class="path">Certified copy</span>; the stamp itself reads “Certified copy”.</li>
     <li><b>Signature type:</b> <span class="path">Approval</span> for an ordinary signature, or <span class="path">Certify as the author</span> to decide what may still happen afterwards (form filling and signing, comments as well, or no changes at all). Only the first signature of a document can certify it.</li>
     <li><b>Before signing version:</b> in the sidebar&rsquo;s <span class="path">Signatures</span> tab, press <span class="path">Save version before signing…</span> to save a new file without changing the original. Before saving, the program explains which signatures and post-signing edits will be lost. This is unavailable for files rewritten in full during or after signing; copies already sent to others still have their signatures.</li>
     <li><b>Signing an already signed file:</b> the program warns before appending another signature. Existing signatures remain, and if there are unsaved changes, the earlier signature will show as changed after signing. Already signed files can only receive approval signatures; certification is not offered.</li>
@@ -246,21 +249,21 @@
   <p>PDF permissions apply: the source must allow copying or extracting pages, and the destination must allow page changes. Signatures from the source do not travel with copied pages. If copied pages are no longer available, copy them again from the source.</p>
   <!-- TODO screenshot: Right-click thumbnail menu with Copy pages, Cut pages and Paste pages, with two PDF tabs open -->
   <h3 id="watermark">Multi-line watermarks</h3>
-  <p>Choose <span class="path">Tools → Watermark, header/footer and page numbers…</span>. Type in <span class="path">Watermark text</span> and press <kbd>Enter</kbd> for a new line, or choose <span class="path">Fit to page</span> to wrap at spaces automatically, up to four lines.</p>
+  <p>Choose <span class="path">Tools → Watermark, header and page numbers…</span>. Type in <span class="path">Watermark text</span> and press <kbd>Enter</kbd> for a new line, or choose <span class="path">Fit to page</span> to wrap at spaces automatically, up to four lines.</p>
   <div class="tip"><b>Thai text:</b> Thai text without spaces cannot be wrapped automatically. Press <kbd>Enter</kbd> to split it into lines yourself.</div>
-  <p>Watermarks appear over the content by default. Adjust <span class="path">Opacity</span> and <span class="path">Angle</span>; to put the watermark behind the content, choose <span class="path">Behind content</span>.</p>
+  <p>Watermarks appear over the content by default. Adjust <span class="path">Opacity</span> and <span class="path">Angle</span>; to put the watermark behind the content, choose <span class="path">Behind content</span>. The same window can add headers, footers and page numbers.</p>
   <!-- TODO screenshot: Multi-line watermark dialog with Fit to page and preview on a document -->
 </section>
 
 <section id="convert">
   <h2>Converting and compressing</h2>
   <div class="grid">
-    <div><h4>PDF to Word</h4><p>Editable text with tables and pictures in place</p></div>
+    <div><h4>PDF to Word</h4><p>Editable text; the layout may differ from the PDF</p></div>
     <div><h4>PDF to Excel</h4><p>Tables as cells; amounts as numbers you can add up</p></div>
     <div><h4>PDF to PowerPoint</h4><p>One slide per page, looking just like the PDF</p></div>
     <div><h4>PDF to images</h4><p>Each page as a PNG or JPG picture</p></div>
   </div>
-  <p>Start from the cards on the start page, or <span class="path">File → Export</span>.</p>
+  <p>Start from the cards on the start page, or <span class="path">File → Export</span>. Word and Excel rebuild text as paragraphs and tables, so the layout can differ from the PDF. Scanned pages are added as pictures unless you run OCR first. You can also export plain text to TXT and choose all pages, the current page or a page range.</p>
 
   <h3>Compress PDF</h3>
   <p><span class="path">Tools → Compress this PDF…</span>, then choose:</p>
@@ -277,7 +280,7 @@
   <p>Use OCR to read text from scanned PDFs or images and reduce retyping. Choose searchable PDF, editable Word document or plain text as the output.</p>
   <ol>
     <li>Choose the <span class="path">Convert scanned documents</span> card on the start page or <span class="path">Tools → Convert scanned documents…</span>. Add PDF or image files, or a folder; you can also drop them into the window.</li>
-    <li>Choose Thai and/or English, then select one or more <span class="path">Output formats</span>: <span class="path">Searchable PDF</span>, <span class="path">Word document</span> or <span class="path">Text (.txt)</span>.</li>
+    <li>Choose Thai and/or English, then select one or more <span class="path">Output formats</span>: <span class="path">Searchable PDF</span>, <span class="path">Word</span> or <span class="path">Text (.txt)</span>. Choose to process only pages without text (the default) or all pages to recognize the text again.</li>
     <li>Choose <span class="path">Review uncertain words before saving</span> and press <span class="path">Convert</span>. In the review page, words in orange boxes are words the app is unsure about. Click a word to compare it with the image, edit it and press <kbd>Enter</kbd> to confirm, or leave it blank to remove it.</li>
     <li>Save your review, then check the output files before using them. The results page has <span class="path">Open folder</span> and <span class="path">Copy all text</span> buttons.</li>
   </ol>
@@ -292,7 +295,7 @@
   <p>The long-term archive format many offices ask for: <span class="path">Tools → Save as PDF/A (for archiving)…</span></p>
 
   <h3>Many files at once</h3>
-  <p><span class="path">Tools → Process many files…</span> compresses, converts, watermarks or rubber-stamps a whole folder in one go.</p>
+  <p><span class="path">Tools → Process many files…</span> compresses, converts, watermarks, rubber-stamps or password-protects multiple files in one go.</p>
   <div class="tip warn"><b>Digital signatures:</b> compressing or converting a digitally signed file makes the signature in the copy invalid. Do it before signing.</div>
 </section>
 
@@ -302,7 +305,7 @@
   <ol>
     <li>Choose the document: tax invoice, invoice/tax invoice, receipt/tax invoice, delivery order/tax invoice, <span class="path">Debit note (80)</span> or <span class="path">Credit note (81)</span>. Document numbers count separately for each document type.</li>
     <li>Fill in the seller (once; it is remembered), for whom the Revenue Department requires the house number, province, district and subdistrict, and the buyer. A buyer is identified by tax ID and branch, Thai ID card or passport; 13-digit numbers are checked.</li>
-    <li>For a debit or credit note, fill in <span class="path">Original invoice number</span>, <span class="path">Original invoice date</span>, <span class="path">Value before VAT</span> and <span class="path">Original invoice type</span>. Choose a <span class="path">Reason</span>; for a code ending in 99, also fill in <span class="path">Reason details</span>. The PDF shows the original value, correct value, difference and VAT on the difference.</li>
+    <li>For a debit or credit note, fill in <span class="path">Original invoice number</span>, <span class="path">Original invoice date</span>, <span class="path">Value before VAT</span> and <span class="path">Original invoice type</span>. Choose a <span class="path">Reason</span>; the program's reason list is shown in Thai. Examples include increased price because the quantity was greater than agreed, an incorrectly low price, other reason (specify), a discount for goods that did not meet the agreed requirements, damaged goods, a quantity shortfall, an incorrectly high price, or returned goods that did not match the description. For a code ending in 99, also fill in <span class="path">Reason details</span>. The PDF shows the original value, correct value, difference and VAT on the difference.</li>
     <li>Type the items in the table. The <span class="path">Discount</span> column is for a discount on each line; <span class="path">Bill discount</span> reduces the whole bill. Enter discounts in baht, such as 50, or as a percentage, such as 10%. The amount before VAT, the VAT and the total, with the total in Thai words, show as you type. Tick <span class="path">Prices include VAT</span> when the prices you type already include it.</li>
     <li>Press <span class="path">Create e-Tax Invoice</span> and choose where to save. The next document number counts separately for each document type. For debit or credit notes, the button reads <span class="path">Create debit note</span> or <span class="path">Create credit note</span>.</li>
   </ol>
@@ -355,7 +358,7 @@
   <h3>Counting</h3>
   <p>Name a type, such as "Door" or "Light", and click each one on the drawing. Numbered marks are added; copy the list into Excel or save it as a file.</p>
   <h3>Comparing versions</h3>
-  <p><span class="path">Tools → Compare with another version…</span> shows what changed between two revisions.</p>
+  <p><span class="path">Tools → Compare with another version…</span> has Differences, first-version and second-version views. Use <span class="path">Swap</span> to switch the versions. One colour marks what appears only in the first, another what appears only in the second, and a third what is the same.</p>
   <div class="tip"><b>Rulers:</b> <kbd>Ctrl</kbd>+<kbd>R</kbd>. They show millimetres on paper, or the drawing's units at its scale.</div>
 </section>
 
@@ -363,7 +366,7 @@
   <h2>Passwords and redaction</h2>
   <h3>Back up and import data</h3>
   <p>Open <span class="path">Settings → Privacy and safety…</span> and choose <span class="path">Back up data…</span> to save selected stamps, signature images, Digital IDs, trusted certificates, e-Tax settings, reading marks and general settings in an encrypted file. Choose a password of at least 12 characters and keep the file and password safe. The backup password cannot be recovered, and each Digital ID file has its own password.</p>
-  <p>Choose <span class="path">Import data…</span>, select the backup, enter its password and press <span class="path">Check contents</span> before <span class="path">Import data</span>. The app first backs up your current data using the same password; if that backup cannot be verified, import stops. Close and reopen YRK PDF after importing.</p>
+  <p>Choose <span class="path">Import data…</span>, select the backup, enter its password and press <span class="path">Check contents</span>. Select <span class="path">Replace existing settings (including stamps)</span> to replace settings; otherwise existing settings stay. Duplicate signature images and Digital IDs are kept separately, and stamps are merged only with this option selected. Then press <span class="path">Import data</span>. The app backs up your current data using the same password first; if it cannot verify that backup, import stops. After a successful import, press <span class="path">Restart now</span>.</p>
   <h3>Adding and removing a password</h3>
   <ul>
     <li><span class="path">File → Protect with password…</span> locks the whole file, or only printing and copying.</li>
@@ -420,6 +423,9 @@
     <tr><th>Keys</th><th>What it does</th></tr>
     <tr><td><kbd>F1</kbd></td><td>Open this guide</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>G</kbd></td><td>Focus the page number box and select its current number</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>PageDown</kbd></td><td>Next tab</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Tab</kbd> / <kbd>Ctrl</kbd>+<kbd>PageUp</kbd></td><td>Previous tab</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>S</kbd></td><td>Save a copy</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print</td></tr>
@@ -432,7 +438,8 @@
     <tr><td><kbd>Ctrl</kbd>+<kbd>D</kbd></td><td>Add or edit a reading mark on the current page</td></tr>
     <tr><td><kbd>Delete</kbd></td><td>Delete the selected item, including pages when the thumbnail list has focus</td></tr>
     <tr><td><kbd>Esc</kbd></td><td>Cancel</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find in document</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find in document, or focus tool search on the start page</td></tr>
+    <tr><td><kbd>Alt</kbd>+<kbd>I</kbd></td><td>Open the Insert menu</td></tr>
     <tr><td><kbd>F3</kbd> / <kbd>Shift</kbd>+<kbd>F3</kbd></td><td>Next / previous result</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>+</kbd> / <kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Zoom in / out</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd> / <kbd>1</kbd> / <kbd>2</kbd></td><td>Fit page / actual size / fit width</td></tr>
@@ -442,6 +449,15 @@
     <tr><td><kbd>Alt</kbd>+<kbd>F</kbd> <kbd>V</kbd> <kbd>T</kbd> <kbd>S</kbd> <kbd>H</kbd></td><td>File, View, Tools, Settings, Help menus</td></tr>
     <tr><td><kbd>Shift</kbd> (measuring)</td><td>Keep lines at 45° steps</td></tr>
     <tr><td><kbd>Enter</kbd> (measuring)</td><td>Finish an area or path</td></tr>
+  </table>
+  <p><b>Scan window:</b> when you are not typing in an input field</p>
+  <table>
+    <tr><th>Keys</th><th>What it does</th></tr>
+    <tr><td><kbd>R</kbd> / <kbd>Shift</kbd>+<kbd>R</kbd></td><td>Rotate page 90° clockwise / counterclockwise</td></tr>
+    <tr><td><kbd>C</kbd> / <kbd>A</kbd> / <kbd>F</kbd></td><td>Crop / auto-crop / fit image</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Create a file from scanned pages</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / Redo</td></tr>
+    <tr><td><kbd>Space</kbd></td><td>Scan the next page</td></tr>
   </table>
 </section>
 
@@ -621,162 +637,7 @@
     <tr><td>YRK-CNV-003</td><td>The scanned document could not be converted.</td><td>Check that the file can be opened and try again.</td></tr>
     <tr><td>YRK-CNV-004</td><td>Some output files could not be created.</td><td>Check the results folder and try again.</td></tr>
     <tr><td>YRK-CNV-005</td><td>The files could not be added.</td><td>Check access to the files and try again.</td></tr>
-    <tr><td>YRK-CNV-006</td><td>The results folder could not be opened.</td><td>File Explorer Open the results folder in File Explorer.</td></tr>
-    <tr><td>YRK-CNV-007</td><td>The text could not be copied.</td><td>Try copying the text again.</td></tr>
-    <tr><td>YRK-CNV-008</td><td>Password-protected PDFs cannot be made searchable yet.</td><td>Save an unprotected copy first.</td></tr>
-    <tr><td>YRK-CNV-009</td><td>Every page already contains text.</td><td>Choose all pages to recognize the text again.</td></tr>
-  </table>
-</section>
-
-$1
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-FILE-001</td><td>The recent file is no longer available. It was removed from the recent list.</td><td>Locate the file and open it again.</td></tr>
-    <tr><td>YRK-FILE-002</td><td>The document could not be opened.</td><td>Check that the file is readable and try again.</td></tr>
-    <tr><td>YRK-FILE-003</td><td>The Illustrator document could not be opened.</td><td>Save it in Illustrator with Create PDF Compatible File enabled, then try again.</td></tr>
-    <tr><td>YRK-FILE-004</td><td>The document could not be saved.</td><td>Check folder access and try saving again.</td></tr>
-    <tr><td>YRK-FILE-005</td><td>The original could not be replaced. A separate copy was saved.</td><td>Check the saved copy, then close other programs using the original and save again.</td></tr>
-    <tr><td>YRK-FILE-006</td><td>The unsaved document could not be recovered.</td><td>Try recovery again or open your latest saved copy.</td></tr>
-    <tr><td>YRK-FILE-007</td><td>The link or folder could not be opened.</td><td>Check the default app and access permissions, then try again.</td></tr>
-  </table>
-  <h3>PAGE</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-PAGE-001</td><td>A PDF must keep at least one page.</td><td>Keep one page and select the other pages to delete.</td></tr>
-    <tr><td>YRK-PAGE-002</td><td>The combined PDF cannot replace an input file.</td><td>Choose a new name for the combined PDF.</td></tr>
-    <tr><td>YRK-PAGE-003</td><td>The PDF operation could not be completed.</td><td>Check the source documents and try again.</td></tr>
-    <tr><td>YRK-PAGE-004</td><td>The output cannot replace the open document.</td><td>Choose another name, or use Save to update the open document.</td></tr>
-    <tr><td>YRK-PAGE-005</td><td>The page range is invalid.</td><td>1-3, 5 Enter page numbers within the document, for example 1-3, 5.</td></tr>
-    <tr><td>YRK-PAGE-006</td><td>The copied pages are no longer available. Please copy them again.</td><td>Copy the pages again from the source document.</td></tr>
-    <tr><td>YRK-PAGE-007</td><td>The page clipboard could not be accessed.</td><td>Try copying or pasting the pages again.</td></tr>
-    <tr><td>YRK-PAGE-008</td><td>The source document does not allow copying or extracting pages.</td><td>Open the source document with its owner password before copying pages.</td></tr>
-  </table>
-  <h3>EXP</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-EXP-001</td><td>This document cannot be saved as PDF/A without changing its appearance. Nothing was saved.</td><td>Use a regular PDF or adjust the document before trying PDF/A again.</td></tr>
-    <tr><td>YRK-EXP-002</td><td>The PDF/A document could not be saved.</td><td>Check folder access and try again.</td></tr>
-    <tr><td>YRK-EXP-003</td><td>The document could not be exported.</td><td>Check the export settings and destination folder, then try again.</td></tr>
-  </table>
-  <h3>PRN</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-PRN-001</td><td>The document could not be printed.</td><td>Check the printer connection and paper, then try again.</td></tr>
-    <tr><td>YRK-PRN-002</td><td>The printers could not be listed.</td><td>Check Windows printer settings and reopen the print dialog.</td></tr>
-    <tr><td>YRK-PRN-003</td><td>The printer is not available.</td><td>Turn on the printer or select another printer.</td></tr>
-  </table>
-  <h3>BAT</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-BAT-001</td><td>The output folder could not be used.</td><td>Choose a writable folder and try again.</td></tr>
-    <tr><td>YRK-BAT-002</td><td>Some files could not be processed.</td><td>Check the source files and job settings, then try again.</td></tr>
-    <tr><td>YRK-BAT-003</td><td>None of the first files could be opened for the preview.</td><td>Choose readable PDF files and try again.</td></tr>
-    <tr><td>YRK-BAT-004</td><td>A file is protected against this change.</td><td>Unlock it with the owner password before processing it.</td></tr>
-    <tr><td>YRK-BAT-005</td><td>A file needs a password to open.</td><td>Open and unlock the file before processing it.</td></tr>
-  </table>
-  <h3>CAD</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-CAD-001</td><td>The CAD drawing could not be opened.</td><td>Check that the drawing is a supported DWG or DXF file and try again.</td></tr>
-  </table>
-  <h3>EDIT</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-EDIT-001</td><td>The annotation could not be changed.</td><td>Try the change again or reopen the document.</td></tr>
-    <tr><td>YRK-EDIT-002</td><td>The picture could not be added.</td><td>Choose a readable image file and try again.</td></tr>
-    <tr><td>YRK-EDIT-003</td><td>The changes could not be applied.</td><td>Try again. If needed, save a copy and reopen it.</td></tr>
-    <tr><td>YRK-EDIT-004</td><td>This editing step could not be restored.</td><td>Try again or reopen your latest saved copy.</td></tr>
-    <tr><td>YRK-EDIT-005</td><td>The document operation failed.</td><td>Check the document and operation settings, then try again.</td></tr>
-    <tr><td>YRK-EDIT-006</td><td>The count list could not be saved.</td><td>Choose a writable folder and try again.</td></tr>
-    <tr><td>YRK-EDIT-007</td><td>This page could not be compared.</td><td>Try another page or reopen both documents.</td></tr>
-    <tr><td>YRK-EDIT-008</td><td>The text could not be changed.</td><td>If the font cannot be edited or the text overlaps an image, use a white box and Add text instead.</td></tr>
-    <tr><td>YRK-EDIT-009</td><td>The form fields could not be added.</td><td>Check the document and try adding the fields again.</td></tr>
-    <tr><td>YRK-EDIT-010</td><td>The saved item could not be changed safely.</td><td>Try another item or save a copy before editing again.</td></tr>
-  </table>
-  <h3>SIG</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-SIG-023</td><td>The signature could not be saved for later use.</td><td>Check access to the signature folder and try again.</td></tr>
-    <tr><td>YRK-SIG-024</td><td>The saved signature could not be deleted.</td><td>Check access to the signature folder and try again.</td></tr>
-    <tr><td>YRK-SIG-025</td><td>The certificate revocation list could not be downloaded.</td><td>Check the internet connection, or sign without long-term validation.</td></tr>
-    <tr><td>YRK-SIG-026</td><td>The certificate revocation list was downloaded but could not be validated.</td><td>Try again later, or sign without long-term validation.</td></tr>
-    <tr><td>YRK-SIG-001</td><td>The certificate could not be trusted.</td><td>Try adding the certificate again.</td></tr>
-    <tr><td>YRK-SIG-002</td><td>The signed version could not be opened.</td><td>Try again or save a copy first.</td></tr>
-    <tr><td>YRK-SIG-003</td><td>No version before signing is stored in this file.</td><td>Use an earlier backup of the document.</td></tr>
-    <tr><td>YRK-SIG-004</td><td>The version before signing cannot be saved because the signature data is invalid.</td><td>Use an earlier backup of the document.</td></tr>
-    <tr><td>YRK-SIG-005</td><td>The version before signing cannot replace the open document.</td><td>Choose a different file name.</td></tr>
-    <tr><td>YRK-SIG-006</td><td>The version before signing could not be saved.</td><td>Choose another folder and try again.</td></tr>
-    <tr><td>YRK-SIG-007</td><td>The certificate could not be exported.</td><td>Choose another folder and try again.</td></tr>
-    <tr><td>YRK-SIG-008</td><td>The certificate could not be opened.</td><td>Choose a valid digital ID and try again.</td></tr>
-    <tr><td>YRK-SIG-009</td><td>The digital ID could not be created.</td><td>Check the information and try again.</td></tr>
-    <tr><td>YRK-SIG-010</td><td>The digital ID password is incorrect.</td><td>Enter the correct password and try again.</td></tr>
-    <tr><td>YRK-SIG-011</td><td>The digital ID could not be copied.</td><td>Choose another folder and try again.</td></tr>
-    <tr><td>YRK-SIG-012</td><td>The digital ID password could not be changed.</td><td>Check the current password and try again.</td></tr>
-    <tr><td>YRK-SIG-013</td><td>Enter the password of this ID first.</td><td>Type the digital ID password and try again.</td></tr>
-    <tr><td>YRK-SIG-014</td><td>The digital ID could not be added.</td><td>Choose a valid digital ID file and try again.</td></tr>
-    <tr><td>YRK-SIG-015</td><td>Choose a digital ID first.</td><td>Select a digital ID from the list.</td></tr>
-    <tr><td>YRK-SIG-016</td><td>The timestamp server address is invalid.</td><td>Enter a valid HTTP or HTTPS address.</td></tr>
-    <tr><td>YRK-SIG-017</td><td>This ID has no private key, so it cannot sign.</td><td>Choose a digital ID with a private key.</td></tr>
-    <tr><td>YRK-SIG-018</td><td>This digital ID has expired.</td><td>Choose a valid digital ID.</td></tr>
-    <tr><td>YRK-SIG-019</td><td>This ID is not valid yet.</td><td>Check the computer date or choose another digital ID.</td></tr>
-    <tr><td>YRK-SIG-020</td><td>The file could not be used as a signature.</td><td>Choose another image or PDF file.</td></tr>
-    <tr><td>YRK-SIG-021</td><td>The trusted certificates could not be updated.</td><td>Check access to the certificate files and try again.</td></tr>
-    <tr><td>YRK-SIG-022</td><td>The digital IDs could not be loaded.</td><td>Check access to the digital ID files and try again.</td></tr>
-  </table>
-  <h3>APP</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-APP-004</td><td>YRK PDF could not restart.</td><td>Close and reopen the app when you are ready.</td></tr>
-    <tr><td>YRK-APP-001</td><td>Something went wrong while using the app.</td><td>Try again. If the problem continues, copy the problem report and contact support.</td></tr>
-    <tr><td>YRK-APP-002</td><td>The app encountered a problem and needs to close.</td><td>Restart the app. If recovery is offered, recover your unsaved work.</td></tr>
-    <tr><td>YRK-APP-003</td><td>A background task could not be completed.</td><td>Try the operation again. If the problem continues, copy the problem report and contact support.</td></tr>
-  </table>
-  <h3>SCN</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-SCN-001</td><td>No scanner found.</td><td>Connect your scanner and try again.</td></tr>
-    <tr><td>YRK-SCN-002</td><td>The scanner is busy. Scanned pages have been kept.</td><td>Wait and try again.</td></tr>
-    <tr><td>YRK-SCN-003</td><td>Paper is jammed. Scanned pages have been kept.</td><td>Clear the paper and try Scan more.</td></tr>
-    <tr><td>YRK-SCN-004</td><td>The feeder is empty.</td><td>Put paper in the feeder and try again.</td></tr>
-    <tr><td>YRK-SCN-005</td><td>The feeder is empty. Scanned pages have been kept.</td><td>Add more paper and try Scan more, or create a file from the scanned pages.</td></tr>
-    <tr><td>YRK-SCN-006</td><td>Scanning cancelled. Scanned pages have been kept.</td><td>Try Scan more, or create a file from the scanned pages.</td></tr>
-    <tr><td>YRK-SCN-007</td><td>The scanner is not ready.</td><td>Check its power and connection, then find scanners again.</td></tr>
-    <tr><td>YRK-SCN-008</td><td>The scanner connection was lost.</td><td>Check the USB cable and turn on the scanner, then press Find scanners again.</td></tr>
-    <tr><td>YRK-SCN-009</td><td>The scanner reported an error.</td><td>Try scanning again.</td></tr>
-    <tr><td>YRK-SCN-010</td><td>The scanned pages could not be saved.</td><td>Choose another folder and try again. If the problem continues, copy the problem report.</td></tr>
-  </table>
-  <h3>SEC</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-SEC-001</td><td>The protected document could not be read.</td><td>Check access to the document and try again.</td></tr>
-    <tr><td>YRK-SEC-002</td><td>The document could not be unlocked.</td><td>Check the password and try again.</td></tr>
-    <tr><td>YRK-SEC-003</td><td>The search for text to redact failed.</td><td>Try searching again.</td></tr>
-  </table>
-  <h3>UPD</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-UPD-001</td><td>The update download timed out.</td><td>Check the internet connection and try again.</td></tr>
-    <tr><td>YRK-UPD-002</td><td>An update was found, but it was not signed by YRK. It was deleted and not installed.</td><td>Try checking for updates again later.</td></tr>
-    <tr><td>YRK-UPD-003</td><td>Updates could not be checked.</td><td>Check the internet connection and try again later.</td></tr>
-    <tr><td>YRK-UPD-004</td><td>The update could not be installed.</td><td>Check for updates and download it again.</td></tr>
-    <tr><td>YRK-UPD-005</td><td>An update was found, but it was not signed by YRK. It was not installed. The downloaded file could not be deleted.</td><td>Restart the computer, then check for updates again.</td></tr>
-  </table>
-  <h3>OCR</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-OCR-001</td><td>The language data could not be downloaded.</td><td>Check the internet connection and try again.</td></tr>
-    <tr><td>YRK-OCR-002</td><td>Text recognition failed. The PDF was saved without searchable text.</td><td>Try recognizing text in the saved PDF again.</td></tr>
-    <tr><td>YRK-OCR-003</td><td>The review page could not be displayed.</td><td>Try opening the review page again.</td></tr>
-  </table>
-  <h3>CNV</h3>
-  <table>
-    <thead><tr><th>Code</th><th>Message</th><th>What you can do</th></tr></thead>
-    <tr><td>YRK-CNV-001</td><td>Choose at least one file, language and output format.</td><td>Select the missing options and try again.</td></tr>
-    <tr><td>YRK-CNV-002</td><td>Conversion was interrupted unexpectedly.</td><td>Try converting the document again.</td></tr>
-    <tr><td>YRK-CNV-003</td><td>The scanned document could not be converted.</td><td>Check that the file can be opened and try again.</td></tr>
-    <tr><td>YRK-CNV-004</td><td>Some output files could not be created.</td><td>Check the results folder and try again.</td></tr>
-    <tr><td>YRK-CNV-005</td><td>The files could not be added.</td><td>Check access to the files and try again.</td></tr>
-    <tr><td>YRK-CNV-006</td><td>The results folder could not be opened.</td><td>File Explorer Open the results folder in File Explorer.</td></tr>
+    <tr><td>YRK-CNV-006</td><td>The results folder could not be opened.</td><td>Open the results folder in File Explorer.</td></tr>
     <tr><td>YRK-CNV-007</td><td>The text could not be copied.</td><td>Try copying the text again.</td></tr>
     <tr><td>YRK-CNV-008</td><td>Password-protected PDFs cannot be made searchable yet.</td><td>Save an unprotected copy first.</td></tr>
     <tr><td>YRK-CNV-009</td><td>Every page already contains text.</td><td>Choose all pages to recognize the text again.</td></tr>
