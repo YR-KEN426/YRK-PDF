@@ -297,10 +297,12 @@ public sealed class ImportRestartTests
                 warnings++;
                 Assert.Empty(app.Dialogs.Named("AskSaveChanges"));
                 Assert.Empty(second.Dialogs.Named("AskSaveChanges"));
-                var content = Assert.IsType<StackPanel>(dialog.Content);
+                var message = Assert.IsType<MessageDialog>(dialog);
                 Assert.Equal("Cut pages have not been pasted yet. Closing the app will lose them.\n\nContinue closing?",
-                    Assert.IsType<TextBlock>(content.Children[0]).Text);
-                dialog.DialogResult = proceed;
+                    Assert.IsType<TextBlock>(message.FindName("MessageText")).Text);
+                var buttons = Assert.IsType<WrapPanel>(message.FindName("Buttons")).Children.OfType<Button>();
+                buttons.Single(b => (MessageBoxResult)b.Tag == (proceed ? MessageBoxResult.Yes : MessageBoxResult.Cancel))
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             };
             timer.Start();
             switch (route)

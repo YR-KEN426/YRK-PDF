@@ -1,6 +1,6 @@
 ﻿# WindowRenderer / step 1
 
-The construction table in `WindowCatalog.cs` is compiled into both this tool and `AllWindowsLoadTests`. The coverage test checks all 39 concrete app windows. `SupportBrands` and `ThaiAddressFields` are UserControls, not separate windows.
+The construction table in `WindowCatalog.cs` is compiled into both this tool and `AllWindowsLoadTests`. The coverage test checks all 40 concrete app windows. `SupportBrands` and `ThaiAddressFields` are UserControls, not separate windows.
 
 `WpfTestApp` embeds the real `App.xaml` and loads its ResourceDictionary with the app pack URI as the base URI. Adding a merged dictionary to App.xaml requires no duplicate dictionary list. App startup/exit services are never run. The helper runs layout, translates the visual tree, visits tabs and opens ComboBox/DatePicker popup templates. Binding, ResourceDictionary and Markup traces (warning/error), plus dispatcher exceptions, fail the test. It restores culture, language, trace listeners and Application state on cleanup.
 
@@ -40,6 +40,7 @@ Batch mode isolates each window/language in a child process (45-second limit), w
 | FormFieldDialog | Example text field |  |
 | ImportDialog | UI only; no import selected |  |
 | LengthDialog | Millimetres |  |
+| MessageDialog | Save changes with explicit default and dismissal results |  |
 | OcrDialog | Default language choices; no OCR/download |  |
 | OcrReviewDialog | Synthetic document and one uncertain example word |  |
 | PageMarksDialog | Synthetic document and example filename |  |

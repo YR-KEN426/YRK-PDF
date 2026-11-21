@@ -105,32 +105,12 @@ public partial class MainWindow : Window
 
     // All tabs normally share one clipboard. Confirm each distinct owner only once.
     private bool ConfirmCutPagesClose() => Tabs.Select(t => t.PageClipboard).Distinct().All(clipboard =>
-        clipboard.ConfirmClose(message => CreateCutPagesCloseDialog(message).ShowDialog() == true));
+        clipboard.ConfirmClose(message => CreateCutPagesCloseDialog(message).ShowResult() == MessageBoxResult.Yes));
 
-    // Same layout, styles and default-to-Cancel behavior as SignAgainDialog.
-    private Window CreateCutPagesCloseDialog(string message)
-    {
-        var dialog = ThemeResources.Apply(new Window
-        {
-            Owner = this, Title = DialogService.Caption, Width = 500, SizeToContent = SizeToContent.Height,
-            ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            FontFamily = (FontFamily)FindResource("UiFont"),
-        }, (Window.BackgroundProperty, "SurfaceBrush"), (Window.ForegroundProperty, "TextBrush"));
-        var content = new StackPanel { Margin = new Thickness(20) };
-        content.Children.Add(new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap });
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
-        var proceed = new Button { Content = Loc.T("Continue closing"), Style = (Style)FindResource("PrimaryButton") };
-        proceed.Click += (_, _) => dialog.DialogResult = true;
-        buttons.Children.Add(proceed);
-        buttons.Children.Add(new Button
-        {
-            Content = Loc.T("Cancel"), IsCancel = true, IsDefault = true,
-            Style = (Style)FindResource("SecondaryButton"), Margin = new Thickness(8, 0, 0, 0),
-        });
-        content.Children.Add(buttons);
-        dialog.Content = content;
-        return dialog;
-    }
+    private Views.MessageDialog CreateCutPagesCloseDialog(string message) =>
+        new(message, DialogService.Caption,
+            [new("Continue closing", MessageBoxResult.Yes, 'C', true), new("Cancel", MessageBoxResult.Cancel, 'A')],
+            MessageBoxResult.Cancel, MessageBoxResult.Cancel, MessageBoxImage.Warning, this);
 
     // --- Tabs ----------------------------------------------------------------------------------
 

@@ -50,11 +50,11 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
         select new object[] { entry.Name, language, theme };
 
     [Fact]
-    public void Construction_table_covers_all_39_windows_with_explicit_exclusions()
+    public void Construction_table_covers_all_40_windows_with_explicit_exclusions()
     {
         var types = typeof(MainWindow).Assembly.GetTypes().Where(t => !t.IsAbstract && typeof(Window).IsAssignableFrom(t)
             && (t == typeof(MainWindow) || t.Namespace == "Yrk.PdfStudio.App.Views")).OrderBy(t => t.FullName).ToArray();
-        Assert.Equal(39, types.Length);
+        Assert.Equal(40, types.Length);
         Assert.Equal(types, WindowCatalog.Cases.Select(c => c.Type).OrderBy(t => t.FullName));
         Assert.All(WindowCatalog.Cases, c => Assert.True(c.Create is not null || !string.IsNullOrWhiteSpace(c.Unavailable)));
     }

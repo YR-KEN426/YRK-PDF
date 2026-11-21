@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Windows;
 using Yrk.PdfStudio.App;
+using Yrk.PdfStudio.App.Localization;
 using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.App.ViewModels;
 using Yrk.PdfStudio.App.Views;
@@ -52,6 +53,10 @@ internal static class WindowCatalog
         new(typeof(FormFieldDialog), "Example text field", _ => new FormFieldDialog(PdfNewFieldKind.Text, "Example field")),
         new(typeof(ImportDialog), "UI only; no import selected", _ => new ImportDialog()),
         new(typeof(LengthDialog), "Millimetres", _ => new LengthDialog("mm")),
+        new(typeof(MessageDialog), "Save changes with explicit safe dismissal", _ => new MessageDialog(
+            Loc.F("Save changes to \"{0}\"?", "example.pdf"), DialogService.Caption,
+            [new("Save", MessageBoxResult.Yes, 'S', true), new("Don't save", MessageBoxResult.No, 'D'), new("Cancel", MessageBoxResult.Cancel, 'C')],
+            MessageBoxResult.Yes, MessageBoxResult.Cancel, MessageBoxImage.Question, null)),
         new(typeof(OcrDialog), "Default language choices; no OCR/download", _ => new OcrDialog()),
         new(typeof(OcrReviewDialog), "Synthetic document and one uncertain example word", f => new OcrReviewDialog(new(
             [new(0, [new("Example / ตัวอย่าง", new(.1, .1, .3, .04), 30, false)])], f.Document, false))),

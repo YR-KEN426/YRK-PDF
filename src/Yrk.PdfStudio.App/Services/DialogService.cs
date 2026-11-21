@@ -122,9 +122,10 @@ public sealed class DialogService : IDialogService
 
     public SaveChangesChoice AskSaveChanges(string fileName)
     {
-        var result = Owner is { } owner
-            ? MessageBox.Show(owner, Loc.F("Save changes to \"{0}\"?", fileName), Caption, MessageBoxButton.YesNoCancel, MessageBoxImage.Question)
-            : MessageBox.Show(Loc.F("Save changes to \"{0}\"?", fileName), Caption, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+        var result = new MessageDialog(Loc.F("Save changes to \"{0}\"?", fileName), Caption,
+            [new("Save", MessageBoxResult.Yes, 'S', true), new("Don't save", MessageBoxResult.No, 'D'),
+             new("Cancel", MessageBoxResult.Cancel, 'C')],
+            MessageBoxResult.Yes, MessageBoxResult.Cancel, MessageBoxImage.Question, Owner).ShowResult();
         return result switch
         {
             MessageBoxResult.Yes => SaveChangesChoice.Save,
@@ -324,14 +325,26 @@ public sealed class DialogService : IDialogService
 
     // Destructive certificate actions keep No selected by default.
     public bool AskYesNoDefaultNo(string message) =>
-        (Owner is { } owner
-            ? MessageBox.Show(owner, Loc.T(message), Caption, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No)
-            : MessageBox.Show(Loc.T(message), Caption, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No)) == MessageBoxResult.Yes;
+        Show(message, MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) == MessageBoxResult.Yes;
 
-    private MessageBoxResult Show(string message, MessageBoxButton buttons, MessageBoxImage icon) =>
-        Owner is { } owner
-            ? MessageBox.Show(owner, Loc.T(message), Caption, buttons, icon)
-            : MessageBox.Show(Loc.T(message), Caption, buttons, icon);
+    private MessageBoxResult Show(string message, MessageBoxButton buttons, MessageBoxImage icon,
+        MessageBoxResult? defaultResult = null)
+    {
+        MessageDialogButton[] choices = buttons switch
+        {
+            MessageBoxButton.YesNo => [new("Yes", MessageBoxResult.Yes, 'Y', true), new("No", MessageBoxResult.No, 'N')],
+            MessageBoxButton.OKCancel => [new("OK", MessageBoxResult.OK, 'O', true), new("Cancel", MessageBoxResult.Cancel, 'C')],
+            _ => [new("OK", MessageBoxResult.OK, 'O', true)],
+        };
+        var dismiss = buttons switch
+        {
+            MessageBoxButton.YesNo => MessageBoxResult.No,
+            MessageBoxButton.OKCancel => MessageBoxResult.Cancel,
+            _ => MessageBoxResult.OK,
+        };
+        return new MessageDialog(Loc.T(message), Caption, choices, defaultResult ?? choices[0].Result,
+            dismiss, icon, Owner).ShowResult();
+    }
 
     public void ShowError(ErrorInfo error, Exception? ex = null, params object[] args)
     {

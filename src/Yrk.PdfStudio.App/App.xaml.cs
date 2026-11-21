@@ -198,8 +198,23 @@ public partial class App : Application
 
     private static int _showingCrashDialog;
 
-    internal static Action<string> CrashMessageBox { get; set; } = message =>
-        MessageBox.Show(message, DialogService.Caption, MessageBoxButton.OK, MessageBoxImage.Error);
+    internal static Action<string> CrashMessageBox { get; set; } = message => ShowCrashMessage(message);
+
+    internal static void ShowCrashMessage(string message, Action<string>? fallback = null)
+    {
+        try
+        {
+            new Views.MessageDialog(message, DialogService.Caption,
+                [new("OK", MessageBoxResult.OK, 'O', true)], MessageBoxResult.OK, MessageBoxResult.OK,
+                MessageBoxImage.Error, Current?.Dispatcher.CheckAccess() == true ? Current.MainWindow : null).ShowResult();
+        }
+        catch (Exception)
+        {
+            // Last resort: this must still work when WPF resources cannot be loaded.
+            if (fallback is not null) fallback(message);
+            else MessageBox.Show(message, DialogService.Caption, MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 
     internal static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e) =>
         HandleDispatcherUnhandledException(e);

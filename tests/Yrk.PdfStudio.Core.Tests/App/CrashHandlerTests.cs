@@ -1,9 +1,11 @@
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Windows;
 using System.Windows.Threading;
 using Yrk.PdfStudio.App.Localization;
 using Yrk.PdfStudio.App.Services;
 using PdfApp = Yrk.PdfStudio.App.App;
+using Yrk.PdfStudio.Testing;
 
 namespace Yrk.PdfStudio.Core.Tests;
 
@@ -72,7 +74,7 @@ public sealed class CrashHandlerTests : IDisposable
     [Fact]
     public void Dispatcher_swallows_fallback_failure_and_releases_guard()
     {
-        PdfApp.CrashMessageBox = _ => throw new InvalidOperationException("Fake MessageBox failure");
+        PdfApp.CrashMessageBox = _ => throw new InvalidOperationException("Fake crash dialog failure");
         Assert.True(HandleDispatcher(new IOException("first"), ThrowingDialogs().Service));
 
         PdfApp.CrashMessageBox = _messages.Add;
@@ -80,6 +82,23 @@ public sealed class CrashHandlerTests : IDisposable
 
         Assert.Single(_messages);
         Assert.Contains("YRK-APP-001", ReadLog());
+    }
+
+    [Fact]
+    public void Broken_theme_resources_use_the_crash_fallback_with_the_original_message()
+    {
+        Sta.Run(() =>
+        {
+            using var app = new WpfTestApp("en");
+            // Force the same construction failure as a damaged resource dictionary: a brush cannot be a Style.
+            Application.Current.Resources["PrimaryButton"] = new System.Windows.Media.SolidColorBrush();
+            const string message = "Something went wrong. Try again. If the problem continues, restart the app.";
+            var fallbackMessages = new List<string>();
+            PdfApp.ShowCrashMessage(message, fallbackMessages.Add);
+            Assert.Equal(new[] { message }, fallbackMessages);
+            Assert.DoesNotContain(Application.Current.Windows.Cast<Window>(), w => w.IsVisible);
+            return true;
+        });
     }
 
     [Theory]

@@ -79,16 +79,29 @@ public sealed class ErrorUsageGuardTests
         foreach (var file in SourceFiles(AppSource))
         {
             var relative = Path.GetRelativePath(AppSource, file).Replace('\\', '/');
-            // Central dialog service owns confirmations and its error-dialog fallback.
-            // ErrorDialog may own a last-resort dialog for failures in the error UI itself.
-            if (relative is "Services/DialogService.cs" or "Views/ErrorDialog.xaml.cs") continue;
             var source = File.ReadAllText(file);
             if (relative == "App.xaml.cs")
             {
-                // Only the existing crash fallback expression is exempt, not the entire App file.
+                Assert.Single(Regex.Matches(source, @"\bMessageBox\s*\.\s*Show\s*\("));
+                var fallback = source[source.IndexOf("internal static void ShowCrashMessage", StringComparison.Ordinal)
+                    ..source.IndexOf("internal static void OnDispatcherUnhandledException", StringComparison.Ordinal)];
+                Assert.Single(Regex.Matches(fallback, @"\bMessageBox\s*\.\s*Show\s*\("));
+                Assert.Contains("catch (Exception)", fallback);
+                Assert.Contains("new Views.MessageDialog", fallback);
                 source = source.Replace(
-                    "MessageBox.Show(message, DialogService.Caption, MessageBoxButton.OK, MessageBoxImage.Error)",
+                    "MessageBox.Show(message, DialogService.Caption, MessageBoxButton.OK, MessageBoxImage.Error);",
                     "CrashFallback");
+            }
+            if (relative == "Services/DialogService.cs")
+            {
+                var fallback = source[source.IndexOf("catch (Exception dialogError)", StringComparison.Ordinal)
+                    ..source.IndexOf("private bool ShowDialog(CommonDialog", StringComparison.Ordinal)];
+                Assert.Single(Regex.Matches(fallback, @"\bMessageBox\s*\.\s*Show\s*\("));
+                // Exempt this exact fallback statement once, never the method or file.
+                var match = Regex.Match(fallback, @"MessageBox\.Show\([\s\S]*?MessageBoxImage\.Error\);");
+                Assert.True(match.Success);
+                var position = source.IndexOf(match.Value, StringComparison.Ordinal);
+                source = source.Remove(position, match.Length);
             }
             Assert.False(Regex.IsMatch(source, @"\bMessageBox\s*\.\s*Show\s*\("), relative);
         }

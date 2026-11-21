@@ -162,20 +162,16 @@ public partial class ScanDialog : Window
     private sealed record Choice<T>(T Value, string Text);
     private SaveChangesChoice AskCloseChoice()
     {
-        var dialog = new Window { Owner = this, Title = Loc.T("Unsaved scans"), SizeToContent = SizeToContent.WidthAndHeight,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize };
-        var panel = new StackPanel { Margin = new Thickness(20), MaxWidth = 500 };
-        panel.Children.Add(new TextBlock { Text = Loc.F("There are {0} unsaved pages. Close anyway?", _model.UnsavedPageCount), TextWrapping = TextWrapping.Wrap });
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 16, 0, 0) };
-        var choice = SaveChangesChoice.Cancel;
-        foreach (var (value, label) in new[] { (SaveChangesChoice.Save, Loc.T("Save")), (SaveChangesChoice.Discard, Loc.T("Close without saving")), (SaveChangesChoice.Cancel, Loc.T("Cancel")) })
+        var result = new MessageDialog(Loc.F("There are {0} unsaved pages. Close anyway?", _model.UnsavedPageCount),
+            "Unsaved scans", [new("Save", MessageBoxResult.Yes, 'S', true),
+                new("Close without saving", MessageBoxResult.No, 'D'), new("Cancel", MessageBoxResult.Cancel, 'C')],
+            MessageBoxResult.Cancel, MessageBoxResult.Cancel, MessageBoxImage.Question, this).ShowResult();
+        return result switch
         {
-            var button = new Button { Content = label, Padding = new Thickness(14, 6, 14, 6), Margin = new Thickness(4), IsCancel = value == SaveChangesChoice.Cancel };
-            button.Click += (_, _) => { choice = value; dialog.Close(); };
-            buttons.Children.Add(button);
-        }
-        panel.Children.Add(buttons); dialog.Content = panel; dialog.ShowDialog();
-        return choice;
+            MessageBoxResult.Yes => SaveChangesChoice.Save,
+            MessageBoxResult.No => SaveChangesChoice.Discard,
+            _ => SaveChangesChoice.Cancel,
+        };
     }
 
     private void ShowPaperSizes()

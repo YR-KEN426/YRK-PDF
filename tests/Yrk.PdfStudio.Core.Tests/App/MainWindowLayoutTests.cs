@@ -197,15 +197,16 @@ public sealed class MainWindowLayoutTests
                 foreach (var lang in new[] { "en", "th" })
                 {
                     Yrk.PdfStudio.App.Localization.Loc.Language = lang;
-                    var dialog = (Window)typeof(MainWindow).GetMethod("CreateCutPagesCloseDialog", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    var dialog = (Yrk.PdfStudio.App.Views.MessageDialog)typeof(MainWindow).GetMethod("CreateCutPagesCloseDialog", BindingFlags.Instance | BindingFlags.NonPublic)!
                         .Invoke(window, ["message"])!;
-                    var content = Assert.IsType<StackPanel>(dialog.Content);
-                    var buttons = Assert.IsType<StackPanel>(content.Children[1]);
-                    Assert.Equal(lang == "th" ? "ปิดต่อ" : "Continue closing", Assert.IsType<Button>(buttons.Children[0]).Content);
+                    var buttons = Assert.IsType<WrapPanel>(dialog.FindName("Buttons"));
+                    Assert.Equal((lang == "th" ? "ปิดต่อ" : "Continue closing") + " (_C)",
+                        Assert.IsType<AccessText>(Assert.IsType<Button>(buttons.Children[0]).Content).Text);
                     var cancel = Assert.IsType<Button>(buttons.Children[1]);
                     Assert.True(cancel.IsCancel);
                     Assert.True(cancel.IsDefault);
-                    Assert.Equal(lang == "th" ? "ยกเลิก" : "Cancel", cancel.Content);
+                    Assert.Equal((lang == "th" ? "ยกเลิก" : "Cancel") + " (_A)", Assert.IsType<AccessText>(cancel.Content).Text);
+                    Assert.Equal(MessageBoxResult.Cancel, dialog.Result);
                     dialog.Close();
                 }
                 return true;
