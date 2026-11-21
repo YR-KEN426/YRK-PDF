@@ -19,6 +19,7 @@ public partial class ConvertScanDialog : Window
     public ConvertScanDialog(IEnumerable<string> initialFiles)
     {
         InitializeComponent();
+        WindowSizing.FitToWorkArea(this);
         FileList.ItemsSource = _files;
         var data = new OcrLanguageData();
         _choices.AddRange(OcrLanguageData.Languages.Select(l => new OcrDialog.LanguageChoice(l.Code, l.Name,

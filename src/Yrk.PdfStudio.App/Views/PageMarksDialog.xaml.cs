@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.Windows;
 using Yrk.PdfStudio.App.Imaging;
 using Yrk.PdfStudio.App.ViewModels;
@@ -11,6 +12,7 @@ public partial class PageMarksDialog : Window
     public PageMarksDialog(PageMarksViewModel viewModel)
     {
         InitializeComponent();
+        WindowSizing.FitToWorkArea(this);
         DataContext = _viewModel = viewModel;
     }
 

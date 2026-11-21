@@ -11,6 +11,7 @@ public partial class PrintDialog : Window
     public PrintDialog(PrintViewModel viewModel)
     {
         InitializeComponent();
+        WindowSizing.FitToWorkArea(this);
         DataContext = _viewModel = viewModel;
     }
 

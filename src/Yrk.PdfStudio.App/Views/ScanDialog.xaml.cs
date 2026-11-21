@@ -56,6 +56,7 @@ public partial class ScanDialog : Window
     public ScanDialog(ScanSession session, IScannerService scanner)
     {
         InitializeComponent();
+        WindowSizing.FitToWorkArea(this);
         AutoOrientation.Visibility = ScanFeatureFlags.AutoRotateVisible ? Visibility.Visible : Visibility.Collapsed;
         _scanner = scanner;
         _model = new(session, scanner, Dispatcher);

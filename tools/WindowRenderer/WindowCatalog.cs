@@ -43,8 +43,11 @@ internal static class WindowCatalog
         new(typeof(ConvertScanDialog), "Empty input list", _ => new ConvertScanDialog([])),
         new(typeof(ConvertScanResultDialog), "Example output paths and text", _ => new ConvertScanResultDialog(new("Example result", [@"C:\Example\output.pdf"], "Example text / ข้อความตัวอย่าง"))),
         new(typeof(CreateDigitalIdDialog), "UI only; no certificate created", _ => new CreateDigitalIdDialog()),
-        new(typeof(DigitalSignDialog), "Requires DigitalIdStore.LoadAll", null,
-            "DigitalIdStore.LoadAll always enumerates the current user's Windows certificates; no injectable certificate source. Cannot construct with only synthetic data."),
+        new(typeof(DigitalSignDialog), "Two synthetic IDs: fictional .pfx file and expired Windows certificate; no real folder/certificate store read",
+            _ => new DigitalSignDialog(new DigitalIdStore([
+                new DigitalId("Example file ID", null, null, null, @"C:\Example\synthetic.pfx"),
+                new DigitalId("Example expired Windows ID", "Example issuer", new DateTime(2020, 1, 1), "SYNTHETIC-EXPIRED-ID", null)
+            ]), [])),
         new(typeof(ErrorDialog), "Catalogue error with no real exception/path", _ => new ErrorDialog(ErrorCatalog.PrintList)),
         new(typeof(ETaxInvoiceDialog), "Fresh in-memory settings", _ => new ETaxInvoiceDialog(new())),
         new(typeof(ExportDialog), "Three pages, current page zero", _ => new ExportDialog(3, 0)),

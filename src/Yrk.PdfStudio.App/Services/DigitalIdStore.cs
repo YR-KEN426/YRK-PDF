@@ -25,6 +25,7 @@ public sealed class DigitalIdStore
 {
     private readonly string _folder;
     private readonly Action<string> _remove;
+    private readonly IReadOnlyList<DigitalId>? _fixedIds;
 
     /// <param name="remove">Takes a file away (the Recycle Bin unless a test says otherwise).</param>
     public DigitalIdStore(string? folder = null, Action<string>? remove = null)
@@ -33,8 +34,13 @@ public sealed class DigitalIdStore
         _remove = remove ?? MoveToRecycleBin;
     }
 
+    /// <summary>Test/preview seam: a store that lists only these IDs and never reads the folder or Windows store.
+    /// Internal on purpose; the app itself always uses the public constructor.</summary>
+    internal DigitalIdStore(IReadOnlyList<DigitalId> fixedIds) : this(null, null) => _fixedIds = fixedIds;
+
     public IReadOnlyList<DigitalId> LoadAll()
     {
+        if (_fixedIds is not null) return _fixedIds;
         var ids = new List<DigitalId>();
         if (Directory.Exists(_folder))
         {

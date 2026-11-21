@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     public MainWindow(MainViewModel viewModel, Func<MainViewModel> createTab)
     {
         InitializeComponent();
+        WindowSizing.FitToWorkArea(this);
         _createTab = createTab;
         _viewModel = viewModel;
         Tabs.Add(viewModel);

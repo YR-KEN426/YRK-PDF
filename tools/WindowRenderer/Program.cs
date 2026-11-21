@@ -33,6 +33,19 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        var dpi = 100;
+        var dpiIndex = Array.IndexOf(args, "--dpi");
+        if (dpiIndex >= 0)
+        {
+            if (args.Count(arg => arg == "--dpi") != 1 || dpiIndex + 1 >= args.Length
+                || args[dpiIndex + 1] is not ("100" or "125" or "150" or "200"))
+            {
+                Console.Error.WriteLine("Usage: --dpi 100|125|150|200 (scale percent; default: 100)");
+                return 2;
+            }
+            dpi = int.Parse(args[dpiIndex + 1], CultureInfo.InvariantCulture);
+            args = args.Take(dpiIndex).Concat(args.Skip(dpiIndex + 2)).ToArray();
+        }
         Size? size = null;
         var sizeIndex = Array.IndexOf(args, "--size");
         if (sizeIndex >= 0)
@@ -61,7 +74,7 @@ internal static class Program
             theme = args[themeIndex + 1];
             args = args.Take(themeIndex).Concat(args.Skip(themeIndex + 2)).ToArray();
         }
-        if (args is ["--all", var folder]) return RenderAll(folder, theme, size);
+        if (args is ["--all", var folder]) return RenderAll(folder, theme, size, dpi);
         if (args is ["--list"])
         {
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(Yrk.PdfStudio.Testing.WindowCatalog.Cases
@@ -74,7 +87,7 @@ internal static class Program
         if (positional.Length != 3 || args.Length != 3 + (args.Contains("--allow-any-window", StringComparer.Ordinal) ? 1 : 0) + (xamlMode ? 1 : 0)
             || positional[1] is not ("th" or "en"))
         {
-            Console.Error.WriteLine("Usage: WindowRenderer [--theme light|dark] [--allow-any-window] <window class> <th|en> <output.png> | --all <folder> [--theme light|dark] | --list");
+            Console.Error.WriteLine("Usage: WindowRenderer [--theme light|dark] [--size WxH] [--dpi 100|125|150|200] [--allow-any-window] <window class> <th|en> <output.png> | --all <folder> [--theme light|dark] [--size WxH] [--dpi 100|125|150|200] | --list");
             return 2;
         }
 
@@ -111,7 +124,7 @@ internal static class Program
         try
         {
             // Keep App references behind this boundary until the initial snapshot is complete.
-            success = Render(name, positional[1], output, theme, size);
+            success = Render(name, positional[1], output, theme, size, dpi);
         }
         catch (Exception ex)
         {
@@ -140,7 +153,7 @@ internal static class Program
         return result;
     }
 
-    private static int RenderAll(string folder, string theme, Size? size)
+    private static int RenderAll(string folder, string theme, Size? size, int dpi)
     {
         folder = Path.GetFullPath(folder);
         Directory.CreateDirectory(folder);
@@ -149,7 +162,8 @@ internal static class Program
         foreach (var entry in Yrk.PdfStudio.Testing.WindowCatalog.Cases)
         foreach (var language in new[] { "th", "en" })
         {
-            var output = Path.Combine(folder, entry.Name + "." + language + ".png");
+            var stem = $"{entry.Name}.{language}.dpi{dpi}";
+            var output = Path.Combine(folder, stem + ".png");
             string detail;
             int exitCode;
             if (entry.Create is null) { detail = entry.Unavailable!; exitCode = 3; }
@@ -164,6 +178,8 @@ internal static class Program
                 if (string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "dotnet", StringComparison.OrdinalIgnoreCase))
                     start.ArgumentList.Add(typeof(Program).Assembly.Location);
                 foreach (var arg in new[] { "--theme", theme, "--allow-any-window", entry.Name, language, output }) start.ArgumentList.Add(arg);
+                start.ArgumentList.Add("--dpi");
+                start.ArgumentList.Add(dpi.ToString(CultureInfo.InvariantCulture));
                 if (size is { } dimensions)
                 {
                     start.ArgumentList.Add("--size");
@@ -178,9 +194,9 @@ internal static class Program
                 if (exitCode == 124) detail += "Timed out after 45 seconds.";
             }
             var captured = File.Exists(output);
-            results.Add(new { Window = entry.Name, Language = language, Theme = theme, entry.Fixture, Captured = captured, ExitCode = exitCode, Detail = detail });
-            File.WriteAllText(Path.Combine(folder, entry.Name + "." + language + ".log"), detail);
-            Console.WriteLine($"{entry.Name} [{language}, {theme}]: {(captured ? "captured" : "unavailable")}, exit {exitCode}");
+            results.Add(new { Window = entry.Name, Language = language, Theme = theme, Dpi = dpi, entry.Fixture, Captured = captured, ExitCode = exitCode, Detail = detail });
+            File.WriteAllText(Path.Combine(folder, stem + ".log"), detail);
+            Console.WriteLine($"{entry.Name} [{language}, {theme}, dpi {dpi}%]: {(captured ? "captured" : "unavailable")}, exit {exitCode}");
             if (exitCode != 0) failures++;
             File.WriteAllText(Path.Combine(folder, "manifest.json"), System.Text.Json.JsonSerializer.Serialize(results,
                 new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
@@ -231,8 +247,14 @@ internal static class Program
         return differences;
     }
 
-    private static string Render(string name, string language, string output, string theme, Size? size)
+    private static string Render(string name, string language, string output, string theme, Size? size, int dpi)
     {
+        var scale = dpi / 100.0;
+        var screen = size is { } screenPixels
+            ? new Size(screenPixels.Width / scale, screenPixels.Height / scale)
+            : new Size(SystemParameters.PrimaryScreenWidth / scale, SystemParameters.PrimaryScreenHeight / scale);
+        using var workArea = size is not null || dpi != 100
+            ? new WorkAreaOverride(new Rect(0, 0, screen.Width, Math.Max(1, screen.Height - 40))) : null;
         using var app = new Yrk.PdfStudio.Testing.WpfTestApp(language, theme);
         using var fixture = new Yrk.PdfStudio.Testing.WindowFixture();
         Window window;
@@ -252,11 +274,13 @@ internal static class Program
         var closed = false;
         try
         {
-            if (size is { } dimensions)
+            if (size is not null)
             {
+                window.MaxWidth = Math.Min(window.MaxWidth, screen.Width);
+                window.MaxHeight = Math.Min(window.MaxHeight, Math.Max(1, screen.Height - 40));
                 window.SizeToContent = SizeToContent.Manual;
-                window.Width = dimensions.Width;
-                window.Height = dimensions.Height;
+                window.Width = screen.Width;
+                window.Height = screen.Height;
             }
             window.WindowStartupLocation = WindowStartupLocation.Manual;
             window.Left = -32000; window.Top = -32000;
@@ -265,11 +289,16 @@ internal static class Program
             Yrk.PdfStudio.Testing.WpfTestApp.Layout(window);
             var popupCount = Yrk.PdfStudio.Testing.WpfTestApp.ExercisePopups(window);
             Yrk.PdfStudio.Testing.WpfTestApp.Layout(window);
-            var width = checked((int)Math.Ceiling(window.ActualWidth));
-            var height = checked((int)Math.Ceiling(window.ActualHeight));
+            if (size is not null && (window.ActualWidth > screen.Width + .01
+                || window.ActualHeight > Math.Max(1, screen.Height - 40) + .01))
+                throw new InvalidOperationException("Window exceeds the simulated available layout area.");
+            var width = checked((int)Math.Ceiling(window.ActualWidth * scale));
+            var height = checked((int)Math.Ceiling(window.ActualHeight * scale));
+            if (size is { } bounds && (width > bounds.Width || height > bounds.Height))
+                throw new InvalidOperationException("Window exceeds the requested pixel dimensions.");
             if (width <= 0 || height <= 0 || width > 10000 || height > 10000)
                 throw new InvalidOperationException("Invalid render dimensions.");
-            var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+            var bitmap = new RenderTargetBitmap(width, height, 96 * scale, 96 * scale, PixelFormats.Pbgra32);
             bitmap.Render(window);
             var pixels = new byte[checked(width * height * 4)];
             bitmap.CopyPixels(pixels, width * 4, 0);
@@ -285,8 +314,31 @@ internal static class Program
             Yrk.PdfStudio.Testing.WpfTestApp.Pump();
             // Keep baseline evidence even when a real binding defect is found, but return failure visibly.
             if (app.Errors.Count != 0) throw new InvalidOperationException("Image saved with WPF diagnostics: " + string.Join("\n", app.Errors));
-            return $"PASS: {output} ({theme}, {width}x{height}, {colors.Count} colors, {popupCount} popups)";
+            return $"PASS: {output} ({theme}, dpi {dpi}% / {96 * scale} DPI, {width}x{height}, {colors.Count} colors, {popupCount} popups)";
         }
         finally { if (!closed) window.Close(); Yrk.PdfStudio.Testing.WpfTestApp.Pump(); }
+    }
+
+    // Process-local WPF cache only: never changes the desktop's actual work area or DPI.
+    private sealed class WorkAreaOverride : IDisposable
+    {
+        private readonly System.Reflection.FieldInfo? _field;
+        private readonly Rect _original = SystemParameters.WorkArea;
+
+        public WorkAreaOverride(Rect area)
+        {
+            _field = typeof(SystemParameters).GetField("_workArea",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+            if (_field is null)
+            {
+                Console.Error.WriteLine("WorkArea simulation unavailable; --size uses renderer MaxWidth/MaxHeight limits.");
+                return;
+            }
+            _field.SetValue(null, area);
+            if (SystemParameters.WorkArea != area)
+                throw new InvalidOperationException("WPF WorkArea cache override did not take effect.");
+        }
+
+        public void Dispose() => _field?.SetValue(null, _original);
     }
 }

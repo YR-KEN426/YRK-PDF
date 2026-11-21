@@ -49,6 +49,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Yrk.PdfStudio.Core.Tests" />
+    <InternalsVisibleTo Include="WindowRenderer" />
     <!-- Where installed copies look for updates, set by build\release.ps1 (-p:YrkUpdateUrl=…); empty turns updates off. -->
     <AssemblyMetadata Include="YrkUpdateUrl" Value="$(YrkUpdateUrl)" Condition="'$(YrkStore)' != 'true'" />
   </ItemGroup>

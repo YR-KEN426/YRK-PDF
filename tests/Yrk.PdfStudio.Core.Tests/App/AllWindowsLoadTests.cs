@@ -3,8 +3,10 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Diagnostics;
+using System.Reflection;
 using Xunit.Abstractions;
 using Yrk.PdfStudio.App;
+using Yrk.PdfStudio.App.Services;
 using Yrk.PdfStudio.Testing;
 
 namespace Yrk.PdfStudio.Core.Tests;
@@ -50,13 +52,13 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
         select new object[] { entry.Name, language, theme };
 
     [Fact]
-    public void Construction_table_covers_all_40_windows_with_explicit_exclusions()
+    public void Construction_table_covers_all_40_windows_with_factories()
     {
         var types = typeof(MainWindow).Assembly.GetTypes().Where(t => !t.IsAbstract && typeof(Window).IsAssignableFrom(t)
             && (t == typeof(MainWindow) || t.Namespace == "Yrk.PdfStudio.App.Views")).OrderBy(t => t.FullName).ToArray();
         Assert.Equal(40, types.Length);
         Assert.Equal(types, WindowCatalog.Cases.Select(c => c.Type).OrderBy(t => t.FullName));
-        Assert.All(WindowCatalog.Cases, c => Assert.True(c.Create is not null || !string.IsNullOrWhiteSpace(c.Unavailable)));
+        Assert.All(WindowCatalog.Cases, c => Assert.NotNull(c.Create));
     }
 
     [Fact]
@@ -92,11 +94,24 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
         }
     }
 
-    [Theory(Skip = "DigitalSignDialog: DigitalIdStore.LoadAll enumerates personal Windows certificates and has no injectable source; see WindowCatalog and tools/WindowRenderer/README.md.")]
-    [InlineData("th")]
-    [InlineData("en")]
-    public void DigitalSignDialog_requires_isolated_certificate_source(string language) =>
-        throw new NotSupportedException(language);
+    [Fact]
+    public void DigitalIdStore_fixed_source_returns_only_supplied_ids_and_is_not_public()
+    {
+        IReadOnlyList<DigitalId> ids = [
+            new("Synthetic file", null, null, null, @"C:\Example\nonexistent.pfx"),
+            new("Synthetic expired certificate", "Example issuer", new DateTime(2020, 1, 1), "SYNTHETIC", null)
+        ];
+        Assert.Equal(ids, new DigitalIdStore(ids).LoadAll());
+        Assert.Empty(new DigitalIdStore(Array.Empty<DigitalId>()).LoadAll());
+        var signature = new[] { typeof(IReadOnlyList<DigitalId>) };
+        var constructor = typeof(DigitalIdStore).GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+            null, signature, null);
+        Assert.NotNull(constructor);
+        Assert.False(constructor.IsPublic);
+        Assert.Null(typeof(DigitalIdStore).GetConstructor(signature));
+        Assert.DoesNotContain(typeof(DigitalIdStore).GetConstructors(), c =>
+            c.GetParameters().Any(p => p.ParameterType == typeof(IReadOnlyList<DigitalId>)));
+    }
 
     [Theory]
     [MemberData(nameof(Windows))]

@@ -1,3 +1,4 @@
+using Yrk.PdfStudio.App.Services;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -18,6 +19,7 @@ public partial class OcrReviewDialog : Window
     public OcrReviewDialog(OcrReviewViewModel model)
     {
         InitializeComponent();
+        WindowSizing.FitToWorkArea(this);
         DataContext = _model = model;
         if (model.Image is not null) { _renderedPage = model.PageIndex; _renderedZoom = model.Zoom; }
         SkipButton.Visibility = model.HasMoreFiles ? Visibility.Visible : Visibility.Collapsed;
