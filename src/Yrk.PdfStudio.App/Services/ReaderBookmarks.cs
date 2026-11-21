@@ -86,9 +86,9 @@ internal static class ReaderBookmarks
         }
     }
 
-    public static void Clear()
+    public static bool Clear()
     {
-        lock (Gate) Write(new(StringComparer.OrdinalIgnoreCase));
+        lock (Gate) return Write(new(StringComparer.OrdinalIgnoreCase));
     }
 
     /// <summary>Pure page replacement/reordering: absent old indices are deleted. Mapping must be one-to-one.</summary>
@@ -186,7 +186,7 @@ internal static class ReaderBookmarks
         }
     }
 
-    private static void Write(Dictionary<string, Document> documents)
+    private static bool Write(Dictionary<string, Document> documents)
     {
         var temporary = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
@@ -196,10 +196,11 @@ internal static class ReaderBookmarks
                 .ToDictionary(p => p.Key, p => p.Value, StringComparer.OrdinalIgnoreCase);
             File.WriteAllText(temporary, JsonSerializer.Serialize(limited));
             File.Move(temporary, FilePath, overwrite: true);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Local bookmarks must never prevent opening or closing a document.
+            return false;
         }
         finally
         {

@@ -317,6 +317,9 @@ public sealed class DialogService : IDialogService
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool CryptUIDlgViewContext(uint contextType, IntPtr context, IntPtr owner, string title, uint flags, IntPtr reserved);
 
+    public bool ConfirmClearRecent() =>
+        Show(RecentFiles.ClearConfirmation, MessageBoxButton.OKCancel, MessageBoxImage.Question, MessageBoxResult.Cancel) == MessageBoxResult.OK;
+
     public bool Confirm(string message) =>
         Show(message, MessageBoxButton.OKCancel, MessageBoxImage.Question) == MessageBoxResult.OK;
 

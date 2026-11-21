@@ -9,24 +9,46 @@ namespace Yrk.PdfStudio.App.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    // Clear every open tab without retaining closed tabs or discarding PDF undo/page identities.
+    private static readonly List<WeakReference<MainViewModel>> ReadingDataTabs = [];
+    private long _readingMarksGeneration;
+    private bool _suppressReadingPosition;
+
+    internal static void ClearOpenReadingData()
+    {
+        lock (ReadingDataTabs)
+        {
+            foreach (var reference in ReadingDataTabs)
+                if (reference.TryGetTarget(out var tab))
+                {
+                    tab._readingMarksGeneration++;
+                    tab._workingReadingMarks = [];
+                    tab._suppressReadingPosition = true;
+                    tab.ReadingMarks = [];
+                }
+        }
+    }
+
+    // Both page undo closures and whole-document snapshots must reject marks from before a clear.
+    private sealed record RemovedReadingMarks(IReadOnlyList<ReaderBookmark> Marks, long Generation);
     private IReadOnlyList<ReaderBookmark>? _workingReadingMarks;
     private List<int>? _readingMarkPageOrder;
     private int _savedReadingMarkPageCount;
     private int _nextReadingMarkPageId = -1;
 
     private sealed record DocumentPageState(IReadOnlyList<ReaderBookmark> Marks, IReadOnlyList<int> Order,
-        int SavedPageCount, int NextPageId, IReadOnlyList<PastedCut> PastedCuts);
+        int SavedPageCount, int NextPageId, IReadOnlyList<PastedCut> PastedCuts, long MarksGeneration);
 
     private DocumentPageState CaptureDocumentPageState(IPdfDocument document)
     {
         var order = ReadingMarkPageOrder(document);
         return new((_workingReadingMarks ?? ReaderBookmarks.Get(document.FilePath)).ToArray(), order.ToArray(), _savedReadingMarkPageCount,
-            _nextReadingMarkPageId, _pastedCuts.ToArray());
+            _nextReadingMarkPageId, _pastedCuts.ToArray(), _readingMarksGeneration);
     }
 
     private void RestoreDocumentPageState(DocumentPageState state)
     {
-        _workingReadingMarks = state.Marks.ToArray();
+        _workingReadingMarks = state.MarksGeneration == _readingMarksGeneration ? state.Marks.ToArray() : [];
         _readingMarkPageOrder = state.Order.ToList();
         _savedReadingMarkPageCount = state.SavedPageCount;
         _nextReadingMarkPageId = state.NextPageId;
@@ -99,9 +121,13 @@ public sealed partial class MainViewModel
             else _workingReadingMarks = ReaderBookmarks.Clean(marks.Where(b => b.PageIndex != pageIndex)
                 .Append(new ReaderBookmark(pageIndex, answer.Name, answer.Color, existing?.CreatedUtc ?? DateTimeOffset.UtcNow)));
         }
-        else if (answer.Remove) ReaderBookmarks.Remove(document.FilePath, pageIndex);
-        else if (!ReaderBookmarks.Add(document.FilePath, pageIndex, answer.Name, answer.Color))
-            _dialogs.ShowInfo(Loc.F("You can keep up to {0} reading marks per file.", ReaderBookmarks.MaxBookmarksPerFile));
+        else
+        {
+            if (answer.Remove) ReaderBookmarks.Remove(document.FilePath, pageIndex);
+            else if (!ReaderBookmarks.Add(document.FilePath, pageIndex, answer.Name, answer.Color))
+                _dialogs.ShowInfo(Loc.F("You can keep up to {0} reading marks per file.", ReaderBookmarks.MaxBookmarksPerFile));
+            _workingReadingMarks = null;
+        }
         RefreshReadingMarks();
     }
 
@@ -110,7 +136,11 @@ public sealed partial class MainViewModel
         if (IsBusy || _document is not { } document) return;
         if (HasUnsavedReadingMarkPageChanges)
             _workingReadingMarks = WorkingReadingMarks(document).Where(b => b.PageIndex != pageIndex).ToArray();
-        else ReaderBookmarks.Remove(document.FilePath, pageIndex);
+        else
+        {
+            ReaderBookmarks.Remove(document.FilePath, pageIndex);
+            _workingReadingMarks = null;
+        }
         RefreshReadingMarks();
     }
 
@@ -139,41 +169,47 @@ public sealed partial class MainViewModel
 
     // Only successful PDF mutations update the working list. Removed records travel with the page undo step,
     // so undo restores their original creation times without overwriting later edits on surviving pages.
-    private async Task<IReadOnlyList<ReaderBookmark>> DeletePagesWithReadingMarksAsync(IPdfDocument document, IReadOnlyList<int> pages)
+    private async Task<RemovedReadingMarks> DeletePagesWithReadingMarksAsync(IPdfDocument document, IReadOnlyList<int> pages)
     {
+        var generation = _readingMarksGeneration;
         var marks = WorkingReadingMarks(document);
         var order = ReadingMarkPageOrder(document);
         await document.DeletePagesAsync(pages);
         var deleted = pages.ToHashSet();
         _readingMarkPageOrder = order.Where((_, index) => !deleted.Contains(index)).ToList();
         var change = ReaderBookmarks.DeletePages(marks, pages);
-        _workingReadingMarks = change.Bookmarks;
-        return change.Removed;
+        _workingReadingMarks = generation == _readingMarksGeneration ? change.Bookmarks : [];
+        return new(change.Removed, generation);
     }
 
     private async Task InsertPagesWithReadingMarksAsync(IPdfDocument document, IPdfDocument source, int index,
         IReadOnlyList<int>? pages = null, IReadOnlyList<int>? pageIds = null)
     {
         var count = pages?.Count ?? source.PageCount;
+        var generation = _readingMarksGeneration;
         var marks = WorkingReadingMarks(document);
         var order = ReadingMarkPageOrder(document);
         await document.InsertPagesAsync(source, index, pages);
         order.InsertRange(index, pageIds ?? Enumerable.Range(0, count).Select(_ => _nextReadingMarkPageId--).ToArray());
-        _workingReadingMarks = ReaderBookmarks.InsertPages(marks, index, count).Bookmarks;
+        _workingReadingMarks = generation == _readingMarksGeneration ? ReaderBookmarks.InsertPages(marks, index, count).Bookmarks : [];
     }
 
     private async Task MovePagesWithReadingMarksAsync(IPdfDocument document, IReadOnlyList<int> pages, int destination)
     {
         var order = SimulateMove(Enumerable.Range(0, document.PageCount).ToArray(), pages, destination);
+        var generation = _readingMarksGeneration;
         var marks = WorkingReadingMarks(document);
         var identities = ReadingMarkPageOrder(document);
         await document.MovePagesAsync(pages, destination);
         _readingMarkPageOrder = order.Select(index => identities[index]).ToList();
-        _workingReadingMarks = ReaderBookmarks.ReorderPages(marks, order).Bookmarks;
+        _workingReadingMarks = generation == _readingMarksGeneration ? ReaderBookmarks.ReorderPages(marks, order).Bookmarks : [];
     }
 
-    private void RestoreReadingMarks(IPdfDocument document, IReadOnlyList<ReaderBookmark> removed) =>
-        _workingReadingMarks = ReaderBookmarks.Clean(WorkingReadingMarks(document).Concat(removed));
+    private void RestoreReadingMarks(IPdfDocument document, RemovedReadingMarks removed)
+    {
+        if (removed.Generation == _readingMarksGeneration)
+            _workingReadingMarks = ReaderBookmarks.Clean(WorkingReadingMarks(document).Concat(removed.Marks));
+    }
 }
 
 public sealed record ReadingMarkViewModel(int PageIndex, string Name, string Color, DateTimeOffset CreatedUtc)

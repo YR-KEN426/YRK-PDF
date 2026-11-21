@@ -1973,6 +1973,8 @@
                             Visibility="{Binding HasRows, Converter={StaticResource BoolToVisibility}}">
                         <StackPanel>
                             <DockPanel Margin="8,2,8,8">
+                                <Button x:Name="HomeClearRecentButton" DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Margin="8,0,0,0" FontSize="13" Content="Clear list"
+                                        Command="{Binding DataContext.ClearRecentCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
                                 <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Margin="0" FontSize="13" Content="{Binding ToggleText}"
                                         Click="OnHomeRecentToggle" Visibility="{Binding CanExpand, Converter={StaticResource BoolToVisibility}}"
                                         AutomationProperties.Name="View all recent files" />

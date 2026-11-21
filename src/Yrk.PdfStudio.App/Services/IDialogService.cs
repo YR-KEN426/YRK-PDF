@@ -168,6 +168,8 @@ public interface IDialogService
     string? PickSaveFile(string suggestedFileName, string? initialFolder, string title, string filter, string extension);
 
     /// <summary>Yes / No question; true for Yes.</summary>
+    bool ConfirmClearRecent();
+
     bool AskYesNo(string message);
 
     void ShowError(ErrorInfo error, Exception? ex = null, params object[] args);

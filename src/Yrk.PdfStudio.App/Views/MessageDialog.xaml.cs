@@ -42,7 +42,7 @@ public partial class MessageDialog : Window
                 IsCancel = option.Result == dismissResult,
                 Margin = new Thickness(8, 0, 0, 0),
             };
-            button.SetResourceReference(StyleProperty, option.Primary ? "PrimaryButton" : "SecondaryButton");
+            button.SetResourceReference(StyleProperty, button.IsDefault ? "PrimaryButton" : "SecondaryButton");
             button.Click += (_, _) => { Result = option.Result; Close(); };
             Buttons.Children.Add(button);
             if (button.IsDefault) Loaded += (_, _) => button.Focus();

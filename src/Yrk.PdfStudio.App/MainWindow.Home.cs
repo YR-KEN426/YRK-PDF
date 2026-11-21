@@ -164,6 +164,7 @@ public partial class MainWindow
         Closed += (_, _) =>
         {
             MainViewModel.ShowRecentOnHomeChanged -= OnShowRecentChanged;
+            Loc.LanguageChanged -= OnHomeLanguageChanged;
             _homeRecent.Dispose();
         };
         // Each time the page comes back: look at the files again (one deleted meanwhile leaves the list), and start from the
@@ -184,12 +185,15 @@ public partial class MainWindow
         ShowHomeLanguage();
         UpdateHomeLayout();
         _ = _homeRecent.RefreshAsync();
-        Loc.LanguageChanged += (_, _) => Dispatcher.BeginInvoke(() =>
-        {
-            ShowHomeTabs();
-            ShowHomeLanguage();
-        });
+        Loc.LanguageChanged += OnHomeLanguageChanged;
     }
+
+    private void OnHomeLanguageChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(() =>
+    {
+        if (!IsLoaded) return;
+        ShowHomeTabs();
+        ShowHomeLanguage();
+    });
 
     // --- Tabs, cards and search -------------------------------------------------------------------------
 

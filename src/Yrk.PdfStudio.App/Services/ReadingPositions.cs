@@ -35,9 +35,9 @@ internal static class ReadingPositions
         }
     }
 
-    public static void Clear()
+    public static bool Clear()
     {
-        lock (Gate) Write([]);
+        lock (Gate) return Write([]);
     }
 
     private static string? Normalize(string path)
@@ -72,7 +72,7 @@ internal static class ReadingPositions
         }
     }
 
-    private static void Write(Dictionary<string, Position> positions)
+    private static bool Write(Dictionary<string, Position> positions)
     {
         var temporary = FilePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
@@ -80,10 +80,11 @@ internal static class ReadingPositions
             Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
             File.WriteAllText(temporary, JsonSerializer.Serialize(positions));
             File.Move(temporary, FilePath, overwrite: true);
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            // Reading history is only a convenience; never prevent opening or closing a document.
+            return false;
         }
         finally
         {

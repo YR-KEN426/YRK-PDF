@@ -30,7 +30,7 @@ public sealed class MessageDialogTests
     // CrashMessageBox themed path   OK                                   close         close
     // Save pipeline regressions: AppSaveTests covers cancelled/wrong save passwords and failed writes.
     // MessageDialogCloseTests covers several dirty tabs, cancelling save and failed save through OnClosing.
-    private static readonly string[] Sites = ["save", "default-no", "yes-no", "ok-cancel", "info", "cut", "scan", "crash"];
+    private static readonly string[] Sites = ["save", "clear-recent", "default-no", "yes-no", "ok-cancel", "info", "cut", "scan", "crash"];
 
     public static IEnumerable<object[]> Contracts =>
         from site in Sites
@@ -61,7 +61,7 @@ public sealed class MessageDialogTests
             var expectedIndex = action switch
             {
                 "button1" => 1, "button2" => 2,
-                "enter" => site switch { "default-no" => 1, "cut" => 1, "scan" => 2, _ => 0 },
+                "enter" => site switch { "default-no" or "clear-recent" => 1, "cut" => 1, "scan" => 2, _ => 0 },
                 "escape" or "x" => site switch { "save" or "scan" => 2, "info" or "crash" => 0, _ => 1 },
                 _ => 0,
             };
@@ -71,7 +71,7 @@ public sealed class MessageDialogTests
                 "scan" => ["Save", "Close without saving", "Cancel"],
                 "cut" => ["Continue closing", "Cancel"],
                 "yes-no" or "default-no" => ["Yes", "No"],
-                "ok-cancel" => ["OK", "Cancel"],
+                "ok-cancel" or "clear-recent" => ["OK", "Cancel"],
                 _ => ["OK"],
             };
             Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
@@ -89,9 +89,9 @@ public sealed class MessageDialogTests
                     {
                         var access = Assert.IsType<AccessText>(buttons[i].Content);
                         Assert.StartsWith(Loc.T(labels[i]) + " (_", access.Text);
-                        Assert.Same(Application.Current.Resources[i == 0 ? "PrimaryButton" : "SecondaryButton"], buttons[i].Style);
+                        Assert.Same(Application.Current.Resources[buttons[i].IsDefault ? "PrimaryButton" : "SecondaryButton"], buttons[i].Style);
                     }
-                    var defaultIndex = site switch { "default-no" or "cut" => 1, "scan" => 2, _ => 0 };
+                    var defaultIndex = site switch { "default-no" or "clear-recent" or "cut" => 1, "scan" => 2, _ => 0 };
                     Assert.Same(buttons[defaultIndex], Assert.Single(buttons.Where(b => b.IsDefault)));
                     Assert.Same(buttons[defaultIndex], FocusManager.GetFocusedElement(dialog));
                     if (site == "save") Assert.Equal(Loc.F("Save changes to \"{0}\"?", "example.pdf"), ((TextBlock)dialog.FindName("MessageText")).Text);
@@ -127,6 +127,7 @@ public sealed class MessageDialogTests
                 object? actual = site switch
                 {
                     "save" => service.AskSaveChanges("example.pdf"),
+                    "clear-recent" => service.ConfirmClearRecent(),
                     "default-no" => service.AskYesNoDefaultNo("Continue closing"),
                     "yes-no" => service.AskYesNo("Continue closing"),
                     "ok-cancel" => service.Confirm("Continue closing"),
@@ -172,6 +173,52 @@ public sealed class MessageDialogTests
             new DialogService(owner).ShowInfo("Continue closing");
             owner.Close();
             Assert.Null(failure);
+            Assert.Empty(app.Errors);
+            return true;
+        });
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("th")]
+    public void Home_uses_existing_clear_command_unsubscribes_language_and_privacy_can_cancel(string language)
+    {
+        Sta.Run(() =>
+        {
+            using var app = new WpfTestApp(language);
+            using var fixture = new WindowFixture();
+            var home = new MainWindow(fixture.Model, () => throw new NotSupportedException());
+            home.Show();
+            home.UpdateLayout();
+            Assert.Same(fixture.Model.ClearRecentCommand, ((Button)home.FindName("HomeClearRecentButton")).Command);
+            home.Close();
+            var handlers = (Delegate?)typeof(Loc).GetField("LanguageChanged", BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null);
+            Assert.DoesNotContain(handlers?.GetInvocationList() ?? [], handler =>
+                ReferenceEquals(handler.Target, home) && handler.Method.Name == "OnHomeLanguageChanged");
+
+            var privacy = new PrivacyDialog();
+            new WindowInteropHelper(privacy).EnsureHandle();
+            Exception? failure = null;
+            var visited = false;
+            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                var dialog = Application.Current.Windows.OfType<MessageDialog>().Single();
+                try
+                {
+                    visited = true;
+                    Assert.Same(privacy, dialog.Owner);
+                    Assert.Equal(Loc.T(RecentFiles.ClearConfirmation), ((TextBlock)dialog.FindName("MessageText")).Text);
+                    var buttons = ((WrapPanel)dialog.FindName("Buttons")).Children.OfType<Button>().ToArray();
+                    Assert.Equal(MessageBoxResult.Cancel, Assert.Single(buttons.Where(button => button.IsDefault)).Tag);
+                }
+                catch (Exception ex) { failure = ex; }
+                finally { dialog.Close(); }
+            }));
+            Call(privacy, "OnClearRecent", privacy, new RoutedEventArgs());
+            Assert.Null(failure);
+            Assert.True(visited);
+            Assert.True(((Button)privacy.FindName("ClearRecentButton")).IsEnabled);
+            privacy.Close();
             Assert.Empty(app.Errors);
             return true;
         });

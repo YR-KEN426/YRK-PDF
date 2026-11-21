@@ -15,6 +15,7 @@ namespace Yrk.PdfStudio.App.Views;
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "The cancellation source is disposed in WorkAsync before the window closes.")]
 public partial class ScanDialog : Window
 {
+    internal Func<ModifierKeys> CurrentModifiers { get; set; } = () => Keyboard.Modifiers;
     private readonly ScanViewModel _model;
     private readonly IScannerService _scanner;
     private readonly AppSettings _saved = AppSettings.Load();
@@ -864,7 +865,7 @@ public partial class ScanDialog : Window
             var point = _view.ViewToImage(e.GetPosition(PreviewScroll));
             if (_drawingCrop)
             {
-                draft.Drag(point.X, point.Y, _view.Zoom, Keyboard.Modifiers.HasFlag(ModifierKeys.Alt), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+                draft.Drag(point.X, point.Y, _view.Zoom, CurrentModifiers().HasFlag(ModifierKeys.Alt), CurrentModifiers().HasFlag(ModifierKeys.Shift));
                 DrawCrop(); UpdateCropNumbers();
             }
             PreviewScroll.Cursor = _spaceHeld ? Cursors.Hand : draft.HitTest(point.X, point.Y, _view.Zoom) switch
@@ -887,7 +888,7 @@ public partial class ScanDialog : Window
         if (!_drawingCrop || _cropDraft is null) return;
         _view.Pan(ScanViewTransform.AutoScroll(pointer, _view.View));
         var point = _view.ViewToImage(pointer);
-        _cropDraft.Drag(point.X, point.Y, _view.Zoom, Keyboard.Modifiers.HasFlag(ModifierKeys.Alt), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+        _cropDraft.Drag(point.X, point.Y, _view.Zoom, CurrentModifiers().HasFlag(ModifierKeys.Alt), CurrentModifiers().HasFlag(ModifierKeys.Shift));
         SetZoom(); UpdateCropNumbers(); _previewQueue.Request();
     }
     private void OnPreviewCaptureLost(object sender, MouseEventArgs e) { _panning = false; _drawingCrop = false; _cropScrollTimer.Stop(); }
@@ -915,9 +916,9 @@ public partial class ScanDialog : Window
     }
     private void OnPreviewWheel(object sender, MouseWheelEventArgs e)
     {
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        if (CurrentModifiers().HasFlag(ModifierKeys.Control))
             ZoomTo(_view.Zoom * Math.Pow(1.25, e.Delta / 120.0), e.GetPosition(PreviewScroll));
-        else { _view.Pan(ScanViewTransform.WheelPan(e.Delta, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))); SetZoom(); _previewQueue.Request(); }
+        else { _view.Pan(ScanViewTransform.WheelPan(e.Delta, CurrentModifiers().HasFlag(ModifierKeys.Shift))); SetZoom(); _previewQueue.Request(); }
         e.Handled = true;
     }
     private void OnPreviewSizeChanged(object sender, SizeChangedEventArgs e)
@@ -953,7 +954,7 @@ public partial class ScanDialog : Window
     }
     private void DrawSnapGuides()
     {
-        var alt = Keyboard.Modifiers.HasFlag(ModifierKeys.Alt);
+        var alt = CurrentModifiers().HasFlag(ModifierKeys.Alt);
         var box = _cropDraft?.Box ?? default;
         SnapGuideX.Visibility = !alt && _cropDraft?.SnapX is { } sx && (Math.Abs(sx - box.X) < .01 || Math.Abs(sx - box.Right) < .01) ? Visibility.Visible : Visibility.Collapsed;
         SnapGuideY.Visibility = !alt && _cropDraft?.SnapY is { } sy && (Math.Abs(sy - box.Y) < .01 || Math.Abs(sy - box.Bottom) < .01) ? Visibility.Visible : Visibility.Collapsed;
@@ -981,13 +982,13 @@ public partial class ScanDialog : Window
             {
                 _cropDraft?.Step(key == Key.Left ? -1 : key == Key.Right ? 1 : 0,
                     key == Key.Up ? -1 : key == Key.Down ? 1 : 0,
-                    Keyboard.Modifiers.HasFlag(ModifierKeys.Shift), Keyboard.Modifiers.HasFlag(ModifierKeys.Alt));
+                    CurrentModifiers().HasFlag(ModifierKeys.Shift), CurrentModifiers().HasFlag(ModifierKeys.Alt));
                 DrawCrop(); UpdateCropNumbers();
                 if (_cropDraft is { } draft) StoreTemporaryCrop(draft.Normalized);
                 e.Handled = true; return;
             }
         }
-        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        if (CurrentModifiers().HasFlag(ModifierKeys.Control))
         {
             if (e.Key is Key.D0 or Key.NumPad0) OnFit(sender, e);
             else if (e.Key is Key.D1 or Key.NumPad1) OnActualSize(sender, e);
@@ -1001,8 +1002,8 @@ public partial class ScanDialog : Window
         OtherKeys:
         if (_working || Keyboard.FocusedElement is TextBox or ComboBox or Slider) return;
         if (Keyboard.FocusedElement is RadioButton or CheckBox && e.Key is Key.Space or Key.Left or Key.Right or Key.Up or Key.Down) return;
-        var ctrl = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
-        var shift = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift);
+        var ctrl = CurrentModifiers().HasFlag(ModifierKeys.Control);
+        var shift = CurrentModifiers().HasFlag(ModifierKeys.Shift);
         if (_model.TemporaryPreview is not null && e.Key != Key.Space && !(ctrl && e.Key == Key.S)) return;
         e.Handled = true;
         if (ctrl && e.Key == Key.S) OnCreate(sender, e);
@@ -1037,7 +1038,7 @@ public partial class ScanDialog : Window
         _dragStart = e.GetPosition(PageList);
         _dragEntry = EntryAt(e.OriginalSource as DependencyObject);
         if (_working || _dragEntry is null) return;
-        _model.Select(_model.Pages.IndexOf(_dragEntry), Keyboard.Modifiers.HasFlag(ModifierKeys.Control), Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
+        _model.Select(_model.Pages.IndexOf(_dragEntry), CurrentModifiers().HasFlag(ModifierKeys.Control), CurrentModifiers().HasFlag(ModifierKeys.Shift));
         e.Handled = true;
         UpdateButtons();
         _ = RefreshPreviewAsync();

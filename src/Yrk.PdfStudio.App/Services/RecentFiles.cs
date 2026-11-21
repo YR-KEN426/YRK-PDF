@@ -29,6 +29,7 @@ public sealed record RecentFile(string Path, DateTimeOffset? LastOpened = null)
 public static class RecentFiles
 {
     public const int MaxCount = 12;
+    internal const string ClearConfirmation = "Clear recent files, reading marks and saved reading positions?";
     private static readonly Regex TemporaryFileName = new(@"\Arecent(?:-times)?\.json\.[0-9a-fA-F]{32}\.tmp\z", RegexOptions.CultureInvariant);
 
     private static readonly string DefaultFilePath = System.IO.Path.Combine(
@@ -106,15 +107,21 @@ public static class RecentFiles
 
     public static void Remove(string path) => Remove(path, save: true);
 
-    /// <summary>Clears the list and its leftover temporary files; false if any recent-file data could not be cleared.</summary>
+    /// <summary>Attempts every local history store and clears open-tab reading state; false if any store could not be cleared.</summary>
     public static bool Clear()
     {
-        ReadingPositions.Clear();
-        ReaderBookmarks.Clear();
+        ViewModels.MainViewModel.ClearOpenReadingData();
+        var positions = ReadingPositions.Clear();
+        var bookmarks = ReaderBookmarks.Clear();
         Items.Clear();
-        var saved = Save();
+        var saved = WriteAtomically(FilePath, "[]");
+        var times = TryWithRetry(() =>
+        {
+            BackupFormat.CheckNoLinks(TimesFilePath);
+            File.Delete(TimesFilePath);
+        }) || WriteAtomically(TimesFilePath, "{}");
         var cleaned = ClearTemporaryFiles();
-        return saved && cleaned;
+        return positions && bookmarks && saved && times && cleaned;
     }
 
     private static bool ClearTemporaryFiles()

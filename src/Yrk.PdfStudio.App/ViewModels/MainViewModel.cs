@@ -80,6 +80,11 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _trustedCertificateStore = trustedCertificateStore;
         _engine = engine;
+        lock (ReadingDataTabs)
+        {
+            ReadingDataTabs.RemoveAll(reference => !reference.TryGetTarget(out _));
+            ReadingDataTabs.Add(new(this));
+        }
         _dialogs = dialogs;
         SubscribeToLanguage();
         _signatureStore = signatureStore;
@@ -325,6 +330,7 @@ public sealed partial class MainViewModel : ObservableObject
                 : await OpenDocumentAsync(path, password: null, restore: null, keepEdits: false);
             if (opened)
             {
+                _suppressReadingPosition = false;
                 RecentFiles.Add(path);
             }
         }
@@ -357,6 +363,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public IRelayCommand ClearRecentCommand => _clearRecentCommand ??= new RelayCommand(() =>
     {
+        if (!_dialogs.ConfirmClearRecent()) return;
         if (!RecentFiles.Clear())
             _dialogs.ShowInfo(Loc.T("Some recent-file data could not be cleared. Close other programs that may be using it and try again."));
     });
@@ -439,6 +446,10 @@ public sealed partial class MainViewModel : ObservableObject
     {
         var moved = Math.Abs(offset - _scrollOffset) > 0.5;
         var resized = Math.Abs(width - _viewportWidth) > 0.5 || Math.Abs(height - _viewportHeight) > 0.5;
+        // Layout, save/reload and arriving at a requested offset do not resume reading history.
+        if (moved && !resized && !IsBusy && !IsReopeningDocument && _pendingRestore is null
+            && (_requestedScrollOffset is null || Math.Abs(_requestedScrollOffset.Value - offset) > 1.5))
+            _suppressReadingPosition = false;
         _scrollOffset = offset;
         _viewportWidth = width;
         _viewportHeight = height;
@@ -475,6 +486,7 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
+        if (!IsBusy && !IsReopeningDocument) _suppressReadingPosition = false;
         index = Math.Clamp(index, 0, Pages.Count - 1);
         SetCurrentPage(index);
         RequestScroll(_pageTops[index] - PageGap, navigationTarget: index);
@@ -639,7 +651,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     internal void SaveReadingPosition()
     {
-        if (_document is not null && Pages.Count > 0)
+        if (!_suppressReadingPosition && _document is not null && Pages.Count > 0)
             ReadingPositions.Save(_document.FilePath, _currentPageIndex);
     }
 

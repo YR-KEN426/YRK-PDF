@@ -209,7 +209,7 @@ public sealed partial class MainViewModel
                     _pastedCuts.Add(new(PageClipboard, clipboardSource,
                         inserted.Select(i => ReadingMarkPageOrder(document)[i]).ToArray()));
                 PageSnapshot? copy = null; // Taken when first undone, for redo (the source file may change).
-                IReadOnlyList<ReaderBookmark> removedMarks = [];
+                RemovedReadingMarks removedMarks = new([], _readingMarksGeneration);
                 _undo.KeepOnlyPageSteps();
                 _undo.Push(
                     () => _ = RunPageToolAsync("Removing inserted pages…", async d =>

@@ -107,7 +107,7 @@ public sealed class AppScanLayoutTests
         application.Resources.MergedDictionaries.Add(ThemeTestResources.Create());
         application.Resources.MergedDictionaries.Add(new ResourceDictionary
         { Source = new Uri("/YrkEasyPdf;component/Themes/Styles.xaml", UriKind.Relative) });
-        var window = new ScanDialog { ShowActivated = false, Left = -16000, Top = -16000, WindowStartupLocation = WindowStartupLocation.Manual,
+        var window = new ScanDialog { CurrentModifiers = () => ModifierKeys.None, ShowActivated = false, Left = -16000, Top = -16000, WindowStartupLocation = WindowStartupLocation.Manual,
             CloseChoice = () => Yrk.PdfStudio.App.Services.SaveChangesChoice.Discard };
         var model = (ScanViewModel)typeof(ScanDialog).GetField("_model", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
         try
@@ -157,7 +157,7 @@ public sealed class AppScanLayoutTests
                         new ScanSessionTests.Sink<ScannedPage>(page => session.Add(page))));
                 }
                 var window = new ScanDialog(session, scanner)
-                { ShowActivated = false, Left = -16000, Top = -16000, WindowStartupLocation = WindowStartupLocation.Manual };
+                { CurrentModifiers = () => ModifierKeys.None, ShowActivated = false, Left = -16000, Top = -16000, WindowStartupLocation = WindowStartupLocation.Manual };
                 try
                 {
                     window.Show();

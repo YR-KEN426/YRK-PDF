@@ -51,6 +51,7 @@ public partial class PrivacyDialog : Window
 
     private void OnClearRecent(object sender, RoutedEventArgs e)
     {
+        if (!new DialogService(this).ConfirmClearRecent()) return;
         if (RecentFiles.Clear())
             ClearRecentButton.IsEnabled = false;
         else

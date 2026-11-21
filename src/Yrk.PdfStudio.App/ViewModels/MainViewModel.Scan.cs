@@ -67,7 +67,7 @@ public sealed partial class MainViewModel
             return;
         }
 
-        IReadOnlyList<ReaderBookmark> removedMarks = [];
+        RemovedReadingMarks removedMarks = new([], _readingMarksGeneration);
         // Edges first (found on the page as scanned), then the turn about the trimmed page's centre, then the deletes.
         async Task Forward(IPdfDocument d)
         {
