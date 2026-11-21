@@ -1,61 +1,89 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace Yrk.PdfStudio.App;
 
-/// <summary>
-/// Keeps the top row on one line at medium widths (about 1500 pixels): when it would wrap, Open and Save show only
-/// their icons, the menus lose their arrows, and the search and zoom boxes get narrower. The row wraps only when that
-/// is still too wide.
-/// </summary>
+/// <summary>Fits the document toolbar and expands search into the available space.</summary>
 public partial class MainWindow
 {
     private const double SearchWidth = 220;
-    private const double CompactSearchWidth = 100;
-    private const double ZoomWidth = 104;
-    private const double CompactZoomWidth = 72;
-
-    private double _labelsWidth;
     private bool _fitQueued;
+    private bool _searchExpanded;
 
     private void InitializeTopBar()
     {
         TopBar.SizeChanged += (_, _) => QueueFitTopBar();
-        SearchPanel.SizeChanged += (_, _) => QueueFitTopBar();
-        Localization.Loc.LanguageChanged += (_, _) => QueueFitTopBar();
+        SearchBox.GotKeyboardFocus += (_, _) => { _searchExpanded = true; QueueFitTopBar(); };
+        SearchPanel.IsKeyboardFocusWithinChanged += (_, _) =>
+        {
+            if (!SearchPanel.IsKeyboardFocusWithin && string.IsNullOrEmpty(SearchBox.Text))
+                _searchExpanded = false;
+            QueueFitTopBar();
+        };
+        SearchBox.TextChanged += (_, _) =>
+        {
+            if (!SearchPanel.IsKeyboardFocusWithin && string.IsNullOrEmpty(SearchBox.Text))
+                _searchExpanded = false;
+            QueueFitTopBar();
+        };
+        SearchPanel.IsVisibleChanged += (_, _) => QueueFitTopBar();
+        void LanguageChanged(object? sender, EventArgs e) => QueueFitTopBar();
+        Localization.Loc.LanguageChanged += LanguageChanged;
+        Closed += (_, _) => Localization.Loc.LanguageChanged -= LanguageChanged;
+        InputBindings.Add(new KeyBinding(new CommunityToolkit.Mvvm.Input.RelayCommand(() =>
+        {
+            if (_viewModel.ShowsDocument) { PageInput.Focus(); PageInput.SelectAll(); }
+        }), Key.G, ModifierKeys.Control));
+    }
+
+    private void OnSearchIconClick(object sender, RoutedEventArgs e) => FocusDocumentSearch();
+
+    private void FocusDocumentSearch()
+    {
+        _searchExpanded = true;
+        FitTopBar(); // Reveal the editor before moving keyboard focus into it.
+        SearchBox.Focus();
+        SearchBox.SelectAll();
     }
 
     private void QueueFitTopBar()
     {
-        if (!_fitQueued)
-        {
-            _fitQueued = true;
-            Dispatcher.BeginInvoke(FitTopBar, DispatcherPriority.Loaded);
-        }
+        if (_fitQueued) return;
+        _fitQueued = true;
+        Dispatcher.BeginInvoke(FitTopBar, DispatcherPriority.Loaded);
     }
 
     private void FitTopBar()
     {
         _fitQueued = false;
-        if (!_viewModel.ShowsDocument)
-        {
-            return; // The start page hides the buttons this measures; fit again when a document shows them.
-        }
+        if (!_viewModel.ShowsDocument || TopBar.ActualWidth <= 0) return;
+        var iconOnly = ActualWidth < 1000 && !_searchExpanded && string.IsNullOrEmpty(SearchBox.Text);
+        SearchIconButton.Visibility = iconOnly ? Visibility.Visible : Visibility.Collapsed;
+        SearchControls.Visibility = iconOnly ? Visibility.Collapsed : Visibility.Visible;
+        SearchField.Width = SearchWidth;
 
-        var compact = OpenLabel.Visibility != Visibility.Visible;
-        if (!compact)
+        // Measure the full labels each time, including after a language change while compact.
+        SetCompactTopBar(false);
+        // Sum the parts instead of measuring the panel: a panel keeps its old cached size after the field width changes.
+        var searchExtras = SearchPanel.Margin.Left + SearchPanel.Margin.Right + (iconOnly
+            ? Measure(SearchIconButton)
+            : SearchControls.Children.Cast<UIElement>().Where(c => c != SearchField).Sum(Measure));
+        var buttons = TopButtons.Children.Cast<UIElement>().Sum(Measure);
+        var targetWidth = _searchExpanded || !string.IsNullOrEmpty(SearchBox.Text) ? 400 : SearchWidth;
+        if (buttons + searchExtras + (iconOnly ? 0 : targetWidth) > TopBar.ActualWidth)
         {
-            _labelsWidth = Collapsible().Sum(Measure);
+            SetCompactTopBar(true);
+            buttons = TopButtons.Children.Cast<UIElement>().Sum(Measure);
         }
-
-        // The row as it is in full: every button with its words, and the full search and zoom boxes.
-        var buttons = TopButtons.Children.Cast<UIElement>().Sum(Measure) + (compact ? _labelsWidth + ZoomWidth - CompactZoomWidth : 0);
-        var search = Measure(SearchPanel) - SearchField.Width + SearchWidth;
-        SetCompactTopBar(buttons + search > TopBar.ActualWidth);
+        if (!iconOnly)
+        {
+            var available = TopBar.ActualWidth - buttons - searchExtras;
+            SearchField.Width = Math.Clamp(available, 160, targetWidth);
+        }
     }
 
-    /// <summary>What the compact row leaves out: the words of Open and Save, and the arrows of the menus.</summary>
     private IEnumerable<UIElement> Collapsible() =>
         new[] { FileMenuButton, ViewMenuButton, InsertMenuButton, ToolsMenuButton, SettingsMenuButton, HelpMenuButton }
             .Select(b => ((Panel)b.Content).Children[^1])
@@ -64,14 +92,8 @@ public partial class MainWindow
 
     private void SetCompactTopBar(bool compact)
     {
-        var visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         foreach (var element in Collapsible())
-        {
-            element.Visibility = visibility;
-        }
-
-        SearchField.Width = compact ? CompactSearchWidth : SearchWidth;
-        ZoomBox.Width = compact ? CompactZoomWidth : ZoomWidth;
+            element.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private static double Measure(UIElement element)

@@ -20,6 +20,202 @@ namespace Yrk.PdfStudio.Core.Tests;
 public sealed class MainWindowLayoutTests
 {
     [Theory]
+    [InlineData(1280, "th")]
+    [InlineData(1280, "en")]
+    [InlineData(1100, "th")]
+    [InlineData(1100, "en")]
+    [InlineData(1000, "th")]
+    [InlineData(1000, "en")]
+    [InlineData(800, "th")]
+    [InlineData(800, "en")]
+    public void Document_bars_fit_all_modes_and_status_stays_below_document(int width, string language)
+    {
+        Sta.Run(() =>
+        {
+            using var application = new Yrk.PdfStudio.Testing.WpfTestApp(language);
+            var harness = new AppTestHarness();
+            var window = new MainWindow(harness.Model, () => throw new NotSupportedException())
+                { Width = width, Height = 800, Left = -32000, Top = -32000, ShowInTaskbar = false, ShowActivated = false };
+            try
+            {
+                window.Show();
+                void Settle()
+                {
+                    for (var i = 0; i < 3; i++) Yrk.PdfStudio.Testing.WpfTestApp.Layout(window);
+                }
+                Settle();
+                var status = (Border)window.FindName("DocumentStatusBar");
+                var home = (ScrollViewer)window.FindName("HomePage");
+                Assert.Equal(Visibility.Collapsed, status.Visibility);
+                Assert.Equal(0, status.ActualHeight);
+                Assert.Equal(2, Grid.GetRow((UIElement)home.Parent));
+                Assert.Equal(3, Grid.GetRow(status));
+                AwaitBatch(harness.OpenAsync(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf")));
+                Settle();
+                Assert.Equal(Visibility.Visible, status.Visibility);
+                Assert.Equal(Visibility.Collapsed, home.Visibility);
+                Assert.True(status.ActualHeight > 0);
+                foreach (var name in new[] { "CommentTab", "FillSignTab", "EditTab", "MeasureTab", "RedactTab", "PagesTab" })
+                {
+                    ((RadioButton)window.FindName(name)).IsChecked = true;
+                    Settle();
+                    var top = (WrapPanel)window.FindName("TopButtons");
+                    var modes = (WrapPanel)window.FindName("ModeButtons");
+                    foreach (var panel in new[] { top, modes }.Concat(modes.Children.OfType<WrapPanel>()
+                                 .Where(p => p.Visibility == Visibility.Visible)))
+                    {
+                        var rows = panel.Children.OfType<FrameworkElement>().Where(c => c.Visibility == Visibility.Visible)
+                            .Select(c => Math.Round(LayoutInformation.GetLayoutSlot(c).Y, 1)).Distinct().Count();
+                        Assert.True(rows >= 1, $"{width}/{language}/{name}: empty toolbar");
+                        // ModeButtons holds the tab line and then the tool panel (by design); each tool panel itself must be one row.
+                        if (width == 1280)
+                            Assert.True(rows <= (panel == modes ? 2 : 1), $"{width}/{language}/{name}/{panel.Name}: {rows} rows, width {panel.ActualWidth}");
+                        foreach (var child in panel.Children.OfType<FrameworkElement>().Where(c => c.Visibility == Visibility.Visible))
+                            Assert.True(child.TranslatePoint(new Point(child.ActualWidth, 0), panel).X <= panel.ActualWidth + 1,
+                                $"{width}/{language}/{name}: child exceeds toolbar width");
+                    }
+                }
+                var input = (TextBox)window.FindName("PageInput");
+                Assert.True(harness.Model.Pages.Count > 1);
+                input.Text = "2";
+                var key = new KeyEventArgs(Keyboard.PrimaryDevice, new TestPresentationSource(), 0, Key.Enter)
+                    { RoutedEvent = Keyboard.KeyDownEvent };
+                input.RaiseEvent(key);
+                Assert.True(key.Handled);
+                Assert.Equal(1, harness.Model.CurrentPageIndex);
+                Assert.Same(status, FindAncestor<Border>(input, b => b == status));
+                Assert.NotNull(window.FindName("ZoomBox"));
+                Assert.Contains(window.InputBindings.Cast<InputBinding>(), b => b is KeyBinding
+                    { Key: Key.G, Modifiers: ModifierKeys.Control });
+                // Transform bindings inside page overlays have no governing element while the mode tabs switch; known benign noise.
+                var errors = application.Errors.Where(e => !e.Contains("Cannot find governing") && !e.StartsWith("System.Windows.Data Error: 2")).ToList();
+                Assert.True(errors.Count == 0, string.Join("|", errors));
+                AwaitBatch(harness.Model.CloseCommand.ExecuteAsync(null));
+                Settle();
+                Assert.Equal(Visibility.Collapsed, status.Visibility);
+                Assert.Equal(Visibility.Visible, home.Visibility);
+                return true;
+            }
+            finally { window.Close(); AwaitBatch(harness.DisposeAsync().AsTask()); }
+        });
+    }
+
+    [Theory]
+    [InlineData("th")]
+    [InlineData("en")]
+    public void Search_expands_retains_query_and_collapses_to_icon_when_narrow(string language)
+    {
+        Sta.Run(() =>
+        {
+            using var application = new Yrk.PdfStudio.Testing.WpfTestApp(language);
+            var harness = new AppTestHarness();
+            AwaitBatch(harness.OpenAsync(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf")));
+            var window = new MainWindow(harness.Model, () => throw new NotSupportedException())
+                { Width = 1280, Height = 800, Left = -32000, Top = -32000, ShowInTaskbar = false, ShowActivated = false };
+            try
+            {
+                window.Show();
+                void Settle() { for (var i = 0; i < 3; i++) Yrk.PdfStudio.Testing.WpfTestApp.Layout(window); }
+                Settle();
+                var field = (Grid)window.FindName("SearchField");
+                var editor = (TextBox)window.FindName("SearchBox");
+                var controls = (StackPanel)window.FindName("SearchControls");
+                var icon = (Button)window.FindName("SearchIconButton");
+                Assert.Equal(220, field.Width);
+                ApplicationCommands.Find.Execute(null, window);
+                Settle();
+                Assert.True(editor.IsKeyboardFocusWithin, $"focus lost; width {field.Width}; top {((FrameworkElement)window.FindName("TopBar")).ActualWidth}");
+                // At 1280 the other buttons leave only ~250-300px; wider windows reach 400.
+                Assert.InRange(field.Width, 240, 400);
+                Assert.True(editor.IsKeyboardFocusWithin);
+                var go = window.InputBindings.OfType<KeyBinding>().Single(b => b.Key == Key.G && b.Modifiers == ModifierKeys.Control);
+                go.Command.Execute(null);
+                Settle();
+                Assert.True(((TextBox)window.FindName("PageInput")).IsKeyboardFocusWithin);
+                Assert.Equal(220, field.Width);
+                editor.Focus();
+                editor.Text = "sample";
+                go.Command.Execute(null);
+                Settle();
+                Assert.True(field.Width > 220);
+                editor.Clear();
+                Settle();
+                Assert.Equal(220, field.Width);
+                window.Width = 800;
+                Settle();
+                Assert.Equal(Visibility.Visible, icon.Visibility);
+                Assert.Equal(Visibility.Collapsed, controls.Visibility);
+                icon.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Settle();
+                Assert.Equal(Visibility.Visible, controls.Visibility);
+                Assert.True(editor.IsKeyboardFocusWithin);
+                go.Command.Execute(null);
+                Settle();
+                Assert.Equal(Visibility.Visible, icon.Visibility);
+                ApplicationCommands.Find.Execute(null, window);
+                Settle();
+                Assert.Equal(Visibility.Visible, controls.Visibility);
+                Assert.True(editor.IsKeyboardFocusWithin);
+                Assert.Empty(application.Errors.Where(e => !e.Contains("Cannot find governing") && !e.StartsWith("System.Windows.Data Error: 2")));
+                return true;
+            }
+            finally { window.Close(); AwaitBatch(harness.DisposeAsync().AsTask()); }
+        });
+    }
+
+    /// <summary>Writes document-mode screenshots when YRK_SHOTS_DIR is set; otherwise does nothing.</summary>
+    [Theory]
+    [InlineData(1280, "th", "light")]
+    [InlineData(1280, "th", "dark")]
+    [InlineData(1280, "en", "light")]
+    [InlineData(1280, "en", "dark")]
+    [InlineData(1000, "th", "light")]
+    [InlineData(1000, "th", "dark")]
+    [InlineData(1000, "en", "light")]
+    [InlineData(1000, "en", "dark")]
+    public void Capture_main_window_shots(int width, string language, string theme)
+    {
+        var folder = Environment.GetEnvironmentVariable("YRK_SHOTS_DIR");
+        if (string.IsNullOrEmpty(folder)) return;
+        Sta.Run(() =>
+        {
+            using var application = new Yrk.PdfStudio.Testing.WpfTestApp(language, theme);
+            var harness = new AppTestHarness();
+            AwaitBatch(harness.OpenAsync(Path.Combine(AppContext.BaseDirectory, "Assets", "sample.pdf")));
+            var window = new MainWindow(harness.Model, () => throw new NotSupportedException())
+                { Width = width, Height = 700, Left = -32000, Top = -32000, ShowInTaskbar = false, ShowActivated = false };
+            try
+            {
+                window.Show();
+                for (var i = 0; i < 4; i++) Yrk.PdfStudio.Testing.WpfTestApp.Layout(window);
+                var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(width, 700, 96, 96, PixelFormats.Pbgra32);
+                bitmap.Render(window);
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+                Directory.CreateDirectory(folder);
+                using var stream = File.Create(Path.Combine(folder, $"MainWindow-{width}-{language}-{theme}.png"));
+                encoder.Save(stream);
+                return true;
+            }
+            finally { window.Close(); AwaitBatch(harness.DisposeAsync().AsTask()); }
+        });
+    }
+
+    private sealed class TestPresentationSource : PresentationSource
+    {
+        public override Visual RootVisual { get; set; } = null!;
+        protected override CompositionTarget GetCompositionTargetCore() => null!;
+        public override bool IsDisposed => false;
+    }
+
+    private static T? FindAncestor<T>(DependencyObject child, Func<T, bool> predicate) where T : DependencyObject
+    {
+        for (var parent = VisualTreeHelper.GetParent(child); parent is not null; parent = VisualTreeHelper.GetParent(parent))
+            if (parent is T match && predicate(match)) return match;
+        return null;
+    }
+
+    [Theory]
     [InlineData(true, false)]
     [InlineData(false, false)]
     [InlineData(true, true)]

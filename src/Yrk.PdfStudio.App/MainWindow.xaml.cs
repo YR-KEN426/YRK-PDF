@@ -739,8 +739,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        SearchBox.Focus();
-        SearchBox.SelectAll();
+        FocusDocumentSearch();
     }
 
     /// <summary>The toolbar shows the font and size of the form field being typed in.</summary>

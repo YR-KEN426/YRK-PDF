@@ -33,6 +33,21 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        Size? size = null;
+        var sizeIndex = Array.IndexOf(args, "--size");
+        if (sizeIndex >= 0)
+        {
+            var parts = sizeIndex + 1 < args.Length ? args[sizeIndex + 1].Split('x', 'X') : [];
+            if (args.Count(arg => arg == "--size") != 1 || parts.Length != 2
+                || !int.TryParse(parts[0], out var width) || !int.TryParse(parts[1], out var height)
+                || width < 1 || height < 1 || width > 10000 || height > 10000)
+            {
+                Console.Error.WriteLine("Usage: --size WxH (1..10000 pixels per dimension)");
+                return 2;
+            }
+            size = new Size(width, height);
+            args = args.Take(sizeIndex).Concat(args.Skip(sizeIndex + 2)).ToArray();
+        }
         var theme = "light";
         var themeIndex = Array.IndexOf(args, "--theme");
         if (themeIndex >= 0)
@@ -46,7 +61,7 @@ internal static class Program
             theme = args[themeIndex + 1];
             args = args.Take(themeIndex).Concat(args.Skip(themeIndex + 2)).ToArray();
         }
-        if (args is ["--all", var folder]) return RenderAll(folder, theme);
+        if (args is ["--all", var folder]) return RenderAll(folder, theme, size);
         if (args is ["--list"])
         {
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(Yrk.PdfStudio.Testing.WindowCatalog.Cases
@@ -96,7 +111,7 @@ internal static class Program
         try
         {
             // Keep App references behind this boundary until the initial snapshot is complete.
-            success = Render(name, positional[1], output, theme);
+            success = Render(name, positional[1], output, theme, size);
         }
         catch (Exception ex)
         {
@@ -125,7 +140,7 @@ internal static class Program
         return result;
     }
 
-    private static int RenderAll(string folder, string theme)
+    private static int RenderAll(string folder, string theme, Size? size)
     {
         folder = Path.GetFullPath(folder);
         Directory.CreateDirectory(folder);
@@ -149,6 +164,11 @@ internal static class Program
                 if (string.Equals(Path.GetFileNameWithoutExtension(Environment.ProcessPath), "dotnet", StringComparison.OrdinalIgnoreCase))
                     start.ArgumentList.Add(typeof(Program).Assembly.Location);
                 foreach (var arg in new[] { "--theme", theme, "--allow-any-window", entry.Name, language, output }) start.ArgumentList.Add(arg);
+                if (size is { } dimensions)
+                {
+                    start.ArgumentList.Add("--size");
+                    start.ArgumentList.Add(FormattableString.Invariant($"{dimensions.Width}x{dimensions.Height}"));
+                }
                 using var process = System.Diagnostics.Process.Start(start)!;
                 var stdout = process.StandardOutput.ReadToEndAsync();
                 var stderr = process.StandardError.ReadToEndAsync();
@@ -211,7 +231,7 @@ internal static class Program
         return differences;
     }
 
-    private static string Render(string name, string language, string output, string theme)
+    private static string Render(string name, string language, string output, string theme, Size? size)
     {
         using var app = new Yrk.PdfStudio.Testing.WpfTestApp(language, theme);
         using var fixture = new Yrk.PdfStudio.Testing.WindowFixture();
@@ -232,6 +252,12 @@ internal static class Program
         var closed = false;
         try
         {
+            if (size is { } dimensions)
+            {
+                window.SizeToContent = SizeToContent.Manual;
+                window.Width = dimensions.Width;
+                window.Height = dimensions.Height;
+            }
             window.WindowStartupLocation = WindowStartupLocation.Manual;
             window.Left = -32000; window.Top = -32000;
             window.ShowActivated = false; window.ShowInTaskbar = false;
