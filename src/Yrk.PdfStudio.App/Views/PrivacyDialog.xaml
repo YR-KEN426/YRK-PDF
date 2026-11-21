@@ -7,6 +7,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
@@ -28,7 +29,7 @@
         <ScrollViewer MaxHeight="620" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" FontSize="22" Foreground="{DynamicResource AccentBrush}" />
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" FontSize="22" Foreground="{DynamicResource AccentTextBrush}" />
                     <TextBlock Text="Privacy and safety" FontSize="17" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
 

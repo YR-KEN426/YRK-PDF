@@ -290,7 +290,7 @@ public sealed partial class HomePageTests
     }
 
     [Fact]
-    public void Brand_red_on_the_start_page_is_the_open_button_the_logo_and_the_drop_zone_icon_only()
+    public void Start_page_open_button_uses_the_shared_red_accent()
     {
         WithWindow((app, window, _) =>
         {
@@ -301,7 +301,8 @@ public sealed partial class HomePageTests
             Assert.Equal("Open file", AutomationProperties.GetName(open));
             Assert.Same(ApplicationCommands.Open, open.Command);
             Assert.Same(resources["BrandBrush"], open.Background);
-            Assert.NotEqual(((SolidColorBrush)resources["AccentBrush"]).Color, ((SolidColorBrush)resources["BrandBrush"]).Color);
+            Assert.Equal(Color.FromRgb(0xC6, 0x28, 0x28), ((SolidColorBrush)resources["AccentBrush"]).Color);
+            Assert.Equal(((SolidColorBrush)resources["AccentBrush"]).Color, ((SolidColorBrush)resources["BrandBrush"]).Color);
         });
     }
 

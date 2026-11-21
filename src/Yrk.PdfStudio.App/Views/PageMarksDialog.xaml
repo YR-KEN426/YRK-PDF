@@ -10,16 +10,17 @@
         MinHeight="600"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
-        <Style x:Key="Heading" TargetType="CheckBox">
+        <Style x:Key="Heading" TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,12,0,6" />
         </Style>
-        <Style TargetType="TextBox">
+        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="Padding" Value="4,3" />
         </Style>
     </Window.Resources>
@@ -172,7 +173,7 @@
             </StackPanel>
             <Border Background="{DynamicResource PreviewCanvasBrush}" Padding="16">
                 <Viewbox Stretch="Uniform">
-                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="0.5">
+                    <Border Background="{DynamicResource PaperBrush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="0.5">
                         <Grid Width="{Binding PageWidth}" Height="{Binding PageHeight}" ClipToBounds="True">
                             <Image Source="{Binding PreviewImage}" Stretch="Fill" />
                             <ItemsControl ItemsSource="{Binding PreviewMarks}" IsHitTestVisible="False">

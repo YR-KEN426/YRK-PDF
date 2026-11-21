@@ -46,6 +46,30 @@ public sealed class ColorUsageGuardTests
         Assert.Empty(failures);
     }
 
+    [Fact]
+    public void Accent_foregrounds_use_the_contrast_checked_text_role()
+    {
+        foreach (var file in SourceFiles(AppSource).Where(p => Path.GetExtension(p) == ".xaml"))
+        {
+            var foregrounds = XDocument.Load(file).Descendants().SelectMany(e => e.Attributes().Where(a =>
+                a.Name.LocalName == "Foreground" || (a.Name.LocalName == "Value"
+                    && (string?)e.Attribute("Property") == "Foreground")));
+            Assert.DoesNotContain(foregrounds, a => a.Value == "{DynamicResource AccentBrush}");
+        }
+        foreach (var file in SourceFiles(AppSource).Where(p => Path.GetExtension(p) == ".cs"))
+            Assert.DoesNotMatch(@"ForegroundProperty\s*,\s*""AccentBrush""", File.ReadAllText(file));
+    }
+
+    [Fact]
+    public void Keyboard_focus_uses_the_blue_focus_role_instead_of_the_red_accent()
+    {
+        var styles = XDocument.Load(Path.Combine(AppSource, "Themes", "Styles.xaml"));
+        var focusTriggers = styles.Descendants().Where(e => e.Name.LocalName == "Trigger"
+            && (string?)e.Attribute("Property") is "IsKeyboardFocusWithin" or "IsKeyboardFocused");
+        Assert.DoesNotContain(focusTriggers.SelectMany(e => e.Descendants()).Attributes("Value"),
+            a => a.Value == "{DynamicResource AccentBrush}");
+    }
+
     private static IEnumerable<string> StaticThemeReferences(string source, HashSet<string> keys) =>
         XDocument.Parse(source).Descendants().SelectMany(e => e.Attributes())
             .SelectMany(a => Regex.Matches(a.Value, @"\{StaticResource\s+(?:ResourceKey\s*=\s*)?['"" ]?([\w]+)['"" ]?\s*\}"))

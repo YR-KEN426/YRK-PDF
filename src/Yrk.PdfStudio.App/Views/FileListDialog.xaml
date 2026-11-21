@@ -10,6 +10,7 @@
         AllowDrop="True"
         DragOver="OnDragOver"
         Drop="OnDrop"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
@@ -35,7 +36,7 @@
                 <ListBox.ItemTemplate>
                     <DataTemplate>
                         <DockPanel Margin="2,3">
-                            <Border DockPanel.Dock="Left" Width="44" Height="44" Margin="0,0,10,0" Background="{DynamicResource PreviewBackgroundBrush}">
+                            <Border DockPanel.Dock="Left" Width="44" Height="44" Margin="0,0,10,0" Background="{DynamicResource PaperBrush}">
                                 <Border.Style>
                                     <Style TargetType="Border">
                                         <Style.Triggers>

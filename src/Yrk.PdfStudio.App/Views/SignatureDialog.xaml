@@ -7,6 +7,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
@@ -22,7 +23,7 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}">
+                    <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource PaperBrush}">
                         <Grid>
                             <Line X1="24" X2="500" Y1="130" Y2="130" Stroke="{DynamicResource SignatureCanvasBorderBrush}" StrokeDashArray="4 3" IsHitTestVisible="False" />
                             <InkCanvas x:Name="Ink" Background="Transparent" StrokeCollected="OnStrokeCollected" />
@@ -48,10 +49,10 @@
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <StackPanel Margin="4,2">
+                                <StackPanel Margin="4,2" Background="{DynamicResource PaperBrush}">
                                     <TextBlock Text="{Binding Text, ElementName=TypedName, TargetNullValue=Your name, FallbackValue=Your name}"
-                                               FontFamily="{Binding}" FontSize="26" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding Source}" FontSize="10" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                               Foreground="{DynamicResource PaperTextBrush}" FontFamily="{Binding}" FontSize="26" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Source}" FontSize="10" Foreground="{DynamicResource PaperTextBrush}" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -71,16 +72,16 @@
                         <TextBlock Text="PNG or JPG (paper removed automatically), SVG or PDF (kept as sharp vector lines)." Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="360"
                                    Foreground="{DynamicResource SecondaryTextBrush}" />
                     </StackPanel>
-                    <Border Grid.Row="1" Margin="0,8,0,0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}">
+                    <Border Grid.Row="1" Margin="0,8,0,0" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource PaperBrush}">
                         <Grid>
                             <Image x:Name="ImportedPreview" Stretch="Uniform" Margin="12" />
                             <ScrollViewer x:Name="ImportTips" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="12">
                                 <StackPanel>
-                                    <TextBlock Text="Tips for a good signature photo" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    <TextBlock Text="• Sign with a dark pen (blue or black) on plain white paper" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    <TextBlock Text="• Shoot straight on in good light, with no hand or phone shadow over the signature" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    <TextBlock Text="• Let the signature fill about half the photo; no need to crop" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
-                                    <TextBlock Text="• Send the photo to this PC at original quality. The paper is removed and trimmed for you." Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" />
+                                    <TextBlock Text="Tips for a good signature photo" FontWeight="SemiBold" TextWrapping="Wrap" Foreground="{DynamicResource PaperTextBrush}" />
+                                    <TextBlock Text="• Sign with a dark pen (blue or black) on plain white paper" Margin="0,8,0,0" TextWrapping="Wrap" Foreground="{DynamicResource PaperTextBrush}" />
+                                    <TextBlock Text="• Shoot straight on in good light, with no hand or phone shadow over the signature" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource PaperTextBrush}" />
+                                    <TextBlock Text="• Let the signature fill about half the photo; no need to crop" Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource PaperTextBrush}" />
+                                    <TextBlock Text="• Send the photo to this PC at original quality. The paper is removed and trimmed for you." Margin="0,6,0,0" TextWrapping="Wrap" Foreground="{DynamicResource PaperTextBrush}" />
                                 </StackPanel>
                             </ScrollViewer>
                         </Grid>

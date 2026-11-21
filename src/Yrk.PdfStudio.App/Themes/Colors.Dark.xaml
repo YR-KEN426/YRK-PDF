@@ -2,12 +2,11 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <!-- UI surfaces and foregrounds. PDF paper and document ink stay independent of this palette. -->
-    <!-- Preserve the existing blue accent, also used for prompts over white PDF fields. -->
-    <SolidColorBrush x:Key="AccentBrush" Color="#0F6CBD" />
-    <!-- Accent used as text/icon on UI surfaces (the fill AccentBrush keeps white text on it). Step 2 moves accent-as-text usages here. -->
-    <SolidColorBrush x:Key="AccentTextBrush" Color="#4DA3F0" />
-    <SolidColorBrush x:Key="AccentHoverBrush" Color="#115EA3" />
-    <SolidColorBrush x:Key="AccentPressedBrush" Color="#0F548C" />
+    <SolidColorBrush x:Key="AccentBrush" Color="#C62828" />
+    <!-- Accent used as text/icon on UI surfaces (the fill AccentBrush keeps white text on it). -->
+    <SolidColorBrush x:Key="AccentTextBrush" Color="#FFADAD" />
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#AD2222" />
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="#961D1D" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="#181818" />
     <SolidColorBrush x:Key="ToolbarBrush" Color="#202020" />
     <SolidColorBrush x:Key="SidebarBrush" Color="#202020" />
@@ -15,10 +14,10 @@
     <SolidColorBrush x:Key="DividerBrush" Color="#484848" />
     <SolidColorBrush x:Key="TextBrush" Color="#F2F2F2" />
     <SolidColorBrush x:Key="SecondaryTextBrush" Color="#C5C5C5" />
-    <SolidColorBrush x:Key="ErrorBrush" Color="#FF9D93" />
+    <SolidColorBrush x:Key="ErrorBrush" Color="#FFD180" />
     <SolidColorBrush x:Key="HoverBrush" Color="#303030" />
     <SolidColorBrush x:Key="PressedBrush" Color="#383838" />
-    <SolidColorBrush x:Key="CheckedBrush" Color="#293F54" />
+    <SolidColorBrush x:Key="CheckedBrush" Color="#482626" />
     <SolidColorBrush x:Key="BorderSubtleBrush" Color="#484848" />
     <SolidColorBrush x:Key="BorderStrongBrush" Color="#747474" />
     <SolidColorBrush x:Key="BrandBrush" Color="#C62828" />

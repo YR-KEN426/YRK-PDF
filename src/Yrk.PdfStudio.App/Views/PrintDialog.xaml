@@ -11,6 +11,7 @@
         MinHeight="560"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
@@ -22,11 +23,11 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Margin" Value="0,14,0,6" />
         </Style>
-        <Style TargetType="RadioButton">
+        <Style TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
             <Setter Property="Margin" Value="0,3" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
-        <Style TargetType="CheckBox">
+        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
             <Setter Property="Margin" Value="0,3" />
         </Style>
     </Window.Resources>
@@ -141,7 +142,7 @@
             </DockPanel>
             <Border Background="{DynamicResource PreviewCanvasBrush}" Padding="16">
                 <Viewbox Stretch="Uniform">
-                    <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="0.5">
+                    <Border Background="{DynamicResource PaperBrush}" BorderBrush="{DynamicResource BorderStrongBrush}" BorderThickness="0.5">
                         <Border.Effect>
                             <DropShadowEffect BlurRadius="10" ShadowDepth="1" Opacity="0.25" />
                         </Border.Effect>

@@ -3,12 +3,13 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Error" Width="560" SizeToContent="Height" ResizeMode="NoResize"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display" AutomationProperties.Name="Error">
     <StackPanel Margin="20">
         <DockPanel>
             <TextBlock Style="{StaticResource IconText}" Text="&#xEA39;" FontSize="24"
-                       Foreground="{DynamicResource AccentBrush}" Margin="0,0,12,0" VerticalAlignment="Top" />
+                       Foreground="{DynamicResource ErrorBrush}" Margin="0,0,12,0" VerticalAlignment="Top" />
             <TextBlock x:Name="MessageText" FontSize="17" FontWeight="SemiBold" TextWrapping="Wrap"
                        AutomationProperties.Name="Error message" />
         </DockPanel>

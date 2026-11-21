@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Scan to PDF" Width="1160" Height="780" MinWidth="980" MinHeight="640"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False" PreviewKeyDown="OnKeyDown"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}">
     <Window.Resources>
         <Style x:Key="PresetChip" TargetType="RadioButton" BasedOn="{StaticResource ToolbarButton}">
@@ -80,17 +81,17 @@
                 <Grid.ColumnDefinitions><ColumnDefinition Width="170"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="250"/></Grid.ColumnDefinitions>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <StackPanel>
-                        <Button Content="Clear scan area" Click="OnClearArea" Padding="8,4" Margin="6,0,6,6" HorizontalAlignment="Stretch"/>
+                        <Button Content="Clear scan area" Style="{StaticResource SecondaryButton}" Click="OnClearArea" Padding="8,4" Margin="6,0,6,6" HorizontalAlignment="Stretch"/>
                         <ListBox x:Name="PageList" HorizontalContentAlignment="Stretch" SelectionMode="Extended" SelectionChanged="OnSelectionChanged"
                                  ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  AllowDrop="True" PreviewMouseLeftButtonDown="OnDragStart" PreviewMouseMove="OnDragMove" Drop="OnDrop">
-                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem">
+                            <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                 <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
                             </Style></ListBox.ItemContainerStyle>
                             <ListBox.ItemTemplate><DataTemplate>
                                 <StackPanel Margin="6">
                                     <Border Width="120" Height="145">
-                                        <Border BorderBrush="{DynamicResource ScanPreviewBorderBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Border BorderBrush="{DynamicResource ScanPreviewBorderBrush}" BorderThickness="1" Background="{DynamicResource PaperBrush}" HorizontalAlignment="Center" VerticalAlignment="Center">
                                             <Image Source="{Binding Thumbnail}" MaxWidth="118" MaxHeight="143" Stretch="Uniform"/>
                                         </Border>
                                     </Border>
@@ -131,7 +132,7 @@
                             <ScrollBar x:Name="VerticalPan" Grid.Column="1" Orientation="Vertical" Visibility="Collapsed" ValueChanged="OnScrollPan" SmallChange="48"/>
                             <Canvas x:Name="PreviewScroll" Background="Transparent" ClipToBounds="True" SizeChanged="OnPreviewSizeChanged"
                                     MouseWheel="OnPreviewWheel" MouseDown="OnCropDown" MouseMove="OnCropMove" MouseUp="OnCropUp" LostMouseCapture="OnPreviewCaptureLost">
-                                    <Canvas x:Name="PageCanvas" IsHitTestVisible="False">
+                                    <Canvas x:Name="PageCanvas" Background="{DynamicResource PaperBrush}" IsHitTestVisible="False">
                                         <Image x:Name="PageImage" RenderOptions.BitmapScalingMode="HighQuality"/>
                                         <Image x:Name="RegionImage" RenderOptions.BitmapScalingMode="HighQuality"/>
                                     </Canvas>
@@ -165,7 +166,7 @@
                                 <ComboBox x:Name="CropAspectChoice" Width="120" SelectedIndex="0" SelectionChanged="OnCropAspectChanged" AutomationProperties.Name="Aspect ratio">
                                     <ComboBoxItem Content="Free"/><ComboBoxItem Content="Paper size"/><ComboBoxItem Content="Original"/>
                                 </ComboBox>
-                                <Button x:Name="CropApplyButton" Content="Apply" Click="OnCropApply" IsEnabled="False" Margin="8,0,0,0" Padding="10,4"/>
+                                <Button x:Name="CropApplyButton" Style="{StaticResource PrimaryButton}" Content="Apply" Click="OnCropApply" IsEnabled="False" Margin="8,0,0,0" Padding="10,4"/>
                                 <Button x:Name="CropResetButton" Content="Reset" Click="OnCropReset" IsEnabled="False" Margin="8,0,0,0" Padding="10,4"/>
                                 <Button Content="Cancel" Click="OnCropCancel" Margin="8,0,0,0" Padding="10,4"/>
                             </WrapPanel>

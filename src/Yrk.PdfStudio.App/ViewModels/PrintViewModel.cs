@@ -553,7 +553,7 @@ public sealed partial class PrintViewModel : ObservableObject
             var visual = new System.Windows.Media.DrawingVisual();
             using (var context = visual.RenderOpen())
             {
-                context.DrawRectangle((System.Windows.Media.Brush)System.Windows.Application.Current.FindResource("SurfaceBrush"), null, new System.Windows.Rect(0, 0, width * unit, height * unit));
+                context.DrawRectangle((System.Windows.Media.Brush)System.Windows.Application.Current.FindResource("PaperBrush"), null, new System.Windows.Rect(0, 0, width * unit, height * unit));
                 foreach (var (image, placement) in pages)
                 {
                     PdfPrinting.DrawPage(context, image, placement, unit);

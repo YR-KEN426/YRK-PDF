@@ -7,6 +7,7 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
@@ -14,13 +15,15 @@
         <DockPanel>
             <Image Source="/Assets/app.ico" Width="56" Height="56" DockPanel.Dock="Left" Margin="0,0,14,0" VerticalAlignment="Top" />
             <!-- The developer's logo, introducing the maker: the flask with a Y, "YRK LAB" and the slogan -->
-            <Image Source="/Assets/yrk-lab-slogan.png" Height="104" DockPanel.Dock="Right" Margin="14,0,0,0" VerticalAlignment="Top"
+            <Border DockPanel.Dock="Right" Margin="14,0,0,0" VerticalAlignment="Top" Background="{DynamicResource PaperBrush}" Padding="6" CornerRadius="4">
+            <Image Source="/Assets/yrk-lab-slogan.png" Height="104"
                    RenderOptions.BitmapScalingMode="HighQuality" AutomationProperties.Name="YRK LAB" />
+            </Border>
             <StackPanel>
                 <TextBlock Text="YRK PDF" FontSize="20" FontWeight="SemiBold" />
                 <TextBlock x:Name="VersionText" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,2,0,0" />
                 <TextBlock Margin="0,2,0,0">
-                    <Run Text="by" Foreground="{DynamicResource SecondaryTextBrush}" /> <Run Text="YRK LAB" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}" /> <Run Text="·" Foreground="{DynamicResource SecondaryTextBrush}" /> <Run Text="Your Reliable Kit" FontStyle="Italic" Foreground="{DynamicResource SecondaryTextBrush}" />
+                    <Run Text="by" Foreground="{DynamicResource SecondaryTextBrush}" /> <Run Text="YRK LAB" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}" /> <Run Text="·" Foreground="{DynamicResource SecondaryTextBrush}" /> <Run Text="Your Reliable Kit" FontStyle="Italic" Foreground="{DynamicResource SecondaryTextBrush}" />
                 </TextBlock>
                 <TextBlock Text="© 2026 YRK LAB. All rights reserved." Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,2,0,0" />
                 <WrapPanel Margin="0,2,0,0">

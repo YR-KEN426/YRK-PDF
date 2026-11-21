@@ -7,11 +7,12 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
-        <Style TargetType="CheckBox">
+        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
             <Setter Property="Margin" Value="0,3" />
         </Style>
         <Style TargetType="PasswordBox" BasedOn="{StaticResource RevealPasswordStyle}">
@@ -20,7 +21,7 @@
     </Window.Resources>
     <StackPanel Margin="20">
         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-            <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" FontSize="20" Foreground="{DynamicResource AccentBrush}" />
+            <TextBlock Style="{StaticResource IconText}" Text="&#xE72E;" FontSize="20" Foreground="{DynamicResource AccentTextBrush}" />
             <TextBlock Text="Protect with password" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12"

@@ -8,6 +8,7 @@
         Width="1200"
         Height="800"
         WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
@@ -86,7 +87,7 @@
         <Grid Background="{DynamicResource PreviewBackgroundBrush}">
             <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                           PreviewMouseWheel="OnPreviewMouseWheel" AutomationProperties.AutomationId="CompareScroller">
-                <Grid x:Name="Sheet" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12">
+                <Grid Background="{DynamicResource PaperBrush}" x:Name="Sheet" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="12">
                     <Grid.LayoutTransform>
                         <ScaleTransform x:Name="SheetScale" ScaleX="1" ScaleY="1" />
                     </Grid.LayoutTransform>

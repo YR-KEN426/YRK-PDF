@@ -32,7 +32,7 @@ public sealed class ThemePaletteTests
             Assert.Equal(keys["Light"].Order(StringComparer.Ordinal), keys[palette].Order(StringComparer.Ordinal));
             Assert.Empty(keys["Fixed"].Intersect(keys[palette], StringComparer.Ordinal));
         }
-        Assert.Equal(106, keys["Fixed"].Length + keys["Light"].Length);
+        Assert.Equal(107, keys["Fixed"].Length + keys["Light"].Length);
         foreach (var required in new[] { "FocusBrush", "PaperBrush", "PageBackgroundBrush", "SignatureValidBrush",
                      "SignatureWarningBrush", "SignatureInvalidBrush", "OrganizeBrush", "OrganizeSoftBrush",
                      "ConvertBrush", "ConvertSoftBrush", "EditBrush", "EditSoftBrush", "AccountingBrush",
@@ -40,12 +40,23 @@ public sealed class ThemePaletteTests
             Assert.Contains(required, keys["Fixed"]);
     }
 
+    private static readonly Dictionary<string, string> HighContrastButtonColors = new()
+    {
+        ["AccentBrush"] = "#C62828", ["AccentHoverBrush"] = "#AD2222", ["AccentPressedBrush"] = "#961D1D",
+        ["BrandBrush"] = "#C62828", ["BrandHoverBrush"] = "#AD2222", ["BrandPressedBrush"] = "#961D1D",
+        ["OnAccentTextBrush"] = "#FFFFFF"
+    };
+
     [Fact]
-    public void Every_high_contrast_entry_uses_system_colors()
+    public void High_contrast_uses_system_colors_and_exact_red_button_roles()
     {
         foreach (var entry in Entries("HighContrast"))
         {
-            if (entry.Name.LocalName == "Static")
+            if (HighContrastButtonColors.TryGetValue(Key(entry), out var expected))
+            {
+                Assert.Equal(expected, (string?)entry.Attribute("Color"));
+            }
+            else if (entry.Name.LocalName == "Static")
             {
                 // WPF Color values cannot hold expressions; use the system value for these five keys.
                 Assert.StartsWith("SystemColors.", (string?)entry.Attribute("Member"));
@@ -89,7 +100,7 @@ public sealed class ThemePaletteTests
                     if (light[key] is Color) Assert.IsType<Color>(resources[key]);
                     else Assert.IsAssignableFrom<Brush>(resources[key]);
                 if (palette == "HighContrast")
-                    foreach (var entry in Entries(palette).Where(e => e.Name.LocalName == "SolidColorBrush"))
+                    foreach (var entry in Entries(palette).Where(e => e.Name.LocalName == "SolidColorBrush" && !HighContrastButtonColors.ContainsKey(Key(e))))
                     {
                         var brush = Assert.IsType<SolidColorBrush>(resources[Key(entry)]);
                         var expression = (string)entry.Attribute("Color")!;
@@ -99,6 +110,10 @@ public sealed class ThemePaletteTests
                         Assert.True(DependencyPropertyHelper.GetValueSource(brush, SolidColorBrush.ColorProperty).IsExpression);
                     }
             }
+            var highContrast = ThemeTestResources.Create("HighContrast");
+            foreach (var (key, value) in HighContrastButtonColors)
+                Assert.Equal((Color)ColorConverter.ConvertFromString(value),
+                    Assert.IsType<SolidColorBrush>(highContrast[key]).Color);
             Assert.Empty(app.Errors);
             return true;
         });
@@ -107,6 +122,11 @@ public sealed class ThemePaletteTests
     // Explicit UI roles, including hover/pressed states and the real host of translucent overlays.
     // DocumentInk is a fixture for the PDF text editor's bound document foreground, not UI TextBrush.
     private sealed record Pair(string Foreground, string Background, string? Underlay = null);
+    private static readonly string[] AccentTextBackgrounds =
+    [
+        "SurfaceBrush", "ToolbarBrush", "SidebarBrush", "HoverBrush", "PressedBrush", "CheckedBrush",
+        "HomeBackgroundBrush", "HomeFillBrush", "InformationBackgroundBrush", "InformationSubtleBrush"
+    ];
     private static readonly Pair[] TextPairs =
     [
         ..new[] { "SurfaceBrush", "ToolbarBrush", "SidebarBrush", "ViewerBrush", "HoverBrush", "PressedBrush",
@@ -121,8 +141,12 @@ public sealed class ThemePaletteTests
         ..new[] { "AccentBrush", "AccentHoverBrush", "AccentPressedBrush", "BrandBrush", "BrandHoverBrush",
             "BrandPressedBrush", "MeasureAccentBrush", "MeasureTextBrush" }
             .Select(background => new Pair("OnAccentTextBrush", background)),
-        new("AccentTextBrush", "SurfaceBrush"), new("BrandBrush", "BrandSoftBrush"),
-        new("PdfBadgeTextBrush", "BrandSoftBrush"), new("ErrorBrush", "SurfaceBrush"),
+        ..AccentTextBackgrounds.Select(background => new Pair("AccentTextBrush", background)),
+        new("BrandBrush", "BrandSoftBrush"),
+        new("PaperTextBrush", "PaperBrush"),
+        new("PdfBadgeTextBrush", "BrandSoftBrush"),
+        ..new[] { "SurfaceBrush", "HoverBrush", "PressedBrush", "CheckedBrush" }
+            .Select(background => new Pair("ErrorBrush", background)),
         new("SuccessBrush", "SurfaceBrush"), new("FormSuccessTextBrush", "FormSuccessBackgroundBrush"),
         new("TextBrush", "ToolTipBackgroundBrush"), new("ToolTipMutedTextBrush", "ToolTipBackgroundBrush"),
         new("ScanNoticeTextBrush", "ScanNoticeBrush"), new("ScanWarningTextBrush", "SurfaceBrush"),
@@ -164,6 +188,61 @@ public sealed class ThemePaletteTests
                 failures.Add($"{palette}: {pair.Foreground}/{pair.Background} on {pair.Underlay ?? "opaque surface"}: {ratio:F4}:1");
         }
         Assert.True(failures.Count == 0, string.Join(Environment.NewLine, failures));
+    }
+
+    [Theory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    public void Red_accent_and_amber_error_roles_are_distinct_and_focus_remains_blue(string palette)
+    {
+        var entries = Entries(palette).ToDictionary(Key);
+        Color Brush(string key) => (Color)ColorConverter.ConvertFromString((string)entries[key].Attribute("Color")!);
+        Assert.Equal(Color.FromRgb(0xC6, 0x28, 0x28), Brush("AccentBrush"));
+        var error = Brush("ErrorBrush");
+        Assert.True(error.R > error.G && error.G >= error.B + 40);
+        Assert.NotEqual(Brush("AccentBrush"), error);
+        var focus = Entries("Fixed").Single(e => Key(e) == "FocusBrush");
+        Assert.Equal("#1565C0", (string)focus.Attribute("Color")!);
+    }
+
+    [Fact]
+    public void High_contrast_accent_text_is_readable_on_its_actual_UI_surfaces()
+    {
+        Sta.Run(() =>
+        {
+            using var app = new WpfTestApp("en");
+            var resources = ThemeTestResources.Create("HighContrast");
+            var foreground = ((SolidColorBrush)resources["AccentTextBrush"]).Color;
+            foreach (var key in AccentTextBackgrounds)
+            {
+                var background = ((SolidColorBrush)resources[key]).Color;
+                Assert.True(Contrast(Rgb(foreground), Rgb(background)) >= 4.5, key);
+            }
+            foreach (var key in new[] { "AccentBrush", "AccentHoverBrush", "AccentPressedBrush" })
+                Assert.True(Contrast(Rgb(((SolidColorBrush)resources["OnAccentTextBrush"]).Color),
+                    Rgb(((SolidColorBrush)resources[key]).Color)) >= 4.5);
+            Assert.NotEqual(((SolidColorBrush)resources["AccentBrush"]).Color,
+                ((SolidColorBrush)resources["ErrorBrush"]).Color);
+            return true;
+        });
+    }
+
+    [Theory]
+    [InlineData("Light")]
+    [InlineData("Dark")]
+    [InlineData("HighContrast")]
+    public void Paper_stays_white_and_black_and_blue_signature_ink_remain_readable(string palette)
+    {
+        Sta.Run(() =>
+        {
+            using var app = new WpfTestApp("en");
+            var resources = ThemeTestResources.Create(palette);
+            var paper = ((SolidColorBrush)resources["PaperBrush"]).Color;
+            Assert.Equal(Colors.White, paper);
+            foreach (var ink in new[] { Colors.Black, Color.FromRgb(0x1D, 0x3F, 0x9A) })
+                Assert.True(Contrast(Rgb(ink), Rgb(paper)) >= 4.5);
+            return true;
+        });
     }
 
     private static (double R, double G, double B) Rgb(Color color) => (color.R / 255d, color.G / 255d, color.B / 255d);

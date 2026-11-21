@@ -119,8 +119,8 @@
                     </Button.Template>
                     <Grid>
                         <!-- Hides the picture saved in the file (still on the page image) once it is removed or replaced. -->
-                        <Border Background="{DynamicResource SurfaceBrush}" Visibility="{Binding CoversSavedPicture, Converter={StaticResource BoolToVisibility}}" />
-                        <Border Background="{DynamicResource SurfaceBrush}" Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibility}}">
+                        <Border Background="{DynamicResource PaperBrush}" Visibility="{Binding CoversSavedPicture, Converter={StaticResource BoolToVisibility}}" />
+                        <Border Background="{DynamicResource PaperBrush}" Visibility="{Binding HasImage, Converter={StaticResource BoolToVisibility}}">
                             <Image Source="{Binding ImagePreview}" Stretch="Uniform" Margin="2" />
                         </Border>
                         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -457,7 +457,7 @@
                             Visibility="{Binding ShowsDocument, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Reading marks (Ctrl+D)" AutomationProperties.Name="Reading marks">
                         <StackPanel Orientation="Horizontal">
-                            <Path Data="M 0,0 L 12,0 L 12,18 L 6,13 L 0,18 Z" Fill="{DynamicResource AccentBrush}" Width="12" Height="18" />
+                            <Path Data="M 0,0 L 12,0 L 12,18 L 6,13 L 0,18 Z" Fill="{DynamicResource AccentTextBrush}" Width="12" Height="18" />
                             <TextBlock Text="Reading marks" Margin="6,0,2,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
@@ -1078,7 +1078,7 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type vm:PageViewModel}">
                                     <StackPanel Margin="0,6">
-                                        <Border Width="{Binding ThumbnailWidth}" Height="{Binding ThumbnailHeight}" Background="{DynamicResource SurfaceBrush}"
+                                        <Border Width="{Binding ThumbnailWidth}" Height="{Binding ThumbnailHeight}" Background="{DynamicResource PaperBrush}"
                                                 BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1">
                                             <Grid>
                                                 <Image Source="{Binding Thumbnail}" Stretch="Fill"
@@ -1397,7 +1397,7 @@
                     <Button DockPanel.Dock="Right" Content="Cancel" Style="{StaticResource SecondaryButton}" Padding="10,3"
                             Visibility="{Binding IsUpdateDownloading, Converter={StaticResource BoolToVisibility}}"
                             Command="{Binding CancelUpdateCommand}" AutomationProperties.Name="Cancel" />
-                    <TextBlock Style="{StaticResource IconText}" Text="&#xE896;" Foreground="{DynamicResource AccentBrush}" Margin="0,0,8,0" />
+                    <TextBlock Style="{StaticResource IconText}" Text="&#xE896;" Foreground="{DynamicResource AccentTextBrush}" Margin="0,0,8,0" />
                     <StackPanel VerticalAlignment="Center" Margin="0,0,8,0">
                         <TextBlock Text="{Binding UpdateBannerText}" />
                         <ProgressBar Height="3" Margin="0,4,0,0" Minimum="0" Maximum="100" Value="{Binding UpdateDownloadPercent, Mode=OneWay}"
@@ -1454,7 +1454,7 @@
                 <ItemsControl x:Name="PageItems" ItemsSource="{Binding Pages}" Padding="12,12,12,0" HorizontalAlignment="Center" Focusable="False">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:PageViewModel}">
-                            <Grid Width="{Binding DisplayWidth}" Height="{Binding DisplayHeight}" Margin="0,0,0,12" Background="{DynamicResource SurfaceBrush}"
+                            <Grid Width="{Binding DisplayWidth}" Height="{Binding DisplayHeight}" Margin="0,0,0,12" Background="{DynamicResource PaperBrush}"
                                   MouseLeftButtonDown="OnPageMouseLeftButtonDown"
                                   MouseMove="OnPageMouseMove"
                                   MouseLeftButtonUp="OnPageMouseLeftButtonUp"
@@ -1543,8 +1543,8 @@
                                                             <vm:TextEditPositionConverter x:Key="TextEditPosition" />
                                                         </Grid.Resources>
                                                         <!-- Covers the old line until the change is written into the page (Enter, a click outside, or Save). -->
-                                                        <Border Background="{DynamicResource SurfaceBrush}" Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Left" VerticalAlignment="Top" />
-                                                        <TextBlock Text="{Binding Text}" TextAlignment="{Binding Alignment}" Background="{DynamicResource SurfaceBrush}" VerticalAlignment="Center" MinWidth="{Binding Width}"
+                                                        <Border Background="{DynamicResource PaperBrush}" Width="{Binding Width}" Height="{Binding Height}" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                                                        <TextBlock Text="{Binding Text}" TextAlignment="{Binding Alignment}" Background="{DynamicResource PaperBrush}" VerticalAlignment="Center" MinWidth="{Binding Width}"
                                                                    FontFamily="{Binding FontFamily}" FontSize="{Binding FontSize}" FontWeight="{Binding FontWeight}"
                                                                    FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}">
                                                             <TextBlock.RenderTransform>
@@ -1569,7 +1569,7 @@
                                                                 </Style>
                                                             </TextBlock.Style>
                                                         </TextBlock>
-                                                        <TextBox Text="{Binding Text, Mode=OneWay}" TextAlignment="{Binding Alignment}" Background="{DynamicResource SurfaceBrush}" Padding="0" Margin="0" MinWidth="{Binding Width}"
+                                                        <TextBox Text="{Binding Text, Mode=OneWay}" TextAlignment="{Binding Alignment}" Background="{DynamicResource PaperBrush}" Padding="0" Margin="0" MinWidth="{Binding Width}"
                                                                  BorderThickness="0.5" BorderBrush="{DynamicResource AccentBrush}" VerticalContentAlignment="Center"
                                                                  FontFamily="{Binding FontFamily}" FontSize="{Binding FontSize}" FontWeight="{Binding FontWeight}"
                                                                  FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}" AutomationProperties.Name="Line text"

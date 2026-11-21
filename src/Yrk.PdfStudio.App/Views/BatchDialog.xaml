@@ -8,17 +8,18 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
         AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
-        <Style TargetType="RadioButton">
+        <Style TargetType="RadioButton" BasedOn="{StaticResource {x:Type RadioButton}}">
             <Setter Property="Margin" Value="0,3" />
         </Style>
     </Window.Resources>
     <StackPanel Margin="20">
         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-            <TextBlock Style="{StaticResource IconText}" Text="&#xE8B7;" FontSize="20" Foreground="{DynamicResource AccentBrush}" />
+            <TextBlock Style="{StaticResource IconText}" Text="&#xE8B7;" FontSize="20" Foreground="{DynamicResource AccentTextBrush}" />
             <TextBlock Text="Process many files" FontSize="15" FontWeight="SemiBold" Margin="10,0,0,0" VerticalAlignment="Center" />
         </StackPanel>
         <TextBlock TextWrapping="Wrap" Foreground="{DynamicResource SecondaryTextBrush}" Margin="0,0,0,12"
@@ -35,7 +36,7 @@
             <ListBox x:Name="FileList" Height="200" SelectionMode="Extended" SelectionChanged="OnSelectionChanged"
                      AutomationProperties.Name="Files" ToolTip="Drop PDF files or folders here">
                 <ListBox.ItemContainerStyle>
-                    <Style TargetType="ListBoxItem">
+                    <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                         <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
                         <Setter Property="ToolTip" Value="{Binding Path}" />
                     </Style>

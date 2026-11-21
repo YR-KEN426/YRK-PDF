@@ -1,11 +1,12 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <!-- System foreground/background pairs follow the active Windows contrast scheme. -->
-    <SolidColorBrush x:Key="AccentBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
-    <SolidColorBrush x:Key="AccentTextBrush" Color="{DynamicResource {x:Static SystemColors.HotTrackColorKey}}" />
-    <SolidColorBrush x:Key="AccentHoverBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
-    <SolidColorBrush x:Key="AccentPressedBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <!-- UI foreground/background pairs follow Windows contrast colors. Branded button fills
+         retain the requested red accent and its fixed white foreground in every theme. -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#C62828" />
+    <SolidColorBrush x:Key="AccentTextBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#AD2222" />
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="#961D1D" />
     <SolidColorBrush x:Key="SurfaceBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="ToolbarBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="SidebarBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
@@ -19,14 +20,14 @@
     <SolidColorBrush x:Key="CheckedBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="BorderSubtleBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="BorderStrongBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
-    <SolidColorBrush x:Key="BrandBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="BrandBrush" Color="#C62828" />
     <SolidColorBrush x:Key="BrandSoftBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="WarningBannerBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="WarningBorderBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="SuccessBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="ToolTipBackgroundBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="ToolTipMutedTextBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
-    <SolidColorBrush x:Key="OnAccentTextBrush" Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />
+    <SolidColorBrush x:Key="OnAccentTextBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="FormSuccessTextBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="MeasureTextBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
     <SolidColorBrush x:Key="FormSuccessBackgroundBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
@@ -57,8 +58,8 @@
     <SolidColorBrush x:Key="HomeFillBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="HomeTextBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="HomeMutedTextBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
-    <SolidColorBrush x:Key="BrandHoverBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
-    <SolidColorBrush x:Key="BrandPressedBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="BrandHoverBrush" Color="#AD2222" />
+    <SolidColorBrush x:Key="BrandPressedBrush" Color="#961D1D" />
     <SolidColorBrush x:Key="BrandFaintBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />
     <SolidColorBrush x:Key="PdfBadgeTextBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <!-- Color is a value type and cannot host DynamicResource expressions. These values are read

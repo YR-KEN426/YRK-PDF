@@ -28,13 +28,15 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
                 ((System.Windows.Media.SolidColorBrush)resources["AccentBrush"]).Color);
             Assert.Equal(System.Windows.Media.Color.FromRgb(0xC6, 0x28, 0x28),
                 ((System.Windows.Media.SolidColorBrush)resources["BrandBrush"]).Color);
-            // Signature status colours are fixed; they alias UI status colours only in Light.
+            // Document signature status retains its ink; UI errors use a distinct amber role.
             var aliases = theme == "light"
-                ? new[] { ("DividerBrush", "BorderSubtleBrush"), ("ErrorBrush", "SignatureInvalidBrush"), ("SuccessBrush", "SignatureValidBrush") }
+                ? new[] { ("DividerBrush", "BorderSubtleBrush"), ("SuccessBrush", "SignatureValidBrush") }
                 : new[] { ("DividerBrush", "BorderSubtleBrush") };
             foreach (var (original, alias) in aliases)
                 Assert.Equal(((System.Windows.Media.SolidColorBrush)resources[original]).Color,
                     ((System.Windows.Media.SolidColorBrush)resources[alias]).Color);
+            Assert.NotEqual(((System.Windows.Media.SolidColorBrush)resources["AccentBrush"]).Color,
+                ((System.Windows.Media.SolidColorBrush)resources["ErrorBrush"]).Color);
             Assert.Empty(app.Errors);
             return true;
         });
@@ -121,6 +123,7 @@ public sealed class AllWindowsLoadTests(ITestOutputHelper output)
                 window.Left = -32000; window.Top = -32000;
                 window.Show();
                 WpfTestApp.Layout(window);
+                Assert.Same(Application.Current.Resources["TextBrush"], window.Foreground);
                 output.WriteLine($"Opened {WpfTestApp.ExercisePopups(window, AssertTemplateParts)} ComboBox/DatePicker popups.");
             }
             finally { window.Close(); WpfTestApp.Pump(); }

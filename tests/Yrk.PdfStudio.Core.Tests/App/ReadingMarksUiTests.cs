@@ -92,7 +92,7 @@ public sealed class ReadingMarksUiTests
 
                 var pages = (ItemsControl)window.FindName("PageItems");
                 var page = Descendants<Grid>(pages).First(g => ReferenceEquals(g.DataContext, app.Model.Pages[2])
-                    && ReferenceEquals(g.Background, Application.Current.Resources["SurfaceBrush"]));
+                    && ReferenceEquals(g.Background, Application.Current.Resources["PaperBrush"]));
                 page.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Right)
                     { RoutedEvent = UIElement.MouseRightButtonUpEvent });
                 var pageMenu = PresentationSource.CurrentSources.Cast<PresentationSource>()

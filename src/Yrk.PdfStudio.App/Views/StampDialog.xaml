@@ -7,13 +7,14 @@
         ResizeMode="CanResizeWithGrip" MinWidth="760" MinHeight="320"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}"
         FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <Window.Resources>
         <!-- A stamp in the lists: its picture on white, like on paper. -->
         <DataTemplate x:Key="StampTile">
-            <Border Background="{DynamicResource SurfaceBrush}" Width="150" Height="58" Padding="6" ToolTip="{Binding Design.Text}">
+            <Border Background="{DynamicResource PaperBrush}" Width="150" Height="58" Padding="6" ToolTip="{Binding Design.Text}">
                 <Border.Style>
                     <Style TargetType="Border">
                         <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
@@ -28,7 +29,7 @@
                 <Image Source="{Binding Image}" Stretch="Uniform" />
             </Border>
         </DataTemplate>
-        <Style x:Key="StampList" TargetType="ListBox">
+        <Style x:Key="StampList" TargetType="ListBox" BasedOn="{StaticResource {x:Type ListBox}}">
             <Setter Property="ItemTemplate" Value="{StaticResource StampTile}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Background" Value="Transparent" />
@@ -123,7 +124,7 @@
                         <DatePicker x:Name="DateInput" Margin="0,8,0,0" SelectedDateChanged="OnDesignChanged" ToolTip="The date on the stamp" />
 
                         <TextBlock Text="Preview" Style="{StaticResource Label}" />
-                        <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource SurfaceBrush}" Height="96">
+                        <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" Background="{DynamicResource PaperBrush}" Height="96">
                             <Image x:Name="Preview" Stretch="Uniform" Margin="10" />
                         </Border>
 

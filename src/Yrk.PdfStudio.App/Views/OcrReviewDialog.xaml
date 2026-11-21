@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Review uncertain words" Width="1100" Height="800" MinWidth="900" MinHeight="560"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
         PreviewKeyDown="OnKeyDown" TextOptions.TextFormattingMode="Display">
     <DockPanel Margin="16">

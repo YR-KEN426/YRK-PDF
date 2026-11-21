@@ -5,6 +5,7 @@
         Title="Convert scanned documents" Width="680" Height="780" MinWidth="580" MinHeight="500"
         ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
         AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop"
+        Foreground="{DynamicResource TextBrush}"
         Background="{DynamicResource SurfaceBrush}" FontFamily="{StaticResource UiFont}"
         TextOptions.TextFormattingMode="Display">
     <DockPanel Margin="20">
@@ -39,7 +40,7 @@
                     <ListBox x:Name="FileList" SelectionMode="Extended" SelectionChanged="OnSelectionChanged" PreviewKeyDown="OnFileKeyDown"
                              AutomationProperties.Name="Files" ToolTip="Drop PDF files, images or folders here">
                         <ListBox.ItemContainerStyle>
-                            <Style TargetType="ListBoxItem">
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                                 <Setter Property="AutomationProperties.Name" Value="{Binding Name}" />
                                 <Setter Property="ToolTip" Value="{Binding Path}" />
                             </Style>

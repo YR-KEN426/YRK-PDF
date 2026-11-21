@@ -23,6 +23,7 @@
     <SolidColorBrush x:Key="SecurityBrush" Color="#475569" />
     <SolidColorBrush x:Key="SecuritySoftBrush" Color="#EEF1F5" />
     <SolidColorBrush x:Key="PaperBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="PaperTextBrush" Color="#1F1F1F" />
     <SolidColorBrush x:Key="SnapMarkerBrush" Color="#00A86B" />
     <SolidColorBrush x:Key="FieldPreviewStrokeBrush" Color="#1C64A8" />
     <SolidColorBrush x:Key="FieldHoverBrush" Color="#201C64A8" />

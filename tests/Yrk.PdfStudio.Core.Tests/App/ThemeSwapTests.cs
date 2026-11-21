@@ -248,6 +248,38 @@ public sealed class ThemeSwapTests
         });
     }
 
+    [Theory]
+    [InlineData("light")]
+    [InlineData("dark")]
+    public void Signature_canvases_keep_paper_and_document_ink_across_palette_swaps(string theme)
+    {
+        Sta.Run(() =>
+        {
+            using var app = new WpfTestApp("en", theme);
+            using var fixture = new WindowFixture();
+            var window = WindowCatalog.Cases.Single(c => c.Name == "SignatureDialog").Create!(fixture);
+            try
+            {
+                Show(window);
+                var ink = (InkCanvas)window.FindName("Ink");
+                var imported = (Image)window.FindName("ImportedPreview");
+                var canvasBorder = (Border)((Grid)ink.Parent).Parent;
+                var importBorder = (Border)((Grid)imported.Parent).Parent;
+                foreach (var palette in new[] { "Dark", "Light", "HighContrast" })
+                {
+                    Application.Current.Resources.MergedDictionaries[1] = ThemeTestResources.Load(palette);
+                    WpfTestApp.Layout(window);
+                    Assert.Equal(Colors.White, ColorOf(canvasBorder.Background));
+                    Assert.Equal(Colors.White, ColorOf(importBorder.Background));
+                    Assert.Equal(Colors.Black, ink.DefaultDrawingAttributes.Color);
+                }
+            }
+            finally { window.Close(); WpfTestApp.Pump(); }
+            Assert.Empty(app.Errors);
+            return true;
+        });
+    }
+
     private static Color ColorOf(Brush brush) => Assert.IsType<SolidColorBrush>(brush).Color;
     private static void Show(Window window)
     {
